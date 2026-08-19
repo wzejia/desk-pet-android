@@ -1,0 +1,12 @@
+## Case B 反例（屏中松手不吸）2026-08-19
+    mAttrs={(574,617)(252x273) gr=TOP START CENTER sim={adjust=pan} ty=APPLICATION_OVERLAY fmt=TRANSLUCENT
+      fl=NOT_FOCUSABLE NOT_TOUCH_MODAL LAYOUT_NO_LIMITS HARDWARE_ACCELERATED
+--
+    mAttrs={(359,334)(682x273) gr=TOP START CENTER sim={adjust=pan} ty=APPLICATION_OVERLAY fmt=TRANSLUCENT alpha=0.8
+      fl=NOT_FOCUSABLE NOT_TOUCHABLE NOT_TOUCH_MODAL LAYOUT_NO_LIMITS HARDWARE_ACCELERATED
+--
+    mAttrs={(0,0)(fillxfill) sim={adjust=pan} layoutInDisplayCutoutMode=always ty=APPLICATION_OVERLAY fmt=TRANSLUCENT
+      fl=NOT_FOCUSABLE HARDWARE_ACCELERATED
+--logcat--
+08-19 10:55:33.397  4587  4587 D PetOverlay: drag start from (432,617)
+08-19 10:55:33.717  4587  4587 D PetOverlay: drag end at (574,617), position persisted

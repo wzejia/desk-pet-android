@@ -1,0 +1,12 @@
+## Case D 贴边态菜单 2026-08-19
+-- 菜单项 bounds（uiautomator dump 摘要，全项左缘=0 钳回屏内）--
+打开 App [0,1018][483,1133] clickable=true
+打断 [0,1134][483,1249] clickable=false（IDLE 置灰=门控正确）
+查看最近一轮 [0,1250][483,1365] clickable=false（无内容置灰）
+语音开关 [42,1397][415,1450]（行内开关）
+隐藏悬浮窗 [0,1482][483,1597] clickable=true
+-- 交互性断言：点击「打开 App」(241,1075) 后 --
+  mCurrentFocus=Window{80cd8e4 u0 com.xiaoduo.deskpet/com.xiaoduo.deskpet.MainActivity}
+--logcat--
+08-19 10:59:42.519  4587  4587 D PetOverlay: long press -> show menu
+08-19 11:00:41.109  4587  4587 I PetOverlay: menu: open app

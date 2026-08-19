@@ -1,0 +1,22 @@
+## Case G wm size 收窄自愈 2026-08-19
+收窄前：右贴 x=954 @1080x2400（中心 1080=屏右缘）
+收窄后 @720x1600（期望 x=dockedX(RIGHT,252,720)=594，仍半身贴右缘不消失）：
+    mOwnerUid=10192 showForAllUsers=false package=com.xiaoduo.deskpet appop=SYSTEM_ALERT_WINDOW
+    mAttrs={(594,617)(252x273) gr=TOP START CENTER sim={adjust=pan} ty=APPLICATION_OVERLAY fmt=TRANSLUCENT
+      fl=NOT_FOCUSABLE NOT_TOUCH_MODAL LAYOUT_NO_LIMITS HARDWARE_ACCELERATED
+--
+    mOwnerUid=10192 showForAllUsers=false package=com.xiaoduo.deskpet appop=SYSTEM_ALERT_WINDOW
+    mAttrs={(369,334)(682x273) gr=TOP START CENTER sim={adjust=pan} ty=APPLICATION_OVERLAY fmt=TRANSLUCENT alpha=0.8
+      fl=NOT_FOCUSABLE NOT_TOUCHABLE NOT_TOUCH_MODAL LAYOUT_NO_LIMITS HARDWARE_ACCELERATED
+--logcat--
+08-19 11:06:02.006  6037  6037 I PetOverlay: config changed -> reclamped to (594,617), screen=720x1452
+08-19 11:06:02.271  6037  6037 D PetOverlay: config changed, position in bounds; bubble reclamped
+
+wm size reset 回 1080x2400 后（几何推导：中心 720 <1080 自动脱离贴边态，窗体留在钳位点全可见）：
+    mOwnerUid=10192 showForAllUsers=false package=com.xiaoduo.deskpet appop=SYSTEM_ALERT_WINDOW
+    mAttrs={(594,617)(252x273) gr=TOP START CENTER sim={adjust=pan} ty=APPLICATION_OVERLAY fmt=TRANSLUCENT
+      fl=NOT_FOCUSABLE NOT_TOUCH_MODAL LAYOUT_NO_LIMITS HARDWARE_ACCELERATED
+--
+    mOwnerUid=10192 showForAllUsers=false package=com.xiaoduo.deskpet appop=SYSTEM_ALERT_WINDOW
+    mAttrs={(379,334)(682x273) gr=TOP START CENTER sim={adjust=pan} ty=APPLICATION_OVERLAY fmt=TRANSLUCENT alpha=0.8
+      fl=NOT_FOCUSABLE NOT_TOUCHABLE NOT_TOUCH_MODAL LAYOUT_NO_LIMITS HARDWARE_ACCELERATED

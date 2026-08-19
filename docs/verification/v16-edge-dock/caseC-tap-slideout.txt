@@ -1,0 +1,10 @@
+## Case C 贴边态单击滑出 2026-08-19
+    mOwnerUid=10192 showForAllUsers=false package=com.xiaoduo.deskpet appop=SYSTEM_ALERT_WINDOW
+    mAttrs={(0,617)(252x273) gr=TOP START CENTER sim={adjust=pan} ty=APPLICATION_OVERLAY fmt=TRANSLUCENT
+      fl=NOT_FOCUSABLE NOT_TOUCH_MODAL LAYOUT_NO_LIMITS HARDWARE_ACCELERATED
+--
+    mOwnerUid=10192 showForAllUsers=false package=com.xiaoduo.deskpet appop=SYSTEM_ALERT_WINDOW
+    mAttrs={(-215,334)(682x273) gr=TOP START CENTER sim={adjust=pan} ty=APPLICATION_OVERLAY fmt=TRANSLUCENT alpha=0.8
+      fl=NOT_FOCUSABLE NOT_TOUCHABLE NOT_TOUCH_MODAL LAYOUT_NO_LIMITS HARDWARE_ACCELERATED
+--logcat--
+08-19 10:57:29.407  4587  4587 I PetOverlay: edge slide (undock LEFT): -126 -> 0, target persisted

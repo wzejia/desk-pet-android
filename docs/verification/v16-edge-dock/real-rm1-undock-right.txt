@@ -1,0 +1,12 @@
+## 真机 de61cd8（1440x3168 @640dpi，winW=937 scale≈1.22）2026-08-19
+### RM-1 右贴单击滑出（期望 slideOutX(RIGHT)=1440-937=503）
+点击前：x=972（=dockedX(RIGHT)=1440-468，右贴）
+    mOwnerUid=10166 showForAllUsers=false package=com.xiaoduo.deskpet appop=SYSTEM_ALERT_WINDOW
+    mAttrs={(503,1278)(937x1015) gr=TOP START CENTER sim={adjust=pan} ty=APPLICATION_OVERLAY fmt=TRANSLUCENT
+      fl=NOT_FOCUSABLE NOT_TOUCH_MODAL LAYOUT_NO_LIMITS HARDWARE_ACCELERATED
+--
+    mOwnerUid=10166 showForAllUsers=false package=com.xiaoduo.deskpet appop=SYSTEM_ALERT_WINDOW
+    mAttrs={(451,846)(1040x416) gr=TOP START CENTER sim={adjust=pan} ty=APPLICATION_OVERLAY fmt=TRANSLUCENT alpha=0.8
+      fl=NOT_FOCUSABLE NOT_TOUCHABLE NOT_TOUCH_MODAL LAYOUT_NO_LIMITS HARDWARE_ACCELERATED
+--logcat--
+08-19 19:15:02.707 19320 19320 I PetOverlay: edge slide (undock RIGHT): 972 -> 503, target persisted

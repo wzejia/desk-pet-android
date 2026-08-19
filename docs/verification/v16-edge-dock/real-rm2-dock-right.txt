@@ -1,0 +1,6 @@
+### RM-2 右缘吸附（期望 dockedX(RIGHT)=972）
+    mOwnerUid=10166 showForAllUsers=false package=com.xiaoduo.deskpet appop=SYSTEM_ALERT_WINDOW
+    mAttrs={(972,1278)(937x1015) gr=TOP START CENTER sim={adjust=pan} ty=APPLICATION_OVERLAY fmt=TRANSLUCENT
+      fl=NOT_FOCUSABLE NOT_TOUCH_MODAL LAYOUT_NO_LIMITS HARDWARE_ACCELERATED
+--logcat--
+08-19 19:16:21.518 19320 19320 I PetOverlay: edge slide (dock RIGHT): 951 -> 972, target persisted

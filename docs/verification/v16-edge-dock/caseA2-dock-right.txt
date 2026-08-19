@@ -1,0 +1,11 @@
+## Case A2 右缘吸附滑入 2026-08-19
+    mOwnerUid=10192 showForAllUsers=false package=com.xiaoduo.deskpet appop=SYSTEM_ALERT_WINDOW
+    mAttrs={(954,617)(252x273) gr=TOP START CENTER sim={adjust=pan} ty=APPLICATION_OVERLAY fmt=TRANSLUCENT
+      fl=NOT_FOCUSABLE NOT_TOUCH_MODAL LAYOUT_NO_LIMITS HARDWARE_ACCELERATED
+--
+    mOwnerUid=10192 showForAllUsers=false package=com.xiaoduo.deskpet appop=SYSTEM_ALERT_WINDOW
+    mAttrs={(729,334)(682x273) gr=TOP START CENTER sim={adjust=pan} ty=APPLICATION_OVERLAY fmt=TRANSLUCENT alpha=0.8
+      fl=NOT_FOCUSABLE NOT_TOUCHABLE NOT_TOUCH_MODAL LAYOUT_NO_LIMITS HARDWARE_ACCELERATED
+--logcat--
+08-19 10:58:45.850  4587  4587 D PetOverlay: drag start from (0,617)
+08-19 10:58:46.333  4587  4587 I PetOverlay: edge slide (dock RIGHT): 933 -> 954, target persisted

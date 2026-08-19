@@ -1,0 +1,12 @@
+## Case A 左缘吸附滑入 2026-08-19
+    mAttrs={(-126,617)(252x273) gr=TOP START CENTER sim={adjust=pan} ty=APPLICATION_OVERLAY fmt=TRANSLUCENT
+      fl=NOT_FOCUSABLE NOT_TOUCH_MODAL LAYOUT_NO_LIMITS HARDWARE_ACCELERATED
+--
+    mAttrs={(-331,334)(682x273) gr=TOP START CENTER sim={adjust=pan} ty=APPLICATION_OVERLAY fmt=TRANSLUCENT alpha=0.8
+      fl=NOT_FOCUSABLE NOT_TOUCHABLE NOT_TOUCH_MODAL LAYOUT_NO_LIMITS HARDWARE_ACCELERATED
+--
+    mAttrs={(0,0)(fillxfill) sim={adjust=pan} layoutInDisplayCutoutMode=always ty=APPLICATION_OVERLAY fmt=TRANSLUCENT
+      fl=NOT_FOCUSABLE HARDWARE_ACCELERATED
+--logcat--
+08-19 10:56:34.330  4587  4587 D PetOverlay: drag start from (574,617)
+08-19 10:56:34.801  4587  4587 I PetOverlay: edge slide (dock LEFT): -83 -> -126, target persisted

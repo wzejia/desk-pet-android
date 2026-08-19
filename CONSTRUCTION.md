@@ -18,7 +18,7 @@
 | S6 | 适配与对标终评：深色 + 多屏矩阵 + 四组并排严评 | 对照矩阵截图 + 严评记录全「不逊」 | 🔶 深色五页✅/wm 矩阵✅(720 抓 P2 已修)/盲测 3 组胜(悬浮窗/聊天页/输入区);气泡组 D 用户拍板挂起保持原样 |
 | **S7** | **UI/语音/输入全面升级（S7-a~g）** | 各子切片验收见下；单测只增不减(基线 274) | ✅ 收官（345 测绿；真机验收全闭；盲测组 2 三连败关账 R3 保留；AEC spike 用户拍板挂起） |
 | **S8** | **UI 微调合集（S8-1~8）**：输入框回滚两层+横线 / 图标白底 / TTS 中按住=打断并接续 / 气泡渲染残留修复 / 气泡文字改流式（撤 reveal） / 气泡看不到开头补救 / 唤醒视觉反馈 / 等候三点动效 | 各票验收见下；单测只增不减（基线 345→356） | ✅ 全部收口（358 测绿 skipped=0；真机逐票验收 2026-08-05/06 过；真机期顺修 P2 竞态窗+strip-empty 死路+多功能键边沿缺陷+wozai 重制 e3，详见各票与 DEV_LOG 2026-08-06） |
-| **S10** | **悬浮窗贴边收纳（半身贴边）**：拖至左右缘松手滑入半身 / 单击滑出+可拖出 / 重启保持贴边 | 吸附几何 JVM 单测（模式 C）+ 模拟器/真机像素断言；voice/** 零 diff | 🔶 立项 2026-08-18（用户四拍板，见 S10 节） |
+| **S10** | **悬浮窗贴边收纳（半身贴边）**：拖至左右缘松手滑入半身 / 单击滑出+可拖出 / 重启保持贴边 | 吸附几何 JVM 单测（模式 C）+ 模拟器/真机像素断言；voice/** 零 diff | ✅ 收口 2026-08-19（模拟器 B/A/A2/C/C2/D/E/F/G + 真机 RM-1~6 全绿，证据 `docs/verification/v16-edge-dock/`；⚠️ S10-1/S10-2 critic 独立评审欠账，08-21 配额恢复后补派） |
 
 ## S0 地基
 
@@ -266,43 +266,54 @@
 > 吸附触发语义：松手（clamp 后）精灵中心距左右屏缘 ≤ 半个身位（zone=petW/2，即精灵仍有部分
 > 贴缘/出屏）→ 吸边；完全离开边缘不吸（反例：屏中松手 → 原位不动）。
 
-### S10-1 吸附几何纯逻辑（模式 C，TDD 红-绿先行）
-- [ ] `pet/EdgeDock.kt`（零 Android import，KDoc 风格对齐 OverlayClamp）：
+### S10-1 吸附几何纯逻辑（模式 C，TDD 红-绿先行）✅ 代码在树（EdgeDockTest 11 测，438 基线内全绿；critic 补审欠账 08-21 后）
+- [x] `pet/EdgeDock.kt`（零 Android import，KDoc 风格对齐 OverlayClamp）：
   - `Side { LEFT, RIGHT }`
   - `dockSide(centerX, screenW, zonePx)`：中心距左/右缘 ≤ zonePx → 对应 Side；两侧同时命中（屏不宽于窗）→ null 兜底
   - `dockedX(side, winW, screenW)`：LEFT→`-winW/2` / RIGHT→`screenW - winW/2`（窗中心恰在屏缘，与 clamp 同套整除运算）
   - `slideOutX(side, winW, screenW)`：LEFT→`0` / RIGHT→`screenW - winW`（完全可见贴缘）
   - `dockedSideOf(x, winW, screenW)`：几何推导——中心 ≤0→LEFT / ≥screenW→RIGHT / 其余 null
-- [ ] `EdgeDockTest.kt`：左/右缘吸附命中；**反例样本：中心=screenW/2 → null**；zone 边界恰含（中心=zonePx → LEFT）；
+- [x] `EdgeDockTest.kt`：左/右缘吸附命中；**反例样本：中心=screenW/2 → null**；zone 边界恰含（中心=zonePx → LEFT）；
   宽于屏兜底 null；dockedX 窗中心恰在屏缘（x+winW/2==0 / ==screenW）；slideOutX 完全在屏内；
   **clamp 不动点性质测试：`OverlayClamp.clamp(dockedX,…) == dockedX`（两侧）**；
   dockedSideOf：半身=对应边、全可见贴缘(x=0)=null、屏中=null
 - 验收：`./gradlew.bat testDebugUnitTest --rerun-tasks` 全绿 skipped=0（427 只增不减）；
   变异锚 ≥2 亲验（删「宽于屏 null」守卫→红；zone 恒 0（不吸任何人）→左/右命中测试红）
 
-### S10-2 服务接线：吸附滑入 / 单击滑出 / 动画 / 菜单钳位（依赖 S10-1）
-- [ ] `PetOverlayService` 拖拽 end：现行 clamp 后加 `dockSide`（zone=petW/2）判定——命中则**动画滑入**
+### S10-2 服务接线：吸附滑入 / 单击滑出 / 动画 / 菜单钳位（依赖 S10-1）✅ 代码在树（S10-3 物理验收全绿；critic 补审欠账 08-21 后）
+- [x] `PetOverlayService` 拖拽 end：现行 clamp 后加 `dockSide`（zone=petW/2）判定——命中则**动画滑入**
   `dockedX` 并落盘目标坐标；未命中维持现行 moveTo+落盘（屏中松手零变化，反例即验收）
-- [ ] 单击分支（ACTION_UP 非 dragging 非 longPress）：`dockedSideOf` 命中 → **动画滑出** `slideOutX`+落盘；
+- [x] 单击分支（ACTION_UP 非 dragging 非 longPress）：`dockedSideOf` 命中 → **动画滑出** `slideOutX`+落盘；
   未命中维持挥手（`playOnceThenIdle(WAVING)`）
 - [x] 动画 `ValueAnimator.ofInt` ~200ms 逐帧 `moveTo`（气泡窗随 moveTo 联动）。**守卫四问先答再写**：
   新 ACTION_DOWN 取消 / onConfigurationChanged 取消 / onDestroy 取消 / 动画中再触发=取消重起；
   落盘时机=动画发起时写目标坐标（进程被杀也恢复到确定态）
-- [ ] `OverlayMenu`：锚点半出屏时 popup 横向钳位屏内（左贴→`xoff=max(0,-anchorScreenX)` 右移；
+- [x] `OverlayMenu`：锚点半出屏时 popup 横向钳位屏内（左贴→`xoff=max(0,-anchorScreenX)` 右移；
   右贴→右缘对齐左移），与现有纵向翻转逻辑同范式
 - 验收：assembleDebug 绿 + testDebugUnitTest 全绿 skipped=0；critic 代码正确型（diff+守卫四问+JVM 可测点变异亲验）；
   日志新增 dock/undock 事件行（真机/模拟器取证用）
 - 白名单地界：`PetOverlayService.kt`、`ui/overlay/OverlayMenu.kt`、`pet/EdgeDock.kt`（如需微调仅限 S10-1 已定 API 语义内）、
   对应测试文件；**禁碰** voice/**、OverlayClamp.kt、ChatViewModel/ChatScreen
 
-### S10-3 语义验收：模拟器为主 + 真机一轮（依赖 S10-2）
-- [ ] 模拟器 `emulator-5554`（免锁，动前读 `EMULATOR.md`）：拖至左/右缘松手→滑入半身
+### S10-3 语义验收：模拟器为主 + 真机一轮（依赖 S10-2）✅ 收口 2026-08-19
+- [x] 模拟器 `emulator-5554`（免锁，动前读 `EMULATOR.md`）：拖至左/右缘松手→滑入半身
   （screencap 像素断言：半身在屏外+dumpsys 窗口 x 与 dockedX 对账）；屏中松手不吸（反例取证）；
   半身态单击→滑出完全可见；半身态长按→菜单完整在屏内；半身态气泡钳屏内可读；
   force-stop/重启→半身恢复；`wm size` 收窄→仍半身不出屏（历史 P2 路径回归）
-- [ ] 真机 de61cd8（**拿 `.scratch/device.lock`**，≤5min）：关键断言一遍（左吸/右吸/单击滑出/重启恢复）
+- [x] 真机 de61cd8（**拿 `.scratch/device.lock`**，≤5min）：关键断言一遍（左吸/右吸/单击滑出/重启恢复）
   + 半身态「小朵小朵」唤醒一轮对话（旁证语音零影响）
-- 验收：证据入 `docs/verification/v16-edge-dock/`；`git diff --stat voice/` 为空（零 diff 亲证）
+- 验收：✅ 证据入 `docs/verification/v16-edge-dock/`（原目录随 08-18 事故灭失，本目录为 08-19 重建续写，
+  含 A/B/C/A2 补拍）；`git diff --stat voice/` 为空（零 diff 亲证）
+  - 模拟器（1080×2400，winW=252）：A 左吸 x=-126 / A2 右吸 x=954 / C·C2 单击滑出 0·828 /
+    B 反例屏中松手零 slide 日志 / D 菜单全项左缘=0 钳回+「打开 App」可点 / E 双贴气泡本体完整可读 /
+    F force-stop 自愈恢复 x=954 / G wm size 720 收窄重钳 x=594=dockedX(RIGHT,252,720) 不消失
+  - 真机（1440×3168，winW=937 scale≈1.22）：RM-1 滑出 972→503 / RM-2 右吸 972 / RM-3 左吸 -468 /
+    RM-4 滑出 0 / RM-5 重启恢复 -468 / RM-6 贴边态语音一轮全链（wake→ASR「今天的天气怎么样？」→LLM
+    firstToken 456ms→TTS SPEAKING→气泡，全程 x=-468 不变）
+  - ⚠️ 验收中揭露并已修复恢复遗留缺口：`secrets/cloud.properties`（gitignored）未随恢复树回迁 →
+    新构建三密钥全空云链断；从 device-base.apk 反编译 BuildConfig 取证恢复 → 重建重装 → 真机实证恢复
+    （详见 PROGRESS.md S10 节与 real-rm6 证据文件）
+  - ⚠️ 欠账：S10-1/S10-2 critic 独立评审（子代理配额墙至 08-21，恢复后补派）
 
 ### S10 依赖序
 - S10-1 → S10-2 → S10-3 严格串行；S10-1 可立即派

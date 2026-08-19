@@ -585,5 +585,20 @@ gate/停止键/上传链）第三次迁移仍全保留——该清单已成输�
 音色与现版绝对一致、切口经主观试听认可。<b>教训</b>：音频内容不能凭文件名推断；用户亲耳听到的事实优先于代码探查结论。</p>
 </div>
 
+<div class="entry defect">
+<span class="tag">缺陷修复</span><span class="meta">2026-08-19 ｜ 恢复链路 ｜ gitignored 密钥未随恢复树回迁 → 新构建云链全断（S10-3 验收揭露）</span>
+<p><b>症状</b>：S10-3 真机贴边语音轮 <code>pipeline abort at ASR: 阿里 ASR 未配 dashscope key</code>；
+文字云链同断。<b>根因</b>：<code>secrets/cloud.properties</code>（gitignored，BuildConfig 注入源）
+不在 git 内 → 仓库事故后从恢复树克隆回迁时天然丢失 → 新构建 CLOUD_KEY/ALIYUN_SPEECH_KEY 全空。
+<b>修复</b>：从保全的 device-base.apk 反编译 BuildConfig（D:\desk-pet-recovery\apk-src\…）取证提取
+两密钥（len=116；VOLC 原状空）→ 写回 secrets/cloud.properties → 重建（APK sha1=070d4530…）→
+双端重装 → 真机语音轮实证 ASR/LLM 恢复（firstToken 456ms）。
+<b>教训</b>：① gitignored 本机秘密文件是恢复树的天然盲区，事故保全清单必须显式含 secrets/；
+② 任务 A「保全设备 APK 为不可变证据」的价值即时兑现——旧 APK 即密钥取证源；
+③ 语义验收（真机真声轮）能揪出纯构建/单测全绿掩盖的环境类回归。
+<b>执行偏差</b>：RM-5 首拍截图误含前台聊天内容，即删重拍（HOME 后只留左缘裁切区入库）；
+临时全屏原图 rm*_raw.png 已全部删除。</p>
+</div>
+
 </body>
 </html>

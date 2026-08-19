@@ -1,5 +1,46 @@
 # DEV_LOG.md — 小朵 Android 开发日志
 
+## 2026-08-19（S10-3 验收 + 密钥取证恢复）
+
+> 背景：仓库 08-18 整体删除事故后于 08-19 从恢复树克隆回迁（git log 103a496 恢复基线起）。
+> 本条目接续交接文档 `handoff-desk-pet-android-s10-3-2026-08-19.md` 执行。08-10~08-18 条目随事故灭失，
+> 当日事实见 git 历史与 docs/solutions/workflow-issues/repo-wipeout-five-source-forensic-rebuild.md。
+
+### 任务 A：设备 APK 保全（收口）
+- 三指纹亲算落证据 `docs/verification/v16-edge-dock/apk-preservation-2026-08-19.md`：
+  device-base.apk sha1=f018793f…（S9 最终构建 90,876,784B）/ emulator-base.apk sha1=5d7447ae…
+  （90,703,733B 与交接口径逐字节一致）/ 恢复树新构建 sha1=eb8ec300…（90,703,737B，与 emulator-base
+  4B 漂移属重建非确定性）。
+
+### 任务 B：S10-3 剩余 Case 验收（模拟器 D/E/F/G + 真机一轮，全绿）
+- 模拟器 emulator-5554（装新构建后逐 Case 取证，v16 目录重建续写）：
+  B 反例屏中松手零 slide ✅ / A 左吸 x=-126 ✅ / A2 右吸 x=954 ✅ / C·C2 单击滑出 0·828 ✅ /
+  D 贴边长按菜单全项左缘=0 钳回+点「打开 App」拉起 MainActivity ✅（打断/查看最近一轮 IDLE 置灰=门控正确）/
+  E 左贴+右贴气泡本体完整可读 ✅（显示层容器可越缘、气泡内容钳屏内）/
+  F force-stop→自愈 `dual windows added ... at (954,617)` 逐像素恢复 ✅ /
+  G wm size 720 收窄 `config changed -> reclamped to (594,617)`=dockedX(RIGHT,252,720) 不消失 ✅。
+- 真机 de61cd8（device.lock 纪律）：RM-1~RM-5 几何全绿（dockedX ±468/972、slideOutX 0/503 逐值命中）+
+  RM-6 贴边态语音一轮全链 ✅（wake→ASR→LLM firstToken 456ms→TTS→气泡，全程 x=-468 不变）。
+- `git diff --stat HEAD -- voice/` 为空（红线亲证）；438 基线 `--rerun-tasks` 复跑 51 套件全绿 skipped=0。
+
+### 顺带修复（验收揭露的恢复遗留缺口，P1 级）
+- **症状**：RM-6 首轮 `pipeline abort at ASR: 阿里 ASR 未配 dashscope key`。
+- **根因**：`secrets/cloud.properties`（gitignored）不随 git/恢复树回迁 → 恢复树构建三密钥全空。
+- **修复**：从 device-base.apk 反编译 BuildConfig（D:\desk-pet-recovery\apk-src\…）取证提取
+  CLOUD_KEY/ALIYUN_SPEECH_KEY（len=116，VOLC 原状空）→ 写回 secrets/cloud.properties →
+  重建（APK sha1=070d4530…）→ 双端重装 → 真机语音轮实证 ASR/LLM 恢复。
+- **教训**：gitignored 本地文件是恢复树的天然盲区——本机秘密类文件的事故保全清单应含 secrets/（已入证据文件备注）。
+
+### 执行偏差留痕
+- RM-5 首拍截图误含前台聊天内容 → 即删重拍（HOME 后只留左缘裁切区）；临时全屏原图 rm*_raw.png 已全部删除。
+- 真机截图只入库左缘裁切条（桌面图标属通用启动器内容，无私人信息）。
+
+```evidence
+verify_cmd: ./gradlew.bat testDebugUnitTest --rerun-tasks（XML 亲算：51 suites / 438 tests / skipped=0 / failures=0 / errors=0）；模拟器 D/E/F/G + 真机 RM-1~RM-6 dumpsys/logcat/截图像素断言全绿；git diff --stat HEAD -- voice/ 为空
+verify_claim: S10-3 全 Case 过；贴边几何 dockedX/slideOutX 双端逐值命中；force-stop 自愈逐像素恢复；wm size 收窄重钳不消失；贴边态语音一轮全链（firstToken 456ms）；密钥恢复后 ASR/LLM 实证恢复
+files_touched: [docs/verification/v16-edge-dock/（31 证据文件+README）, PROGRESS.md, CONSTRUCTION.md, DEV_LOG.md, implementation-notes.html]
+```
+
 ## 2026-08-07（全屏语音模式精简 + 唤醒应答去「哎」）
 
 ### 需求与定标（wayfinder grilling 两轮锁定，用户逐项拍板）

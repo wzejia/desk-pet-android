@@ -1,0 +1,8 @@
+### RM-5 重启保持贴边（force-stop→自愈，期望恢复 x=-468）
+    mOwnerUid=10166 showForAllUsers=false package=com.xiaoduo.deskpet appop=SYSTEM_ALERT_WINDOW
+    mAttrs={(-468,1278)(937x1015) gr=TOP START CENTER sim={adjust=pan} ty=APPLICATION_OVERLAY fmt=TRANSLUCENT
+      fl=NOT_FOCUSABLE NOT_TOUCH_MODAL LAYOUT_NO_LIMITS HARDWARE_ACCELERATED
+--logcat--
+08-19 19:18:09.421 17847 17847 I MainActivity: self-heal: PetOverlayService start requested (pref=true, granted)
+08-19 19:18:09.422 17847 17847 I MainActivity: self-heal: skip KWS (pref=false, micGranted=true)
+08-19 19:18:10.028 17847 17847 I PetOverlay: dual windows added: interaction=937x1015px(opaque pet) bubbleLayer=1040x416px(NOT_TOUCHABLE) at (-468,1278) scale=1.2201359

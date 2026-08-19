@@ -1,5 +1,30 @@
 # 小朵 Android M1 进度
 
+## 状态：S10 悬浮窗贴边收纳 ✅ 收口（2026-08-19，模拟器+真机验收全绿）
+
+- **S10 三票收口**：S10-1 EdgeDock 吸附几何纯逻辑（+11 测，基线 427→438 skipped=0）；
+  S10-2 服务接线（拖拽松手吸附滑入 / 贴边态单击滑出 / ~200ms ValueAnimator 逐帧 moveTo / 菜单横向钳位）；
+  S10-3 语义验收（08-19 本条目）。**⚠️ 欠账：S10-1/S10-2 critic 独立评审未派**（子代理配额墙至 08-21，
+  恢复后补派；代码+单测+物理验收均已绿）。
+- **S10-3 证据链**（`docs/verification/v16-edge-dock/`；原目录随 08-18 仓库事故灭失，本目录为重建续写，
+  含 A/B/C/A2 补拍）：
+  - 模拟器（1080×2400，winW=252）：A 左吸 x=-126=dockedX(LEFT) / A2 右吸 x=954=dockedX(RIGHT) /
+    C·C2 单击滑出 0·828=slideOutX / **B 反例**：屏中松手零 slide 日志 /
+    D 贴边长按菜单全项左缘=0 钳回屏内+「打开 App」点按实测拉起 MainActivity（打断/查看最近一轮 IDLE 置灰=门控正确）/
+    E 左贴+右贴气泡本体完整可读（显示层容器可越缘、内容钳屏内）/
+    F force-stop→自愈重启恢复 x=954 逐像素 / G wm size 720×1600 收窄重钳 x=594=dockedX(RIGHT,252,720)
+    半身不消失（历史 P2 路径回归通过），reset 后几何推导自动脱贴边态（设计内行为）。
+  - 真机 de61cd8（1440×3168 @640dpi，winW=937 scale≈1.22）：RM-1 右贴单击滑出 972→503 /
+    RM-2 右吸 972 / RM-3 左吸 -468 / RM-4 左贴滑出 0 / RM-5 force-stop 自愈恢复 -468 /
+    RM-6 贴边态语音一轮全链（wake 命中→wozai→VAD→ASR「今天的天气怎么样？」→LLM firstToken 456ms→
+    TTS SPEAKING→气泡上屏→多轮 LISTENING→超时回 IDLE，全程 x=-468 不变）。
+  - `git diff --stat HEAD -- voice/` 为空（voice/** 零 diff 亲证）。
+- **⚠️ 验收中揭露并已修复恢复遗留缺口**：`secrets/cloud.properties`（gitignored）未随恢复树回迁 →
+  恢复树新构建 BuildConfig 三密钥全空、云链（ASR/LLM）全断。修复：从 device-base.apk 反编译
+  BuildConfig 取证恢复（CLOUD_KEY/ALIYUN_SPEECH_KEY len=116，VOLC 原状空）→ 重建
+  （新 APK sha1=070d453022f1b82f4a4d6c3412a2963cd869c7c2）→ 真机/模拟器重装 → RM-6 实证全链恢复。
+  APK 保全三指纹见 `docs/verification/v16-edge-dock/apk-preservation-2026-08-19.md`。
+
 ## 状态：S9 应答音色跟随 ✅ 收口（2026-08-18，真机六 Case 全过）
 
 - **S9 全四票收口**（票据/评分见 `CONSTRUCTION.md` S9 节；证据 `docs/verification/v15-wakeack-voice-follow.md`）：

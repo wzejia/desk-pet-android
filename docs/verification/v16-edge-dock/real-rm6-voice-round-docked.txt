@@ -1,0 +1,18 @@
+## RM-6 真机贴边态语音一轮（2026-08-19，de61cd8 左贴 x=-468 全程）
+
+### 第一轮（19:24，密钥缺失期）：wake 命中 → wozai → LISTENING → VAD utterance → PROCESSING → ASR abort（阿里 ASR 未配 dashscope key）→ IDLE + 错误气泡
+→ 揭露恢复遗留缺口：secrets/cloud.properties（gitignored）未随恢复树回迁，新构建 BuildConfig 三密钥全空
+→ 修复：从 device-base.apk 反编译 BuildConfig 取证恢复 cloud.properties → 重建（新 APK sha1=070d453022f1b82f4a4d6c3412a2963cd869c7c2）→ 重装
+
+### 第二轮（19:33，密钥恢复后）全链路日志原文：
+08-19 19:33:33.068 25213 31877 I CloudLLM: cloud llm ok, 299 chars, firstToken=456 ms
+08-19 19:34:07.764 25213   577 I VoiceSession: AG-UI done, reply 299 chars, firstToken=456ms, attempts=1
+08-19 19:34:07.775 25213   577 I VoiceSession: state -> LISTENING (multi-turn, VAD restart)
+08-19 19:34:37.799 25213   577 I VoiceSession: VAD listen timeout, maxLevel=0.0456
+08-19 19:34:37.807 25213   577 I VoiceSession: state -> IDLE (listen timeout)
+08-19 19:34:49.808 25213 25213 D PetOverlay: delayed bubble hide fired: owner=VOICE round=1
+
+### 语音轮全程贴边坐标核验（dumpsys）：x=-468 = dockedX(LEFT,937,1440) 不变
+    mOwnerUid=10166 showForAllUsers=false package=com.xiaoduo.deskpet appop=SYSTEM_ALERT_WINDOW
+    mAttrs={(-468,1278)(937x1015) gr=TOP START CENTER sim={adjust=pan} ty=APPLICATION_OVERLAY fmt=TRANSLUCENT
+      fl=NOT_FOCUSABLE NOT_TOUCH_MODAL LAYOUT_NO_LIMITS HARDWARE_ACCELERATED
