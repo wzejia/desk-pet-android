@@ -1,0 +1,2791 @@
+{
+  "scope": {
+    "workspace": "E:\\desk-pet-android",
+    "provider": "claude",
+    "language": "zh",
+    "depth": "normal",
+    "window": {
+      "since": "2026-07-05T00:00:00.000Z",
+      "until": "2026-08-04T00:00:00.000Z"
+    },
+    "evidenceLimit": 5,
+    "authority": {
+      "includeUserHome": false,
+      "includeMemories": false
+    }
+  },
+  "data": {
+    "schemaVersion": 1,
+    "kind": "core-change-watch-evidence-pack",
+    "status": "ok",
+    "repoRoot": "E:\\desk-pet-android",
+    "generatedAt": "2026-08-04T05:41:15.175Z",
+    "summary": {
+      "reviewRecommended": true,
+      "attentionRequired": true,
+      "diffStatus": "attention-required",
+      "diffSeverity": "critical",
+      "diffScore": 100,
+      "topLanguages": [
+        "kotlin"
+      ],
+      "projectInfo": {
+        "name": "desk-pet-android",
+        "description": "",
+        "readmeTitle": "desk-pet-android",
+        "identityEvidence": [
+          "README.md:h1"
+        ],
+        "primaryLanguages": [
+          {
+            "language": "kotlin",
+            "sourceFiles": 60,
+            "testFiles": 38
+          }
+        ],
+        "frameworks": [],
+        "sourceFiles": 60,
+        "testFiles": 38,
+        "measuredSourceLines": null,
+        "sourceLineStatus": "skipped",
+        "sourceLineMethod": "not measured by default; use --measure-source-lines to count tracked readable primary source files only",
+        "sourceRoots": [
+          {
+            "path": "app",
+            "files": 60
+          }
+        ],
+        "entryCandidates": []
+      },
+      "agentInstructions": {
+        "status": "adequate",
+        "count": 1,
+        "rootCount": 1,
+        "nestedCount": 0,
+        "suggestedMinimum": 1,
+        "suggestedAdditional": 0,
+        "sourceFilesPerInstruction": 60,
+        "sourceFilesUnderNestedInstructions": 0,
+        "nestedSourceFileCoveragePercent": 0,
+        "suggestedScopes": [
+          {
+            "path": "app/src",
+            "sourceFiles": 60
+          }
+        ],
+        "reasons": [
+          "root AGENTS.md present"
+        ]
+      },
+      "coreCandidates": {
+        "highConfidence": 1,
+        "mediumConfidence": 0,
+        "candidateCount": 1
+      },
+      "changedFiles": 14,
+      "changedLines": 1597,
+      "companionHits": 1,
+      "changeDrift": {
+        "status": "advisory",
+        "findingCount": 2,
+        "typeCounts": {
+          "ui-story-snapshot": 1,
+          "config-setup-docs": 1
+        }
+      },
+      "historyWindows": [
+        30,
+        90,
+        180
+      ],
+      "historyConfidence": {
+        "confidence": "medium",
+        "reasons": [
+          "history span is only 6 days"
+        ]
+      },
+      "frameworks": [],
+      "filtersApplied": false
+    },
+    "filters": {
+      "projectProfile": {
+        "ignorePatterns": [],
+        "ignoredCount": 0,
+        "ignoredSample": []
+      },
+      "historyProfile": {
+        "ignorePatterns": [],
+        "ignoredCount": 0,
+        "ignoredSample": []
+      },
+      "coreAnalysis": {
+        "ignorePatterns": [],
+        "ignoredCount": 0,
+        "ignoredSample": []
+      },
+      "diffImpact": {
+        "ignorePatterns": [],
+        "ignoredCount": 0,
+        "ignoredSample": []
+      }
+    },
+    "evidenceSources": {
+      "boundary": "static-local-git-and-file-analysis",
+      "numericSources": [
+        {
+          "claim": "tracked file, language, manifest, source-root, entrypoint, and framework counts",
+          "source": "projectProfile",
+          "command": "git ls-files -z plus local manifest/path inspection"
+        },
+        {
+          "claim": "hot files, hot paths, co-change paths, and history windows",
+          "source": "historyProfile",
+          "command": "git log -500 --numstat --format=commit... --"
+        },
+        {
+          "claim": "changed files, line counts, inferred core candidate hits, hot hits, and companion hits",
+          "source": "diffImpact",
+          "command": "git diff --numstat --no-ext-diff --find-renames HEAD --"
+        },
+        {
+          "claim": "changed API, schema, UI, config, error, and CLI surfaces with missing companion evidence",
+          "source": "changeDrift",
+          "command": "git diff --numstat --no-ext-diff --find-renames HEAD -- plus git ls-files -z"
+        },
+        {
+          "claim": "history day windows",
+          "source": "summary.historyWindows",
+          "command": "bounded history windows: 30,90,180"
+        }
+      ],
+      "unverifiedClaims": [
+        {
+          "claim": "tests passed",
+          "status": "UNVERIFIED",
+          "reason": "core-change-watch does not run target project tests"
+        },
+        {
+          "claim": "CI status",
+          "status": "UNVERIFIED",
+          "reason": "core-change-watch does not open external CI systems"
+        },
+        {
+          "claim": "runtime behavior",
+          "status": "UNVERIFIED",
+          "reason": "core-change-watch does not execute the target application"
+        }
+      ]
+    },
+    "projectProfile": {
+      "schemaVersion": 1,
+      "kind": "project-profile",
+      "status": "ok",
+      "repoRoot": "E:\\desk-pet-android",
+      "filters": {
+        "ignorePatterns": [],
+        "ignoredCount": 0,
+        "ignoredSample": []
+      },
+      "projectInfo": {
+        "name": "desk-pet-android",
+        "description": "",
+        "readmeTitle": "desk-pet-android",
+        "evidence": [
+          "README.md:h1"
+        ],
+        "primaryLanguages": [
+          {
+            "language": "kotlin",
+            "sourceFiles": 60,
+            "testFiles": 38
+          }
+        ],
+        "frameworks": [],
+        "sourceFiles": 60,
+        "testFiles": 38,
+        "measuredSourceLines": null,
+        "sourceLineStatus": "skipped",
+        "sourceLineMethod": "not measured by default; use --measure-source-lines to count tracked readable primary source files only",
+        "sourceRoots": [
+          {
+            "path": "app",
+            "files": 60
+          }
+        ],
+        "entryCandidates": [],
+        "manifests": [
+          {
+            "path": "app/build.gradle.kts",
+            "kind": "java",
+            "scripts": []
+          },
+          {
+            "path": "build.gradle.kts",
+            "kind": "java",
+            "scripts": []
+          },
+          {
+            "path": "gradle.properties",
+            "kind": "config",
+            "scripts": []
+          },
+          {
+            "path": "settings.gradle.kts",
+            "kind": "java",
+            "scripts": []
+          }
+        ]
+      },
+      "agentInstructions": {
+        "count": 1,
+        "rootCount": 1,
+        "nestedCount": 0,
+        "files": [
+          {
+            "path": "AGENTS.md",
+            "scope": "."
+          }
+        ],
+        "status": "adequate",
+        "suggestedMinimum": 1,
+        "suggestedAdditional": 0,
+        "sourceFilesPerInstruction": 60,
+        "sourceFilesUnderNestedInstructions": 0,
+        "nestedSourceFileCoveragePercent": 0,
+        "suggestedScopes": [
+          {
+            "path": "app/src",
+            "sourceFiles": 60
+          }
+        ],
+        "reasons": [
+          "root AGENTS.md present"
+        ]
+      },
+      "languages": [
+        {
+          "language": "kotlin",
+          "files": 98,
+          "sourceFiles": 60,
+          "testFiles": 38,
+          "roots": [
+            {
+              "name": "app/src",
+              "count": 98
+            }
+          ]
+        }
+      ],
+      "manifests": [
+        {
+          "path": "app/build.gradle.kts",
+          "kind": "java",
+          "scripts": []
+        },
+        {
+          "path": "build.gradle.kts",
+          "kind": "java",
+          "scripts": []
+        },
+        {
+          "path": "gradle.properties",
+          "kind": "config",
+          "scripts": []
+        },
+        {
+          "path": "settings.gradle.kts",
+          "kind": "java",
+          "scripts": []
+        }
+      ],
+      "frameworks": [],
+      "sourceRoots": [
+        {
+          "path": "app",
+          "files": 60
+        }
+      ],
+      "entryCandidates": [],
+      "corePathHints": [],
+      "totals": {
+        "trackedFiles": 236,
+        "trackedFilesBeforeFilters": 236,
+        "sourceFiles": 60,
+        "testFiles": 38,
+        "generatedOrDependencyFiles": 0,
+        "sourceLines": null,
+        "sourceLineMeasurement": "skipped",
+        "readableSourceFiles": 0,
+        "unreadableSourceFiles": 0
+      }
+    },
+    "historyProfile": {
+      "schemaVersion": 1,
+      "kind": "git-history-profile",
+      "status": "ok",
+      "repoRoot": "E:\\desk-pet-android",
+      "filters": {
+        "ignorePatterns": [],
+        "ignoredCount": 0,
+        "ignoredSample": []
+      },
+      "range": {
+        "maxCommits": 500,
+        "analyzedCommits": 58,
+        "newest": "d897575",
+        "oldest": "edb5295"
+      },
+      "confidence": {
+        "confidence": "medium",
+        "reasons": [
+          "history span is only 6 days"
+        ]
+      },
+      "historyWindows": [
+        {
+          "days": 30,
+          "since": "2026-07-05T05:41:14.000Z",
+          "analyzedCommits": 58,
+          "trendLabel": "recent-hotspots",
+          "interpretation": "recent window for spotting recent hotspots from bounded git history.",
+          "hotFiles": [
+            {
+              "path": "app/src/main/java/com/xiaoduo/deskpet/ui/screens/ChatScreen.kt",
+              "language": "kotlin",
+              "role": "source",
+              "supporting": false,
+              "commits": 10,
+              "added": 1313,
+              "deleted": 339,
+              "churn": 1652,
+              "lastTouched": "f325be8"
+            },
+            {
+              "path": "app/src/main/java/com/xiaoduo/deskpet/chat/ChatViewModel.kt",
+              "language": "kotlin",
+              "role": "source",
+              "supporting": false,
+              "commits": 10,
+              "added": 669,
+              "deleted": 170,
+              "churn": 839,
+              "lastTouched": "f325be8"
+            },
+            {
+              "path": "app/src/main/java/com/xiaoduo/deskpet/PetOverlayService.kt",
+              "language": "kotlin",
+              "role": "source",
+              "supporting": false,
+              "commits": 8,
+              "added": 621,
+              "deleted": 88,
+              "churn": 709,
+              "lastTouched": "b5e96bb"
+            },
+            {
+              "path": "app/src/main/java/com/xiaoduo/deskpet/MainActivity.kt",
+              "language": "kotlin",
+              "role": "source",
+              "supporting": false,
+              "commits": 7,
+              "added": 306,
+              "deleted": 226,
+              "churn": 532,
+              "lastTouched": "7a67054"
+            },
+            {
+              "path": "app/src/main/java/com/xiaoduo/deskpet/voice/VoiceSessionManager.kt",
+              "language": "kotlin",
+              "role": "source",
+              "supporting": false,
+              "commits": 6,
+              "added": 657,
+              "deleted": 72,
+              "churn": 729,
+              "lastTouched": "f325be8"
+            },
+            {
+              "path": "app/src/main/java/com/xiaoduo/deskpet/ui/navigation/AppNavHost.kt",
+              "language": "kotlin",
+              "role": "source",
+              "supporting": false,
+              "commits": 6,
+              "added": 107,
+              "deleted": 20,
+              "churn": 127,
+              "lastTouched": "f325be8"
+            },
+            {
+              "path": "app/src/main/java/com/xiaoduo/deskpet/agui/AguiClient.kt",
+              "language": "kotlin",
+              "role": "source",
+              "supporting": false,
+              "commits": 5,
+              "added": 583,
+              "deleted": 14,
+              "churn": 597,
+              "lastTouched": "f325be8"
+            },
+            {
+              "path": "app/src/main/java/com/xiaoduo/deskpet/ui/screens/SettingsScreen.kt",
+              "language": "kotlin",
+              "role": "source",
+              "supporting": false,
+              "commits": 4,
+              "added": 701,
+              "deleted": 8,
+              "churn": 709,
+              "lastTouched": "f325be8"
+            },
+            {
+              "path": "app/src/main/java/com/xiaoduo/deskpet/chat/MarkdownRenderer.kt",
+              "language": "kotlin",
+              "role": "source",
+              "supporting": false,
+              "commits": 4,
+              "added": 293,
+              "deleted": 20,
+              "churn": 313,
+              "lastTouched": "f325be8"
+            },
+            {
+              "path": "app/src/main/java/com/xiaoduo/deskpet/voice/AudioCapture.kt",
+              "language": "kotlin",
+              "role": "source",
+              "supporting": false,
+              "commits": 4,
+              "added": 263,
+              "deleted": 45,
+              "churn": 308,
+              "lastTouched": "f325be8"
+            }
+          ],
+          "supportingHotFiles": [
+            {
+              "path": "DEV_LOG.md",
+              "language": null,
+              "role": "documentation",
+              "supporting": true,
+              "commits": 26,
+              "added": 540,
+              "deleted": 1,
+              "churn": 541,
+              "lastTouched": "4c3db8b"
+            },
+            {
+              "path": "PROGRESS.md",
+              "language": null,
+              "role": "documentation",
+              "supporting": true,
+              "commits": 24,
+              "added": 378,
+              "deleted": 45,
+              "churn": 423,
+              "lastTouched": "b3eec79"
+            },
+            {
+              "path": "implementation-notes.html",
+              "language": null,
+              "role": "other",
+              "supporting": true,
+              "commits": 18,
+              "added": 409,
+              "deleted": 0,
+              "churn": 409,
+              "lastTouched": "4c3db8b"
+            },
+            {
+              "path": "CONSTRUCTION.md",
+              "language": null,
+              "role": "documentation",
+              "supporting": true,
+              "commits": 16,
+              "added": 257,
+              "deleted": 95,
+              "churn": 352,
+              "lastTouched": "4c3db8b"
+            },
+            {
+              "path": "BLOCKED.md",
+              "language": null,
+              "role": "documentation",
+              "supporting": true,
+              "commits": 16,
+              "added": 151,
+              "deleted": 71,
+              "churn": 222,
+              "lastTouched": "f325be8"
+            },
+            {
+              "path": "app/src/test/java/com/xiaoduo/deskpet/agui/AguiClientTest.kt",
+              "language": "kotlin",
+              "role": "test",
+              "supporting": true,
+              "commits": 6,
+              "added": 599,
+              "deleted": 11,
+              "churn": 610,
+              "lastTouched": "f325be8"
+            },
+            {
+              "path": "app/src/main/AndroidManifest.xml",
+              "language": null,
+              "role": "configuration",
+              "supporting": true,
+              "commits": 6,
+              "added": 66,
+              "deleted": 2,
+              "churn": 68,
+              "lastTouched": "7a67054"
+            },
+            {
+              "path": "docs/dev-handbook/README.md",
+              "language": null,
+              "role": "documentation",
+              "supporting": true,
+              "commits": 5,
+              "added": 102,
+              "deleted": 31,
+              "churn": 133,
+              "lastTouched": "f1217c4"
+            },
+            {
+              "path": ".scratch/xiaoduo-android/map.md",
+              "language": null,
+              "role": "documentation",
+              "supporting": true,
+              "commits": 5,
+              "added": 53,
+              "deleted": 6,
+              "churn": 59,
+              "lastTouched": "edb5295"
+            },
+            {
+              "path": "docs/MASTER-PLAN.md",
+              "language": null,
+              "role": "documentation",
+              "supporting": true,
+              "commits": 4,
+              "added": 296,
+              "deleted": 10,
+              "churn": 306,
+              "lastTouched": "f1217c4"
+            }
+          ],
+          "hotPaths": [
+            {
+              "path": "app/src",
+              "commits": 30
+            }
+          ]
+        },
+        {
+          "days": 90,
+          "since": "2026-05-06T05:41:14.000Z",
+          "analyzedCommits": 58,
+          "trendLabel": "sustained-hotspots",
+          "interpretation": "sustained window for spotting sustained hotspots from bounded git history.",
+          "hotFiles": [
+            {
+              "path": "app/src/main/java/com/xiaoduo/deskpet/ui/screens/ChatScreen.kt",
+              "language": "kotlin",
+              "role": "source",
+              "supporting": false,
+              "commits": 10,
+              "added": 1313,
+              "deleted": 339,
+              "churn": 1652,
+              "lastTouched": "f325be8"
+            },
+            {
+              "path": "app/src/main/java/com/xiaoduo/deskpet/chat/ChatViewModel.kt",
+              "language": "kotlin",
+              "role": "source",
+              "supporting": false,
+              "commits": 10,
+              "added": 669,
+              "deleted": 170,
+              "churn": 839,
+              "lastTouched": "f325be8"
+            },
+            {
+              "path": "app/src/main/java/com/xiaoduo/deskpet/PetOverlayService.kt",
+              "language": "kotlin",
+              "role": "source",
+              "supporting": false,
+              "commits": 8,
+              "added": 621,
+              "deleted": 88,
+              "churn": 709,
+              "lastTouched": "b5e96bb"
+            },
+            {
+              "path": "app/src/main/java/com/xiaoduo/deskpet/MainActivity.kt",
+              "language": "kotlin",
+              "role": "source",
+              "supporting": false,
+              "commits": 7,
+              "added": 306,
+              "deleted": 226,
+              "churn": 532,
+              "lastTouched": "7a67054"
+            },
+            {
+              "path": "app/src/main/java/com/xiaoduo/deskpet/voice/VoiceSessionManager.kt",
+              "language": "kotlin",
+              "role": "source",
+              "supporting": false,
+              "commits": 6,
+              "added": 657,
+              "deleted": 72,
+              "churn": 729,
+              "lastTouched": "f325be8"
+            },
+            {
+              "path": "app/src/main/java/com/xiaoduo/deskpet/ui/navigation/AppNavHost.kt",
+              "language": "kotlin",
+              "role": "source",
+              "supporting": false,
+              "commits": 6,
+              "added": 107,
+              "deleted": 20,
+              "churn": 127,
+              "lastTouched": "f325be8"
+            },
+            {
+              "path": "app/src/main/java/com/xiaoduo/deskpet/agui/AguiClient.kt",
+              "language": "kotlin",
+              "role": "source",
+              "supporting": false,
+              "commits": 5,
+              "added": 583,
+              "deleted": 14,
+              "churn": 597,
+              "lastTouched": "f325be8"
+            },
+            {
+              "path": "app/src/main/java/com/xiaoduo/deskpet/ui/screens/SettingsScreen.kt",
+              "language": "kotlin",
+              "role": "source",
+              "supporting": false,
+              "commits": 4,
+              "added": 701,
+              "deleted": 8,
+              "churn": 709,
+              "lastTouched": "f325be8"
+            },
+            {
+              "path": "app/src/main/java/com/xiaoduo/deskpet/chat/MarkdownRenderer.kt",
+              "language": "kotlin",
+              "role": "source",
+              "supporting": false,
+              "commits": 4,
+              "added": 293,
+              "deleted": 20,
+              "churn": 313,
+              "lastTouched": "f325be8"
+            },
+            {
+              "path": "app/src/main/java/com/xiaoduo/deskpet/voice/AudioCapture.kt",
+              "language": "kotlin",
+              "role": "source",
+              "supporting": false,
+              "commits": 4,
+              "added": 263,
+              "deleted": 45,
+              "churn": 308,
+              "lastTouched": "f325be8"
+            }
+          ],
+          "supportingHotFiles": [
+            {
+              "path": "DEV_LOG.md",
+              "language": null,
+              "role": "documentation",
+              "supporting": true,
+              "commits": 26,
+              "added": 540,
+              "deleted": 1,
+              "churn": 541,
+              "lastTouched": "4c3db8b"
+            },
+            {
+              "path": "PROGRESS.md",
+              "language": null,
+              "role": "documentation",
+              "supporting": true,
+              "commits": 24,
+              "added": 378,
+              "deleted": 45,
+              "churn": 423,
+              "lastTouched": "b3eec79"
+            },
+            {
+              "path": "implementation-notes.html",
+              "language": null,
+              "role": "other",
+              "supporting": true,
+              "commits": 18,
+              "added": 409,
+              "deleted": 0,
+              "churn": 409,
+              "lastTouched": "4c3db8b"
+            },
+            {
+              "path": "CONSTRUCTION.md",
+              "language": null,
+              "role": "documentation",
+              "supporting": true,
+              "commits": 16,
+              "added": 257,
+              "deleted": 95,
+              "churn": 352,
+              "lastTouched": "4c3db8b"
+            },
+            {
+              "path": "BLOCKED.md",
+              "language": null,
+              "role": "documentation",
+              "supporting": true,
+              "commits": 16,
+              "added": 151,
+              "deleted": 71,
+              "churn": 222,
+              "lastTouched": "f325be8"
+            },
+            {
+              "path": "app/src/test/java/com/xiaoduo/deskpet/agui/AguiClientTest.kt",
+              "language": "kotlin",
+              "role": "test",
+              "supporting": true,
+              "commits": 6,
+              "added": 599,
+              "deleted": 11,
+              "churn": 610,
+              "lastTouched": "f325be8"
+            },
+            {
+              "path": "app/src/main/AndroidManifest.xml",
+              "language": null,
+              "role": "configuration",
+              "supporting": true,
+              "commits": 6,
+              "added": 66,
+              "deleted": 2,
+              "churn": 68,
+              "lastTouched": "7a67054"
+            },
+            {
+              "path": "docs/dev-handbook/README.md",
+              "language": null,
+              "role": "documentation",
+              "supporting": true,
+              "commits": 5,
+              "added": 102,
+              "deleted": 31,
+              "churn": 133,
+              "lastTouched": "f1217c4"
+            },
+            {
+              "path": ".scratch/xiaoduo-android/map.md",
+              "language": null,
+              "role": "documentation",
+              "supporting": true,
+              "commits": 5,
+              "added": 53,
+              "deleted": 6,
+              "churn": 59,
+              "lastTouched": "edb5295"
+            },
+            {
+              "path": "docs/MASTER-PLAN.md",
+              "language": null,
+              "role": "documentation",
+              "supporting": true,
+              "commits": 4,
+              "added": 296,
+              "deleted": 10,
+              "churn": 306,
+              "lastTouched": "f1217c4"
+            }
+          ],
+          "hotPaths": [
+            {
+              "path": "app/src",
+              "commits": 30
+            }
+          ]
+        },
+        {
+          "days": 180,
+          "since": "2026-02-05T05:41:14.000Z",
+          "analyzedCommits": 58,
+          "trendLabel": "legacy-or-long-range-hotspots",
+          "interpretation": "long-range window for spotting legacy or long range hotspots from bounded git history.",
+          "hotFiles": [
+            {
+              "path": "app/src/main/java/com/xiaoduo/deskpet/ui/screens/ChatScreen.kt",
+              "language": "kotlin",
+              "role": "source",
+              "supporting": false,
+              "commits": 10,
+              "added": 1313,
+              "deleted": 339,
+              "churn": 1652,
+              "lastTouched": "f325be8"
+            },
+            {
+              "path": "app/src/main/java/com/xiaoduo/deskpet/chat/ChatViewModel.kt",
+              "language": "kotlin",
+              "role": "source",
+              "supporting": false,
+              "commits": 10,
+              "added": 669,
+              "deleted": 170,
+              "churn": 839,
+              "lastTouched": "f325be8"
+            },
+            {
+              "path": "app/src/main/java/com/xiaoduo/deskpet/PetOverlayService.kt",
+              "language": "kotlin",
+              "role": "source",
+              "supporting": false,
+              "commits": 8,
+              "added": 621,
+              "deleted": 88,
+              "churn": 709,
+              "lastTouched": "b5e96bb"
+            },
+            {
+              "path": "app/src/main/java/com/xiaoduo/deskpet/MainActivity.kt",
+              "language": "kotlin",
+              "role": "source",
+              "supporting": false,
+              "commits": 7,
+              "added": 306,
+              "deleted": 226,
+              "churn": 532,
+              "lastTouched": "7a67054"
+            },
+            {
+              "path": "app/src/main/java/com/xiaoduo/deskpet/voice/VoiceSessionManager.kt",
+              "language": "kotlin",
+              "role": "source",
+              "supporting": false,
+              "commits": 6,
+              "added": 657,
+              "deleted": 72,
+              "churn": 729,
+              "lastTouched": "f325be8"
+            },
+            {
+              "path": "app/src/main/java/com/xiaoduo/deskpet/ui/navigation/AppNavHost.kt",
+              "language": "kotlin",
+              "role": "source",
+              "supporting": false,
+              "commits": 6,
+              "added": 107,
+              "deleted": 20,
+              "churn": 127,
+              "lastTouched": "f325be8"
+            },
+            {
+              "path": "app/src/main/java/com/xiaoduo/deskpet/agui/AguiClient.kt",
+              "language": "kotlin",
+              "role": "source",
+              "supporting": false,
+              "commits": 5,
+              "added": 583,
+              "deleted": 14,
+              "churn": 597,
+              "lastTouched": "f325be8"
+            },
+            {
+              "path": "app/src/main/java/com/xiaoduo/deskpet/ui/screens/SettingsScreen.kt",
+              "language": "kotlin",
+              "role": "source",
+              "supporting": false,
+              "commits": 4,
+              "added": 701,
+              "deleted": 8,
+              "churn": 709,
+              "lastTouched": "f325be8"
+            },
+            {
+              "path": "app/src/main/java/com/xiaoduo/deskpet/chat/MarkdownRenderer.kt",
+              "language": "kotlin",
+              "role": "source",
+              "supporting": false,
+              "commits": 4,
+              "added": 293,
+              "deleted": 20,
+              "churn": 313,
+              "lastTouched": "f325be8"
+            },
+            {
+              "path": "app/src/main/java/com/xiaoduo/deskpet/voice/AudioCapture.kt",
+              "language": "kotlin",
+              "role": "source",
+              "supporting": false,
+              "commits": 4,
+              "added": 263,
+              "deleted": 45,
+              "churn": 308,
+              "lastTouched": "f325be8"
+            }
+          ],
+          "supportingHotFiles": [
+            {
+              "path": "DEV_LOG.md",
+              "language": null,
+              "role": "documentation",
+              "supporting": true,
+              "commits": 26,
+              "added": 540,
+              "deleted": 1,
+              "churn": 541,
+              "lastTouched": "4c3db8b"
+            },
+            {
+              "path": "PROGRESS.md",
+              "language": null,
+              "role": "documentation",
+              "supporting": true,
+              "commits": 24,
+              "added": 378,
+              "deleted": 45,
+              "churn": 423,
+              "lastTouched": "b3eec79"
+            },
+            {
+              "path": "implementation-notes.html",
+              "language": null,
+              "role": "other",
+              "supporting": true,
+              "commits": 18,
+              "added": 409,
+              "deleted": 0,
+              "churn": 409,
+              "lastTouched": "4c3db8b"
+            },
+            {
+              "path": "CONSTRUCTION.md",
+              "language": null,
+              "role": "documentation",
+              "supporting": true,
+              "commits": 16,
+              "added": 257,
+              "deleted": 95,
+              "churn": 352,
+              "lastTouched": "4c3db8b"
+            },
+            {
+              "path": "BLOCKED.md",
+              "language": null,
+              "role": "documentation",
+              "supporting": true,
+              "commits": 16,
+              "added": 151,
+              "deleted": 71,
+              "churn": 222,
+              "lastTouched": "f325be8"
+            },
+            {
+              "path": "app/src/test/java/com/xiaoduo/deskpet/agui/AguiClientTest.kt",
+              "language": "kotlin",
+              "role": "test",
+              "supporting": true,
+              "commits": 6,
+              "added": 599,
+              "deleted": 11,
+              "churn": 610,
+              "lastTouched": "f325be8"
+            },
+            {
+              "path": "app/src/main/AndroidManifest.xml",
+              "language": null,
+              "role": "configuration",
+              "supporting": true,
+              "commits": 6,
+              "added": 66,
+              "deleted": 2,
+              "churn": 68,
+              "lastTouched": "7a67054"
+            },
+            {
+              "path": "docs/dev-handbook/README.md",
+              "language": null,
+              "role": "documentation",
+              "supporting": true,
+              "commits": 5,
+              "added": 102,
+              "deleted": 31,
+              "churn": 133,
+              "lastTouched": "f1217c4"
+            },
+            {
+              "path": ".scratch/xiaoduo-android/map.md",
+              "language": null,
+              "role": "documentation",
+              "supporting": true,
+              "commits": 5,
+              "added": 53,
+              "deleted": 6,
+              "churn": 59,
+              "lastTouched": "edb5295"
+            },
+            {
+              "path": "docs/MASTER-PLAN.md",
+              "language": null,
+              "role": "documentation",
+              "supporting": true,
+              "commits": 4,
+              "added": 296,
+              "deleted": 10,
+              "churn": 306,
+              "lastTouched": "f1217c4"
+            }
+          ],
+          "hotPaths": [
+            {
+              "path": "app/src",
+              "commits": 30
+            }
+          ]
+        }
+      ],
+      "languageTouchCounts": [
+        {
+          "language": "kotlin",
+          "touches": 149
+        }
+      ],
+      "hotFiles": [
+        {
+          "path": "app/src/main/java/com/xiaoduo/deskpet/ui/screens/ChatScreen.kt",
+          "language": "kotlin",
+          "role": "source",
+          "supporting": false,
+          "commits": 10,
+          "added": 1313,
+          "deleted": 339,
+          "churn": 1652,
+          "lastTouched": "f325be8"
+        },
+        {
+          "path": "app/src/main/java/com/xiaoduo/deskpet/chat/ChatViewModel.kt",
+          "language": "kotlin",
+          "role": "source",
+          "supporting": false,
+          "commits": 10,
+          "added": 669,
+          "deleted": 170,
+          "churn": 839,
+          "lastTouched": "f325be8"
+        },
+        {
+          "path": "app/src/main/java/com/xiaoduo/deskpet/PetOverlayService.kt",
+          "language": "kotlin",
+          "role": "source",
+          "supporting": false,
+          "commits": 8,
+          "added": 621,
+          "deleted": 88,
+          "churn": 709,
+          "lastTouched": "b5e96bb"
+        },
+        {
+          "path": "app/src/main/java/com/xiaoduo/deskpet/MainActivity.kt",
+          "language": "kotlin",
+          "role": "source",
+          "supporting": false,
+          "commits": 7,
+          "added": 306,
+          "deleted": 226,
+          "churn": 532,
+          "lastTouched": "7a67054"
+        },
+        {
+          "path": "app/src/main/java/com/xiaoduo/deskpet/voice/VoiceSessionManager.kt",
+          "language": "kotlin",
+          "role": "source",
+          "supporting": false,
+          "commits": 6,
+          "added": 657,
+          "deleted": 72,
+          "churn": 729,
+          "lastTouched": "f325be8"
+        },
+        {
+          "path": "app/src/main/java/com/xiaoduo/deskpet/ui/navigation/AppNavHost.kt",
+          "language": "kotlin",
+          "role": "source",
+          "supporting": false,
+          "commits": 6,
+          "added": 107,
+          "deleted": 20,
+          "churn": 127,
+          "lastTouched": "f325be8"
+        },
+        {
+          "path": "app/src/main/java/com/xiaoduo/deskpet/agui/AguiClient.kt",
+          "language": "kotlin",
+          "role": "source",
+          "supporting": false,
+          "commits": 5,
+          "added": 583,
+          "deleted": 14,
+          "churn": 597,
+          "lastTouched": "f325be8"
+        },
+        {
+          "path": "app/src/main/java/com/xiaoduo/deskpet/ui/screens/SettingsScreen.kt",
+          "language": "kotlin",
+          "role": "source",
+          "supporting": false,
+          "commits": 4,
+          "added": 701,
+          "deleted": 8,
+          "churn": 709,
+          "lastTouched": "f325be8"
+        },
+        {
+          "path": "app/src/main/java/com/xiaoduo/deskpet/chat/MarkdownRenderer.kt",
+          "language": "kotlin",
+          "role": "source",
+          "supporting": false,
+          "commits": 4,
+          "added": 293,
+          "deleted": 20,
+          "churn": 313,
+          "lastTouched": "f325be8"
+        },
+        {
+          "path": "app/src/main/java/com/xiaoduo/deskpet/voice/AudioCapture.kt",
+          "language": "kotlin",
+          "role": "source",
+          "supporting": false,
+          "commits": 4,
+          "added": 263,
+          "deleted": 45,
+          "churn": 308,
+          "lastTouched": "f325be8"
+        },
+        {
+          "path": "app/src/main/java/com/xiaoduo/deskpet/VoiceForegroundService.kt",
+          "language": "kotlin",
+          "role": "source",
+          "supporting": false,
+          "commits": 4,
+          "added": 208,
+          "deleted": 4,
+          "churn": 212,
+          "lastTouched": "6abfec8"
+        },
+        {
+          "path": "app/src/main/java/com/xiaoduo/deskpet/voice/VoiceClientFactory.kt",
+          "language": "kotlin",
+          "role": "source",
+          "supporting": false,
+          "commits": 4,
+          "added": 167,
+          "deleted": 5,
+          "churn": 172,
+          "lastTouched": "f325be8"
+        },
+        {
+          "path": "app/src/main/java/com/xiaoduo/deskpet/util/Prefs.kt",
+          "language": "kotlin",
+          "role": "source",
+          "supporting": false,
+          "commits": 4,
+          "added": 108,
+          "deleted": 9,
+          "churn": 117,
+          "lastTouched": "d4fd017"
+        },
+        {
+          "path": "app/src/main/java/com/xiaoduo/deskpet/ui/screens/SessionDrawer.kt",
+          "language": "kotlin",
+          "role": "source",
+          "supporting": false,
+          "commits": 3,
+          "added": 400,
+          "deleted": 28,
+          "churn": 428,
+          "lastTouched": "0a9115e"
+        },
+        {
+          "path": "app/src/main/java/com/xiaoduo/deskpet/ui/overlay/BubbleTextStrip.kt",
+          "language": "kotlin",
+          "role": "source",
+          "supporting": false,
+          "commits": 3,
+          "added": 370,
+          "deleted": 52,
+          "churn": 422,
+          "lastTouched": "0878e3c"
+        },
+        {
+          "path": "app/src/main/java/com/xiaoduo/deskpet/ui/screens/ChatHistoryScreen.kt",
+          "language": "kotlin",
+          "role": "source",
+          "supporting": false,
+          "commits": 3,
+          "added": 133,
+          "deleted": 133,
+          "churn": 266,
+          "lastTouched": "53de31e"
+        },
+        {
+          "path": "app/src/main/java/com/xiaoduo/deskpet/chat/ChatStore.kt",
+          "language": "kotlin",
+          "role": "source",
+          "supporting": false,
+          "commits": 3,
+          "added": 200,
+          "deleted": 15,
+          "churn": 215,
+          "lastTouched": "f325be8"
+        },
+        {
+          "path": "app/src/main/java/com/xiaoduo/deskpet/agui/AguiClientFactory.kt",
+          "language": "kotlin",
+          "role": "source",
+          "supporting": false,
+          "commits": 3,
+          "added": 85,
+          "deleted": 5,
+          "churn": 90,
+          "lastTouched": "f325be8"
+        },
+        {
+          "path": "app/src/main/java/com/xiaoduo/deskpet/util/PrefContract.kt",
+          "language": "kotlin",
+          "role": "source",
+          "supporting": false,
+          "commits": 3,
+          "added": 42,
+          "deleted": 0,
+          "churn": 42,
+          "lastTouched": "f325be8"
+        },
+        {
+          "path": "app/src/main/java/com/xiaoduo/deskpet/ui/overlay/BubbleView.kt",
+          "language": "kotlin",
+          "role": "source",
+          "supporting": false,
+          "commits": 2,
+          "added": 165,
+          "deleted": 14,
+          "churn": 179,
+          "lastTouched": "f325be8"
+        },
+        {
+          "path": "app/src/main/java/com/xiaoduo/deskpet/chat/ChatTurnLogic.kt",
+          "language": "kotlin",
+          "role": "source",
+          "supporting": false,
+          "commits": 2,
+          "added": 113,
+          "deleted": 0,
+          "churn": 113,
+          "lastTouched": "9442241"
+        },
+        {
+          "path": "app/src/main/java/com/xiaoduo/deskpet/voice/VoicePlayer.kt",
+          "language": "kotlin",
+          "role": "source",
+          "supporting": false,
+          "commits": 2,
+          "added": 94,
+          "deleted": 2,
+          "churn": 96,
+          "lastTouched": "f325be8"
+        },
+        {
+          "path": "app/src/main/java/com/xiaoduo/deskpet/ui/PetView.kt",
+          "language": "kotlin",
+          "role": "source",
+          "supporting": false,
+          "commits": 2,
+          "added": 89,
+          "deleted": 2,
+          "churn": 91,
+          "lastTouched": "d4fd017"
+        },
+        {
+          "path": "app/src/main/java/com/xiaoduo/deskpet/util/PetLogger.kt",
+          "language": "kotlin",
+          "role": "source",
+          "supporting": false,
+          "commits": 2,
+          "added": 85,
+          "deleted": 3,
+          "churn": 88,
+          "lastTouched": "d4fd017"
+        },
+        {
+          "path": "app/src/main/java/com/xiaoduo/deskpet/ui/theme/Theme.kt",
+          "language": "kotlin",
+          "role": "source",
+          "supporting": false,
+          "commits": 2,
+          "added": 81,
+          "deleted": 1,
+          "churn": 82,
+          "lastTouched": "f325be8"
+        },
+        {
+          "path": "app/src/main/java/com/xiaoduo/deskpet/ui/overlay/DebugBubbleReceiver.kt",
+          "language": "kotlin",
+          "role": "source",
+          "supporting": false,
+          "commits": 2,
+          "added": 64,
+          "deleted": 3,
+          "churn": 67,
+          "lastTouched": "f325be8"
+        },
+        {
+          "path": "app/src/main/java/com/xiaoduo/deskpet/chat/ChatHistoryCodec.kt",
+          "language": "kotlin",
+          "role": "source",
+          "supporting": false,
+          "commits": 2,
+          "added": 65,
+          "deleted": 1,
+          "churn": 66,
+          "lastTouched": "f325be8"
+        },
+        {
+          "path": "app/src/main/java/com/xiaoduo/deskpet/pet/OverlayClamp.kt",
+          "language": "kotlin",
+          "role": "source",
+          "supporting": false,
+          "commits": 2,
+          "added": 56,
+          "deleted": 8,
+          "churn": 64,
+          "lastTouched": "f325be8"
+        },
+        {
+          "path": "app/src/main/java/com/xiaoduo/deskpet/chat/SessionIndexCodec.kt",
+          "language": "kotlin",
+          "role": "source",
+          "supporting": false,
+          "commits": 2,
+          "added": 59,
+          "deleted": 1,
+          "churn": 60,
+          "lastTouched": "839f3b2"
+        },
+        {
+          "path": "app/src/main/java/com/xiaoduo/deskpet/chat/ThinkCleaner.kt",
+          "language": "kotlin",
+          "role": "source",
+          "supporting": false,
+          "commits": 2,
+          "added": 45,
+          "deleted": 2,
+          "churn": 47,
+          "lastTouched": "f325be8"
+        },
+        {
+          "path": "app/src/main/java/com/xiaoduo/deskpet/chat/ChatMessage.kt",
+          "language": "kotlin",
+          "role": "source",
+          "supporting": false,
+          "commits": 2,
+          "added": 42,
+          "deleted": 0,
+          "churn": 42,
+          "lastTouched": "f325be8"
+        },
+        {
+          "path": "app/src/main/java/com/xiaoduo/deskpet/chat/ChatSession.kt",
+          "language": "kotlin",
+          "role": "source",
+          "supporting": false,
+          "commits": 2,
+          "added": 38,
+          "deleted": 0,
+          "churn": 38,
+          "lastTouched": "839f3b2"
+        },
+        {
+          "path": "app/src/main/java/com/xiaoduo/deskpet/ui/screens/FullscreenVoiceScreen.kt",
+          "language": "kotlin",
+          "role": "source",
+          "supporting": false,
+          "commits": 1,
+          "added": 549,
+          "deleted": 0,
+          "churn": 549,
+          "lastTouched": "4905dcd"
+        },
+        {
+          "path": "app/src/main/java/com/xiaoduo/deskpet/voice/TtsClient.kt",
+          "language": "kotlin",
+          "role": "source",
+          "supporting": false,
+          "commits": 1,
+          "added": 184,
+          "deleted": 0,
+          "churn": 184,
+          "lastTouched": "f325be8"
+        },
+        {
+          "path": "app/src/main/java/com/xiaoduo/deskpet/voice/VadDetector.kt",
+          "language": "kotlin",
+          "role": "source",
+          "supporting": false,
+          "commits": 1,
+          "added": 157,
+          "deleted": 0,
+          "churn": 157,
+          "lastTouched": "f325be8"
+        },
+        {
+          "path": "app/src/main/java/com/xiaoduo/deskpet/ui/overlay/OverlayMenu.kt",
+          "language": "kotlin",
+          "role": "source",
+          "supporting": false,
+          "commits": 1,
+          "added": 136,
+          "deleted": 0,
+          "churn": 136,
+          "lastTouched": "f325be8"
+        },
+        {
+          "path": "app/src/main/java/com/xiaoduo/deskpet/ui/screens/PermissionScreen.kt",
+          "language": "kotlin",
+          "role": "source",
+          "supporting": false,
+          "commits": 1,
+          "added": 129,
+          "deleted": 0,
+          "churn": 129,
+          "lastTouched": "f325be8"
+        },
+        {
+          "path": "app/src/main/java/com/xiaoduo/deskpet/voice/KwsEngine.kt",
+          "language": "kotlin",
+          "role": "source",
+          "supporting": false,
+          "commits": 1,
+          "added": 128,
+          "deleted": 0,
+          "churn": 128,
+          "lastTouched": "6abfec8"
+        },
+        {
+          "path": "app/src/main/java/com/xiaoduo/deskpet/agui/AguiSseConsumer.kt",
+          "language": "kotlin",
+          "role": "source",
+          "supporting": false,
+          "commits": 1,
+          "added": 115,
+          "deleted": 0,
+          "churn": 115,
+          "lastTouched": "f325be8"
+        },
+        {
+          "path": "app/src/main/java/com/xiaoduo/deskpet/voice/AsrClient.kt",
+          "language": "kotlin",
+          "role": "source",
+          "supporting": false,
+          "commits": 1,
+          "added": 93,
+          "deleted": 0,
+          "churn": 93,
+          "lastTouched": "f325be8"
+        }
+      ],
+      "supportingHotFiles": [
+        {
+          "path": "DEV_LOG.md",
+          "language": null,
+          "role": "documentation",
+          "supporting": true,
+          "commits": 26,
+          "added": 540,
+          "deleted": 1,
+          "churn": 541,
+          "lastTouched": "4c3db8b"
+        },
+        {
+          "path": "PROGRESS.md",
+          "language": null,
+          "role": "documentation",
+          "supporting": true,
+          "commits": 24,
+          "added": 378,
+          "deleted": 45,
+          "churn": 423,
+          "lastTouched": "b3eec79"
+        },
+        {
+          "path": "implementation-notes.html",
+          "language": null,
+          "role": "other",
+          "supporting": true,
+          "commits": 18,
+          "added": 409,
+          "deleted": 0,
+          "churn": 409,
+          "lastTouched": "4c3db8b"
+        },
+        {
+          "path": "CONSTRUCTION.md",
+          "language": null,
+          "role": "documentation",
+          "supporting": true,
+          "commits": 16,
+          "added": 257,
+          "deleted": 95,
+          "churn": 352,
+          "lastTouched": "4c3db8b"
+        },
+        {
+          "path": "BLOCKED.md",
+          "language": null,
+          "role": "documentation",
+          "supporting": true,
+          "commits": 16,
+          "added": 151,
+          "deleted": 71,
+          "churn": 222,
+          "lastTouched": "f325be8"
+        },
+        {
+          "path": "app/src/test/java/com/xiaoduo/deskpet/agui/AguiClientTest.kt",
+          "language": "kotlin",
+          "role": "test",
+          "supporting": true,
+          "commits": 6,
+          "added": 599,
+          "deleted": 11,
+          "churn": 610,
+          "lastTouched": "f325be8"
+        },
+        {
+          "path": "app/src/main/AndroidManifest.xml",
+          "language": null,
+          "role": "configuration",
+          "supporting": true,
+          "commits": 6,
+          "added": 66,
+          "deleted": 2,
+          "churn": 68,
+          "lastTouched": "7a67054"
+        },
+        {
+          "path": "docs/dev-handbook/README.md",
+          "language": null,
+          "role": "documentation",
+          "supporting": true,
+          "commits": 5,
+          "added": 102,
+          "deleted": 31,
+          "churn": 133,
+          "lastTouched": "f1217c4"
+        },
+        {
+          "path": ".scratch/xiaoduo-android/map.md",
+          "language": null,
+          "role": "documentation",
+          "supporting": true,
+          "commits": 5,
+          "added": 53,
+          "deleted": 6,
+          "churn": 59,
+          "lastTouched": "edb5295"
+        },
+        {
+          "path": "docs/MASTER-PLAN.md",
+          "language": null,
+          "role": "documentation",
+          "supporting": true,
+          "commits": 4,
+          "added": 296,
+          "deleted": 10,
+          "churn": 306,
+          "lastTouched": "f1217c4"
+        },
+        {
+          "path": "app/src/test/java/com/xiaoduo/deskpet/chat/MarkdownRendererTest.kt",
+          "language": "kotlin",
+          "role": "test",
+          "supporting": true,
+          "commits": 4,
+          "added": 304,
+          "deleted": 0,
+          "churn": 304,
+          "lastTouched": "f325be8"
+        },
+        {
+          "path": "CLAUDE.md",
+          "language": null,
+          "role": "documentation",
+          "supporting": true,
+          "commits": 4,
+          "added": 75,
+          "deleted": 3,
+          "churn": 78,
+          "lastTouched": "44a0a9d"
+        },
+        {
+          "path": "CONTEXT.md",
+          "language": null,
+          "role": "documentation",
+          "supporting": true,
+          "commits": 4,
+          "added": 47,
+          "deleted": 2,
+          "churn": 49,
+          "lastTouched": "f1217c4"
+        },
+        {
+          "path": "app/src/test/java/com/xiaoduo/deskpet/ui/overlay/BubbleTextStripTest.kt",
+          "language": "kotlin",
+          "role": "test",
+          "supporting": true,
+          "commits": 3,
+          "added": 296,
+          "deleted": 43,
+          "churn": 339,
+          "lastTouched": "0878e3c"
+        },
+        {
+          "path": "docs/spec/assistant-app.spec.md",
+          "language": null,
+          "role": "documentation",
+          "supporting": true,
+          "commits": 3,
+          "added": 125,
+          "deleted": 3,
+          "churn": 128,
+          "lastTouched": "4c3db8b"
+        },
+        {
+          "path": "docs/dev-handbook/04-roadmap-m2-m4.md",
+          "language": null,
+          "role": "documentation",
+          "supporting": true,
+          "commits": 3,
+          "added": 85,
+          "deleted": 2,
+          "churn": 87,
+          "lastTouched": "f1217c4"
+        },
+        {
+          "path": "app/build.gradle.kts",
+          "language": "kotlin",
+          "role": "configuration",
+          "supporting": true,
+          "commits": 3,
+          "added": 72,
+          "deleted": 0,
+          "churn": 72,
+          "lastTouched": "7a67054"
+        },
+        {
+          "path": "AGENTS.md",
+          "language": null,
+          "role": "documentation",
+          "supporting": true,
+          "commits": 3,
+          "added": 50,
+          "deleted": 3,
+          "churn": 53,
+          "lastTouched": "4c3db8b"
+        },
+        {
+          "path": "README.md",
+          "language": null,
+          "role": "documentation",
+          "supporting": true,
+          "commits": 3,
+          "added": 23,
+          "deleted": 5,
+          "churn": 28,
+          "lastTouched": "edb5295"
+        },
+        {
+          "path": ".gitignore",
+          "language": null,
+          "role": "other",
+          "supporting": true,
+          "commits": 3,
+          "added": 18,
+          "deleted": 3,
+          "churn": 21,
+          "lastTouched": "edb5295"
+        },
+        {
+          "path": "docs/plans/2026-07-29-001-feat-xiaoduo-android-app-plan.md",
+          "language": null,
+          "role": "documentation",
+          "supporting": true,
+          "commits": 2,
+          "added": 403,
+          "deleted": 19,
+          "churn": 422,
+          "lastTouched": "01d3a1a"
+        },
+        {
+          "path": "app/src/test/java/com/xiaoduo/deskpet/voice/VoiceSessionManagerTranscriptTest.kt",
+          "language": "kotlin",
+          "role": "test",
+          "supporting": true,
+          "commits": 2,
+          "added": 293,
+          "deleted": 37,
+          "churn": 330,
+          "lastTouched": "88d2b1e"
+        },
+        {
+          "path": "docs/spec/assistant-ui-voice-input.spec.md",
+          "language": null,
+          "role": "documentation",
+          "supporting": true,
+          "commits": 2,
+          "added": 274,
+          "deleted": 1,
+          "churn": 275,
+          "lastTouched": "6e93170"
+        },
+        {
+          "path": "app/src/test/java/com/xiaoduo/deskpet/chat/ChatStoreTest.kt",
+          "language": "kotlin",
+          "role": "test",
+          "supporting": true,
+          "commits": 2,
+          "added": 236,
+          "deleted": 0,
+          "churn": 236,
+          "lastTouched": "839f3b2"
+        },
+        {
+          "path": "app/src/test/java/com/xiaoduo/deskpet/chat/ChatTurnLogicTest.kt",
+          "language": "kotlin",
+          "role": "test",
+          "supporting": true,
+          "commits": 2,
+          "added": 220,
+          "deleted": 0,
+          "churn": 220,
+          "lastTouched": "9442241"
+        },
+        {
+          "path": "app/src/test/java/com/xiaoduo/deskpet/pet/OverlayClampTest.kt",
+          "language": "kotlin",
+          "role": "test",
+          "supporting": true,
+          "commits": 2,
+          "added": 178,
+          "deleted": 23,
+          "churn": 201,
+          "lastTouched": "f325be8"
+        },
+        {
+          "path": "docs/m1-dev-kit/README.md",
+          "language": null,
+          "role": "documentation",
+          "supporting": true,
+          "commits": 2,
+          "added": 171,
+          "deleted": 4,
+          "churn": 175,
+          "lastTouched": "abfd8ef"
+        },
+        {
+          "path": "docs/dev-handbook/05-ops-and-pitfalls.md",
+          "language": null,
+          "role": "documentation",
+          "supporting": true,
+          "commits": 2,
+          "added": 73,
+          "deleted": 73,
+          "churn": 146,
+          "lastTouched": "f1217c4"
+        },
+        {
+          "path": "app/src/test/java/com/xiaoduo/deskpet/voice/OnceGateTest.kt",
+          "language": "kotlin",
+          "role": "test",
+          "supporting": true,
+          "commits": 2,
+          "added": 95,
+          "deleted": 14,
+          "churn": 109,
+          "lastTouched": "d48caee"
+        },
+        {
+          "path": "docs/dev-handbook/02-m1-as-built.md",
+          "language": null,
+          "role": "documentation",
+          "supporting": true,
+          "commits": 2,
+          "added": 84,
+          "deleted": 0,
+          "churn": 84,
+          "lastTouched": "f1217c4"
+        },
+        {
+          "path": "docs/dev-handbook/03-decisions-and-contracts.md",
+          "language": null,
+          "role": "documentation",
+          "supporting": true,
+          "commits": 2,
+          "added": 82,
+          "deleted": 0,
+          "churn": 82,
+          "lastTouched": "f1217c4"
+        },
+        {
+          "path": "docs/plans/M1-plan.md",
+          "language": null,
+          "role": "documentation",
+          "supporting": true,
+          "commits": 2,
+          "added": 81,
+          "deleted": 1,
+          "churn": 82,
+          "lastTouched": "f1217c4"
+        },
+        {
+          "path": "app/src/test/java/com/xiaoduo/deskpet/chat/SessionIndexCodecTest.kt",
+          "language": "kotlin",
+          "role": "test",
+          "supporting": true,
+          "commits": 2,
+          "added": 80,
+          "deleted": 0,
+          "churn": 80,
+          "lastTouched": "839f3b2"
+        },
+        {
+          "path": "app/src/test/java/com/xiaoduo/deskpet/chat/ThinkCleanerTest.kt",
+          "language": "kotlin",
+          "role": "test",
+          "supporting": true,
+          "commits": 2,
+          "added": 77,
+          "deleted": 0,
+          "churn": 77,
+          "lastTouched": "f325be8"
+        },
+        {
+          "path": "docs/dev-handbook/11-grilling-2026-07-30-crosscheck.md",
+          "language": null,
+          "role": "documentation",
+          "supporting": true,
+          "commits": 2,
+          "added": 72,
+          "deleted": 4,
+          "churn": 76,
+          "lastTouched": "909596b"
+        },
+        {
+          "path": "docs/plans/2026-07-30-002-feat-xiaoduo-assistant-app-plan.md",
+          "language": null,
+          "role": "documentation",
+          "supporting": true,
+          "commits": 2,
+          "added": 73,
+          "deleted": 1,
+          "churn": 74,
+          "lastTouched": "4c3db8b"
+        },
+        {
+          "path": "app/src/test/java/com/xiaoduo/deskpet/chat/ChatHistoryCodecTest.kt",
+          "language": "kotlin",
+          "role": "test",
+          "supporting": true,
+          "commits": 2,
+          "added": 71,
+          "deleted": 0,
+          "churn": 71,
+          "lastTouched": "f325be8"
+        },
+        {
+          "path": "docs/adr/0001-m1-scope-and-form.md",
+          "language": null,
+          "role": "documentation",
+          "supporting": true,
+          "commits": 2,
+          "added": 51,
+          "deleted": 2,
+          "churn": 53,
+          "lastTouched": "f1217c4"
+        },
+        {
+          "path": "app/src/test/java/com/xiaoduo/deskpet/util/PrefContractTest.kt",
+          "language": "kotlin",
+          "role": "test",
+          "supporting": true,
+          "commits": 2,
+          "added": 32,
+          "deleted": 0,
+          "churn": 32,
+          "lastTouched": "f325be8"
+        },
+        {
+          "path": ".scratch/xiaoduo-android/issues/03-research-rom-permissions.md",
+          "language": null,
+          "role": "documentation",
+          "supporting": true,
+          "commits": 2,
+          "added": 30,
+          "deleted": 1,
+          "churn": 31,
+          "lastTouched": "edb5295"
+        }
+      ],
+      "hotPaths": [
+        {
+          "path": "app/src",
+          "commits": 30
+        }
+      ],
+      "supportingHotPaths": [
+        {
+          "path": ".",
+          "commits": 122
+        },
+        {
+          "path": "app/src",
+          "commits": 85
+        },
+        {
+          "path": "docs/dev-handbook",
+          "commits": 31
+        },
+        {
+          "path": "docs/screenshots",
+          "commits": 24
+        },
+        {
+          "path": "docs/verification",
+          "commits": 21
+        },
+        {
+          "path": ".scratch/xiaoduo-android",
+          "commits": 18
+        },
+        {
+          "path": "docs",
+          "commits": 11
+        },
+        {
+          "path": "docs/plans",
+          "commits": 6
+        },
+        {
+          "path": "docs/m1-dev-kit",
+          "commits": 5
+        },
+        {
+          "path": "docs/solutions",
+          "commits": 5
+        },
+        {
+          "path": "docs/spec",
+          "commits": 5
+        },
+        {
+          "path": "docs/adr",
+          "commits": 4
+        },
+        {
+          "path": "app",
+          "commits": 3
+        },
+        {
+          "path": "docs/research",
+          "commits": 2
+        },
+        {
+          "path": "gradle/wrapper",
+          "commits": 2
+        },
+        {
+          "path": "\"docs/verification",
+          "commits": 1
+        },
+        {
+          "path": "app/libs",
+          "commits": 1
+        },
+        {
+          "path": "docs/agents",
+          "commits": 1
+        }
+      ],
+      "coChangePaths": []
+    },
+    "coreAnalysis": {
+      "schemaVersion": 1,
+      "kind": "core-candidates",
+      "status": "ok",
+      "repoRoot": "E:\\desk-pet-android",
+      "filters": {
+        "ignorePatterns": [],
+        "ignoredCount": 0,
+        "ignoredSample": []
+      },
+      "candidates": [
+        {
+          "path": "app/src",
+          "score": 76,
+          "confidence": "high",
+          "files": 60,
+          "languages": [
+            {
+              "language": "kotlin",
+              "files": 60
+            }
+          ],
+          "reasons": [
+            "dense package/root",
+            "hot path in git history (30 commits)",
+            "contains repeatedly touched files"
+          ],
+          "evidence": {
+            "sourceFiles": [
+              "app/src/main/java/com/xiaoduo/deskpet/App.kt",
+              "app/src/main/java/com/xiaoduo/deskpet/MainActivity.kt",
+              "app/src/main/java/com/xiaoduo/deskpet/PetOverlayService.kt",
+              "app/src/main/java/com/xiaoduo/deskpet/VoiceForegroundService.kt",
+              "app/src/main/java/com/xiaoduo/deskpet/agui/AguiClient.kt",
+              "app/src/main/java/com/xiaoduo/deskpet/agui/AguiClientFactory.kt",
+              "app/src/main/java/com/xiaoduo/deskpet/agui/AguiSseConsumer.kt",
+              "app/src/main/java/com/xiaoduo/deskpet/chat/ChatHistoryCodec.kt",
+              "app/src/main/java/com/xiaoduo/deskpet/chat/ChatMessage.kt",
+              "app/src/main/java/com/xiaoduo/deskpet/chat/ChatSession.kt"
+            ],
+            "hotFiles": [
+              {
+                "path": "app/src/main/java/com/xiaoduo/deskpet/ui/screens/ChatScreen.kt",
+                "language": "kotlin",
+                "role": "source",
+                "supporting": false,
+                "commits": 10,
+                "added": 1313,
+                "deleted": 339,
+                "churn": 1652,
+                "lastTouched": "f325be8"
+              },
+              {
+                "path": "app/src/main/java/com/xiaoduo/deskpet/chat/ChatViewModel.kt",
+                "language": "kotlin",
+                "role": "source",
+                "supporting": false,
+                "commits": 10,
+                "added": 669,
+                "deleted": 170,
+                "churn": 839,
+                "lastTouched": "f325be8"
+              },
+              {
+                "path": "app/src/main/java/com/xiaoduo/deskpet/PetOverlayService.kt",
+                "language": "kotlin",
+                "role": "source",
+                "supporting": false,
+                "commits": 8,
+                "added": 621,
+                "deleted": 88,
+                "churn": 709,
+                "lastTouched": "b5e96bb"
+              },
+              {
+                "path": "app/src/main/java/com/xiaoduo/deskpet/MainActivity.kt",
+                "language": "kotlin",
+                "role": "source",
+                "supporting": false,
+                "commits": 7,
+                "added": 306,
+                "deleted": 226,
+                "churn": 532,
+                "lastTouched": "7a67054"
+              },
+              {
+                "path": "app/src/main/java/com/xiaoduo/deskpet/voice/VoiceSessionManager.kt",
+                "language": "kotlin",
+                "role": "source",
+                "supporting": false,
+                "commits": 6,
+                "added": 657,
+                "deleted": 72,
+                "churn": 729,
+                "lastTouched": "f325be8"
+              },
+              {
+                "path": "app/src/main/java/com/xiaoduo/deskpet/ui/navigation/AppNavHost.kt",
+                "language": "kotlin",
+                "role": "source",
+                "supporting": false,
+                "commits": 6,
+                "added": 107,
+                "deleted": 20,
+                "churn": 127,
+                "lastTouched": "f325be8"
+              },
+              {
+                "path": "app/src/main/java/com/xiaoduo/deskpet/agui/AguiClient.kt",
+                "language": "kotlin",
+                "role": "source",
+                "supporting": false,
+                "commits": 5,
+                "added": 583,
+                "deleted": 14,
+                "churn": 597,
+                "lastTouched": "f325be8"
+              },
+              {
+                "path": "app/src/main/java/com/xiaoduo/deskpet/ui/screens/SettingsScreen.kt",
+                "language": "kotlin",
+                "role": "source",
+                "supporting": false,
+                "commits": 4,
+                "added": 701,
+                "deleted": 8,
+                "churn": 709,
+                "lastTouched": "f325be8"
+              }
+            ],
+            "manifests": [
+              {
+                "path": "app/build.gradle.kts",
+                "kind": "java",
+                "scripts": []
+              }
+            ]
+          }
+        }
+      ],
+      "summary": {
+        "highConfidence": 1,
+        "mediumConfidence": 0,
+        "candidateCount": 1
+      }
+    },
+    "diffImpact": {
+      "schemaVersion": 1,
+      "kind": "diff-impact",
+      "status": "attention-required",
+      "repoRoot": "E:\\desk-pet-android",
+      "baseRef": "HEAD",
+      "filters": {
+        "ignorePatterns": [],
+        "ignoredCount": 0,
+        "ignoredSample": []
+      },
+      "score": 100,
+      "severity": "critical",
+      "reviewRecommended": true,
+      "attentionRequired": true,
+      "reasons": [
+        "changed supporting hot file app/src/main/AndroidManifest.xml",
+        "changed core candidate app/src",
+        "changed hot file app/src/main/java/com/xiaoduo/deskpet/agui/AguiClient.kt",
+        "changed hot file app/src/main/java/com/xiaoduo/deskpet/agui/AguiClientFactory.kt",
+        "changed hot file app/src/main/java/com/xiaoduo/deskpet/chat/ChatViewModel.kt",
+        "changed hot file app/src/main/java/com/xiaoduo/deskpet/ui/screens/ChatScreen.kt",
+        "wide file change count 14",
+        "large changed-line count 1597"
+      ],
+      "changedFiles": [
+        {
+          "path": "app/src/main/AndroidManifest.xml",
+          "added": 2,
+          "deleted": 0,
+          "language": null,
+          "role": "configuration",
+          "supporting": true,
+          "untracked": false
+        },
+        {
+          "path": "app/src/main/java/com/xiaoduo/deskpet/agui/AguiClient.kt",
+          "added": 122,
+          "deleted": 3,
+          "language": "kotlin",
+          "role": "source",
+          "supporting": false,
+          "untracked": false
+        },
+        {
+          "path": "app/src/main/java/com/xiaoduo/deskpet/agui/AguiClientFactory.kt",
+          "added": 1,
+          "deleted": 0,
+          "language": "kotlin",
+          "role": "source",
+          "supporting": false,
+          "untracked": false
+        },
+        {
+          "path": "app/src/main/java/com/xiaoduo/deskpet/chat/ChatViewModel.kt",
+          "added": 129,
+          "deleted": 10,
+          "language": "kotlin",
+          "role": "source",
+          "supporting": false,
+          "untracked": false
+        },
+        {
+          "path": "app/src/main/java/com/xiaoduo/deskpet/net/NetConfig.kt",
+          "added": 10,
+          "deleted": 0,
+          "language": "kotlin",
+          "role": "source",
+          "supporting": false,
+          "untracked": false
+        },
+        {
+          "path": "app/src/main/java/com/xiaoduo/deskpet/ui/screens/ChatScreen.kt",
+          "added": 68,
+          "deleted": 176,
+          "language": "kotlin",
+          "role": "source",
+          "supporting": false,
+          "untracked": false
+        },
+        {
+          "path": "app/src/test/java/com/xiaoduo/deskpet/util/NetEndpointsTest.kt",
+          "added": 16,
+          "deleted": 0,
+          "language": "kotlin",
+          "role": "test",
+          "supporting": true,
+          "untracked": false
+        },
+        {
+          "path": ".claude/better-harness/runs/2026-08-04/bundle.json",
+          "added": 0,
+          "deleted": 0,
+          "language": null,
+          "role": "configuration",
+          "supporting": true,
+          "untracked": true
+        },
+        {
+          "path": "app/src/main/java/com/xiaoduo/deskpet/agui/FileMeta.kt",
+          "added": 52,
+          "deleted": 0,
+          "language": "kotlin",
+          "role": "source",
+          "supporting": false,
+          "untracked": true
+        },
+        {
+          "path": "app/src/main/java/com/xiaoduo/deskpet/chat/FunctionKeyLogic.kt",
+          "added": 32,
+          "deleted": 0,
+          "language": "kotlin",
+          "role": "source",
+          "supporting": false,
+          "untracked": true
+        },
+        {
+          "path": "app/src/main/java/com/xiaoduo/deskpet/ui/screens/InputBar.kt",
+          "added": 539,
+          "deleted": 0,
+          "language": "kotlin",
+          "role": "source",
+          "supporting": false,
+          "untracked": true
+        },
+        {
+          "path": "app/src/test/java/com/xiaoduo/deskpet/agui/AguiClientUploadTest.kt",
+          "added": 250,
+          "deleted": 0,
+          "language": "kotlin",
+          "role": "test",
+          "supporting": true,
+          "untracked": true
+        },
+        {
+          "path": "app/src/test/java/com/xiaoduo/deskpet/agui/FileMetaTest.kt",
+          "added": 86,
+          "deleted": 0,
+          "language": "kotlin",
+          "role": "test",
+          "supporting": true,
+          "untracked": true
+        },
+        {
+          "path": "app/src/test/java/com/xiaoduo/deskpet/chat/FunctionKeyLogicTest.kt",
+          "added": 101,
+          "deleted": 0,
+          "language": "kotlin",
+          "role": "test",
+          "supporting": true,
+          "untracked": true
+        }
+      ],
+      "coreHits": [
+        {
+          "path": "app/src",
+          "filePath": "app/src/main/java/com/xiaoduo/deskpet/agui/AguiClient.kt",
+          "source": "candidate",
+          "confidence": "high",
+          "score": 76
+        },
+        {
+          "path": "app/src",
+          "filePath": "app/src/main/java/com/xiaoduo/deskpet/agui/AguiClientFactory.kt",
+          "source": "candidate",
+          "confidence": "high",
+          "score": 76
+        },
+        {
+          "path": "app/src",
+          "filePath": "app/src/main/java/com/xiaoduo/deskpet/chat/ChatViewModel.kt",
+          "source": "candidate",
+          "confidence": "high",
+          "score": 76
+        },
+        {
+          "path": "app/src",
+          "filePath": "app/src/main/java/com/xiaoduo/deskpet/net/NetConfig.kt",
+          "source": "candidate",
+          "confidence": "high",
+          "score": 76
+        },
+        {
+          "path": "app/src",
+          "filePath": "app/src/main/java/com/xiaoduo/deskpet/ui/screens/ChatScreen.kt",
+          "source": "candidate",
+          "confidence": "high",
+          "score": 76
+        },
+        {
+          "path": "app/src",
+          "filePath": "app/src/main/java/com/xiaoduo/deskpet/agui/FileMeta.kt",
+          "source": "candidate",
+          "confidence": "high",
+          "score": 76
+        },
+        {
+          "path": "app/src",
+          "filePath": "app/src/main/java/com/xiaoduo/deskpet/chat/FunctionKeyLogic.kt",
+          "source": "candidate",
+          "confidence": "high",
+          "score": 76
+        },
+        {
+          "path": "app/src",
+          "filePath": "app/src/main/java/com/xiaoduo/deskpet/ui/screens/InputBar.kt",
+          "source": "candidate",
+          "confidence": "high",
+          "score": 76
+        }
+      ],
+      "hotHits": [
+        {
+          "path": "app/src/main/java/com/xiaoduo/deskpet/agui/AguiClient.kt",
+          "commits": 5,
+          "churn": 597
+        },
+        {
+          "path": "app/src/main/java/com/xiaoduo/deskpet/agui/AguiClientFactory.kt",
+          "commits": 3,
+          "churn": 90
+        },
+        {
+          "path": "app/src/main/java/com/xiaoduo/deskpet/chat/ChatViewModel.kt",
+          "commits": 10,
+          "churn": 839
+        },
+        {
+          "path": "app/src/main/java/com/xiaoduo/deskpet/ui/screens/ChatScreen.kt",
+          "commits": 10,
+          "churn": 1652
+        }
+      ],
+      "companionHits": [
+        {
+          "path": "app/src/main/AndroidManifest.xml",
+          "role": "configuration",
+          "commits": 6,
+          "churn": 68
+        }
+      ],
+      "metrics": {
+        "changedFiles": 14,
+        "changedLines": 1597,
+        "coreHits": 8,
+        "hotHits": 4,
+        "companionHits": 1
+      }
+    },
+    "changeDrift": {
+      "schemaVersion": 1,
+      "kind": "change-drift",
+      "status": "advisory",
+      "repoRoot": "E:\\desk-pet-android",
+      "baseRef": "HEAD",
+      "filters": {
+        "ignorePatterns": [],
+        "ignoredCount": 0,
+        "ignoredSample": []
+      },
+      "summary": {
+        "findingCount": 2,
+        "highConfidenceCount": 0,
+        "typeCounts": {
+          "ui-story-snapshot": 1,
+          "config-setup-docs": 1
+        },
+        "changedFiles": 14
+      },
+      "changedFiles": [
+        {
+          "path": "app/src/main/AndroidManifest.xml",
+          "role": "configuration",
+          "language": null,
+          "added": 2,
+          "deleted": 0,
+          "untracked": false
+        },
+        {
+          "path": "app/src/main/java/com/xiaoduo/deskpet/agui/AguiClient.kt",
+          "role": "source",
+          "language": "kotlin",
+          "added": 122,
+          "deleted": 3,
+          "untracked": false
+        },
+        {
+          "path": "app/src/main/java/com/xiaoduo/deskpet/agui/AguiClientFactory.kt",
+          "role": "source",
+          "language": "kotlin",
+          "added": 1,
+          "deleted": 0,
+          "untracked": false
+        },
+        {
+          "path": "app/src/main/java/com/xiaoduo/deskpet/chat/ChatViewModel.kt",
+          "role": "source",
+          "language": "kotlin",
+          "added": 129,
+          "deleted": 10,
+          "untracked": false
+        },
+        {
+          "path": "app/src/main/java/com/xiaoduo/deskpet/net/NetConfig.kt",
+          "role": "source",
+          "language": "kotlin",
+          "added": 10,
+          "deleted": 0,
+          "untracked": false
+        },
+        {
+          "path": "app/src/main/java/com/xiaoduo/deskpet/ui/screens/ChatScreen.kt",
+          "role": "source",
+          "language": "kotlin",
+          "added": 68,
+          "deleted": 176,
+          "untracked": false
+        },
+        {
+          "path": "app/src/test/java/com/xiaoduo/deskpet/util/NetEndpointsTest.kt",
+          "role": "test",
+          "language": "kotlin",
+          "added": 16,
+          "deleted": 0,
+          "untracked": false
+        },
+        {
+          "path": ".claude/better-harness/runs/2026-08-04/bundle.json",
+          "role": "configuration",
+          "language": null,
+          "added": 0,
+          "deleted": 0,
+          "untracked": true
+        },
+        {
+          "path": "app/src/main/java/com/xiaoduo/deskpet/agui/FileMeta.kt",
+          "role": "source",
+          "language": "kotlin",
+          "added": 52,
+          "deleted": 0,
+          "untracked": true
+        },
+        {
+          "path": "app/src/main/java/com/xiaoduo/deskpet/chat/FunctionKeyLogic.kt",
+          "role": "source",
+          "language": "kotlin",
+          "added": 32,
+          "deleted": 0,
+          "untracked": true
+        },
+        {
+          "path": "app/src/main/java/com/xiaoduo/deskpet/ui/screens/InputBar.kt",
+          "role": "source",
+          "language": "kotlin",
+          "added": 539,
+          "deleted": 0,
+          "untracked": true
+        },
+        {
+          "path": "app/src/test/java/com/xiaoduo/deskpet/agui/AguiClientUploadTest.kt",
+          "role": "test",
+          "language": "kotlin",
+          "added": 250,
+          "deleted": 0,
+          "untracked": true
+        },
+        {
+          "path": "app/src/test/java/com/xiaoduo/deskpet/agui/FileMetaTest.kt",
+          "role": "test",
+          "language": "kotlin",
+          "added": 86,
+          "deleted": 0,
+          "untracked": true
+        },
+        {
+          "path": "app/src/test/java/com/xiaoduo/deskpet/chat/FunctionKeyLogicTest.kt",
+          "role": "test",
+          "language": "kotlin",
+          "added": 101,
+          "deleted": 0,
+          "untracked": true
+        }
+      ],
+      "findings": [
+        {
+          "id": "ui-story-snapshot-sync",
+          "driftType": "ui-story-snapshot",
+          "severity": "medium",
+          "confidence": "medium",
+          "triggerFiles": [
+            "app/src/main/java/com/xiaoduo/deskpet/ui/screens/ChatScreen.kt",
+            "app/src/main/java/com/xiaoduo/deskpet/ui/screens/InputBar.kt"
+          ],
+          "missingCompanionRoles": [
+            "test",
+            "fixture"
+          ],
+          "candidateCompanionFiles": [],
+          "action": "Update Storybook stories, snapshots, or visual regression coverage for the changed UI component.",
+          "evidence": "Changed UI source without changed stories or snapshots."
+        },
+        {
+          "id": "config-setup-doc-sync",
+          "driftType": "config-setup-docs",
+          "severity": "medium",
+          "confidence": "medium",
+          "triggerFiles": [
+            "app/src/main/AndroidManifest.xml",
+            ".claude/better-harness/runs/2026-08-04/bundle.json"
+          ],
+          "missingCompanionRoles": [
+            "documentation"
+          ],
+          "candidateCompanionFiles": [
+            "README.md",
+            "docs/MASTER-PLAN.md",
+            "docs/adr/0001-m1-scope-and-form.md",
+            "docs/adr/0002-session-sole-concept.md",
+            "docs/adr/0003-voice-fullscreen-bargein.md",
+            "docs/agents/issue-tracker.md",
+            "docs/dev-handbook/01-environment-build.md",
+            "docs/dev-handbook/02-m1-as-built.md"
+          ],
+          "action": "Update setup documentation or README guidance for the changed configuration.",
+          "evidence": "Changed setup or configuration files without changed README/docs files."
+        }
+      ]
+    },
+    "recommendedReads": [
+      {
+        "path": ".claude/better-harness/runs/2026-08-04/bundle.json",
+        "language": null,
+        "role": "configuration",
+        "supporting": true,
+        "priority": 100,
+        "reasons": [
+          "changed file"
+        ]
+      },
+      {
+        "path": "app/src/main/AndroidManifest.xml",
+        "language": null,
+        "role": "configuration",
+        "supporting": true,
+        "priority": 100,
+        "reasons": [
+          "changed file"
+        ]
+      },
+      {
+        "path": "app/src/main/java/com/xiaoduo/deskpet/agui/AguiClient.kt",
+        "language": "kotlin",
+        "role": "source",
+        "supporting": false,
+        "priority": 100,
+        "reasons": [
+          "changed file",
+          "changed core candidate app/src",
+          "changed hot file"
+        ]
+      },
+      {
+        "path": "app/src/main/java/com/xiaoduo/deskpet/agui/AguiClientFactory.kt",
+        "language": "kotlin",
+        "role": "source",
+        "supporting": false,
+        "priority": 100,
+        "reasons": [
+          "changed file",
+          "changed core candidate app/src",
+          "changed hot file"
+        ]
+      },
+      {
+        "path": "app/src/main/java/com/xiaoduo/deskpet/agui/FileMeta.kt",
+        "language": "kotlin",
+        "role": "source",
+        "supporting": false,
+        "priority": 100,
+        "reasons": [
+          "changed file",
+          "changed core candidate app/src"
+        ]
+      },
+      {
+        "path": "app/src/main/java/com/xiaoduo/deskpet/chat/ChatViewModel.kt",
+        "language": "kotlin",
+        "role": "source",
+        "supporting": false,
+        "priority": 100,
+        "reasons": [
+          "changed file",
+          "changed core candidate app/src",
+          "changed hot file",
+          "hot file under app/src"
+        ]
+      },
+      {
+        "path": "app/src/main/java/com/xiaoduo/deskpet/chat/FunctionKeyLogic.kt",
+        "language": "kotlin",
+        "role": "source",
+        "supporting": false,
+        "priority": 100,
+        "reasons": [
+          "changed file",
+          "changed core candidate app/src"
+        ]
+      },
+      {
+        "path": "app/src/main/java/com/xiaoduo/deskpet/net/NetConfig.kt",
+        "language": "kotlin",
+        "role": "source",
+        "supporting": false,
+        "priority": 100,
+        "reasons": [
+          "changed file",
+          "changed core candidate app/src"
+        ]
+      },
+      {
+        "path": "app/src/main/java/com/xiaoduo/deskpet/ui/screens/ChatScreen.kt",
+        "language": "kotlin",
+        "role": "source",
+        "supporting": false,
+        "priority": 100,
+        "reasons": [
+          "changed file",
+          "changed core candidate app/src",
+          "changed hot file",
+          "hot file under app/src"
+        ]
+      },
+      {
+        "path": "app/src/main/java/com/xiaoduo/deskpet/ui/screens/InputBar.kt",
+        "language": "kotlin",
+        "role": "source",
+        "supporting": false,
+        "priority": 100,
+        "reasons": [
+          "changed file",
+          "changed core candidate app/src"
+        ]
+      },
+      {
+        "path": "app/src/test/java/com/xiaoduo/deskpet/agui/AguiClientUploadTest.kt",
+        "language": "kotlin",
+        "role": "test",
+        "supporting": true,
+        "priority": 100,
+        "reasons": [
+          "changed file"
+        ]
+      },
+      {
+        "path": "app/src/test/java/com/xiaoduo/deskpet/agui/FileMetaTest.kt",
+        "language": "kotlin",
+        "role": "test",
+        "supporting": true,
+        "priority": 100,
+        "reasons": [
+          "changed file"
+        ]
+      },
+      {
+        "path": "app/src/test/java/com/xiaoduo/deskpet/chat/FunctionKeyLogicTest.kt",
+        "language": "kotlin",
+        "role": "test",
+        "supporting": true,
+        "priority": 100,
+        "reasons": [
+          "changed file"
+        ]
+      },
+      {
+        "path": "app/src/test/java/com/xiaoduo/deskpet/util/NetEndpointsTest.kt",
+        "language": "kotlin",
+        "role": "test",
+        "supporting": true,
+        "priority": 100,
+        "reasons": [
+          "changed file"
+        ]
+      },
+      {
+        "path": "app/src/main/java/com/xiaoduo/deskpet/PetOverlayService.kt",
+        "language": "kotlin",
+        "role": "source",
+        "supporting": false,
+        "priority": 75,
+        "reasons": [
+          "hot file under app/src"
+        ]
+      },
+      {
+        "path": "app/src/main/java/com/xiaoduo/deskpet/App.kt",
+        "language": "kotlin",
+        "role": "source",
+        "supporting": false,
+        "priority": 55,
+        "reasons": [
+          "representative source under app/src"
+        ]
+      },
+      {
+        "path": "app/src/main/java/com/xiaoduo/deskpet/MainActivity.kt",
+        "language": "kotlin",
+        "role": "source",
+        "supporting": false,
+        "priority": 55,
+        "reasons": [
+          "representative source under app/src"
+        ]
+      }
+    ],
+    "followUpActions": [
+      {
+        "id": "inspect-primary-core",

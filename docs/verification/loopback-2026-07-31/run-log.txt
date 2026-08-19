@@ -1,0 +1,57 @@
+# TTS→ASR 回环验证 run-log（坑 #50 干净机无麦回环验证法）
+
+日期：2026-07-31 ｜ 执行机：本 PC（无麦环境）｜ 网络：内网 NO_PROXY 直连（curl `--noproxy '*'`）
+目的：真麦不可用前分项验证平台语音双服务在线 + 链路契约有效，产物可审计（critic-G S4 P3 ③）。
+
+## 1. TTS 合成（CosyVoice 流式，知识包 §2.4 契约）
+
+命令：
+```
+curl --noproxy '*' -s -o tts-ndjson.raw --max-time 120 \
+  -X POST http://10.0.18.97:9803/audio/tts/stream \
+  -H 'Content-Type: application/json; charset=utf-8' \
+  --data-binary @tts-body.json
+# tts-body.json（UTF-8）：
+# {"text": ["今天天气真好，适合出门散步。"], "serviceName": "cosyvoice3", "speaker": "default", "speed": 1.0}
+```
+
+结果：`HTTP 200, 220272 bytes, 2.180362s`
+
+注意：首次用 `curl -d` 内联中文被 shell 转码 → HTTP 400 `{"detail":"There was an error parsing the body"}`；
+改 `--data-binary @文件`（文件为 UTF-8）后 200。复现时勿内联中文。
+
+## 2. NDJSON 剥头拼 PCM（坑 #7：多帧 WAV 直接 join 夹 RIFF 头 → 必须逐帧剥头拼 PCM）
+
+脚本：`.scratch/loopback/pack_tts.py`（python 3.14 标准库 wave/base64/json，
+按 RIFF chunk 解析每帧完整 WAV → 取 data 块拼 PCM → 重写单头 tts.wav）
+
+输出关键行：
+```
+frames=1 done_frame=True format=24000Hz/16bit/ch1 pcm_bytes=165120 duration=3.44s
+tts.wav written
+```
+（1 帧 + done 结束帧齐；24kHz/16bit/mono 与知识包 §2.4 契约一致）
+
+## 3. ASR 转写（SenseVoice，知识包 §2.3 契约）
+
+命令：
+```
+curl --noproxy '*' -s -o asr-resp.json --max-time 30 \
+  -X POST http://10.0.18.97:9802/audio/asr/transcribe \
+  -F 'file=@tts.wav;type=audio/wav;filename=utterance.wav' \
+  -F 'language=zh' -F 'serviceName=sensevoice'
+```
+
+结果：`HTTP 200, 119 bytes, 0.189056s`
+
+原始响应全文：
+```json
+{"code":200,"msg":"操作成功","data":{"text":"今天天气真好，适合出门散步。","emotion_tags":["HAPPY"]}}
+```
+
+## 4. 比对
+
+- 合成文本：`今天天气真好，适合出门散步。`
+- ASR 转写：`今天天气真好，适合出门散步。`
+- 结论：**逐字命中（含标点）**，程序化断言 `match: True`。
+- 24kHz WAV 直接送 ASR 可正确转写（SenseVoice 服务端自处理采样率，桌面端 07-24 同款结论）。

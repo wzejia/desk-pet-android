@@ -1,0 +1,15 @@
+*.iml
+.gradle/
+/local.properties
+.idea/
+.DS_Store
+/build/
+/captures
+.externalNativeBuild
+.cxx
+local.properties
+app/build/
+.scratch/
+# 凭据等本地秘密文件，永不入库
+secrets/
+*.keystore

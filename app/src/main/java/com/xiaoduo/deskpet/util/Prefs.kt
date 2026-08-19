@@ -1,0 +1,99 @@
+package com.xiaoduo.deskpet.util
+
+import android.content.Context
+import android.content.SharedPreferences
+
+/** 设置持久化（M1 两项：宠物缩放 / 气泡开关）。键名契约见 [PrefContract]。 */
+object Prefs {
+    const val KEY_PET_SCALE = PrefContract.KEY_PET_SCALE
+    const val KEY_SHOW_BUBBLE = PrefContract.KEY_SHOW_BUBBLE
+
+    const val DEFAULT_SCALE = PrefContract.DEFAULT_SCALE
+    const val MIN_SCALE = PrefContract.MIN_SCALE
+    const val MAX_SCALE = PrefContract.MAX_SCALE
+
+    private fun sp(context: Context): SharedPreferences =
+        context.getSharedPreferences(PrefContract.FILE_SETTINGS, Context.MODE_PRIVATE)
+
+    fun petScale(context: Context): Float =
+        sp(context).getFloat(KEY_PET_SCALE, DEFAULT_SCALE).coerceIn(MIN_SCALE, MAX_SCALE)
+
+    fun setPetScale(context: Context, scale: Float) {
+        sp(context).edit().putFloat(KEY_PET_SCALE, scale.coerceIn(MIN_SCALE, MAX_SCALE)).apply()
+    }
+
+    fun showBubble(context: Context): Boolean =
+        sp(context).getBoolean(KEY_SHOW_BUBBLE, PrefContract.DEFAULT_SHOW_BUBBLE)
+
+    fun setShowBubble(context: Context, show: Boolean) {
+        sp(context).edit().putBoolean(KEY_SHOW_BUBBLE, show).apply()
+    }
+
+    // ---- S3 新增键（悬浮窗双窗口：位置 / 总开关 / 语音开关）。M1 旧键不动。 ----
+    const val KEY_OVERLAY_X = "overlay_x"            // Int, px；POSITION_UNSET = 未存
+    const val KEY_OVERLAY_Y = "overlay_y"            // Int, px
+    const val KEY_OVERLAY_ENABLED = "overlay_enabled" // Boolean, 悬浮窗总开关
+    const val KEY_VOICE_ENABLED = "voice_enabled"     // Boolean, 语音开关（S4 接线）
+
+    const val POSITION_UNSET = Int.MIN_VALUE
+    const val DEFAULT_OVERLAY_ENABLED = false
+    const val DEFAULT_VOICE_ENABLED = true
+
+    fun overlayEnabled(context: Context): Boolean =
+        sp(context).getBoolean(KEY_OVERLAY_ENABLED, DEFAULT_OVERLAY_ENABLED)
+
+    fun setOverlayEnabled(context: Context, enabled: Boolean) {
+        sp(context).edit().putBoolean(KEY_OVERLAY_ENABLED, enabled).apply()
+    }
+
+    fun voiceEnabled(context: Context): Boolean =
+        sp(context).getBoolean(KEY_VOICE_ENABLED, DEFAULT_VOICE_ENABLED)
+
+    fun setVoiceEnabled(context: Context, enabled: Boolean) {
+        sp(context).edit().putBoolean(KEY_VOICE_ENABLED, enabled).apply()
+    }
+
+    /** 悬浮窗交互层左上角坐标；未存返回 (POSITION_UNSET, POSITION_UNSET)。 */
+    fun overlayPosition(context: Context): Pair<Int, Int> {
+        val prefs = sp(context)
+        return prefs.getInt(KEY_OVERLAY_X, POSITION_UNSET) to
+            prefs.getInt(KEY_OVERLAY_Y, POSITION_UNSET)
+    }
+
+    fun setOverlayPosition(context: Context, x: Int, y: Int) {
+        sp(context).edit().putInt(KEY_OVERLAY_X, x).putInt(KEY_OVERLAY_Y, y).apply()
+    }
+
+    // ---- S5 新增键（KWS 常开唤醒）。M1/S3 旧键不动。 ----
+    const val KEY_KWS_ENABLED = PrefContract.KEY_KWS_ENABLED
+    const val KEY_KWS_GATE = PrefContract.KEY_KWS_GATE
+
+    fun kwsEnabled(context: Context): Boolean =
+        sp(context).getBoolean(KEY_KWS_ENABLED, PrefContract.DEFAULT_KWS_ENABLED)
+
+    fun setKwsEnabled(context: Context, enabled: Boolean) {
+        sp(context).edit().putBoolean(KEY_KWS_ENABLED, enabled).apply()
+    }
+
+    /** KWS 能量门控阈值（钳位在契约范围，防手滑/校准异常值写死唤醒）。 */
+    fun kwsGate(context: Context): Float =
+        sp(context).getFloat(KEY_KWS_GATE, PrefContract.DEFAULT_KWS_GATE)
+            .coerceIn(PrefContract.MIN_KWS_GATE, PrefContract.MAX_KWS_GATE)
+
+    fun setKwsGate(context: Context, gate: Float) {
+        sp(context).edit().putFloat(
+            KEY_KWS_GATE,
+            gate.coerceIn(PrefContract.MIN_KWS_GATE, PrefContract.MAX_KWS_GATE),
+        ).apply()
+    }
+
+    // ---- S7 新增键（全屏语音模式转写开关）。M1/S3/S5 旧键不动。 ----
+    const val KEY_FULLSCREEN_TRANSCRIPT = PrefContract.KEY_FULLSCREEN_TRANSCRIPT
+
+    fun fullscreenTranscript(context: Context): Boolean =
+        sp(context).getBoolean(KEY_FULLSCREEN_TRANSCRIPT, PrefContract.DEFAULT_FULLSCREEN_TRANSCRIPT)
+
+    fun setFullscreenTranscript(context: Context, enabled: Boolean) {
+        sp(context).edit().putBoolean(KEY_FULLSCREEN_TRANSCRIPT, enabled).apply()
+    }
+}

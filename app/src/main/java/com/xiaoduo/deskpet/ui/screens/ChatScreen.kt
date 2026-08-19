@@ -1,0 +1,907 @@
+package com.xiaoduo.deskpet.ui.screens
+
+import android.Manifest
+import android.content.Context
+import android.content.pm.PackageManager
+import android.net.Uri
+import android.provider.OpenableColumns
+import android.widget.Toast
+import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.Mic
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material3.DrawerValue
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalNavigationDrawer
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberDrawerState
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontStyle
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.core.content.ContextCompat
+import com.xiaoduo.deskpet.chat.ChatMessage
+import com.xiaoduo.deskpet.chat.ChatViewModel
+import com.xiaoduo.deskpet.chat.MarkdownRenderer
+import com.xiaoduo.deskpet.chat.SuggestedQuestions
+import com.xiaoduo.deskpet.pet.PetFrameTable
+import com.xiaoduo.deskpet.pet.PetState
+import com.xiaoduo.deskpet.ui.PetView
+import com.xiaoduo.deskpet.ui.theme.XiaoduoDimens
+import com.xiaoduo.deskpet.util.PetLogger
+import com.xiaoduo.deskpet.voice.VoiceClientFactory
+
+/**
+ * Chat 主页（S2 完整版 + 真边栏导航）：ModalNavigationDrawer → 顶部小朵状态条（S7-b 瘦身：
+ * 头像 + 相位状态文案单行）→ 消息流 LazyColumn → 底部输入条。
+ * 抽屉内容见 [SessionDrawerContent]（收窄露 scrim：搜索/新建/会话列表/长按操作菜单 +
+ * 设置入口）。vm 必须由 AppNavHost 显式传入 Activity 级共享实例。
+ *
+ * 手势与返回键（P1 返工，material3 1.2.1 字节码核验）：
+ * - gesturesEnabled = drawerState.isOpen：关闭态禁边缘拖拽开抽屉（防与 Android 14+
+ *   边缘返回手势互抢，只走 hamburger 点击）；开启态必须 true——1.2.1 的 scrim onClose
+ *   首条指令即 gesturesEnabled 短路（真机「点 scrim 不关」根因），开着时给 true 才恢复
+ *   点 scrim/拖拽关闭。
+ * - BackHandler：1.2.1 的 ModalNavigationDrawer 不内建任何返回键处理（NavigationDrawerKt
+ *   全文无 BackHandler 引用），抽屉开着时 back 直落 NavController、startDestination 上
+ *   直接 finish Activity（真机「按返回退到桌面」根因）。自加 BackHandler 只在抽屉开着时
+ *   拦截并关抽屉；关着时 enabled=false，聊天根页退出/子页回退行为不变。
+ */
+@Composable
+fun ChatScreen(
+    onOpenSettings: () -> Unit,
+    onOpenFullscreenVoice: () -> Unit,
+    vm: ChatViewModel,
+) {
+    val messages by vm.messages.collectAsState()
+    val phase by vm.phase.collectAsState()
+    val sessions by vm.sessions.collectAsState()
+    val currentSession by vm.currentSession.collectAsState()
+    val pendingScrollMessageId by vm.pendingScrollMessageId.collectAsState()
+    val context = LocalContext.current
+    val drawerState = rememberDrawerState(DrawerValue.Closed)
+    val scope = rememberCoroutineScope()
+    // S8-6：listState 上提到 ChatScreen 顶层，让「查看最近一轮」LaunchedEffect 可触达。
+    // MessageList 内原有的冷启动/新消息/流式跟随 effect 仍使用同一实例，行为不变。
+    val chatListState = rememberLazyListState()
+
+    // S8-6「查看最近一轮」：悬浮窗菜单拉起 App 时，MainActivity 把意图下沉到 vm.pendingScrollMessageId
+    // 哨兵 "__last__"，这里消费：定位到最近一条 assistant 消息，然后清空 pending 防重复滚动。
+    // 无最近一轮（messages 空 / 无 assistant）时安全 no-op，仍清空 pending 不卡死。
+    LaunchedEffect(pendingScrollMessageId) {
+        if (pendingScrollMessageId == null) return@LaunchedEffect
+        if (messages.isNotEmpty()) {
+            // 等首帧布局出条目再滚，否则 LazyListState.scrollToItem 在 0 条目时无效
+            snapshotFlow { chatListState.layoutInfo.totalItemsCount }.first { it > 0 }
+            val targetIndex = messages.indexOfLast { it.role == ChatMessage.Role.ASSISTANT }
+            if (targetIndex >= 0) {
+                chatListState.scrollToItem(targetIndex)
+                PetLogger.d("ChatScreen", "view last round: scrolled to index $targetIndex")
+            } else {
+                PetLogger.d("ChatScreen", "view last round: no assistant message, skip")
+            }
+        }
+        vm.consumePendingScroll()
+    }
+
+    // material3 1.2.1 的 ModalNavigationDrawer 不内建返回键处理，抽屉开着时 back
+    // 会穿透到 NavController 退出 App；此处拦截只关抽屉。enabled 随 isOpen 走，
+    // 抽屉关着时不占位，聊天根页退出/子页返回键行为不受影响。
+    BackHandler(enabled = drawerState.isOpen) {
+        scope.launch { drawerState.close() }
+    }
+
+    ModalNavigationDrawer(
+        drawerState = drawerState,
+        // 关闭态 false：禁边缘拖拽开抽屉，不与系统返回手势互抢；开启态 true：
+        // material3 1.2.1 的 scrim 点击被 gesturesEnabled 短路，开着时必须给 true
+        // 才能点 scrim/拖拽关抽屉（见类 KDoc）
+        gesturesEnabled = drawerState.isOpen,
+        drawerContent = {
+            SessionDrawerContent(
+                sessions = sessions,
+                currentSessionId = currentSession?.id,
+                onSearch = vm::searchSessions,
+                onNewSession = {
+                    vm.newSession()
+                    scope.launch { drawerState.close() }
+                },
+                onSwitchSession = { id ->
+                    vm.switchSession(id)
+                    scope.launch { drawerState.close() }
+                },
+                onDeleteSession = vm::deleteSession,
+                onRenameSession = vm::renameSession,
+                onOpenSettings = {
+                    scope.launch { drawerState.close() }
+                    onOpenSettings()
+                },
+            )
+        },
+    ) {
+        Scaffold(
+            topBar = {
+                PetStatusBar(
+                    phase = phase,
+                    onOpenDrawer = { scope.launch { drawerState.open() } },
+                    onOpenFullscreenVoice = onOpenFullscreenVoice,
+                )
+            },
+            bottomBar = {
+                // S7-f：text 上提 ChatScreen 级 rememberSaveable（barge-in 首字符打断在此，
+                // 不上 VM）；files/keyStopActive 驱动 InputBar chips 与多功能键真值表
+                // （keyStopActive=voiceActive∪VSM非IDLE，晚建 VM 不错过在飞语音轮）
+                val files by vm.files.collectAsState()
+                val voiceActive by vm.keyStopActive.collectAsState()
+                var text by rememberSaveable { mutableStateOf("") }
+                val pickFile = rememberLauncherForActivityResult(
+                    ActivityResultContracts.GetContent(),
+                ) { uri ->
+                    if (uri == null) return@rememberLauncherForActivityResult
+                    // 读字节放 IO；VM 的 20MB 守卫拒收时 toast（VM 不持 UI 引用）
+                    scope.launch(Dispatchers.IO) {
+                        val picked = readPickedFile(context, uri)
+                        if (picked == null) {
+                            withContext(Dispatchers.Main) {
+                                Toast.makeText(context, "读取文件失败", Toast.LENGTH_SHORT).show()
+                            }
+                            return@launch
+                        }
+                        val accepted = vm.uploadFile(picked.first, picked.second)
+                        if (!accepted) {
+                            withContext(Dispatchers.Main) {
+                                Toast.makeText(context, "文件超过 20MB，未上传", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    }
+                }
+                InputBar(
+                    busy = phase == ChatViewModel.Phase.SENDING ||
+                        phase == ChatViewModel.Phase.STREAMING,
+                    voiceActive = voiceActive,
+                    files = files,
+                    text = text,
+                    onTextChange = {
+                        // #7 阶段1 barge-in：空→非空首字符即打断当前轮输出（音频+文字全停）
+                        if (text.isEmpty() && it.isNotEmpty()) vm.cancelCurrentTurn()
+                        text = it
+                    },
+                    onSend = { content ->
+                        vm.send(content)
+                        text = ""
+                    },
+                    onStopTurn = vm::cancelCurrentTurn, // 多功能键停止档（S7-e 同源）
+                    onPickFile = { pickFile.launch("*/*") },
+                    onRemoveFile = vm::removeFile,
+                    onVoiceStart = { startVoiceHold(context) },
+                    onVoiceEnd = { stopVoiceHold(context) },
+                    onVoiceCancel = { cancelVoiceHold(context) },
+                )
+            },
+        ) { padding ->
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding),
+            ) {
+                if (messages.isEmpty()) {
+                    EmptyState(onSend = vm::send)
+                } else {
+                    MessageList(
+                        messages = messages,
+                        onResend = vm::resend,
+                        listState = chatListState,
+                    )
+                }
+            }
+        }
+    }
+}
+
+// ---------------- 顶部状态条 ----------------
+
+/**
+ * 顶部状态条（S7-b 瘦身，~48dp = hamburger IconButton 48dp 热区撑高，去掉额外 vertical
+ * padding）：hamburger + 小尺寸 PetView（相位驱动，40→32dp）+ 相位状态文案
+ * （待命/思考中…/回复中…/出错可重发）。去掉「小朵」标题文字（头像已代表身份）与底部
+ * 分割线——参照物（ChatGPT/小布）顶栏均无分割线，消息流顶部淡出遮罩已承担层次分隔。
+ * Row 末尾为 S7-d 全屏语音模式 mic 入口（48dp 热区，样式对齐 hamburger 圆形容器）。
+ * statusBarsPadding 自垫：NavHost 外层不再统一垫状态栏（抽屉 sheet 需顶到屏幕顶缘，
+ * ChatGPT 形态），内容页各自消化安全区。
+ */
+@Composable
+private fun PetStatusBar(
+    phase: ChatViewModel.Phase,
+    onOpenDrawer: () -> Unit,
+    onOpenFullscreenVoice: () -> Unit,
+) {
+    var petView by remember { mutableStateOf<PetView?>(null) }
+    val latestPhase by rememberUpdatedState(phase)
+    // 相位 → 精灵状态：petView 同为 key——视图 attach 晚于相位变化时补齐漏应用（相位竞争返工）
+    LaunchedEffect(phase, petView) {
+        petView?.setState(petStateFor(phase))
+    }
+    Surface(
+        color = MaterialTheme.colorScheme.surface,
+        modifier = Modifier.statusBarsPadding(),
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                // S7-b：不再加 vertical padding——IconButton 自带 48dp 最小热区即撑出
+                // ~48dp 栏高（m3 minimumInteractiveComponentSize），再垫 SpaceS 会到 ~64dp
+                .padding(horizontal = XiaoduoDimens.SpaceM),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            // 圆形浅底容器内图标（参照 ChatGPT 顶栏左钮），与 32dp 宠物头像视觉重量平衡；
+            // 保留 IconButton 外层 48dp 热区
+            IconButton(onClick = onOpenDrawer) {
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .background(MaterialTheme.colorScheme.surfaceVariant, CircleShape),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        Icons.Filled.Menu,
+                        contentDescription = "打开菜单",
+                        modifier = Modifier.size(20.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+            AndroidView(
+                factory = { context ->
+                    PetView(context).apply {
+                        setOnClickListener {
+                            PetLogger.d("ChatScreen", "pet clicked -> waving once")
+                            // 挥手一遍后回到「相位驱动状态」而非硬回 IDLE——否则 sending/
+                            // streaming 中途点一下，精灵提前装闲直到下次相位切换（相位竞争返工）
+                            animator.setState(PetFrameTable.WAVING, once = true) {
+                                animator.setState(petStateFor(latestPhase))
+                            }
+                        }
+                    }.also { petView = it }
+                },
+                modifier = Modifier.size(32.dp),
+            )
+            Text(
+                when (phase) {
+                    ChatViewModel.Phase.IDLE -> "待命"
+                    ChatViewModel.Phase.SENDING -> "思考中…"
+                    ChatViewModel.Phase.STREAMING -> "回复中…"
+                    ChatViewModel.Phase.ERROR -> "出错了，可点重发"
+                },
+                modifier = Modifier.padding(start = XiaoduoDimens.SpaceS),
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(modifier = Modifier.weight(1f))
+            // S7-d：全屏语音模式入口（右上角 48dp 热区，样式对齐 hamburger 圆形容器）
+            IconButton(onClick = onOpenFullscreenVoice) {
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .background(MaterialTheme.colorScheme.surfaceVariant, CircleShape),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        Icons.Filled.Mic,
+                        contentDescription = "全屏语音模式",
+                        modifier = Modifier.size(20.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+        }
+    }
+}
+
+// ---------------- 空态 ----------------
+
+/** 相位 → 精灵状态映射（状态条与挥手回调共用，single source）。 */
+private fun petStateFor(phase: ChatViewModel.Phase): PetState = when (phase) {
+    ChatViewModel.Phase.IDLE -> PetFrameTable.IDLE
+    ChatViewModel.Phase.SENDING -> PetFrameTable.REVIEW
+    ChatViewModel.Phase.STREAMING -> PetFrameTable.TALKING
+    ChatViewModel.Phase.ERROR -> PetFrameTable.FAILED
+}
+
+/**
+ * 空态（对齐小布助手形态，用户拍板本期做）：大号宠物（96dp，帧 192×208 等比 96×104，
+ * IDLE 相位由 PetView 默认给出）+ 问候语 + 职能说明（档案管理专业法律咨询助手）
+ * + 3 条建议问句卡片（竖排、圆角浅底，点击 = 以该文本走 vm.send 发一条用户消息）
+ * + 「换一换」（从 [SuggestedQuestions] 池随机换批，优先避开当前批）。
+ * 批次只 remember 不落盘：杀进程/重组重抽即可，无恢复价值。
+ */
+@Composable
+private fun EmptyState(onSend: (String) -> Unit) {
+    var batch by remember { mutableStateOf(SuggestedQuestions.pick(SUGGESTION_COUNT)) }
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = XiaoduoDimens.SpaceL),
+        verticalArrangement = Arrangement.Center,
+    ) {
+        AndroidView(
+            factory = { context -> PetView(context) },
+            modifier = Modifier
+                .width(96.dp)
+                .height(104.dp),
+        )
+        Spacer(modifier = Modifier.height(XiaoduoDimens.SpaceM))
+        Text(
+            text = "你好，我是小朵",
+            style = MaterialTheme.typography.titleLarge,
+            color = MaterialTheme.colorScheme.onSurface,
+        )
+        Spacer(modifier = Modifier.height(XiaoduoDimens.SpaceS))
+        Text(
+            text = "你的档案管理专业法律咨询助手",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Spacer(modifier = Modifier.height(XiaoduoDimens.SpaceL))
+        Column(verticalArrangement = Arrangement.spacedBy(XiaoduoDimens.SpaceS)) {
+            for (question in batch) {
+                Surface(
+                    onClick = { onSend(question) },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(XiaoduoDimens.CornerCard),
+                    color = MaterialTheme.colorScheme.surfaceVariant,
+                ) {
+                    Text(
+                        text = question,
+                        modifier = Modifier.padding(
+                            horizontal = XiaoduoDimens.SpaceM,
+                            vertical = 14.dp,
+                        ),
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                }
+            }
+        }
+        Spacer(modifier = Modifier.height(XiaoduoDimens.SpaceS))
+        TextButton(onClick = {
+            batch = SuggestedQuestions.pick(SUGGESTION_COUNT, exclude = batch)
+        }) {
+            Icon(
+                Icons.Filled.Refresh,
+                contentDescription = null,
+                modifier = Modifier.size(16.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(modifier = Modifier.width(6.dp))
+            Text(
+                "换一换",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+/** 空态建议问句每批条数（卡片 2-3 条拍板取 3，对齐小布参照物）。 */
+private const val SUGGESTION_COUNT = 3
+
+// ---------------- 消息流 ----------------
+
+@Composable
+private fun MessageList(
+    messages: List<ChatMessage>,
+    onResend: (String) -> Unit,
+    listState: LazyListState,
+) {
+    // 冷启动恢复历史：等 LazyColumn 布局出条目再滚到绝对底部
+    LaunchedEffect(Unit) {
+        if (messages.isNotEmpty()) {
+            snapshotFlow { listState.layoutInfo.totalItemsCount }.first { it > 0 }
+            listState.scrollToBottom(messages.size - 1)
+        }
+    }
+    // 新消息到达（条数变化，含自己刚发的）无条件滚到底；
+    // 流式增量仅在用户本就在底部时跟随，翻了历史/在同一条长消息内上翻都不拽回
+    LaunchedEffect(messages.size) {
+        if (messages.isNotEmpty() && listState.layoutInfo.totalItemsCount > 0) {
+            listState.scrollToBottom(messages.size - 1)
+        }
+    }
+    val lastKey = messages.lastOrNull()?.let { it.id to it.text.length }
+    val followThresholdPx = with(LocalDensity.current) { 96.dp.toPx() }
+    LaunchedEffect(lastKey) {
+        if (messages.isEmpty()) return@LaunchedEffect
+        val info = listState.layoutInfo
+        val lastVisible = info.visibleItemsInfo.lastOrNull()
+        // 跟随判定用「末条底缘超出视口的距离」而非底缘是否在视口内：
+        // 本 effect 在文本增长后的布局上跑，增长本身已把底缘推出视口，
+        // 用「在视口内」判会恒 false 而永远不跟随。超出量 ≤ 阈值（约一次增量的高度）
+        // 视为用户本在底部→跟；用户上翻后超出量远大于阈值→不拽回（盲测「底部裁行」返工）
+        val overshoot = if (lastVisible != null && lastVisible.index == messages.size - 1) {
+            lastVisible.offset + lastVisible.size - info.viewportEndOffset
+        } else {
+            Int.MAX_VALUE
+        }
+        if (overshoot <= followThresholdPx) {
+            listState.scrollToBottom(messages.size - 1)
+        }
+    }
+    // 顶部不做渐隐遮罩：与 ChatGPT 参照物一致硬裁切。遮罩曾两次制造盲测事故——
+    // 长消息首项深度被裁时遮罩恒满高，停靠在视口顶带的行首行被洗成灰字
+    // （盲测 v4「表格第 2 行灰字」根因，实测文本带中位亮度 157 vs 邻行 13）；
+    // 底部裁行早已由 scrollToBottom 根治，顶部硬切是移动端滚动列表通行形态
+    LazyColumn(
+        state = listState,
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = androidx.compose.foundation.layout.PaddingValues(
+            start = XiaoduoDimens.SpaceM,
+            end = XiaoduoDimens.SpaceM,
+            top = XiaoduoDimens.SpaceL,
+            // 底部留白加大：末条滚到底后与输入条之间留呼吸距，不顶边（盲测「底部裁行」返工）
+            bottom = XiaoduoDimens.SpaceL + XiaoduoDimens.SpaceS,
+        ),
+        verticalArrangement = Arrangement.spacedBy(XiaoduoDimens.SpaceL),
+    ) {
+        items(messages, key = { it.id }) { msg ->
+            MessageRow(msg = msg, onResend = onResend)
+        }
+    }
+}
+
+/**
+ * 滚到绝对底部（盲测「底部裁行」返工的根修）：scrollToItem 只把末条**顶缘**对齐视口顶，
+ * 末条比视口高时尾部被输入条裁切；补 scrollBy(MAX) 钳到最大滚动，contentPadding 底部留白收尾。
+ */
+private suspend fun LazyListState.scrollToBottom(lastIndex: Int) {
+    scrollToItem(lastIndex)
+    scroll { scrollBy(Float.MAX_VALUE) }
+}
+
+@Composable
+private fun MessageRow(msg: ChatMessage, onResend: (String) -> Unit) {    if (msg.role == ChatMessage.Role.USER) {
+        // 用户：右侧灰底气泡（对标 ChatGPT 用户气泡），上限 82% 宽
+        Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterEnd) {
+            Surface(
+                modifier = Modifier.widthIn(max = 320.dp),
+                shape = RoundedCornerShape(XiaoduoDimens.CornerBubble),
+                color = MaterialTheme.colorScheme.surfaceVariant,
+            ) {
+                Text(
+                    text = msg.text,
+                    modifier = Modifier.padding(
+                        horizontal = XiaoduoDimens.SpaceM,
+                        vertical = 12.dp,
+                    ),
+                    style = MaterialTheme.typography.bodyLarge.copy(lineHeight = 24.sp),
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+            }
+        }
+    } else {
+        // 小朵：左侧无气泡全宽排版（ChatGPT 克制风）+ 状态反馈行
+        Column(modifier = Modifier.fillMaxWidth()) {
+            if (msg.text.isNotEmpty()) {
+                MarkdownContent(text = msg.text)
+            }
+            when (msg.status) {
+                ChatMessage.Status.SENDING -> TypingDots()
+
+                ChatMessage.Status.STREAMING -> StreamingCursor()
+
+                ChatMessage.Status.ERROR -> {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(XiaoduoDimens.SpaceS),
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(8.dp)
+                                .background(MaterialTheme.colorScheme.error, CircleShape),
+                        )
+                        Text(
+                            "发送失败",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                        TextButton(onClick = { onResend(msg.id) }) {
+                            Text("重发", style = MaterialTheme.typography.labelMedium)
+                        }
+                    }
+                }
+
+                ChatMessage.Status.DONE -> Unit
+            }
+        }
+    }
+}
+
+/** 生成中等候态三点指示（sending 状态反馈）：三圆点错相呼吸，首 token 后随状态切 STREAMING 自然消失。 */
+@Composable
+private fun TypingDots() {
+    // 单一周期进度 0→1（线性，Restart），各点用相位偏移派生 alpha → 经典打字指示器波纹
+    val transition = rememberInfiniteTransition(label = "typing-dots")
+    val progress by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(tween(900, easing = LinearEasing), RepeatMode.Restart),
+        label = "progress",
+    )
+    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        for (i in 0 until 3) {
+            // 相位错开 1/3 周期；三角波映射到 0.3..1 区间，三点轮流亮灭
+            val phase = (progress + i / 3f) % 1f
+            val wave = if (phase < 0.5f) phase * 2f else (1f - phase) * 2f
+            Box(
+                modifier = Modifier
+                    .size(6.dp)
+                    .alpha(0.3f + 0.7f * wave)
+                    .background(MaterialTheme.colorScheme.onSurfaceVariant, CircleShape),
+            )
+        }
+    }
+}
+
+/** 流式光标：▍ 呼吸闪烁（streaming 状态反馈）。 */
+@Composable
+private fun StreamingCursor() {
+    val transition = rememberInfiniteTransition(label = "streaming-cursor")
+    val a by transition.animateFloat(
+        initialValue = 0.15f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(tween(600), RepeatMode.Reverse),
+        label = "alpha",
+    )
+    Text(
+        text = "▍",
+        modifier = Modifier.alpha(a),
+        style = MaterialTheme.typography.bodyLarge,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+}
+
+// ---------------- Markdown 最小集渲染 ----------------
+
+/** 逐块渲染 [MarkdownRenderer] 输出：段落/列表/代码块/标题/分割线/引用/表格（行内代码等宽+底色）。 */
+@Composable
+private fun MarkdownContent(text: String) {
+    val blocks = remember(text) { MarkdownRenderer.parse(text) }
+    val codeBg = MaterialTheme.colorScheme.surfaceVariant
+    Column(verticalArrangement = Arrangement.spacedBy(XiaoduoDimens.SpaceS)) {
+        for (block in blocks) {
+            when (block) {
+                is MarkdownRenderer.Block.Paragraph -> Text(
+                    text = styledText(block.segments, codeBg),
+                    style = MaterialTheme.typography.bodyLarge.copy(lineHeight = 24.sp),
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+
+                is MarkdownRenderer.Block.Bullets -> Column(
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    for (item in block.items) {
+                        Row {
+                            Text(
+                                "•  ",
+                                style = MaterialTheme.typography.bodyLarge.copy(lineHeight = 24.sp),
+                                color = MaterialTheme.colorScheme.onSurface,
+                            )
+                            Text(
+                                text = styledText(item, codeBg),
+                                style = MaterialTheme.typography.bodyLarge.copy(lineHeight = 24.sp),
+                                color = MaterialTheme.colorScheme.onSurface,
+                            )
+                        }
+                    }
+                }
+
+                is MarkdownRenderer.Block.Ordered -> Column(
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    for (item in block.items) {
+                        Row {
+                            Text(
+                                "${item.label} ",
+                                style = MaterialTheme.typography.bodyLarge.copy(lineHeight = 24.sp),
+                                color = MaterialTheme.colorScheme.onSurface,
+                            )
+                            Text(
+                                text = styledText(item.segments, codeBg),
+                                style = MaterialTheme.typography.bodyLarge.copy(lineHeight = 24.sp),
+                                color = MaterialTheme.colorScheme.onSurface,
+                            )
+                        }
+                    }
+                }
+
+                is MarkdownRenderer.Block.Code -> {
+                    val codeScroll = rememberScrollState()
+                    Box {
+                        Surface(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant,
+                        ) {
+                            Text(
+                                text = block.code,
+                                modifier = Modifier
+                                    .horizontalScroll(codeScroll)
+                                    .padding(12.dp),
+                                style = MaterialTheme.typography.bodyMedium.copy(lineHeight = 20.sp),
+                                fontFamily = FontFamily.Monospace,
+                                softWrap = false, // 等宽不换行，长行走横向滚动（盲测「代码块硬截断」返工）
+                                color = MaterialTheme.colorScheme.onSurface,
+                            )
+                        }
+                        // 右缘渐变淡出：内容超宽且未滚到底时提示可横滑；滚到底自然消失。
+                        // 根因修复（此前从未渲染）：LazyColumn item 以 maxHeight=Infinity 测量，
+                        // wrap-content Box 把无界高度透传给子节点，fillMaxHeight 在无界约束下是
+                        // no-op（FillModifier 只对 hasBoundedHeight 生效），渐变实测 48dp×0dp。
+                        // matchParentSize 让遮罩拿到 Box 实测尺寸（有界），几何确定、不依赖运行时状态。
+                        if (codeScroll.maxValue > 0 && codeScroll.value < codeScroll.maxValue) {
+                            Box(modifier = Modifier.matchParentSize()) {
+                                Box(
+                                    modifier = Modifier
+                                        .align(Alignment.CenterEnd)
+                                        .fillMaxHeight()
+                                        .width(48.dp)
+                                        .background(
+                                            // 48dp 宽 + 终点 onSurface 20% 暗纱（12% 实测渲染但人眼
+                                            // 不可辨，盲测 v4「无任何提示」返工）
+                                            Brush.horizontalGradient(
+                                                listOf(
+                                                    Color.Transparent,
+                                                    MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f),
+                                                ),
+                                            ),
+                                            RoundedCornerShape(topEnd = 12.dp, bottomEnd = 12.dp),
+                                        ),
+                                )
+                                // 右向 chevron：静态截图一眼可辨「右侧还有内容」（渐变单扛不够显著）
+                                Text(
+                                    text = "›",
+                                    modifier = Modifier
+                                        .align(Alignment.CenterEnd)
+                                        .padding(end = 6.dp),
+                                    style = MaterialTheme.typography.titleMedium,
+                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
+                                )
+                            }
+                        }
+                    }
+                }
+
+                is MarkdownRenderer.Block.Heading -> Text(
+                    text = styledText(block.segments, codeBg),
+                    style = (if (block.level <= 2) {
+                        MaterialTheme.typography.titleMedium
+                    } else {
+                        MaterialTheme.typography.bodyLarge
+                    }).copy(fontWeight = FontWeight.Bold, lineHeight = 26.sp),
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+
+                is MarkdownRenderer.Block.Quote -> QuoteBlock(block, codeBg)
+
+                is MarkdownRenderer.Block.Table -> TableBlock(block, codeBg)
+
+                MarkdownRenderer.Block.Rule -> HorizontalDivider(
+                    // 消息流分隔线再内缩一档，不与卡片/屏幕边缘取齐（盲测「分隔线顶边」返工）
+                    modifier = Modifier.padding(horizontal = XiaoduoDimens.SpaceM),
+                    color = MaterialTheme.colorScheme.outline,
+                )
+            }
+        }
+    }
+}
+
+/** 引用块：左侧细竖条 + 缩进正文（盲测「裸 >」返工，ChatGPT 同款灰条引用）。 */
+@Composable
+private fun QuoteBlock(block: MarkdownRenderer.Block.Quote, codeBg: Color) {
+    Row(modifier = Modifier.height(IntrinsicSize.Min)) {
+        Box(
+            modifier = Modifier
+                .width(3.dp)
+                .fillMaxHeight()
+                .background(MaterialTheme.colorScheme.outline, RoundedCornerShape(2.dp)),
+        )
+        Column(
+            modifier = Modifier.padding(start = XiaoduoDimens.SpaceS),
+            verticalArrangement = Arrangement.spacedBy(2.dp),
+        ) {
+            for (line in block.lines) {
+                Text(
+                    text = styledText(line, codeBg),
+                    style = MaterialTheme.typography.bodyLarge.copy(lineHeight = 24.sp),
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+            }
+        }
+    }
+}
+
+/** GFM 表格：细边框卡片 + 表头加粗 + 头体分隔线；列宽按内容提示分配（见 [tableColumnModifier]）。 */
+@Composable
+private fun TableBlock(block: MarkdownRenderer.Block.Table, codeBg: Color) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+    ) {
+        Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(XiaoduoDimens.SpaceS)) {
+                block.header.forEachIndexed { idx, cell ->
+                    Text(
+                        text = styledText(cell, codeBg),
+                        modifier = tableColumnModifier(block.colMaxUnits.getOrElse(idx) { 8 }),
+                        style = MaterialTheme.typography.bodyMedium.copy(
+                            fontWeight = FontWeight.Bold,
+                            lineHeight = 20.sp,
+                        ),
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                }
+            }
+            HorizontalDivider(
+                modifier = Modifier.padding(vertical = 6.dp),
+                color = MaterialTheme.colorScheme.outline,
+            )
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                for (row in block.rows) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(XiaoduoDimens.SpaceS)) {
+                        row.forEachIndexed { idx, cell ->
+                            Text(
+                                text = styledText(cell, codeBg),
+                                modifier = tableColumnModifier(block.colMaxUnits.getOrElse(idx) { 8 }),
+                                style = MaterialTheme.typography.bodyMedium.copy(lineHeight = 20.sp),
+                                color = MaterialTheme.colorScheme.onSurface,
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * 表格列宽策略（盲测「序号列过宽、功能模块列挤折中文词」返工）：
+ * - 内容极短列（≤6 显示单位，如序号/数字列）按内容固定小宽，不参与权重分配；
+ * - 其余列按内容最大宽度做权重，并压缩动态范围到 14..24：
+ *   下限保证短词列（如 6 字词组）整词不折，上限防长文列挤窄邻列。
+ * 显示单位定义见 [MarkdownRenderer.displayUnits]（CJK 计 2，1 单位 ≈ 7dp @bodyMedium）。
+ */
+private fun RowScope.tableColumnModifier(units: Int): Modifier =
+    if (units <= 6) {
+        Modifier.width((units * 7 + 10).dp)
+    } else {
+        Modifier.weight(units.coerceIn(14, 24).toFloat())
+    }
+
+private fun styledText(segments: List<MarkdownRenderer.Segment>, codeBg: Color): AnnotatedString =
+    buildAnnotatedString {
+        for (seg in segments) {
+            val style = SpanStyle(
+                fontWeight = if (seg.bold) FontWeight.Bold else null,
+                fontStyle = if (seg.italic) FontStyle.Italic else null,
+                fontFamily = if (seg.code) FontFamily.Monospace else null,
+                background = if (seg.code) codeBg else Color.Unspecified,
+            )
+            withStyle(style) { append(seg.text) }
+        }
+    }
+
+// ---------------- 语音占位接线（S4 全链路前的过渡） ----------------
+
+/**
+ * 按住说话占位：已有可调用的 VoiceClientFactory.session（startListening/stopListening）。
+ * 麦克风未授权或调用失败 → toast「语音链路接入中」。
+ */
+private fun startVoiceHold(context: Context) {
+    val granted = ContextCompat.checkSelfPermission(
+        context,
+        Manifest.permission.RECORD_AUDIO,
+    ) == PackageManager.PERMISSION_GRANTED
+    if (!granted) {
+        PetLogger.d("ChatScreen", "voice hold: RECORD_AUDIO not granted, placeholder toast")
+        Toast.makeText(context, "语音链路接入中", Toast.LENGTH_SHORT).show()
+        return
+    }
+    runCatching { VoiceClientFactory.session(context).startListening() }
+        .onFailure {
+            PetLogger.w("ChatScreen", "voice startListening failed: ${it.message}")
+            Toast.makeText(context, "语音链路接入中", Toast.LENGTH_SHORT).show()
+        }
+}
+
+private fun stopVoiceHold(context: Context) {
+    runCatching { VoiceClientFactory.session(context).stopListening() }
+}
+
+/** S7-f 上滑取消按住说话：终止录音会话不发送（VSM LISTENING 分支 = vad.stop + 回 IDLE）。 */
+private fun cancelVoiceHold(context: Context) {
+    runCatching { VoiceClientFactory.session(context).cancelCurrentTurn() }
+}
+
+/** 系统文件选择器结果：(显示名, 字节)；ContentResolver 查询/读取任一失败返回 null。 */
+private fun readPickedFile(context: Context, uri: Uri): Pair<String, ByteArray>? = runCatching {
+    val name = context.contentResolver.query(
+        uri,
+        arrayOf(OpenableColumns.DISPLAY_NAME),
+        null,
+        null,
+        null,
+    )?.use { c -> if (c.moveToFirst()) c.getString(0) else null }
+        ?.takeIf { it.isNotBlank() } ?: "未命名文件"
+    val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
+        ?: return null
+    name to bytes
+}.getOrNull()

@@ -1,0 +1,21 @@
+{
+  "_meta": {
+    "default_state": "idle",
+    "frame_width": 192,
+    "frame_height": 208,
+    "cols": 8,
+    "rows_used": 9,
+    "sheet_width": 1536,
+    "sheet_height": 1872,
+    "note": "小朵 (xiaoduo) spritesheet: 1536x1872, 9 rows (0-8). Row layout matches petdex standard: idle/running-right/running-left/waving/jumping/failed/waiting/talking/review. No sleeping row (row 10 does not exist in this spritesheet). 2026-07-24: row3 waving 补到 6 帧并放慢; row6 waiting 换 idle 系微动作（原帧手部浮空穿帮）; row7 原 running 重绘为 talking 说话动画并改名; row8 review 减幅放慢。"
+  },
+  "idle":          {"row": 0, "frames": 6, "duration_ms": 1100},
+  "running-right": {"row": 1, "frames": 8, "duration_ms": 1060},
+  "running-left":  {"row": 2, "frames": 8, "duration_ms": 1060},
+  "waving":        {"row": 3, "frames": 6, "duration_ms": 900},
+  "jumping":       {"row": 4, "frames": 5, "duration_ms": 840},
+  "failed":        {"row": 5, "frames": 8, "duration_ms": 1220},
+  "waiting":       {"row": 6, "frames": 6, "duration_ms": 1600},
+  "talking":       {"row": 7, "frames": 6, "duration_ms": 720},
+  "review":        {"row": 8, "frames": 6, "duration_ms": 1500}
+}

@@ -1,0 +1,279 @@
+{
+  "scope": {
+    "workspace": "E:\\desk-pet-android",
+    "provider": "claude",
+    "language": "zh",
+    "depth": "normal",
+    "window": {
+      "since": "2026-07-05T00:00:00.000Z",
+      "until": "2026-08-04T00:00:00.000Z"
+    },
+    "evidenceLimit": 5,
+    "authority": {
+      "includeUserHome": false,
+      "includeMemories": false
+    }
+  },
+  "assetCounts": {
+    "projectAssets": 1,
+    "userAssets": 0,
+    "pluginAssets": 0,
+    "sessionSourceHints": 1,
+    "memories": 0
+  },
+  "facts": {
+    "schemaVersion": 3,
+    "kind": "session-core-facts",
+    "scope": {
+      "platform": "claude",
+      "workspace": "desk-pet-android",
+      "until": "2026-08-04T00:00:00.000Z",
+      "selection": "all-eligible",
+      "eligibleSessions": 3,
+      "selectedSessions": 3,
+      "sampled": false
+    },
+    "candidateSelection": {
+      "strategy": "agent-work-loop-portfolio-v1",
+      "availableClasses": {
+        "boundary-change": 53,
+        "lifecycle-demand": 17,
+        "operation-control": 23,
+        "change-gap": 88,
+        "read-only-work": 5
+      },
+      "emittedClasses": {
+        "boundary-change": 3,
+        "lifecycle-demand": 1,
+        "operation-control": 2,
+        "change-gap": 2,
+        "read-only-work": 1
+      }
+    },
+    "admission": {
+      "taskEpisodes": 647,
+      "candidateEpisodes": 130,
+      "distinctRequests": 93,
+      "emittedCandidates": 3
+    },
+    "populationCoverage": {
+      "withChanges": 88,
+      "withChecks": 0,
+      "withReviewedRelevantCheck": 0,
+      "withResultSignal": 19,
+      "withAssistantHandoff": 19,
+      "withStructuredCompletion": 0,
+      "withUserCorrection": 0,
+      "withExecutionFriction": 23,
+      "withFrictionConsequence": 0
+    },
+    "observationCoverage": {
+      "withChanges": 2,
+      "withChecks": 0,
+      "withReviewedRelevantCheck": 0,
+      "withResultSignal": 3,
+      "withAssistantHandoff": 3,
+      "withStructuredCompletion": 0,
+      "withUserCorrection": 0,
+      "withExecutionFriction": 2,
+      "withFrictionConsequence": 0
+    },
+    "admissionSupport": {
+      "semanticGuardrails": [
+        "occurrences-not-distinct-episodes",
+        "coverage-not-suggestion",
+        "omitted-details-not-signal-evidence",
+        "project-capability-inventory-unobserved"
+      ],
+      "sharedFrictionConsequences": []
+    },
+    "candidates": [
+      {
+        "ref": "E1",
+        "contextGroup": "G1",
+        "request": {
+          "summary": "<task-notification> <task-id>ad7c59667a379c6d7</task-id> <tool-use-id>tool_xMvHBHWzXsN1qOsrJoVwaW96</tool-use-id> <output-file><path></output-file> <status>completed</status> <summary>Agent \"critic: deleteThread 严评\" finished</summary> <note…",
+          "key": "req:a036d0756995",
+          "occurrences": 1,
+          "intermediate": "<task-notification> <task-id>a3516ab6addf2e283</task-id> <tool-use-id>tool_5VuZnmLGSi7zNCwMdYbIHaV6</tool-use-id> <outpu…",
+          "followUp": "The coordinator sent a message while you were working: critic 判不过,两条(critic 原话): ① P1 麦泄漏竞态:VoiceForegroundService.startKwsIfNeeded 的 init 线程与 onDestroy 竞态——模型加…",
+          "observedTurns": 3,
+          "omittedTurns": 0
+        },
+        "changes": {
+          "edits": 1,
+          "files": 1
+        },
+        "evidenceClasses": [
+          "boundary-change",
+          "lifecycle-demand",
+          "operation-control",
+          "change-gap"
+        ],
+        "acceptanceSignals": [
+          "project-change",
+          "assistant-handoff"
+        ],
+        "acceptanceEvidenceCeiling": "lead",
+        "frictionConsequenceSignals": [],
+        "activity": {
+          "toolCalls": 27,
+          "classifiedReads": 5
+        },
+        "workTrace": {
+          "steps": [
+            "inspect",
+            "execute",
+            "inspect",
+            "execute",
+            "change",
+            "handoff"
+          ]
+        },
+        "checks": [],
+        "friction": {
+          "executionFailures": 1,
+          "permissionDenials": 0
+        },
+        "closure": "changed-without-check",
+        "lifecycle": [
+          {
+            "intent": "testing-verification",
+            "family": "debug-test-verification",
+            "dimensionId": "change-validation",
+            "checkId": "relevant-check",
+            "confidence": "High"
+          }
+        ],
+        "result": {
+          "assistantHandoffObserved": true
+        }
+      },
+      {
+        "ref": "E2",
+        "contextGroup": "G2",
+        "request": {
+          "summary": "你是 critic 子智能体，执行**视觉盲测**（语义验收型）。两张截图 <path> 是两款手机 AI 助手 App 的「全屏语音对话模式」界面（一款是本品，一款是头部竞品参照物）。你不知道谁是谁，禁止猜测身份，只按视觉证据逐项判胜负。 ## 素材（用 Read 工具逐张亲看） - <path> - <path> ## 评审维度（逐项 1-5 分 + 具体理由，理由必须引用图中可见证据，禁止「应该有」式推断） 1. **氛围营造**：语音模式的沉浸感/专注力营造（背景、空…",
+          "key": "req:5dc27e93ecb5",
+          "occurrences": 1,
+          "intermediate": "[Image: original 1440x3168, displayed at 909x2000. Multiply coordinates by 1.58 to map to original image.]",
+          "followUp": "你是 critic 子智能体，执行**视觉盲测**（语义验收型）。两张截图 <path> 是两款手机 AI 助手 App 的「全屏语音对话模式」界面（一款是本品，一款是头部竞品参照物）。你不知道谁是谁，禁止猜测身份，只按视觉证据逐项判胜负。 ## 素材（用 Read 工具逐张亲看） - <path> - <path> …",
+          "observedTurns": 3,
+          "omittedTurns": 0
+        },
+        "changes": {
+          "edits": 0,
+          "files": 0
+        },
+        "evidenceClasses": [
+          "boundary-change",
+          "read-only-work"
+        ],
+        "acceptanceSignals": [
+          "assistant-handoff"
+        ],
+        "acceptanceEvidenceCeiling": "lead",
+        "frictionConsequenceSignals": [],
+        "activity": {
+          "toolCalls": 4,
+          "classifiedReads": 4
+        },
+        "workTrace": {
+          "steps": [
+            "inspect",
+            "handoff"
+          ]
+        },
+        "checks": [],
+        "closure": "no-change-observed",
+        "result": {
+          "assistantHandoffObserved": true
+        }
+      },
+      {
+        "ref": "E3",
+        "contextGroup": "G1",
+        "request": {
+          "summary": "你是盲测评审子智能体。两张手机 App 截图(<path> 为两个不同 AI 助手产品,不告诉你谁是谁)。**只评「输入区」(屏幕底部输入条),只挑刺不表扬。** 均为默认语音模式。 ## 素材(自己 Read) - `<path>` - `<path>` ## 评分维度(每项 1-5,逐张逐项给具体理由) 1. **主操作显性**:语音主按钮一眼可辨、表意清晰(图标+文案) 2. **模式切换可达性**:键盘切换入口可见可辨、热区与容器、与主按钮布局关系 3. **视觉精致…",
+          "key": "req:0f35531db048",
+          "occurrences": 1,
+          "intermediate": "你是盲测评审子智能体。两张手机 AI 助手聊天页截图(<path> 为两个不同产品,不告诉你谁是谁)。**评整页,只挑刺不表扬。** 内容状态可能不同(一张有对话内容、一张空态),评设计能力不是内容多寡——空态评空态设计,有内容评内容呈现。…",
+          "followUp": "<task-notification> <task-id>a6fe2608fc1a3488a</task-id> <tool-use-id>tool_3AQ0onTNI3wENo2oNNwY9Y9m</tool-use-id> <output-file><path></output-file> <status>comp…",
+          "observedTurns": 4,
+          "omittedTurns": 1
+        },
+        "changes": {
+          "edits": 1,
+          "files": 1
+        },
+        "evidenceClasses": [
+          "boundary-change",
+          "operation-control",
+          "change-gap"
+        ],
+        "acceptanceSignals": [
+          "project-change",
+          "assistant-handoff"
+        ],
+        "acceptanceEvidenceCeiling": "lead",
+        "frictionConsequenceSignals": [],
+        "activity": {
+          "toolCalls": 22,
+          "classifiedReads": 7
+        },
+        "workTrace": {
+          "steps": [
+            "execute",
+            "inspect",
+            "execute",
+            "execute",
+            "change",
+            "handoff"
+          ],
+          "gapAfter": 3,
+          "omittedSteps": 1
+        },
+        "checks": [],
+        "friction": {
+          "executionFailures": 1,
+          "permissionDenials": 0
+        },
+        "closure": "changed-without-check",
+        "result": {
+          "assistantHandoffObserved": true
+        }
+      }
+    ],
+    "omitted": {
+      "noRequest": 517,
+      "selfAnalysis": 0,
+      "lowSignal": 0,
+      "duplicateRequests": 37,
+      "candidateBudget": 90,
+      "checkBudget": 0,
+      "activeSessions": 0,
+      "homeSessionOnly": 0
+    },
+    "warningCodes": [
+      "missing-optional-root"
+    ],
+    "excludes": [
+      "assistantText",
+      "rawPrompts",
+      "commands",
+      "toolOutput",
+      "paths",
+      "rawIds",
+      "secrets"
+    ],
+    "diagnosticFlags": [
+      "portfolio-truncated",
+      "population-portfolio-divergence",
+      "no-reviewed-relevant-check-evidence"
+    ],
+    "cost": {
+      "serializedBytes": 6527,
+      "estimatedTokens": 1766
+    }
+  }
+}

@@ -1,0 +1,162 @@
+{
+  "summary": {
+    "projectName": "desk-pet-android",
+    "locale": "zh-CN",
+    "modelId": "agent-work-loop-v4",
+    "reportContractVersion": 25,
+    "overview": "项目上下文资产（AGENTS.md/CLAUDE.md/ADR/基线声明）在同类中最完整，但声明的质量基线与安全约束全部停留在文本层：无机械执行点、无 hook 兜底；窗口内 640 次编辑未观测到关联验证命令。机制已存在，关键是把声明接线到日常执行。",
+    "dimensions": [
+      {
+        "id": "task-understanding",
+        "label": "任务理解",
+        "score": 76,
+        "summary": "根级 AGENTS.md 含权威文档层级、环境硬事实与不可退基线，ADR/spec 链完整，会话中观测到 12 次 spec 引用；唯 CLAUDE.md 与 AGENTS.md 的同步声明失实。",
+        "findingRefs": [
+          "dual-instruction-sync-drift"
+        ]
+      },
+      {
+        "id": "controlled-execution",
+        "label": "可控执行",
+        "score": 62,
+        "summary": "构建与真机操作路径有实测文档，但真机互斥锁、只读仓、凭据保护三类安全约束仅有文本层，且文本自述已被违穿过一次。",
+        "findingRefs": [
+          "prose-only-safety-constraints"
+        ]
+      },
+      {
+        "id": "change-validation",
+        "label": "改动验证",
+        "score": 55,
+        "summary": "38 个 JVM 测试文件与 274 单测基线存在，但无任何机械执行点；窗口内 640 次编辑未观测到验证命令；高 churn UI 层完全依赖人工截图验证。",
+        "findingRefs": [
+          "quality-baseline-no-enforcement",
+          "ui-layer-manual-verification"
+        ]
+      },
+      {
+        "id": "reliable-delivery",
+        "label": "可靠交付",
+        "score": 48,
+        "summary": "单人直推无 CI/合并门，验收靠文档留痕（screenshots/verification 高频提交）；当前 14 文件 1597 行未提交使 PROGRESS 描述与 HEAD 状态脱节。",
+        "findingRefs": [
+          "uncommitted-wip-boundary"
+        ]
+      },
+      {
+        "id": "learning-capture",
+        "label": "经验沉淀",
+        "score": 45,
+        "summary": "ce-compound 被实际调用 4 次、ADR 持续沉淀（机制在场）；但视觉盲测评审提示模板在两个独立 Episode 重复手工构造，无任何可复用载体承接。",
+        "findingRefs": [
+          "blindtest-rubric-no-owner"
+        ]
+      }
+    ],
+    "aiAgentPractice": {
+      "inspectedSurfaces": [
+        "Rules"
+      ],
+      "coverageRows": [
+        {
+          "surface": "Rules",
+          "scopes": [
+            "Project"
+          ],
+          "count": 2,
+          "paths": [
+            "AGENTS.md",
+            "CLAUDE.md"
+          ]
+        }
+      ]
+    },
+    "assignmentSummaries": []
+  },
+  "findings": [
+    {
+      "id": "quality-baseline-no-enforcement",
+      "title": "声明的不可退质量基线没有任何机械执行点，窗口内 640 次编辑未观测到验证",
+      "severity": "Medium",
+      "reason": "事实：AGENTS.md 明文声明『单测基线 274 个、skipped=0、只增不减』『assembleDebug 绿』『资源指纹不可退』，但项目无 CI（.github/workflows 不存在）、无 pre-commit 钩子、构建脚本未配置任何 lint/质量门插件；会话证据侧窗口内观测到 640 次编辑事件、0 次关联验证命令（88 个变更 Episode 中 0 个带检查）。后果：单人 + agent 高频提交（6 天 58 commits）环境下，基线一旦滑坡没有自动报警点，发现会滞后到下次人工全量跑。不确定性：项目级 .claude/settings.local.json 内容未读，若已挂载测试钩子则本发现部分失效；未观测到基线已实际滑坡。",
+      "dimensionRefs": [
+        "change-validation"
+      ],
+      "aiFixPrompt": "/better-harness 修复此问题\n\n把 AGENTS.md 声明的基线变成可执行检查：加一个本地机械校验（gradlew 任务或 git hook），运行 testDebugUnitTest 并断言测试计数 ≥274、skipped=0；将其接入 CLAUDE.md/AGENTS.md 声明的工作循环收尾步骤。不引入远程 CI。\n\n## 验证\n\n- 运行该校验命令，确认其输出测试总数与 skipped 计数并在基线被违反时非零退出\n- 故意将一个测试标记为 skip 做一次负样本，确认校验报警后还原",
+      "expectedArtifact": "Script",
+      "expectedOutput": [
+        "基线声明对应一条可机械复核的校验命令，违反时在当次工作循环内被发现"
+      ]
+    },
+    {
+      "id": "prose-only-safety-constraints",
+      "title": "真机互斥锁、只读仓、凭据保护三类安全约束仅有文本层，且文本自述已被违穿",
+      "severity": "Medium",
+      "reason": "事实：CLAUDE.md/AGENTS.md 以 prose 规定真机操作前的目录锁互斥、迁移仓目录只读、凭据路径不入库三类约束；项目级 hooks 与权限门禁计数为 0。文件自述教训来源：2026-07-30 并行期发生 install 互杀、日志被清——即 prose 约束已被现实违穿过。后果：长会话或子智能体场景下无强制兜底，同类事故可复发。不确定性：窗口内未观测到新的违规事件；用 hook 实现跨进程设备锁的可行性未验证。",
+      "dimensionRefs": [
+        "controlled-execution"
+      ],
+      "aiFixPrompt": "/better-harness 修复此问题\n\n为三类安全约束评估强制层：设备操作前加 PreToolUse 锁检查 hook、为只读仓目录与凭据目录加 deny 规则；若评估后决定不加，则在 CLAUDE.md 显式记录『接受 prose-only』的风险决策与理由。二选一，不留默认状态。\n\n## 验证\n\n- 若加门禁：构造一次违反约束的操作样本，确认被 hook/deny 拦截\n- 若记录决策：确认 CLAUDE.md 中存在带日期的显式风险接受条目",
+      "expectedArtifact": "Hook",
+      "expectedOutput": [
+        "三类安全约束要么有机械兜底并被负样本验证，要么有显式的风险接受记录"
+      ]
+    },
+    {
+      "id": "dual-instruction-sync-drift",
+      "title": "CLAUDE.md 的『内容同步』声明与 AGENTS.md 实际有意分叉不符，共享段靠手工维持",
+      "severity": "Low",
+      "reason": "事实：CLAUDE.md 第 4 行声明与 AGENTS.md『内容同步』，但 diff 实测两文件为有意分叉（AGENTS.md 按设计省略子智能体编排协议与真机互斥锁两节）；其余共享的项目事实/环境硬事实/基线段当前逐字一致，但无任何机制保证下次只改一边时不漂移。后果：这些段被定位为『勿重新调研』的权威真相源，漂移后错误会被当作事实照抄，两个 agent 按不同真相行动。不确定性：当前共享内容实际一致，问题在措辞与机制层面，非现行内容冲突。",
+      "dimensionRefs": [
+        "task-understanding"
+      ],
+      "aiFixPrompt": "/better-harness 修复此问题\n\n二选一：改写 CLAUDE.md 第 4 行为准确表述（共享项目事实段保持一致，编排协议仅 Claude Code 适用）；或将共享段抽为单一权威源、两份文件做薄壳引用。\n\n## 验证\n\n- 打开两份文件确认分工表述与实际内容一致\n- 若抽权威源：确认两份文件不再各自持有共享段的正文副本",
+      "expectedArtifact": "Rule",
+      "expectedOutput": [
+        "双指令文件的分工表述与实际内容一致，共享事实段有单一权威源或准确的同步边界说明"
+      ]
+    },
+    {
+      "id": "blindtest-rubric-no-owner",
+      "title": "视觉盲测评审提示模板在两个独立 Episode 重复手工构造，无可复用载体",
+      "severity": "Low",
+      "reason": "事实：两个跨上下文组的独立 Episode 呈现稳定首提示形状——盲测评审子智能体角色设定 + 两张截图素材 + 逐项 1-5 分评分 rubric + 盲测纪律（禁止猜身份、只挑刺），项目内 skills/commands 计数为 0，无载体承接。后果：每次重写成本高且评分口径易漂移。不确定性：procedure 级重复未确认（其中一次运行轨迹有空洞）；用户全局层是否已有等价载体未授权检查——修复前需先走覆盖阶梯确认无既有覆盖。",
+      "dimensionRefs": [
+        "learning-capture"
+      ],
+      "aiFixPrompt": "/better-harness 修复此问题\n\n对盲测评审提示模板走覆盖阶梯：先确认内置能力与既有配置（含用户全局层）无等价载体，再评估将 rubric + 盲测纪律抽取为项目级可复用载体（如 .claude/commands/ 下的一份命令）。抽取不是默认结论，确认无覆盖后再做。\n\n## 验证\n\n- 用同一载体对两张截图跑一次盲测评审，确认输出结构与原手工提示一致\n- 确认载体中不含任何当次任务的私有内容",
+      "expectedArtifact": "Skill",
+      "expectedOutput": [
+        "盲测评审 rubric 有单一可复用载体，或留存覆盖排查后『不抽取』的显式结论"
+      ]
+    },
+    {
+      "id": "uncommitted-wip-boundary",
+      "title": "14 文件 1597 行未提交（含 5 个未跟踪新文件），PROGRESS 描述与 HEAD 状态脱节",
+      "severity": "Low",
+      "reason": "事实：当前工作区 diff 含 14 文件 1597 行，其中 5 个未跟踪新文件（InputBar.kt 539 行、FileMeta.kt、FunctionKeyLogic.kt 及配套测试）。文档纪律（PROGRESS/CONSTRUCTION 每会话更新）与代码入库之间存在时间差。后果：未提交期间『可自动验证』的声明落不到任何提交上，单人环境丢失/回滚粒度差，后续会话接手时文档描述与 HEAD 不一致。不确定性：单次快照无法区分『常态堆积』与『恰好抓到大切片中途』。",
+      "dimensionRefs": [
+        "reliable-delivery"
+      ],
+      "aiFixPrompt": "/better-harness 修复此问题\n\n在 AGENTS.md 工作循环中补一条提交时机规则（如 CONSTRUCTION 票据完成即提交），并将当前未提交工作面按票据粒度拆分提交。\n\n## 验证\n\n- 运行 git status，确认剩余未提交项均有显式豁免理由\n- 抽查最近 3 个提交，确认每个提交可对应到一份票据或一条明确边界",
+      "expectedArtifact": "Rule",
+      "expectedOutput": [
+        "工作循环有明确的提交时机规则，文档描述与 HEAD 状态保持一致"
+      ]
+    },
+    {
+      "id": "ui-layer-manual-verification",
+      "title": "churn 最高的 UI 层无机械行为检查，验证完全依赖人工截图对比",
+      "severity": "Low",
+      "reason": "事实：churn 榜首 ChatScreen.kt（1652 churn / 10 commits）正在被提取出 539 行新组件 InputBar.kt（未跟踪）；38 个测试文件全部对应纯逻辑类，Compose UI 层无任何测试配对；UI 验证走人工 adb 截图 + docs/screenshots、docs/verification 留痕（两处分别为 24、21 次提交的高频路径）。后果：agent 改 UI 后没有快速、可自动判定的反馈层，回归只能靠人眼对比截图。不确定性：这是 AGENTS.md 明文的有意分层（纯逻辑才 TDD），属约定内缺口；UI 逻辑可能已抽入已测纯逻辑类，实际风险或低于 churn 数字所示。",
+      "dimensionRefs": [
+        "change-validation"
+      ],
+      "aiFixPrompt": "/better-harness 修复此问题\n\n为 UI 验证补一层可复现反馈（二选一）：为 InputBar 这类提取组件补 Compose 语义或 Robolectric 测试；或把现有截图流程脚本化为固定输入→截图→断言的可重复命令。先求可复现，再求自动判定。\n\n## 验证\n\n- 对 InputBar 跑一次新反馈层，确认无需人工目检即可判定通过/失败\n- 若选脚本化截图：同一输入连跑两次，确认断言结果一致",
+      "expectedArtifact": "Test",
+      "expectedOutput": [
+        "高 churn UI 组件有一层可复现的机械反馈，人工截图退居抽检角色"
+      ]
+    }
+  ]
+}

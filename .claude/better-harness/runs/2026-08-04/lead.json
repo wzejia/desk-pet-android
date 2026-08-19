@@ -1,0 +1,460 @@
+{
+  "scope": {
+    "workspace": "E:\\desk-pet-android",
+    "provider": "claude",
+    "language": "zh",
+    "depth": "normal",
+    "window": {
+      "since": "2026-07-05T00:00:00.000Z",
+      "until": "2026-08-04T00:00:00.000Z"
+    },
+    "evidenceLimit": 5,
+    "authority": {
+      "includeUserHome": false,
+      "includeMemories": false
+    }
+  },
+  "data": {
+    "kind": "better-harness.harness-analysis-evidence",
+    "schemaVersion": 1,
+    "evidence": "HARNESS ANALYSIS EVIDENCE\n\nThis is a read-only evidence brief, not a report conclusion.\nProjected report conclusions are intentionally excluded; use the observations and boundaries below to make your own evidence-backed decisions.\nWorkspace: E:\\desk-pet-android\nPlatform: claude\nLanguage: zh\nBudget: at most 6000 estimated tokens; each evidence domain uses bounded representative rows and reports omissions.\n\nOBSERVATION SCOPE\nSource roots: 1 of 3 enabled roots exist; 3 roots were discovered.\nSession selection: analyzed 3 of 3 eligible sessions with all-eligible selection; confidence High; representative yes.\nScope: workspace; global capability metadata included no; since 2026-07-05T00:00:00.000Z; until 2026-08-04T00:00:00.000Z.\nPrivacy boundary: reader-safe; raw prompts included no; raw commands included no; absolute home paths included no.\nSource warnings: missing-optional-root.\n\nREPOSITORY FACTS\nProject label: desk-pet-android.\n- Task understanding: 1 observed and 1 connected signal(s). Representative evidence: 2 agent guidance file(s), 4 architecture/readme and 5 spec file(s).\n- Controlled execution: 1 observed and 0 connected signal(s). Representative evidence: 2 workspace manifest(s).\n- Change validation: 1 observed and 0 connected signal(s). Representative evidence: 40 tracked test file(s).\n- Reliable delivery: 0 observed and 0 connected signal(s).\n- Agent practice coverage: Custom Agents has 0 asset(s) in Project.\n- Reusable Skill evidence: scanned-empty; 0 candidate asset(s), 0 observed project Skill(s), and 0 unresolved name match(es).\n- Regression-test evidence: candidates-present; inspected 58 commit(s) and retained 6 source/test co-change candidate(s).\n  - Sources: app/src/main/java/com/xiaoduo/deskpet/PetOverlayService.kt, app/src/main/java/com/xiaoduo/deskpet/pet/OverlayClamp.kt. Tests: app/src/test/java/com/xiaoduo/deskpet/pet/OverlayClampTest.kt. Path-correlated yes.\n  - Sources: app/src/main/java/com/xiaoduo/deskpet/chat/ChatViewModel.kt, app/src/main/java/com/xiaoduo/deskpet/ui/overlay/BubbleTextStrip.kt, app/src/main/java/com/xiaoduo/deskpet/ui/screens/SessionDrawer.kt. Tests: app/src/test/java/com/xiaoduo/deskpet/ui/overlay/BubbleTextStripTest.kt. Path-correlated yes.\n  - Sources: app/src/main/java/com/xiaoduo/deskpet/VoiceForegroundService.kt, app/src/main/java/com/xiaoduo/deskpet/voice/AudioCapture.kt. Tests: app/src/test/java/com/xiaoduo/deskpet/voice/OnceGateTest.kt. Path-correlated no.\n  - 3 additional co-change candidate(s) omitted.\n- Canonical planning evidence: candidates-present; 5 candidate(s); paths: docs/adr/0001-m1-scope-and-form.md, docs/adr/0002-session-sole-concept.md, docs/adr/0003-voice-fullscreen-bargein.md, docs/spec/assistant-app.spec.md, docs/spec/assistant-ui-voice-input.spec.md.\n- Sensitive-config scan coverage: complete; 6 of 6 candidate file(s) scanned, 0 skipped, 0 read error(s), truncated no.\n- Learning observation coverage: 641 episode record(s), 0 recurring candidate(s), 0 scoped Skill observation(s), and 2 unscoped Skill observation(s).\n  - Aggregated friction signals: permission-rejection: 303, failed-event: 86, source-warning:missing-optional-root: 2.\n  - Coverage boundary: Asset Coverage=not-evaluable-missing-asset-inventory, Capture=not-evaluable-missing-normalized-events, Pattern Detection=insufficient-recurrence, Routing=checked-clean, Freshness=checked-clean, Application=not-evaluable-missing-application-events, Evolution=not-evaluable-missing-update-evidence, Effectiveness=pending-no-later-window, Memory Governance=checked-clean.\n- Workflow-demand observation: 0 current handoff(s) and 0 repeated candidate(s); candidate contents are not projected into this brief.\n  - Coverage boundary: Demand Signals=candidate-found, Current Handoff=checked-clean, Recurrence=insufficient-recurrence, Skill Inventory=checked-clean, Skill Activation=checked-clean.\n\nSESSION AND TASK FACTS\nSession packet: 3 selected session(s), 641 retained candidate episode(s), and 6 discarded episode(s).\nUsage activity: 3 session(s) in the complete activity census; top bounded Skill observations: ce-compound: 4, loop-skills-improve: 1.\nUsage census: analyzed 3 of 3 eligible sessions; complete yes; 2 active-long and 0 wall-only session(s); accounting host-estimated.\n- Episode 1 (episode:14517de8a5ac5d0e): session-start; 1 session(s); 1 change event(s) in 1 set(s); 0 validation event(s) in 0 set(s); closure unobserved; repair not-applicable; 705.0 seconds; 23 tool call(s); 150 retained event(s).\n- Episode 2 (episode:1c9f779c34339932): progress-handoff; 1 session(s); 1 change event(s) in 1 set(s); 0 validation event(s) in 0 set(s); closure unobserved; repair not-applicable; 204.7 seconds; 16 tool call(s); 115 retained event(s).\n- Episode 3 (episode:6e78b441f1ec2cd6): progress-handoff; 1 session(s); 1 change event(s) in 1 set(s); 0 validation event(s) in 0 set(s); closure unobserved; repair not-applicable; 150.1 seconds; 7 tool call(s); 52 retained event(s).\n- Episode 4 (episode:06a7a2e476e83e76): progress-handoff; 1 session(s); 1 change event(s) in 1 set(s); 0 validation event(s) in 0 set(s); closure unobserved; repair not-applicable; 158.9 seconds; 5 tool call(s); 37 retained event(s).\n- Episode 5 (episode:83497b5944095c87): progress-handoff; 1 session(s); 1 change event(s) in 1 set(s); 0 validation event(s) in 0 set(s); closure unobserved; repair not-applicable; 19.0 seconds; 2 tool call(s); 12 retained event(s).\n- 636 additional task episode(s) omitted; selection retained the first, last, and highest observed activity episodes.\n\nANALYZER OBSERVATIONS\n- Analyzed 3 of 3 sessions; 1/3 enabled source roots exist. Use this as the current workspace evidence boundary for final insight cards.\n- No validation command category was observed in the analyzed session sample. Inspect more sessions or add explicit validation guidance before claiming validation-after-edit behavior.\n- Observed 640 edit event(s), but no later validation command in the analyzed sample. Route this lead to Harness session-evidence review to inspect the affected Task Episodes and later relevant validation before any finding. (1 bounded evidence reference(s))\n- Observed friction category: permission-rejection (303). Open bounded sessions behind this category before turning it into a user-facing recommendation. (3 bounded evidence reference(s))\n- Most observed tool: Bash (1728). Use this as workflow evidence, then inspect bounded sessions before claiming user intent. (5 bounded evidence reference(s))\n- Observed claude spec-reference: spec-session-reference (12, workspace). Use this as workspace session evidence for Goal/Plan/Spec workflow behavior. (3 bounded evidence reference(s))\n- Observed 2 active long session(s); longest active estimate: 17h 53m. Review task family, outcome, and friction before deciding whether this duration reflects a problem or any decomposition, tool, delegation, or model change is needed. (1 bounded evidence reference(s))\n- 本次分析覆盖 3 个会话，其中 2 个达到活跃长会话阈值，最长约 1073 分钟。 这些活动证据不代表模型偏好或质量；模型效果仍需结合相同任务类型的结果比较。 (3 bounded evidence reference(s))\n\nDELIVERY EVIDENCE\nNo bounded evidence observed.\n\nINTERVENTION HISTORY\nNo bounded evidence observed.\n\nREVIEW BOUNDARIES\n- Source candidate: requires-review.\n- Repository review: requires-review; 2 framework(s), 9 repository check(s), and 5 Software Fluency capability review(s) remain in scope.\n- Score review: requires-review; 5 dimension(s) await AI judgment.\n- Session observation review: candidate; 8 observation card(s) from 3 analyzed session(s).",
+    "summaryFacts": {
+      "evidenceMode": "session-rich",
+      "evidenceBoundary": {
+        "manifest": {
+          "schemaVersion": 2,
+          "sourceFingerprint": "0138e596a2960386",
+          "adapterVersion": "claude-task-loop-source-v2",
+          "platform": "claude",
+          "selection": {
+            "strategy": "all-eligible",
+            "eligibleCount": 3,
+            "analyzedCount": 3,
+            "confidence": "High"
+          }
+        },
+        "episodeCoverage": {
+          "episodeCount": 641,
+          "editedEpisodeCount": 640,
+          "closedEpisodeCount": 0,
+          "recoveredEpisodeCount": 0
+        },
+        "deliveryEvidenceLevels": [],
+        "sourceGaps": []
+      },
+      "semanticFacets": {
+        "schemaVersion": 1,
+        "status": "supplementary",
+        "entries": [
+          {
+            "id": "session-insight:source-coverage",
+            "kind": "redacted-summary",
+            "episodeRef": null,
+            "status": "candidate",
+            "labels": [
+              "source-coverage",
+              "High"
+            ],
+            "summary": "Analyzed 3 of 3 sessions; 1/3 enabled source roots exist. Use this as the current workspace evidence boundary for final insight cards.",
+            "evidenceRefs": [],
+            "modelVersion": "session-insights-v1"
+          },
+          {
+            "id": "session-insight:validation-behavior",
+            "kind": "redacted-summary",
+            "episodeRef": null,
+            "status": "candidate",
+            "labels": [
+              "validation-behavior",
+              "Low"
+            ],
+            "summary": "No validation command category was observed in the analyzed session sample. Inspect more sessions or add explicit validation guidance before claiming validation-after-edit behavior.",
+            "evidenceRefs": [],
+            "modelVersion": "session-insights-v1"
+          },
+          {
+            "id": "session-insight:post-edit-validation",
+            "kind": "rework-correction",
+            "episodeRef": null,
+            "status": "candidate",
+            "labels": [
+              "post-edit-validation",
+              "High"
+            ],
+            "summary": "Observed 640 edit event(s), but no later validation command in the analyzed sample. Route this lead to Harness session-evidence review to inspect the affected Task Episodes and later relevant validation before any finding.",
+            "evidenceRefs": [
+              {
+                "kind": "claude-project-jsonl",
+                "id": "session-insight-3-1",
+                "type": "tool.result",
+                "line": 111
+              }
+            ],
+            "modelVersion": "session-insights-v1"
+          },
+          {
+            "id": "session-insight:execution-friction",
+            "kind": "friction-taxonomy",
+            "episodeRef": null,
+            "status": "candidate",
+            "labels": [
+              "execution-friction",
+              "High"
+            ],
+            "summary": "Observed friction category: permission-rejection (303). Open bounded sessions behind this category before turning it into a user-facing recommendation.",
+            "evidenceRefs": [
+              {
+                "kind": "claude-project-jsonl",
+                "id": "session-insight-4-1",
+                "type": "metadata.permission-mode",
+                "line": 3
+              },
+              {
+                "kind": "claude-project-jsonl",
+                "id": "session-insight-4-2",
+                "type": "metadata.permission-mode",
+                "line": 14
+              },
+              {
+                "kind": "claude-project-jsonl",
+                "id": "session-insight-4-3",
+                "type": "metadata.permission-mode",
+                "line": 30
+              }
+            ],
+            "modelVersion": "session-insights-v1"
+          },
+          {
+            "id": "session-insight:tool-mix",
+            "kind": "redacted-summary",
+            "episodeRef": null,
+            "status": "candidate",
+            "labels": [
+              "tool-mix",
+              "High"
+            ],
+            "summary": "Most observed tool: Bash (1728). Use this as workflow evidence, then inspect bounded sessions before claiming user intent.",
+            "evidenceRefs": [
+              {
+                "kind": "claude-project-jsonl",
+                "id": "session-insight-5-1",
+                "type": "tool.call",
+                "line": 8
+              },
+              {
+                "kind": "claude-project-jsonl",
+                "id": "session-insight-5-2",
+                "type": "tool.call",
+                "line": 15
+              },
+              {
+                "kind": "claude-project-jsonl",
+                "id": "session-insight-5-3",
+                "type": "tool.call",
+                "line": 12
+              },
+              {
+                "kind": "claude-project-jsonl",
+                "id": "session-insight-5-4",
+                "type": "tool.call",
+                "line": 58
+              },
+              {
+                "kind": "claude-project-jsonl",
+                "id": "session-insight-5-5",
+                "type": "tool.call",
+                "line": 62
+              }
+            ],
+            "modelVersion": "session-insights-v1"
+          },
+          {
+            "id": "session-insight:planning-workflow",
+            "kind": "goal-workflow",
+            "episodeRef": null,
+            "status": "candidate",
+            "labels": [
+              "planning-workflow",
+              "Medium"
+            ],
+            "summary": "Observed claude spec-reference: spec-session-reference (12, workspace). Use this as workspace session evidence for Goal/Plan/Spec workflow behavior.",
+            "evidenceRefs": [
+              {
+                "kind": "claude-project-jsonl",
+                "id": "session-insight-6-1",
+                "type": "user",
+                "line": 1
+              },
+              {
+                "kind": "claude-project-jsonl",
+                "id": "session-insight-6-2",
+                "type": "user",
+                "line": 1
+              },
+              {
+                "kind": "claude-project-jsonl",
+                "id": "session-insight-6-3",
+                "type": "user",
+                "line": 1
+              }
+            ],
+            "modelVersion": "session-insights-v1"
+          },
+          {
+            "id": "session-insight:session-complexity",
+            "kind": "redacted-summary",
+            "episodeRef": null,
+            "status": "candidate",
+            "labels": [
+              "session-complexity",
+              "High"
+            ],
+            "summary": "Observed 2 active long session(s); longest active estimate: 17h 53m. Review task family, outcome, and friction before deciding whether this duration reflects a problem or any decomposition, tool, delegation, or model change is needed.",
+            "evidenceRefs": [
+              {
+                "kind": "claude-project-jsonl",
+                "id": "session-insight-7-1",
+                "type": "last-prompt",
+                "line": 1
+              }
+            ],
+            "modelVersion": "session-insights-v1"
+          },
+          {
+            "id": "session-insight:session-usage-efficiency",
+            "kind": "redacted-summary",
+            "episodeRef": null,
+            "status": "candidate",
+            "labels": [
+              "session-usage-efficiency",
+              "High"
+            ],
+            "summary": "本次分析覆盖 3 个会话，其中 2 个达到活跃长会话阈值，最长约 1073 分钟。 这些活动证据不代表模型偏好或质量；模型效果仍需结合相同任务类型的结果比较。",
+            "evidenceRefs": [
+              {
+                "kind": "claude-project-jsonl",
+                "id": "session-insight-8-1",
+                "type": "last-prompt",
+                "line": 1
+              },
+              {
+                "kind": "claude-project-jsonl",
+                "id": "session-insight-8-2",
+                "type": "model.response.completed",
+                "line": 17
+              },
+              {
+                "kind": "claude-project-jsonl",
+                "id": "session-insight-8-3",
+                "type": "model.response.completed",
+                "line": 34
+              }
+            ],
+            "modelVersion": "session-insights-v1"
+          }
+        ]
+      },
+      "learningCapture": {
+        "schemaVersion": 1,
+        "state": "N/A",
+        "summary": "暂不适用——需要两个可比的观察窗口和一次改进对比。",
+        "interventions": []
+      },
+      "aiAgentPractice": {
+        "inspectedSurfaces": [],
+        "coverageRows": [
+          {
+            "surface": "Custom Agents",
+            "scopes": [
+              "Project"
+            ],
+            "count": 0
+          }
+        ]
+      },
+      "usageActivity": {
+        "schemaVersion": 2,
+        "dateBasis": "UTC",
+        "measurementBasis": "session-starts-active-estimate-model-active-session-days-skill-invocations-and-loads",
+        "truncated": false,
+        "dates": [
+          "2026-07-30",
+          "2026-07-31",
+          "2026-08-01",
+          "2026-08-02",
+          "2026-08-03"
+        ],
+        "sessions": {
+          "total": 3,
+          "starts": [
+            1,
+            0,
+            0,
+            0,
+            2
+          ],
+          "activeMinutes": [
+            1072.9,
+            0,
+            0,
+            0,
+            119.4
+          ]
+        },
+        "models": [
+          {
+            "name": "k3",
+            "total": 5,
+            "daily": [
+              1,
+              1,
+              0,
+              0,
+              3
+            ]
+          },
+          {
+            "name": "<synthetic>",
+            "total": 1,
+            "daily": [
+              0,
+              1,
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "name": "glm-5.2",
+            "total": 1,
+            "daily": [
+              0,
+              1,
+              0,
+              0,
+              0
+            ]
+          }
+        ],
+        "skills": [
+          {
+            "name": "ce-compound",
+            "total": 4,
+            "daily": [
+              1,
+              0,
+              0,
+              0,
+              3
+            ]
+          },
+          {
+            "name": "loop-skills-improve",
+            "total": 1,
+            "daily": [
+              0,
+              0,
+              0,
+              0,
+              1
+            ]
+          }
+        ]
+      },
+      "usageEfficiency": {
+        "schemaVersion": 2,
+        "selection": {
+          "strategy": "all-eligible",
+          "eligibleSessionCount": 3,
+          "analyzedSessionCount": 3,
+          "complete": true
+        },
+        "roles": {
+          "userThreadCandidateCount": 1,
+          "childAgentCandidateCount": 2
+        },
+        "longSessions": {
+          "activeCount": 2,
+          "wallOnlyCount": 0,
+          "longestActiveMinutes": 1072.9,
+          "activeRatio": 0.6667,
+          "estimate": {
+            "method": "capped-event-gap",
+            "activeThresholdMinutes": 45,
+            "gapCapMinutes": 5,
+            "idleGapMinutes": 30
+          },
+          "samples": [
+            {
+              "alias": "S1",
+              "role": "child-agent-candidate",
+              "activeMinutes": 1072.9,
+              "failureCount": 81
+            },
+            {
+              "alias": "S2",
+              "role": "child-agent-candidate",
+              "activeMinutes": 112.8,
+              "failureCount": 5
+            }
+          ]
+        },
+        "accounting": {
+          "mode": "host-estimated",
+          "responseCount": 3131,
+          "modelAttributedResponseCount": 3131,
+          "unattributedResponseCount": 0,
+          "usageFieldObservedCount": 3131,
+          "nonZeroUsageCount": 3126,
+          "exactCreditsAvailable": false,
+          "pricingVersion": null
+        },
+        "modelUsage": [
+          {
+            "model": "k3",
+            "responseCount": 3104,
+            "usageFieldObservedCount": 3104,
+            "nonZeroUsageCount": 3104
+          },
+          {
+            "model": "glm-5.2",
+            "responseCount": 22,
+            "usageFieldObservedCount": 22,
+            "nonZeroUsageCount": 22
+          },
+          {
+            "model": "<synthetic>",
+            "responseCount": 5,
+            "usageFieldObservedCount": 5,
+            "nonZeroUsageCount": 0
+          }
+        ],
+        "outcomeReview": {
+          "status": "required",
+          "reviewedCandidateCount": 0,
+          "reviewedActiveLongCount": 0,
+          "comparableModelOutcomeEvidence": false,
+          "recommendation": "controlled-a-b-required"
+        },
+        "tokenTotals": {
+          "inputTokens": 9568505,
+          "outputTokens": 1857623,
+          "cacheReadInputTokens": 374344568,
+          "cacheCreationInputTokens": 0
+        },
+        "reviewLead": {
+          "id": "session-usage-outcome-review-gap",
+          "title": "2 个长会话候选仍待结果复核",
+          "reason": "3 个已分析会话中有 2 个（66.7%）超过估算活跃时长阈值，最长估算为 1072.9 分钟，其中 0 个已有结果复核；另有 0 个长跨度可能来自空闲或恢复。这只是调查线索，尚未确认存在效率、任务拆分、工具链或模型问题。",
+          "expectedOutcome": "每个展示候选都完成任务族、结果和摩擦分类，让报告能够判断是否真的需要改进。",
+          "aiFixPrompt": "/better-harness 复核这些会话\n\n2 个长会话候选仍待结果复核\n\n## 先核对的会话\n\n- S1：子 Agent 候选，估算活跃约 1072.9 分钟，失败事件 81 次\n- S2：子 Agent 候选，估算活跃约 112.8 分钟，失败事件 5 次\n\n## 先做什么\n\n在操作系统临时目录创建 <run>，从项目根运行：\n\n```bash\nnode scripts/session-analysis.mjs insights --platform claude --workspace . --selection all-eligible --limit 1000 --format json --output <run>/insights.json\nnode scripts/session-analysis/usage-review-packet.mjs --source <run>/insights.json --workspace . --limit 8 --output <run>/.review-packet.json\n```\n\n私有 review packet 会在本地解析候选；只为 S1, S2 写入 taskFamily、outcome、friction、confidence 和 evidenceReason。先完成复核，不改业务代码，也不创建 Memory、Skill 或 Hook。\n\n## 我们看到了什么\n\n3 个已分析会话中有 2 个（66.7%）超过估算活跃时长阈值，最长估算为 1072.9 分钟，其中 0 个已有结果复核；另有 0 个长跨度可能来自空闲或恢复。这只是调查线索，尚未确认存在效率、任务拆分、工具链或模型问题。\n\n## 为什么值得复核\n\n未复核前无法区分复杂任务、工具链摩擦、暂停恢复噪音或正常的长任务。\n\n## 预期结果\n\n每个展示候选都完成任务族、结果和摩擦分类，让报告能够判断是否真的需要改进。\n\n## 范围\n\n只生成隐私安全的会话效率复核和 reader report，不改业务代码，不把墙钟跨度当作活跃成本。持久报告只保留匿名别名；私有 review packet 不得复制进报告。这是完整的 2/2 候选视图；结论仍需经过语义复核。\n\n## 怎样算完成\n\n<run>/.review.json 对 S1, S2 各有一条有效复核；语义复核生成 <run>/insights.reviewed.json；<run>/report.md 以 reviewed source 校验通过。复核未确认问题时，不创建优化项。\n\n## 验证\n\n- 运行 `node scripts/session-analysis/usage-semantic-review.mjs --source <run>/insights.json --packet <run>/.review-packet.json --review <run>/.review.json --output <run>/insights.reviewed.json`\n- 运行 `node scripts/session-analysis/validate-usage-report.mjs --source <run>/insights.reviewed.json --report <run>/report.md`，必须返回 `ok: true`\n- 确认 reviewed source 的 `outcomeReview.reviewedActiveLongCount` 等于已复核的展示别名数；通过后删除两个私有临时 review 文件",
+          "sampleCoverage": {
+            "shown": 2,
+            "total": 2,
+            "complete": true
+          }
+        }
+      }
+    }
+  }
+}

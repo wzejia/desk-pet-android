@@ -1,0 +1,317 @@
+# CONSTRUCTION.md — 小朵助手化施工清单
+
+> 来源：`docs/spec/assistant-app.spec.md`（v1）｜ 创建：2026-07-30
+> 用法：主编排会话从这里取票派发给 builder 子智能体；完成一项勾一项 + `PROGRESS.md` 记证据。
+> 每切片尾部是「严评循环」（编排协议见 CLAUDE.md）：builder 交付 → critic 子智能体盲测严评 →
+> 不过就打回返工再评，连败 3 次换下一项并记 BLOCKED.md。
+
+## 切片总览（依赖序，S1 排雷最前置 = KD4 风险前置原则）
+
+| 切片 | 内容 | 验收 | 状态 |
+|---|---|---|---|
+| S0 | 地基：Compose 引入 + M3 主题（深色）+ 导航 + NetConfig/TokenStore + OkHttp 工厂 + CrashReporter | 单测 +  assembleDebug 绿 + 真机深色切换截图 | ✅ |
+| S1 | AG-UI 链路排雷：登录/token + SSE 消费器三件套 + 真机首聊 | 消费器 JVM 单测 + 真机日志首聊成功 | ✅ |
+| S2 | 聊天主界面：消息流/Markdown/输入条/历史持久化/状态反馈 | 真机文字对话一轮 + 杀进程回看 + 对标截图 A | ✅ 返工+导航+边栏+多会话全收口(213 测绿,盲测双组相对尺胜);斜体/渐变/遮罩 3-bug 已修 |
+| S3 | 悬浮窗升级：双窗口 + 气泡 + 长按菜单 + 持久化三件套 | dumpsys 双窗口 + 对标截图 B + clamp 单测 | ✅ B3 定案关闭+默认外观图+盲测 v4 遮挡 4:2 胜(形态组不逊)+气泡所有权上移(critic 不逊)+重 clamp 两轮定案 |
+| S4 | 语音链路：采麦/VAD/ASR/分句/TTS/半双工/reveal | 参数对账逐项勾 + 真机按住说话一轮 + 对标截图 C | ✅ 引擎+对账齐;真机全链路两轮实测过(2026-08-03,含流式上屏);降级路径取证;P3×3 已清 |
+| S5 | KWS 常开：sherpa-onnx + 前台服务 + 校准入口 | 真机「小朵小朵」唤醒 10 次成功率记录 + 合规取证 | ✅ 代码+唤醒 10/10+0 误唤醒+通知/指示点取证全收口;剩 B2 主观项(听感/AEC/sticky)随日常使用回收 |
+| S6 | 适配与对标终评：深色 + 多屏矩阵 + 四组并排严评 | 对照矩阵截图 + 严评记录全「不逊」 | 🔶 深色五页✅/wm 矩阵✅(720 抓 P2 已修)/盲测 3 组胜(悬浮窗/聊天页/输入区);气泡组 D 用户拍板挂起保持原样 |
+| **S7** | **UI/语音/输入全面升级（S7-a~g）** | 各子切片验收见下；单测只增不减(基线 274) | ✅ 收官（345 测绿；真机验收全闭；盲测组 2 三连败关账 R3 保留；AEC spike 用户拍板挂起） |
+| **S8** | **UI 微调合集（S8-1~8）**：输入框回滚两层+横线 / 图标白底 / TTS 中按住=打断并接续 / 气泡渲染残留修复 / 气泡文字改流式（撤 reveal） / 气泡看不到开头补救 / 唤醒视觉反馈 / 等候三点动效 | 各票验收见下；单测只增不减（基线 345→356） | ✅ 全部收口（358 测绿 skipped=0；真机逐票验收 2026-08-05/06 过；真机期顺修 P2 竞态窗+strip-empty 死路+多功能键边沿缺陷+wozai 重制 e3，详见各票与 DEV_LOG 2026-08-06） |
+| **S10** | **悬浮窗贴边收纳（半身贴边）**：拖至左右缘松手滑入半身 / 单击滑出+可拖出 / 重启保持贴边 | 吸附几何 JVM 单测（模式 C）+ 模拟器/真机像素断言；voice/** 零 diff | 🔶 立项 2026-08-18（用户四拍板，见 S10 节） |
+
+## S0 地基
+
+- [x] Compose BOM + Kotlin compiler 扩展接入（Kotlin 1.9.24 对应 compiler 1.5.14），AGP 构建绿
+- [x] Material3 主题：双色色板（浅色对标 ChatGPT 留白 / 深色纯黑底），`isSystemInDarkTheme` 跟随
+- [x] 导航：Chat（主）/ Settings / Permission 三页（单 Activity + Compose Navigation）
+- [x] NetConfig（5 字段可编辑 + 内置默认 10.0.18.x）+ TokenStore（25min）+ Prefs 迁移测试
+- [x] OkHttp 单工厂：NO_PROXY + host 白名单 TrustManager（KTD4）
+- [x] CrashReporter：未捕获异常写 files/logs/crash-yyyy-MM-dd.log + 上报入口
+- 验收：`./gradlew.bat assembleDebug testDebugUnitTest` 绿（单测 ≥17 基线不退）；真机深浅色切换两张截图
+
+## S1 AG-UI 链路排雷（最前置，理由：KD4 链路风险第一周上真机）
+
+- [x] AguiSseConsumer 纯 Kotlin 状态机：事件解析 + 三件套（终止帧/空 run 重试/SNAPSHOT 兜底）
+- [x] 单测覆盖：正常流 / 断流无终止帧→error / 空 run×3→error / SNAPSHOT 补尾 / content 分片兼容
+- [x] AguiClient：登录（8080）→ token 缓存 → 443 SSE POST 增量单条
+- [x] 真机：临时调试入口发一条「你好」，日志取证首 token 与全文（凭据读 `.scratch/secrets/platform-account.json`）
+- 反向验证：单测里故意删终止帧断言 → 必须变红 → 还原贴全绿
+- 验收：单测新增 ≥8；真机日志含 `RUN_FINISHED` 与完整回复；**日志全文 grep 无 token 明文**
+
+## S2 聊天主界面
+
+- [x] ChatMessage + ChatStore 持久化（JSON 文件或 Room，选型记 notes）+ 单测
+- [x] 消息流 LazyColumn：双气泡 + Markdown（粗体/列表/代码块）+ 流式整段追加 + 状态点（sending/streaming/done/error）
+- [x] 输入条：按住说话按钮（主）+ 键盘切换 + 发送；IME 跟随（adjustResize）
+- [x] 失败重发 / 清空历史 / 杀进程重进回看
+- 验收：真机文字对话 ≥3 轮成功；重启后历史在；对标截图 A（vs ChatGPT 输入区 + 消息流）
+
+## S3 悬浮窗升级（双窗口）
+
+- [x] 显示层窗口（~2× 宠物，NOT_TOUCHABLE）+ 交互层窗口（宠物尺寸）拆分（后用户拍板职责翻转：PetView 回交互层，显示层=气泡专用条）
+- [x] 气泡 Composable/View attach 显示层顶部（§4.2 参数）+ show_bubble 开关接线
+- [x] 长按菜单：PopupWindow（打开 App / 语音开关 / 隐藏悬浮窗）
+- [x] 位置 clamp 纯函数 + 单测；位置/开关持久化；杀进程恢复
+- 验收：dumpsys 取证双窗口 flags（显示层 NOT_TOUCHABLE）；拖拽/单击/长按真机各 ≥3 次；对标截图 B（vs 手机精灵）
+
+## S4 语音链路（参数对账表逐项勾，勾完才算完）
+
+- [x] AudioCapture 单流复用 + 协程 channel 分发（回调只推队列）
+- [x] VadDetector（§3.4 照抄：0.05/3 块/8 块/deque=6/timeout 30s 显式）+ 单测（合成 PCM 喂入）
+- [x] AsrClient（9802，language="zh"）/ TtsClient（9803 直连，WAV 剥头拼 PCM）
+- [x] SentenceSplitter（切点/MIN=4/MAX=30/逐字符喂）+ TtsSanitizer（白名单+连续空白压缩）+ 单测
+- [x] VoiceSessionManager 四态半双工 + KWS pause flag 挂点（S5 用）
+- [x] RevealScheduler（句级 PCM 时长均分 / 降级 4.5 字/秒）+ 单测
+- [x] App 按住说话全链路：按下→VAD→ASR→AG-UI→分句→TTS→气泡+reveal
+- 验收：对账表 Kotlin 验收清单逐项打勾（附证据）；真机按住说话 ≥3 轮；降级路径（断 TTS）取证
+
+## S5 KWS 常开
+
+- [x] sherpa-onnx-1.13.4.aar 进 app/libs + abiFilters arm64-v8a；模型 5 文件进 assets
+- [x] KwsEngine 封装（newFromAsset / threshold 0.5 / 消费线程 decode）
+- [x] VoiceForegroundService：microphone 类型声明 + 常驻通知 + 用户可见动作拉起 + START_STICKY
+- [x] 能量门控可配置（默认 0.015）+ 校准入口（采集 RMS 分布→建议阈值→一键写入）
+- [x] 唤醒→VoiceSessionManager listening；speaking 时 pause flag
+- 验收：真机「小朵小朵」唤醒 10 次记录成功率与误唤醒数（目标 ≥8/10 且无误唤醒，不达标校准后重测）；
+  前台服务通知 + 麦克风指示点截图取证
+
+## S6 适配与对标终评
+
+- [x] 深色模式全页面走查（聊天/设置/权限/气泡/菜单）
+- [x] 多屏矩阵：`adb wm size` 模拟 1080x2400 / 1440x3168 / 小屏 720x1600，聊天页 + 悬浮窗截图各一张（验完 `wm size reset`）
+- [x] 四组并排严评：A 聊天页 / B 输入区 / C 悬浮窗形态 ✅（相对尺逐项不输）；D 气泡——用户拍板挂起保持原样
+- [x] 严评不通过项回炉（连败 3 次记 BLOCKED 换项）
+- 验收：矩阵截图齐 + 严评记录全「不逊」+ 全部单测绿
+
+## S7 UI/语音/输入全面升级（来源：`docs/spec/assistant-ui-voice-input.spec.md` + ADR 0002/0003）
+
+> grilling 2026-08-03 定案。9 需求经逐项拷问+代码查证+DeepSeek/平台实测。
+> 已实现项不重复造：scrim 点关 / 设置入侧栏 / drawer+hamburger / 会话删除 / 会话切换+关drawer（grilling 查实，基线保留）。
+
+### S7-a 会话管理（A：废弃聊天记录页 + 重命名路线C）
+
+- [x] 删除 `ChatHistoryScreen.kt` + `AppNavHost.CHAT_HISTORY` 路由 + `SessionDrawerContent`「聊天记录」入口（保留 `ChatHistoryCodec`，仅命名遗留）
+- [x] `ChatSession` 加 `titleManual: Boolean = false`；`SessionIndexCodec` 同步加字段（向后兼容缺省 false）
+- [x] `ChatStore.saveMessages`：`titleManual=true` 跳过 `deriveTitle`（防手动名被覆盖）
+- [x] `ChatStore.renameSession(id, title)`：本地改 title + 置 titleManual + 存索引；+ JVM 单测
+- [x] `AguiClient.renameThreadForSession`：调平台 rename（对称 `deleteThreadForSession`，**端点已从桌面仓查实** `POST {threadBaseUrl}/renameThread` body `{threadId,threadName}`），fire-and-forget 失败只 log；+ 单测
+- [x] `ChatViewModel.renameSession`：busy 守卫 + 本地改名 + 异步平台同步
+- [x] `SessionDrawerContent`：长按弹操作菜单（重命名/删除）替代「直接弹删除确认」；重命名 AlertDialog + OutlinedTextField
+- 验收：✅ 全过（2026-08-03）——聊天记录页/路由/入口删；长按弹菜单截图；**重命名后发新消息 title 不被覆盖**（S7RenameProbe 实证+截图）；平台 rename 日志成功/失败双路径取证（renameThread ok / WiFi 断开期 fire-and-forget 本地保留）；单测 +12（294 绿，critic 不逊+变异双红）
+
+### S7-b 顶栏瘦身（B）
+
+- [x] `PetStatusBar`：去「小朵」Text + 头像 40→32dp + 留状态文案 + 去 vertical padding（m3 IconButton 48dp 热区撑栏 ~48dp）
+- [x] 右上角预留位（S7-d 全屏语音入口，Spacer 48dp）
+- 验收：✅ 全过（2026-08-03）——真机截图：顶栏收紧、无「小朵」文字、状态文案「待命」在
+
+### S7-c 气泡（C：字号/高度/宽度/自动滚/markdown 渲染）
+
+- [x] `BubbleView`：textSize 11→13f；`MAX_HEIGHT_DP` 74→100
+- [x] `PetOverlayService` 显示层窗口宽 2×宠物(~384dp)→~260dp（`BUBBLE_WIN_WIDTH_DP=260`）
+- [x] `BubbleView` 自动滚动：`ScrollingMovementMethod` + 打字机 tick 后 `post{scrollToBottom}`（critic 打回 1 条：同步滚动用旧 layout 末字换行不贴底 → 返工过）
+- [x] `BubbleTextStrip` 反转「剥离」→「渲染」：纯 Kotlin `StyledText` 模型（粗体/斜体/行内代码/列表 •；JVM 可测）+ BubbleView `toSpannable`（StyleSpan/TypefaceSpan+背景）；表格/代码块/多级标题不渲染
+- [x] 流式 holdback 保留（逐行未动，critic diff 钉死）
+- [x] `BubbleTextStrip` 单测：剥离断言改 spanned 断言（18→26，变异双红）
+- 验收：✅ 全过（2026-08-03）——字号13/高度100/宽度260（dumpsys 显示层 1040px=260dp×4）；超长自动滚到底（末尾行可见）；粗体/斜体/代码三 span 同屏渲染；表格管道符剥除不渲染；单测绿（critic 不逊）
+
+### S7-d 全屏语音模式（D，最重；依赖 S4/S5 已就绪 + S7-b）
+
+- [x] 新 Composable `FullscreenVoiceScreen`：全屏深色背景(#0D0D0D) + 居中 PetView min(440dp,屏宽) 等比（critic 打回 P1：480dp>360dp 屏宽必裁切→钳制返工过；360dp 屏「~3×」物理不可达 KDoc 留痕） + 相位驱动四态 + 四态 caption + ~~PhaseHalo 状态光环~~（2026-08-07 用户拍板删除：状态反馈由 caption+迷你声波+宠物四态承担）
+- [x] `PetStatusBar` 右上角 mic 入口按钮（样式对齐 hamburger）
+- [x] 进入：`PetOverlayService.setWindowsHidden`（GONE/VISIBLE 不动 pref/服务/round）+ 共享 KWS + `ReplyCarrier` 纯逻辑分发 Sink（VoiceStateRouter 不动，spec 偏差记 notes）
+- [x] 回复路由：全屏=TTS+小朵 talking 无文字（默认）；FullscreenBubbleSink 恒 no-op
+- [x] 退出：~~长按小朵 → 菜单（退出全屏/打开设置/隐藏悬浮窗）~~ + 右上角 X 关闭钮（2026-08-07 删菜单，仅保留 X；悬浮窗长按菜单不动）
+- [x] 设置项「全屏转写」开关（默认关）+ 全屏渲染 chatVm.messages 最后 assistant（baseline 防旧回复）
+- 验收：✅ 全过——功能（2026-08-03）：右上角进全屏；悬浮窗隐藏；唤醒触发对话两轮（含用户真声 reply 650 chars）；回复=talking+TTS 无文字；长按菜单退出；退出后悬浮窗恢复；小朵零裁切保清晰；四态 caption+光环可辨。**盲测组 1（vs 千问）四轮 14:20/19:23/19:20/21:19 胜（2026-08-04，用户放行 R4+白底 #FAFAFA 改判：caption 主语化+聆听 mic 图标+红挂断钮；状态可辨 4:3/精致度 5:4/三项平=全项不逊）**；单测 +5（代码 critic 不逊+变异双红）
+
+### S7-e 语音行为（E；#9 依赖 S7-d）
+
+- [x] #9 预录 `wozai.wav`（assets，平台 TTS 合成「我在」~~48044B~~ **25920B** PCM/mono/24k/16bit，音色与在线 TTS 一致；2026-08-07 去「哎」后 b-trim 路线当选）
+- [x] `VoiceSessionManager` 唤醒流程插确认步骤：唤醒→播「我在」(SPEAKING 丢麦块)→完→LISTENING；仅 KWS 唤醒路径播（按住说话不播，记 notes）；`WakeAck` 接口注入（缺失降级不致命）
+- [x] #7 阶段1 键盘打断：`ChatScreen` 输入框 onValueChange 首字符 → `cancelCurrentTurn`（文字轮 turnEpoch+chatJob+markCancelledDone 部分标 DONE 不重发；语音轮 sealed 封轮+停 TTS+停气泡；VM 门控=voiceActive||vsm.state!=IDLE，编排层拍板）
+- [ ] #7 阶段2 唤醒词打断：AEC spike **已挂起**（用户 2026-08-04 拍板：误触发 2/3 轮 0 命中、累计 ~5.8min 已达 ≥5min 口径；检出率 10 次需用户配合喊唤醒词未测）→ 记 BLOCKED
+- 验收：✅ 唤醒后播「我在」再 LISTENING（日志 SPEAKING(wake-ack wozai)→LISTENING(wozai done)，用户真声轮实证）；✅ 键盘首字符打断（文字轮：barge-in: cancel text turn+部分 DONE 无重发+729 字迟到全文未覆盖；语音轮：TTS 播 24s 中 barge-in: cancel voice turn(voiceActive=true, vsmState=SPEAKING)→4ms 内 IDLE 停播）；🔶 AEC spike（误触发首轮 0/0，待续）；单测 +15（314 绿，critic 三轮后不逊+变异锚 6 处红绿齐+WakeAckTest 5 连跑证稳）
+
+### S7-f 输入框重构+上传（H，含 #2 修复；依赖 S7-a + S7-e）
+
+- [x] `InputBar` 重构两层：上层 InputArea（语音=「按住说话」满宽触摸区 / 文字=TextField）+ 下层 FunctionBar（上传文件键 + 多功能键）
+- [x] 按住反馈（#2 修复）：实时声波纹 Canvas（`AudioCapture` RMS 驱动）+「松手发送 上移取消」文字 + 上滑超阈值(~80dp)取消 + `Vibrator` haptic
+- [x] 多功能键状态机（**2026-08-04 用户增补停止档**，对齐 DeepSeek 生成中停止范式）：输出中(SENDING/STREAMING/voiceActive)=**停止键（方块）→ `vm.cancelCurrentTurn()`**（与键盘首字符打断同源，S7-e 能力现成）＞ 空闲+有内容=发送键 ＞ 空闲+无内容+文字模式=语音切换键 ＞ 空闲+语音模式=键盘切换键 ＞ 上传中=禁用；停止后键回退原状态
+- [x] 上传文件：`POST /ai-server/common/file/upload`（字段 `file` multipart，类型不限）；`FileMeta` 解析；`filesList` 管理（uploading/done/error）
+- [x] **待查→接入**：发真带文件消息抓包确认 fileId 接入对话方式（请求体 `fileIds`/`attachments`?）→ 接入发送
+- [x] 单测：多功能键状态机 + `FileMeta` 解析 + 上传响应
+- 验收：✅ **代码侧收口**（2026-08-04）——InputBar 迁出 ui/screens/InputBar.kt 两层；声波纹 24 柱仅 holding 期订阅 captureBlocks+EnergyGate.rmsOf；awaitEachGesture 上滑 80dp 取消（滑回可恢复）+Vibrator 30ms；FunctionKeyLogic 五态纯逻辑（busy||voiceActive→STOP 最高优先）；AguiClient.uploadFile（fileClass=agent----{agentId}----{threadId}，401 透明重登）；FileMeta.buildContent 前缀注入（`@file:{fileId}?{name}` `|`+`\n`）；FileListRules 同源守卫（send/resend 共享 uploadInFlight 判定点）+clearAttached 只清本轮快照（critic R1 两 P2 打回修复）；345 测绿 skipped=0（314→345，+31）。critic R2 **不逊**（契约逐字零漂移/变异 4 处红绿齐/泄密 0 命中/异步守卫四问全过）。P3 留档：clearAttached 读-改-写毫秒级竞态窗（与 R1 resetFiles 同暴露，非回归）。
+- 验收：✅ **真机验收**（2026-08-04 晚，de61cd8，截图 .scratch/s7f/）——真机期揪出 **P1 松手不物化**（consume 先于 changedToUp → 恒 false，字节码双 agent 亲验；修复=consume 前快照 isUp，critic 不逊）+ **P3 idle 永久粉底**（cancelled remember 未 gate holding；修复=`holding && cancelled`，critic 不逊），双修复真机复验全过。逐项：**松手发送全链** ✅（`manual release`/`VAD utterance maxLevel=0.4146`→ASR 6 字→LLM firstToken→SPEAKING，用户气泡上屏）；**声波纹起伏** ✅（w7 成簇起落 vs w8 贴底帧对比）；**上滑 80dp 取消无消息发出** ✅×2（`cancel listening` 之间零 ASR/LLM）；**上传真实文件 fileId 进列表** ✅（73B/15MB/19.5MB 三连 fileId 日志原文+chips 渲染+发送后清空+模型逐字引用附件原文=@file: 前缀语义铁证）；**停止键** ✅（此前 barge-in 日志+键回退）；**上传中禁发** ⚠️ 降级记档（内网 1.65s 瞬态四抓未中，逻辑层 9 测+变异钉死）；**震动** ✅ 用户手感确认有（2026-08-05）；**盲测组 2** 三连败关账（2026-08-05 凌晨，详见 BLOCKED.md；后注：S8-1 拍板回滚两层+横线，单容器方向撤回，功能修复保留）。观察项已落定：TTS 中按下说话只终轮不接续 → **S8-3 票立项改为「打断并接续新一轮」**。
+
+### S7-g 图标（G）
+
+- [x] 替换 `mipmap-*` launcher icon（用户拍板：idle 首帧裁切 adaptive icon，底色 #171717）
+- 验收：✅ 全过（2026-08-03）——aapt `icon='res/mipmap-anydpi-v26/ic_launcher.xml'`；真机桌面图标清晰可辨（截图裁图标行取证）；critic 不逊
+
+### S7 依赖序与待查
+
+- **可并行**：S7-a / S7-b / S7-c / S7-g（独立）——**执行修正：a+b 合并一票**（同改 ChatScreen.kt 地界冲突），波次 1 = S7-ab/S7-c/S7-g 三并行 ✅ 已收口
+- **依赖**：S7-d ← S7-b（右上角入口）+ 语音链路(S4/S5 已就绪)；S7-f ← S7-a(ChatScreen) + S7-e(barge-in 接输入框)；S7-e#9 ← S7-d（两模式之一）
+- **待查项（施工确认）**：① 上传 fileId 接入对话（S7-f）✅ **已关闭**（2026-08-03 平台 web bundle 静态取证：content 文本前缀 `@file:{fileId}?{name}` 多条 `|` 连接+`\n`，记 implementation-notes）② 平台 rename 端点路径 ✅ **已关闭**（桌面仓查实 `/renameThread`，S7-a 已接线真机成功）③ AEC 可靠性（S7-e 阶段2，spike 待做）④ 全屏转写设置（S7-d，按 spec 默认关直接做）
+
+## S8 UI 微调合集（2026-08-05 用户拍板五项 + 当日追加三项）
+
+> 来源：用户日用反馈逐项裁决。无新协议面，纯 UI/交互层。
+> 决策留痕：S8-5 撤 reveal 音频同步 = 修订 KD13（reveal 边念边出字 2026-07-30 补选进，2026-08-05 拍板撤）；深色细节项用户撤回不做。
+
+### S8-1 输入框视觉回滚：两层 + 恢复横线
+- [x] InputBar 视觉从 R3 单容器改回两层：上层 InputArea / 下层 FunctionBar，层间恢复横线分隔（divider）
+- [x] 保留 R3 功能修复不丢（行高 48、FunctionBar padding、单容器期修掉的纵向空洞不得以别形式回来）
+- 验收：真机截图两层+横线可见（语音态/文字态各一）；单测绿；critic 视觉对照 S7 两层版截图评「不差于」
+- ✅ 真机过（2026-08-05，docs/verification/s8-1-*.png 双态）。**后注（08-06 用户拍板）**：两个独立圆角矩形观感不佳 → 改**单圆角矩形容器+内部横线**（c-inputbar-voice/text.png），R3 功能修复仍全保留
+
+### S8-2 图标白底
+- [x] launcher icon 背景改纯白（前景沿用现版小朵形象），mipmap 全密度替换
+- 验收：真机桌面截图白底图标；与手机桌面浅色/深色壁纸各截一张核对可读性
+- ✅ 深色壁纸过（2026-08-05，s8-2-dark-wallpaper.png，白底圆图标深色壁上清晰可辨）；浅色壁纸项用户拍板跳过（08-06）
+
+### S8-3 TTS 中按住说话 = 打断并接续新一轮
+- [x] speaking 态按住说话：立即停 TTS + 停气泡 + 封当前轮（cancelCurrentTurn 复用），同一次按住直接进 listening 采音，松手即送
+- [x] 状态机迁移单测：speaking→（按住）→listening 全链事件序
+- 验收：真机日志时序取证（TTS stop → listening → ASR → LLM 一条线，无残留轮）；单测 +N
+- ✅ 真机过（2026-08-05 19:03:56 日志链）：SPEAKING 中按住 → `barge-in: cancel voice turn`→收泡→IDLE→`LISTENING (VAD start)`→ASR「你还能做什么？」→LLM 一条线；单测 +2
+
+### S8-4 气泡渲染错位/标记残留修复
+- [x] 未渲染构造（表格 `|`、代码块 ```、多级标题 #、引用 >）在气泡内裸显 → 最小剥离或安全降级，气泡内不得出现裸 markdown 控制符
+- [x] BubbleTextStrip 单测补：表格/代码块/标题/引用输入的输出断言
+- 验收：真机长回复气泡截图无裸 `**`、`|`、` ``` `、`#`；单测绿
+- ✅ 真机过（2026-08-05，s8-4-bubble-a/b.png）：markdown 表格回复气泡内零裸控制符（管道符/井号/星号全剥离）
+
+### S8-5 气泡文字策略改流式（撤 reveal 音频同步）
+- [x] 气泡文字改直接消费 delta 流式上屏（与 App 聊天页同节奏），不再按句级 PCM 时长均分逐字；TTS 播放与文字解耦
+- [x] 流式 holdback/清洗保留（半截标记闭合后再产出），TTS 失败降级路径文字仍正常流式
+- [x] RevealScheduler 气泡路径退役（类本身保留备查或移除，选型记 notes）
+- 验收：真机日志时序——delta→上屏不晚于播音开始（解耦铁证）；TTS 断端口降级轮文字照常流式；单测绿
+- ✅ 真机过（2026-08-05 日志）：bubble show 19:03:12.096 早于 SPEAKING(first audio) 19:03:13.950 约 1.85s——文字彻底不等音频。**P2 竞态窗已修**（delta callback 内 bubble 前 double-check sealed，+1 测 `cancelDuringSinkCallbackDoesNotGhostBubble`，TDD 红绿+变异锚实测）
+
+### S8-6 气泡「看不到开头」补救
+- [x] 长按菜单加「查看最近一轮」：打开 App 聊天页并滚动定位到最近一轮对话（气泡 NOT_TOUCHABLE 无法回翻，这是唯一回看通道）
+- [x] 打开定位用现有会话路由 + scrollTo 消息 id；无最近一轮时菜单项置灰
+- 验收：真机长回复播完后走菜单→App 定位到该轮（截图）；单测绿
+- ✅ 真机过（2026-08-05）：s8-6-menu2.png（菜单项非置灰=hasShownBubbleContent 置位）+ s8-6-last-round.png（App 定位最近一轮）
+
+### S8-7 唤醒成功即时视觉反馈
+- [x] 先查实：KWS 唤醒→listening 时宠物动画现状（是否切 waiting 行），取证贴 PROGRESS
+- [x] 反馈弱则补：唤醒瞬间播一遍明确动作（建议 jumping 一次再进 waiting，对齐 CONVERSATION_VISUAL 别名表），全屏/悬浮窗两模式一致
+- 验收：真机唤醒连帧截图（idle→动作→waiting）；单测绿
+- ✅ 收口（2026-08-05/06）：单测 +3 变异锚全有效（删入口置位/删 finally 复位/删 cancel 复位皆红）；日志状态链 `keyword hit→SPEAKING(wake-ack wozai)→LISTENING` 多轮稳定；用户多轮目视确认。连帧截图三轮连抓均差数秒未中，用户拍板以此组合证据收口
+
+### S8-8 生成中等候态三点动效
+- [x] ChatScreen 消息流：发送后到首 token 期间显示三点打字指示（首 token 到达即无缝替换为流式文字）；首 token 实测 ~3.2s，等候不可消除就包装
+- [x] 与现有 sending/streaming/done/error 状态点对齐不冲突
+- 验收：真机截图等候期三点可见、首 token 后消失；深色模式各一；单测绿
+- ✅ 真机过（2026-08-05）：s8-8-typing-dots-a/b.png（等候期三点呼吸两帧相位不同）+ s8-8-streaming-c.png（首 token 后三点消失、流式替换）；深色模式项随 S8 深色细节撤回不做
+
+### S8 依赖序
+- 可并行：S8-1 / S8-2 / S8-4（地界：InputBar / mipmap / BubbleTextStrip）
+- voice 域串行：S8-3 / S8-5 / S8-7（手势状态机 + 气泡渲染管线 + 唤醒反馈，同链路同一 builder 串行）
+- chat 页域串行：S8-6 / S8-8（同碰 ChatScreen/VM）
+- 三组之间可互相并行
+
+## S9 唤醒应答音色跟随 TTS 配置（2026-08-17 立项，方案 C 混合，用户拍板）
+
+> 背景：应答音「我在」= 烤死资产 wozai.wav（平台 cosyvoice 声），对话 TTS 已三厂商自由配——默认配置（cloud+aliyun/longanfengyue）下即错配。
+> 方案：三家云默认音色资产内置 + 自定义音色运行时合成缓存；四层兜底链（缓存→厂商资产→wozai.wav→直进聆听），任何失败不劣于现状。
+> 硬约束：**唤醒播放路径零网络**（网络只在预取 daemon 线程）；`VoiceSessionManager.kt` 零改动（WakeAck 接口/cancel 语义原样）。
+> 设计全文：`C:\Users\Administrator\.claude\plans\tts-tts-tts-tts-serialized-book.md`（含逐参数后处理对齐表与测试清单）。
+
+### S9-1 离线脚本 + 三家云资产 + parity 夹具 + 契约测试 ✅（critic 复评通过 5/5/5/5/4）
+- [x] `tools/wozai/`：common.py（迁移 remake_wozai.py 原语逐参数原样 + validate + `--emit-parity-fixture`）/ synth_cloud.py（volc/openai=stdlib urllib；aliyun=WS `uv run --with websockets`）/ synth_platform.py（历史存档，wozai.wav 不重制）/ README.md（key 从 secrets/cloud.properties 读且绝不打印）
+- [x] `assets/wozai-aliyun.wav` 生成（22124B/0.46s/峰值 26000；aliyun 探针成功）；**volc/openai 暂缺记偏差**（VOLC key 空 / compatible-mode 404，兜底链覆盖，key/端点到位补跑一条命令+契约测试必备集一行）
+- [x] `app/src/test/resources/wakeack/parity-*.wav` 对拍夹具（**已冻结**：sha1 input=06249392/expected=5651d36f，不再重新生成——critic N-1 附条件）+ `WakeAckAssetsContractTest` 5 测
+- 验收 ✅：全量 423 绿 skipped=0；双变异锚实测（删资产→5 红/零数据→恰 2 红）；critic 逐参数/逐字段镜像亲证零漂移
+
+### S9-2 纯逻辑五件套 + NetConfig 去重 + 单测 ✅（critic 复评不逊成立 5/5/4.5/5/4.5）
+- [x] `net/TtsVoiceDefaults.kt`（默认常量+TEXT）+ `voice/WakeAckSelector.kt`（六层兜底链+cacheKey 长度前缀+fileName sanitize+SHA-256 后缀+路由镜像；platform 永不读缓存）
+- [x] `voice/WakeAckAudio.kt`（Python 逐参数移植+金向量逐字节对拍测试；validate 统一 toSamples 解码）+ `voice/WakeAckCacheStore.kt`（ATOMIC_MOVE 原子写+坏缓存删+Regex("v\\d+") 版本目录清理白名单）+ `voice/PrefetchBackoff.kt`（10min 窗全时间注入）
+- [x] `NetConfig.kt` 仅 6 处默认值→常量（critic 逐串核对等值）；4 测试文件 46 测；返工闭环 P1 金向量对拍+P2×2
+- 验收 ✅：全量 423 绿 skipped=0；变异锚 6 处 critic 亲验全红；critic 动态对拍金向量+8 刁钻 case Python↔Kotlin 逐字节全等
+
+### S9-3 WakeAck 动态化 + 预取接线 ✅（critic 不逊成立 4.5/4.5/4/5/4）（依赖 S9-2）
+- [x] `WakeAckResolver.kt`（构造注入可测+Decision 键 memo+坏缓存/坏资产逐层回退+source 日志行）/ `WakeAckPrefetcher.kt`（CAS 单飞+finally 清+五失败路径统一 backoff 静默）/ `DynamicWakeAck.kt`（零 HTTP import 结构守卫+两道 cancel 防线+AssetWakeAck 注释逐字迁入）
+- [x] VoiceClientFactory：wakeAck() 装配校验语义逐字保留+lazy resolver 单例+session() 块外挂预取；SettingsScreen 保存后 +4 行挂预取
+- [x] ResolverTest 4 测；变异锚 3 处 critic 亲验红
+- 验收 ✅：全量 427 绿 skipped=0（423+4）；**VoiceSessionManagerWakeAckTest 12 测原样绿+VSM git 零 diff 亲证**；assembleDebug 绿；P2-1（session 每次触发=自愈重试）已记 notes 言明，P3-1/P3-4 记档待 v3 清理
+
+### S9-4 真机语义验收 + 文档收口 ✅（2026-08-18，证据 docs/verification/v15-wakeack-voice-follow.md）（依赖 S9-3）
+- [x] 六 Case 全过：A 默认 aliyun 听感✓+`source=asset:wozai-aliyun.wav` 日志链 / B 自定义音色 `prefetch saved`+`source=cache`+缓存拉回复听（19724B/峰值恰 26000）/ C 401 失败→退避→静默+`source=asset:wozai.wav` 回退（模拟器补验「未配 key」变体）/ D platform 回归（SP 回读+零 prefetch 探针双确认+听感✓）/ E barge-in 旁证链+VSM 零 diff 继承覆盖 / F 连唤 5 次即时✓
+- [x] critic 三轮全过（S9-1 通过 5/5/5/5/4、S9-2 不逊成立 5/5/4.5/5/4.5、S9-3 不逊成立 4.5/4.5/4/5/4，返工 2 轮闭环：金向量对拍+两 P2+import 卫生）
+- [x] 基线 372→**427** skipped=0（编排者亲算 XML）；CONSTRUCTION/PROGRESS/DEV_LOG/implementation-notes/solutions 全更新
+- 遗留：P3 source 日志 platform 模式 provider 标签歧义（小修一行）；**观察项：全屏语音模式概率性白屏（S9 范围外，另立票）**；volc/openai 资产待 key/端点
+
+### S9 依赖序
+- S9-1 ∥ S9-2（地界零交叠）；S9-3 ← S9-2；S9-4 ← S9-3
+- 真机仅 S9-4 用（de61cd8 互斥锁纪律）
+
+## S10 悬浮窗贴边收纳——半身贴边（2026-08-18 立项，用户四拍板）
+
+> 需求原话：「新对话开发悬浮窗贴边隐藏成半圆功能」——拖拽精灵到屏幕左右边缘 → 平滑滑入只露半个身位；
+> 单击滑出恢复，拖拽随时可用（国内桌宠/悬浮球通用「贴边收纳」交互）。
+> **用户四拍板（2026-08-18）**：①流程=直接定标出票（不走 PRD/Spec 链）；②形态=**半身贴边**
+> （窗口滑出至纵向中线≈屏缘、露半个身位；非真·半圆裁剪，零资产零裁剪，最小充分解）；
+> ③召回=**单击滑出+可拖出**（贴边态单击语义从「挥手」改为「滑出」；移动超 touchSlop 即算拖拽不打架）；
+> ④持久化=**重启保持贴边**（贴边坐标照常落盘）。
+> **红线**：`voice/**` 零 diff（S9 刚收口）；`OverlayClamp` 现有 clamp/clampedBubbleLeft 语义不动
+> （新逻辑平行新增，不改既有签名）；非贴边态手势语义不变（单击=挥手/长按=菜单/拖拽=移动）。
+> **核心设计（第一性原理）**：贴边坐标（窗中心恰在屏缘 x=±petW/2 偏移）是 `OverlayClamp.clamp`
+> 的不动点——持久化、STICKY 重启恢复、`onConfigurationChanged` 重钳位三者**零新机制**自然成立；
+> 「当前是否贴边」由几何推导（窗中心 ≤0 / ≥屏宽）而非额外状态位，重启恢复后语义自动正确。
+> 吸附触发语义：松手（clamp 后）精灵中心距左右屏缘 ≤ 半个身位（zone=petW/2，即精灵仍有部分
+> 贴缘/出屏）→ 吸边；完全离开边缘不吸（反例：屏中松手 → 原位不动）。
+
+### S10-1 吸附几何纯逻辑（模式 C，TDD 红-绿先行）
+- [ ] `pet/EdgeDock.kt`（零 Android import，KDoc 风格对齐 OverlayClamp）：
+  - `Side { LEFT, RIGHT }`
+  - `dockSide(centerX, screenW, zonePx)`：中心距左/右缘 ≤ zonePx → 对应 Side；两侧同时命中（屏不宽于窗）→ null 兜底
+  - `dockedX(side, winW, screenW)`：LEFT→`-winW/2` / RIGHT→`screenW - winW/2`（窗中心恰在屏缘，与 clamp 同套整除运算）
+  - `slideOutX(side, winW, screenW)`：LEFT→`0` / RIGHT→`screenW - winW`（完全可见贴缘）
+  - `dockedSideOf(x, winW, screenW)`：几何推导——中心 ≤0→LEFT / ≥screenW→RIGHT / 其余 null
+- [ ] `EdgeDockTest.kt`：左/右缘吸附命中；**反例样本：中心=screenW/2 → null**；zone 边界恰含（中心=zonePx → LEFT）；
+  宽于屏兜底 null；dockedX 窗中心恰在屏缘（x+winW/2==0 / ==screenW）；slideOutX 完全在屏内；
+  **clamp 不动点性质测试：`OverlayClamp.clamp(dockedX,…) == dockedX`（两侧）**；
+  dockedSideOf：半身=对应边、全可见贴缘(x=0)=null、屏中=null
+- 验收：`./gradlew.bat testDebugUnitTest --rerun-tasks` 全绿 skipped=0（427 只增不减）；
+  变异锚 ≥2 亲验（删「宽于屏 null」守卫→红；zone 恒 0（不吸任何人）→左/右命中测试红）
+
+### S10-2 服务接线：吸附滑入 / 单击滑出 / 动画 / 菜单钳位（依赖 S10-1）
+- [ ] `PetOverlayService` 拖拽 end：现行 clamp 后加 `dockSide`（zone=petW/2）判定——命中则**动画滑入**
+  `dockedX` 并落盘目标坐标；未命中维持现行 moveTo+落盘（屏中松手零变化，反例即验收）
+- [ ] 单击分支（ACTION_UP 非 dragging 非 longPress）：`dockedSideOf` 命中 → **动画滑出** `slideOutX`+落盘；
+  未命中维持挥手（`playOnceThenIdle(WAVING)`）
+- [x] 动画 `ValueAnimator.ofInt` ~200ms 逐帧 `moveTo`（气泡窗随 moveTo 联动）。**守卫四问先答再写**：
+  新 ACTION_DOWN 取消 / onConfigurationChanged 取消 / onDestroy 取消 / 动画中再触发=取消重起；
+  落盘时机=动画发起时写目标坐标（进程被杀也恢复到确定态）
+- [ ] `OverlayMenu`：锚点半出屏时 popup 横向钳位屏内（左贴→`xoff=max(0,-anchorScreenX)` 右移；
+  右贴→右缘对齐左移），与现有纵向翻转逻辑同范式
+- 验收：assembleDebug 绿 + testDebugUnitTest 全绿 skipped=0；critic 代码正确型（diff+守卫四问+JVM 可测点变异亲验）；
+  日志新增 dock/undock 事件行（真机/模拟器取证用）
+- 白名单地界：`PetOverlayService.kt`、`ui/overlay/OverlayMenu.kt`、`pet/EdgeDock.kt`（如需微调仅限 S10-1 已定 API 语义内）、
+  对应测试文件；**禁碰** voice/**、OverlayClamp.kt、ChatViewModel/ChatScreen
+
+### S10-3 语义验收：模拟器为主 + 真机一轮（依赖 S10-2）
+- [ ] 模拟器 `emulator-5554`（免锁，动前读 `EMULATOR.md`）：拖至左/右缘松手→滑入半身
+  （screencap 像素断言：半身在屏外+dumpsys 窗口 x 与 dockedX 对账）；屏中松手不吸（反例取证）；
+  半身态单击→滑出完全可见；半身态长按→菜单完整在屏内；半身态气泡钳屏内可读；
+  force-stop/重启→半身恢复；`wm size` 收窄→仍半身不出屏（历史 P2 路径回归）
+- [ ] 真机 de61cd8（**拿 `.scratch/device.lock`**，≤5min）：关键断言一遍（左吸/右吸/单击滑出/重启恢复）
+  + 半身态「小朵小朵」唤醒一轮对话（旁证语音零影响）
+- 验收：证据入 `docs/verification/v16-edge-dock/`；`git diff --stat voice/` 为空（零 diff 亲证）
+
+### S10 依赖序
+- S10-1 → S10-2 → S10-3 严格串行；S10-1 可立即派
+- 真机仅 S10-3 用（互斥锁纪律）；模拟器操作全部显式 `-s emulator-5554`
+
+## 全程纪律（违反复工）
+
+1. 子智能体编排协议见 CLAUDE.md：fan out builder、critic 盲测严评、loop 到不逊
+2. 四类事件立即记 `implementation-notes.html`；每日追加 `DEV_LOG.md`；每票完更新 `PROGRESS.md`
+3. 协议/参数只认知识包 + 对账表，实现偏离 = bug；Spec 漂移改 Spec 并记 notes
+4. 单测只增不减（当前基线 372，见 CLAUDE.md），skipped=0；禁 mock 被测对象 / 禁 `|| true`
+5. 日志禁打 token/密码明文；catch 不静默吞，错误透传真实 msg

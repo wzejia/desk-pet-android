@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  网络安全配置（知识包 §6.3 / 踩坑 #39：勿全局放行）。
+  仅对内网三台主机放行 HTTP 明文（登录 :8080、ASR :9802、TTS :9803、Ollama :11434）；
+  443 自签证书由 HttpClients 的 host 白名单 TrustManager 处理，此处不全局 trust-anchors。
+-->
+<network-security-config>
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">10.0.18.166</domain>
+        <domain includeSubdomains="false">10.0.18.97</domain>
+        <domain includeSubdomains="false">10.0.18.24</domain>
+    </domain-config>
+</network-security-config>

@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <!-- S7-f 按住说话震动反馈（#2 修复） -->
+    <uses-permission android:name="android.permission.VIBRATE" />
+    <!-- S5 KWS 常开前台服务 -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <application
+        android:name=".App"
+        android:allowBackup="false"
+        android:icon="@mipmap/ic_launcher"
+        android:label="小朵"
+        android:networkSecurityConfig="@xml/network_security_config"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.AppCompat.DayNight.NoActionBar">
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:windowSoftInputMode="adjustResize">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <service
+            android:name=".PetOverlayService"
+            android:exported="false" />
+
+        <!-- S5 KWS 常开唤醒：microphone 前台服务；唯一拉起路径 = 设置页用户显式开关（禁止自启） -->
+        <service
+            android:name=".VoiceForegroundService"
+            android:exported="false"
+            android:foregroundServiceType="microphone" />
+
+        <!-- S3 验收期调试入口：adb 触发气泡（S2/S4 正式接线后随验收需要保留或移除）。
+             exported=true 因 ColorOS 上 shell 广播无法触达非导出 receiver；仅响应包内自定义 action。 -->
+        <receiver
+            android:name=".ui.overlay.DebugBubbleReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.xiaoduo.deskpet.DEBUG_BUBBLE" />
+                <action android:name="com.xiaoduo.deskpet.DEBUG_BUBBLE_APPEND" />
+                <action android:name="com.xiaoduo.deskpet.DEBUG_BUBBLE_HIDE" />
+            </intent-filter>
+        </receiver>
+
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="com.xiaoduo.deskpet.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
+
+    </application>
+</manifest>

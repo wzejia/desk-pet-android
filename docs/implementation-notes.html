@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>S8 Implementation Notes — 小朵 Android</title>
+<style>
+  body { font-family: system-ui, -apple-system, sans-serif; max-width: 900px; margin: 0 auto; padding: 2rem; line-height: 1.6; color: #1a1a1a; }
+  h1 { border-bottom: 2px solid #e5e5e5; padding-bottom: 0.5rem; }
+  h2 { margin-top: 2rem; color: #333; }
+  h3 { color: #555; }
+  .decision { background: #f0f7ff; border-left: 4px solid #0066cc; padding: 0.75rem 1rem; margin: 1rem 0; }
+  .deviation { background: #fff8f0; border-left: 4px solid #e68a00; padding: 0.75rem 1rem; margin: 1rem 0; }
+  .risk { background: #fff0f0; border-left: 4px solid #cc0000; padding: 0.75rem 1rem; margin: 1rem 0; }
+  .note { background: #f5f5f5; border-left: 4px solid #888; padding: 0.75rem 1rem; margin: 1rem 0; }
+  code { background: #f0f0f0; padding: 0.1em 0.3em; border-radius: 3px; font-size: 0.9em; }
+  pre { background: #f8f8f8; padding: 1rem; border-radius: 6px; overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+  th, td { border: 1px solid #e5e5e5; padding: 0.5rem 0.75rem; text-align: left; }
+  th { background: #f5f5f5; }
+  .tag { display: inline-block; padding: 0.15em 0.5em; border-radius: 4px; font-size: 0.85em; margin-right: 0.3em; }
+  .tag-p1 { background: #ffcccc; color: #990000; }
+  .tag-p2 { background: #ffe6cc; color: #994d00; }
+  .tag-p3 { background: #ffffcc; color: #666600; }
+</style>
+</head>
+<body>
+
+<h1>S8 UI 微调合集 — Implementation Notes</h1>
+<p>创建：2026-08-05 | 最后更新：2026-08-05（代码侧收口）</p>
+
+<h2>设计决策</h2>
+
+<div class="decision">
+<h3>S8-1：视觉回滚两层+横线，功能保留</h3>
+<p><strong>决策</strong>：R3 单容器 → 两层独立 Surface + 层间 HorizontalDivider。<br>
+<strong>理由</strong>：用户视觉拍板优先于盲测口径（盲测组 2 三连败关账后，用户决定回滚两层布局）。<br>
+<strong>保留项</strong>：R3 功能修复（行高 48、FunctionBar padding 4dp、isUp 快照、idle 粉底 gate、停止键、上传链）全部保留——回滚的是视觉骨架，不是行为逻辑。<br>
+<strong>代价</strong>：单容器期的纵向空洞修复需在新两层骨架下手动验证不回归。</p>
+</div>
+
+<div class="decision">
+<h3>S8-3：cancelCurrentTurn 复用 + sealed 三层防线</h3>
+<p><strong>决策</strong>：speaking/processing 态按住说话 → 复用 <code>cancelCurrentTurn()</code>（停 TTS + 停气泡 + 封轮 + 回 IDLE），再走正常 IDLE→LISTENING 采音。<br>
+<strong>理由</strong>：cancelCurrentTurn 已含完整清理逻辑（封轮 sealed、停 player、cancel pipelineJob、hide bubble），不重复实现。<br>
+<strong>sealed 三层防线</strong>：consumeSentences 循环头（L490）+ 合成后二查（L502）+ 多轮迁移（L464）——防止 cancel 后残跑协程继续合成/播放/迁移状态机。<br>
+<strong>已知局限</strong>：second-check sealed（L502）在单测中不可达——pipelineJob.cancel 关闭 sentences channel（CancellationException → sentences.close()），consumeSentences 自然退出。生产环境中 TTS 返回 Audio 时（非 cancel 路径）该守卫仍有价值。</p>
+</div>
+
+<div class="decision">
+<h3>S8-5：撤 reveal 音频同步，delta 直出气泡</h3>
+<p><strong>决策</strong>：气泡文字改为直接消费 AG-UI delta 回调流式上屏，与 TTS 播放彻底解耦。<br>
+<strong>理由</strong>：用户拍板撤 KD13 "reveal 边念边出字"（2026-07-30 补选进，2026-08-05 拍板撤）。气泡文字应与 App 聊天页同节奏（delta→上屏），不等待 TTS 句级 PCM 时序。<br>
+<strong>退役范围</strong>：<code>playAndReveal</code>/<code>reveal</code> 方法删除；<code>RevealScheduler</code> 类保留备查（不删，万一后续需要恢复 reveal 时序）。<br>
+<strong>降级路径</strong>：TTS 单句失败 → 气泡文字不受影响（delta 已上屏），仅跳过本句播放。与旧版 "降级纯文字 4.5 字/秒 reveal" 语义不同——新版文字始终流式，不依赖 TTS 成功。</p>
+</div>
+
+<div class="decision">
+<h3>S8-6：pendingScrollMessageId 一次性事件（StateFlow 哨兵）</h3>
+<p><strong>决策</strong>：悬浮窗「查看最近一轮」→ MainActivity intent → ChatViewModel.pendingScrollMessageId（哨兵 <code>__last__</code>）→ ChatScreen LaunchedEffect 消费。<br>
+<strong>选型理由</strong>：ChatViewModel 是 Activity 级 ViewModel（ViewModelProvider(this) 与 AppNavHost 内 viewModel() 命中同一 ViewModelStore），0 基建、0 跨边界透传。<br>
+<strong>替代方案（已否决）</strong>：Activity 持标志透传进 Compose 树——需加 @Composable 参数（污染 chat 域接口）或 CompositionLocal（新基建不划算）。<br>
+<strong>哨兵 sentinel 单测局限</strong>：requestScrollToLastRound/consumePendingScroll 是 AndroidViewModel private 方法，项目无 Robolectric/mock 基建，纯 JVM 不可达。降级为 P3 + 真机取证替代。</p>
+</div>
+
+<div class="decision">
+<h3>S8-7：wakeAckActive StateFlow gate 视觉映射</h3>
+<p><strong>决策</strong>：唤醒路径（playWakeAck=true）置 <code>_wakeAckActive=true</code>，transition() 在 SPEAKING + wakeAckActive 时跳过通用 TALKING 映射，由 playPetOnceThen(JUMPING, WAITING) 接管。<br>
+<strong>理由</strong>：唤醒「我在」是 SPEAKING 态的子场景——需要明确的即时动作反馈（jumping→waiting），而非通用 TTS 播放的 TALKING 映射。<br>
+<strong>critic P2 修复</strong>：wozai 完时 <code>_wakeAckActive.value = false</code> 从条件块（<code>if(isActive && state==SPEAKING)</code>）移到 finally 块——onUtterance 抢跑切 PROCESSING 时原条件跳过复位致残留，下次 TTS SPEAKING 被误 gate。<br>
+<strong>两模式一致性</strong>：悬浮窗（PetOverlayService.playPetOnceThen）与全屏（FullscreenVoiceScreen LaunchedEffect 订阅 wakeAckActive）共用同一信号源，行为一致。</p>
+</div>
+
+<div class="decision">
+<h3>S8-8：TypingDots 替换 CircularProgressIndicator</h3>
+<p><strong>决策</strong>：SENDING 状态显示三圆点错相呼吸动画（900ms 周期，三角波 alpha 0.3↔1.0），替换原 CircularProgressIndicator + "小朵思考中…" 文字。<br>
+<strong>理由</strong>：用户要求「三点打字指示」，对齐通用 chatbot 等候态范式。首 token 到达后状态机 SENDING→STREAMING 触发重组，TypingDots 自然消失（Compose 重组自动清理）。<br>
+<strong>与现有状态点对齐</strong>：仅替换 SENDING 分支，STREAMING（StreamingCursor ▍）、DONE（无指示）、ERROR（红色文字）不变。</p>
+</div>
+
+<h2>设计偏差</h2>
+
+<div class="deviation">
+<h3>S8-3 second-check sealed 守卫单测不可达</h3>
+<p><strong>偏差</strong>：consumeSentences 循环内的 second-check sealed（L502）在单测中无法触发变异红。<br>
+<strong>根因</strong>：pipelineJob.cancel 关闭 sentences channel（CancellationException → sentences.close()），consumeSentences 在循环头 L490 的 sealed 检查前就因 channel 关闭而自然退出。second-check 在单测中永远不可达。<br>
+<strong>裁决</strong>：保留守卫（生产环境 TTS 返回 Audio 时仍有价值），记入已知局限，不删。</p>
+</div>
+
+<div class="deviation">
+<h3>S8-6 sentinel 单测降级 P3</h3>
+<p><strong>偏差</strong>：requestScrollToLastRound/consumePendingScroll 的 sentinel 单测无法在纯 JVM 编写。<br>
+<strong>根因</strong>：ChatViewModel 是 AndroidViewModel（构造需 Application），项目无 Robolectric/mock 基建（全量单测用 MockWebServer + fake 注入，不 mock 被测对象）。<br>
+<strong>裁决</strong>：用户拍板降级为 P3 + 真机取证替代。不引入 Robolectric 依赖（打破项目"零 mock 框架"纪律）。</p>
+</div>
+
+<div class="deviation">
+<h3>S8-5 首轮 critic 死亡</h3>
+<p><strong>偏差</strong>：S8-5 首轮 opus critic 子 agent 静默死亡（output 文件 0 bytes，TaskOutput "task not found"）。<br>
+<strong>根因</strong>：API 429 5 小时用量上限，子 agent 在请求中被截断，无错误传播。<br>
+<strong>处置</strong>：重派 critic（聚焦版，仅审查 delta 流式改动），成功返回。</p>
+</div>
+
+<h2>风险与待修项</h2>
+
+<div class="risk">
+<h3><span class="tag tag-p2">P2</span> S8-5 delta callback check-then-act 竞态窗</h3>
+<p><strong>位置</strong>：VoiceSessionManager.kt L438–L444<br>
+<strong>场景</strong>：<code>if (turn.sealed) return@chat</code>（L438）→ <code>transcriptSink?.onAssistantDelta(delta)</code>（L439，binder 调用可阻塞）→ <code>bubble.show(delta)</code>（L444）。cancel 可在 sealed 检查与 bubble.show 之间执行，致幽灵气泡（hide 后又被 show 顶出）。<br>
+<strong>修复方案</strong>：① bubble.show/append 前 double-check sealed；② 或 sync block 包裹 sealed check + bubble 操作；③ 或写测试用 blocking transcriptSink 注延迟。<br>
+<strong>状态</strong>：待修（权限低——cancel 窗极窄且 transcriptSink 正常不阻塞，真机期顺修）。</p>
+</div>
+
+<div class="risk">
+<h3><span class="tag tag-p3">P3</span> S8-5 BargeInTest 注释过时</h3>
+<p><strong>位置</strong>：VoiceSessionManagerBargeInTest.kt L257-259、L292-293<br>
+<strong>内容</strong>：注释写 "reveal 逐字查岗"，应改为 "delta sealed 拦截"（reveal 已退役，现为 delta 流式直出）。<br>
+<strong>状态</strong>：待修（顺手改，不阻塞）。</p>
+</div>
+
+<h2>Critic P3 留档（不返工）</h2>
+
+<table>
+<tr><th>票</th><th>P3</th><th>内容</th><th>裁决</th></tr>
+<tr>
+  <td>S8-3</td><td>—</td><td>无 P3</td><td>—</td>
+</tr>
+<tr>
+  <td>S8-5</td><td>1</td><td>BargeInTest 注释 "reveal 逐字查岗" 过时</td><td>真机期顺修</td>
+</tr>
+<tr>
+  <td>S8-6</td><td>4</td>
+  <td>
+    ① ChatScreen LaunchedEffect 消费 pendingScroll 后无防抖（快速连点菜单项可能触发两次 scrollToItem，第二次无 target 为 no-op 无害）<br>
+    ② PetOverlayService.hasShownBubbleContent 仅置 true 不复位——服务重启后状态丢失（菜单项短暂可用→不可用），属理论窗<br>
+    ③ scrollToItem 无动画（突兀跳转），产品可接受<br>
+    ④ ChatViewModel.SCROLL_TO_LAST_ROUND 哨兵字符串硬编码（单例无碰撞风险）
+  </td>
+  <td>不返工</td>
+</tr>
+<tr>
+  <td>S8-7</td><td>5</td>
+  <td>
+    ① 全屏语音模式未调 playPetOnceThen（仅悬浮窗调了）——全屏走 LaunchedEffect 订阅 wakeAckActive 间接 gate，两模式路径不同但行为一致<br>
+    ② wakeAckActive 与 kwsPaused 时序差（kwsPaused 在 startListening 入口即置、wakeAckActive 在 playWakeAck 分支内）——两者语义不同，不应合并<br>
+    ③ transition() 的 SPEAKING gate 条件与其他态映射风格不一致——可读性 trade-off<br>
+    ④ wozaiJob finally 与 cancelCurrentTurn 双写 _wakeAckActive=false——幂等无害<br>
+    ⑤ FrameAnimator playOnce 期间 setState 中断动画的语义已在 PetView.kt KDoc 注明
+  </td>
+  <td>不返工</td>
+</tr>
+<tr>
+  <td>S8-8</td><td>2</td>
+  <td>
+    ① TypingDots 使用 rememberInfiniteTransition 在 LazyColumn 内每 item 独立动画——仅 SENDING 状态（瞬时）且仅最新一条消息，性能无影响<br>
+    ② 三点动画无 contentDescription（无障碍缺失）——后续无障碍专项统一补
+  </td>
+  <td>不返工</td>
+</tr>
+</table>
+
+<h2>变异锚验证记录</h2>
+
+<p>纪律：每个守卫必须有测试，删除守卫后至少一个测试变红。</p>
+
+<table>
+<tr><th>守卫</th><th>位置</th><th>变异</th><th>结果</th></tr>
+<tr>
+  <td>S8-3 multi-turn !sealed</td>
+  <td>VSM L464</td>
+  <td>删 <code>&& !turn.sealed</code></td>
+  <td>✅ 红（残跑 vad.start 干扰新轮采音）</td>
+</tr>
+<tr>
+  <td>S8-3 consumeSentences 循环头 sealed</td>
+  <td>VSM L490</td>
+  <td>删 <code>|| turn.sealed</code></td>
+  <td>✅ 红（幽灵 synthesize 继续）</td>
+</tr>
+<tr>
+  <td>S8-3 second-check sealed</td>
+  <td>VSM L502</td>
+  <td>删 <code>|| turn.sealed</code></td>
+  <td>⚠️ 不红（单测局限——channel 关闭致自然退出）</td>
+</tr>
+<tr>
+  <td>S8-7 entry set true</td>
+  <td>VSM startListening</td>
+  <td>删 <code>_wakeAckActive.value = true</code></td>
+  <td>✅ 红（SPEAKING 时 wakeAckActive=false，transition 误设 TALKING）</td>
+</tr>
+<tr>
+  <td>S8-7 wozai complete set false</td>
+  <td>VSM wozaiJob finally</td>
+  <td>删 finally 块</td>
+  <td>✅ 红（wozai 完时若 state 非 SPEAKING，残留 true）</td>
+</tr>
+<tr>
+  <td>S8-7 cancel set false</td>
+  <td>VSM cancelCurrentTurn</td>
+  <td>删 <code>_wakeAckActive.value = false</code></td>
+  <td>✅ 红（cancel 后 wakeAckActive 残留 true）</td>
+</tr>
+</table>
+
+<h2>接手指引（下会话）</h2>
+
+<ol>
+  <li><strong>先跑测试</strong>：<code>./gradlew.bat testDebugUnitTest --rerun-tasks</code> → 应 356 绿 skipped=0</li>
+  <li><strong>真机验收</strong>：按 CONSTRUCTION.md 各票验收条逐项取证（截图 + 日志）</li>
+  <li><strong>S8-5 P2 修复</strong>：delta callback check-then-act 竞态窗（见上）——真机期顺手修，加 double-check sealed 或 sync block</li>
+  <li><strong>S8-5 P3 注释</strong>：BargeInTest 注释 "reveal 逐字查岗" → "delta sealed 拦截"</li>
+  <li><strong>分票 git commit</strong>：每票一 commit，真机证据截图附 commit message</li>
+  <li><strong>先读</strong>：本文件 + PROGRESS.md S8 收口段 + DEV_LOG.md 2026-08-05 条目</li>
+</ol>
+
+</body>
+</html>

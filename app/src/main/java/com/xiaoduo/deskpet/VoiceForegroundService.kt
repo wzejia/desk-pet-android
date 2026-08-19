@@ -1,0 +1,210 @@
+package com.xiaoduo.deskpet
+
+import android.Manifest
+import android.app.Notification
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.PendingIntent
+import android.app.Service
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.content.pm.ServiceInfo
+import android.os.Build
+import android.os.IBinder
+import androidx.core.app.NotificationCompat
+import androidx.core.app.ServiceCompat
+import androidx.core.content.ContextCompat
+import com.xiaoduo.deskpet.util.PetLogger
+import com.xiaoduo.deskpet.util.Prefs
+import com.xiaoduo.deskpet.voice.KwsEngine
+import com.xiaoduo.deskpet.voice.OnceGate
+import com.xiaoduo.deskpet.voice.VoiceClientFactory
+
+/**
+ * KWS 常开前台服务（S5，对账表 KWS 节 + 知识包 §5）：
+ *
+ * - foregroundServiceType=microphone + 常驻通知（用户可见动作：点开 App / 暂停唤醒）
+ * - **禁止自启**：唯一拉起路径 = 设置页用户显式开关（ContextCompat.startForegroundService）；
+ *   通知「暂停唤醒」动作 = 写 pref 关闭 + stopSelf（sticky 不会再拉起）
+ * - START_STICKY：被系统回收后由系统带 null intent 重启，走同一初始化路径
+ * - 单条采麦流复用：不自建 AudioRecord，接管 VoiceSessionManager 的
+ *   kwsSink 挂点 + startIdleCapture（知识包 §3.5 单流扇出，避免双流抢麦）
+ * - 门控阈值每次 feed 读 Prefs（校准写入即时生效，无需重启服务）
+ */
+class VoiceForegroundService : Service() {
+
+    @Volatile
+    private var engine: KwsEngine? = null
+
+    /**
+     * 销毁标志（critic ① P1 麦泄漏竞态修复）。时序推演：
+     * T0 用户关开关 → stopSelf；T1 系统回调 onDestroy（主线程）；
+     * T2 init worker 线程模型加载完毕准备挂 sink。
+     * 若 T2 晚于 T1 且无保护：服务已死无通知，但 kwsSink+startIdleCapture 已挂，
+     * 麦克风持续采集、engine 永不 release = 麦泄漏。
+     * 修复：onDestroy 与 init 收尾共用 [lock]——onDestroy 在锁内置标志+清理；
+     * init 收尾在锁内先查标志，已销毁则 release 引擎直接退出，绝不挂 sink。
+     */
+    @Volatile
+    private var destroyed = false
+
+    private val lock = Any()
+
+    /**
+     * init 单次门闩（backlog #8a，选门闩而非「收尾 engine 复查」）：复查只堵泄漏不堵
+     * 双载——重复 onStartCommand 时两个 init 线程各加载一遍 ~5.4MB onnx 模型（内存/耗时
+     * 尖峰），后到收尾者覆盖 engine 引用、先到者引擎永不 release。门闩从源头保证同实例
+     * 只起一个 init 线程；init 失败 release 放行重试（紧接 stopSelf，防御性）。
+     */
+    private val initGate = OnceGate()
+
+    override fun onBind(intent: Intent?): IBinder? = null
+
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        if (intent?.action == ACTION_PAUSE) {
+            PetLogger.i(TAG, "user paused wake-word from notification action")
+            Prefs.setKwsEnabled(this, false)
+            stopSelf()
+            return START_NOT_STICKY
+        }
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) !=
+            PackageManager.PERMISSION_GRANTED
+        ) {
+            // 权限被系统撤销后 sticky 重启落到这：硬事实透传 + 关开关，不空转占麦
+            PetLogger.e(TAG, "RECORD_AUDIO not granted, stop always-on KWS")
+            Prefs.setKwsEnabled(this, false)
+            stopSelf()
+            return START_NOT_STICKY
+        }
+        if (!goForeground()) {
+            stopSelf()
+            return START_NOT_STICKY
+        }
+        startKwsIfNeeded()
+        return START_STICKY
+    }
+
+    /** 前台化；ColorOS/Android14 后台拉起 mic FGS 可能抛 SecurityException——透传日志 + 退出。 */
+    private fun goForeground(): Boolean {
+        return try {
+            ServiceCompat.startForeground(
+                this,
+                NOTIFICATION_ID,
+                buildNotification(),
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE
+                } else {
+                    0
+                },
+            )
+            true
+        } catch (e: Exception) {
+            PetLogger.e(TAG, "startForeground(microphone) failed: ${e.message}")
+            false
+        }
+    }
+
+    /** 引擎加载走 worker 线程（onnx 模型 ~5.4MB，主线程加载会卡 UI）。 */
+    private fun startKwsIfNeeded() {
+        synchronized(lock) { if (destroyed || engine != null) return }
+        // 已有 init 线程在跑（重复 onStartCommand 无 destroy 介于其间）→ 直接放弃，不起第二个
+        val initToken = initGate.tryAcquire() ?: return
+        Thread({
+            val e = try {
+                KwsEngine(
+                    assetManager = assets,
+                    gateProvider = { Prefs.kwsGate(this) },
+                    onKeyword = { keyword -> onWake(keyword) },
+                )
+            } catch (t: Throwable) {
+                PetLogger.e(TAG, "KwsEngine init failed: ${t.message}")
+                initGate.release(initToken) // 失败放行重试（旧行为：engine==null 时可重入）
+                stopSelf()
+                return@Thread
+            }
+            // 收尾与 onDestroy 互斥：加载窗口内服务已销毁 → 放引擎走人，不挂 sink（critic ①）
+            synchronized(lock) {
+                if (destroyed) {
+                    PetLogger.w(TAG, "service destroyed during KwsEngine init, release and bail")
+                    e.release()
+                    return@Thread
+                }
+                engine = e
+                val session = VoiceClientFactory.session(this)
+                session.kwsSink = { block -> e.feed(block) }
+                session.startIdleCapture()
+            }
+            PetLogger.i(TAG, "always-on KWS started, gate=${Prefs.kwsGate(this)}")
+        }, "kws-init").start()
+    }
+
+    private fun onWake(keyword: String) {
+        // 幻影唤醒防线（审计 P1 连带）：join 超时 skip-free 后，卡死线程若稍后醒来解码出命中，
+        // 服务已毁——KwsCore 派发前 running 复查是第一道，这里是第二道
+        if (destroyed) {
+            PetLogger.w(TAG, "wake hit after service destroyed, dropped ($keyword)")
+            return
+        }
+        PetLogger.i(TAG, "wake word hit ($keyword), -> startListening")
+        // 半双工：仅 IDLE 可入（speaking/processing 期 kwsPaused + 状态分发双保险）；
+        // playWakeAck=true：KWS 唤醒路径播预录「我在」再进聆听（#9 顺序式，ADR 0003）
+        VoiceClientFactory.session(this).startListening(playWakeAck = true)
+    }
+
+    override fun onDestroy() {
+        PetLogger.i(TAG, "onDestroy, release KWS")
+        synchronized(lock) {
+            destroyed = true
+            runCatching {
+                val session = VoiceClientFactory.session(this)
+                session.kwsSink = null
+                session.stopIdleCapture()
+            }
+            engine?.release()
+            engine = null
+        }
+        super.onDestroy()
+    }
+
+    private fun buildNotification(): Notification {
+        ensureChannel()
+        val openApp = PendingIntent.getActivity(
+            this,
+            0,
+            Intent(this, MainActivity::class.java),
+            PendingIntent.FLAG_IMMUTABLE,
+        )
+        val pause = PendingIntent.getService(
+            this,
+            1,
+            Intent(this, VoiceForegroundService::class.java).setAction(ACTION_PAUSE),
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+        )
+        return NotificationCompat.Builder(this, CHANNEL_ID)
+            // 工程无自绘图标资源（res 仅 xml/），用系统麦克风图标
+            .setSmallIcon(android.R.drawable.ic_btn_speak_now)
+            .setContentTitle("小朵语音唤醒中")
+            .setContentText("说「小朵小朵」即可对话；音频仅本地识别")
+            .setContentIntent(openApp)
+            .addAction(0, "暂停唤醒", pause)
+            .setOngoing(true)
+            .setCategory(NotificationCompat.CATEGORY_SERVICE)
+            .build()
+    }
+
+    private fun ensureChannel() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val nm = getSystemService(NotificationManager::class.java)
+            nm?.createNotificationChannel(
+                NotificationChannel(CHANNEL_ID, "语音唤醒", NotificationManager.IMPORTANCE_LOW),
+            )
+        }
+    }
+
+    companion object {
+        private const val TAG = "VoiceFgService"
+        private const val CHANNEL_ID = "xiaoduo_kws"
+        private const val NOTIFICATION_ID = 42
+        const val ACTION_PAUSE = "com.xiaoduo.deskpet.action.KWS_PAUSE"
+    }
+}
