@@ -8,6 +8,10 @@ import com.xiaoduo.deskpet.agui.AguiClient
 import com.xiaoduo.deskpet.agui.AguiClientFactory
 import com.xiaoduo.deskpet.agui.FileMeta
 import com.xiaoduo.deskpet.agui.UploadStatus
+import com.xiaoduo.deskpet.cloud.CloudClientFactory
+import com.xiaoduo.deskpet.cloud.OpenAIChatClient
+import com.xiaoduo.deskpet.cloud.TextChatRouter
+import com.xiaoduo.deskpet.net.NetConfig
 import com.xiaoduo.deskpet.ui.overlay.BubbleOwner
 import com.xiaoduo.deskpet.util.PetLogger
 import com.xiaoduo.deskpet.voice.VoiceClientFactory
@@ -26,8 +30,9 @@ import kotlinx.coroutines.launch
 import java.util.UUID
 
 /**
- * 聊天状态层（S2 + 多会话扩 scope）：消息流 + 对话相位 + 会话管理，接线 AguiClient
- * （增量单条）与 S3 悬浮窗气泡（首个 delta showBubble / 后续 appendBubble / 完成后延迟隐藏）。
+ * 聊天状态层（S2 + 多会话扩 scope）：消息流 + 对话相位 + 会话管理，文字轮经 [TextChatRouter]
+ * 路由——平台 AguiClient（增量单条）或云端 OpenAI 兼容端点（08-14 分支，llmIsCloud，本地历史）——
+ * 并接线 S3 悬浮窗气泡（首个 delta showBubble / 后续 appendBubble / 完成后延迟隐藏）。
  *
  * - 多会话（implementation-notes 2026-07-31 用户拍板）：每会话独立消息流水与 AG-UI threadId
  *   （threadKey = session.id，新会话首次发送时 createThreadId 并缓存；语音路径继续走默认
@@ -51,6 +56,21 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
     private val store = ChatStore(app)
     private val client: AguiClient = AguiClientFactory.create(app)
     private val turns = ChatTurnLogic()
+
+    /** 云端 LLM 客户端（每轮现取配置：设置页改完下一轮即生效——jadx 取证的原始形态）。 */
+    private fun cloudClient(): OpenAIChatClient = CloudClientFactory.chat(getApplication())
+
+    /**
+     * 文字轮 LLM 路由（08-14 云端分支，事故后按 jadx 寄存器级伪码复原，语义见 [TextChatRouter]）：
+     * llmIsCloud → OpenAI 兼容云端（本地历史）；否则平台 AG-UI（线程记忆）。模式读取延迟到每轮
+     * 调用时（lambda 注入），与 NetConfig 运行时读 SP 的原行为一致。
+     */
+    private val textChatRouter = TextChatRouter(
+        llmIsCloud = { NetConfig.llmIsCloud(getApplication()) },
+        cloudClient = ::cloudClient,
+        platformClient = client,
+        logger = { msg -> PetLogger.d(TAG, msg) },
+    )
 
     private val _messages = MutableStateFlow<List<ChatMessage>>(emptyList())
     val messages: StateFlow<List<ChatMessage>> = _messages
@@ -566,16 +586,12 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
             try {
                 var bubbleStarted = false
                 var bubbleVisible = ""
-                val result = client.chat(
-                    userText,
-                    messageId = wireId,
-                    threadKey = session.id,
-                    threadName = threadName,
-                    fileRefs = fileRefs,
-                ) { delta ->
-                    if (myEpoch != turnEpoch) return@chat // barge-in 迟到 delta 防线
+                // onDelta 两路共用（jadx 双源：lambda 在模式分支判断之前构造）——
+                // epoch 防线/相位/气泡节奏与 LLM 模式无关
+                val onDelta: (String) -> Unit = onDelta@{ delta ->
+                    if (myEpoch != turnEpoch) return@onDelta // barge-in 迟到 delta 防线
                     _messages.value = turns.applyDelta(_messages.value, assistantId, delta)
-                    val visible = _messages.value.firstOrNull { it.id == assistantId }?.text ?: return@chat
+                    val visible = _messages.value.firstOrNull { it.id == assistantId }?.text ?: return@onDelta
                     _phase.value = Phase.STREAMING
                     svc?.let {
                         when {
@@ -597,6 +613,18 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
                         }
                     }
                 }
+                // 08-14 云端分支（事故复原）：llmIsCloud → OpenAI 兼容端点（本地历史拼上下文）；
+                // 否则平台 AG-UI（线程记忆）。两路统一产 ChatResult，下游 epoch 守卫/持久化/
+                // 文件清场/收泡零分叉（取证依据与 fileRefs 处置见 TextChatRouter KDoc）
+                val result = textChatRouter.chat(
+                    messages = _messages.value,
+                    userText = userText,
+                    wireId = wireId,
+                    threadKey = session.id,
+                    threadName = threadName,
+                    fileRefs = fileRefs,
+                    onDelta = onDelta,
+                )
                 if (myEpoch != turnEpoch) return@launch // 已被打断：结果不落盘不改相位
                 when (result) {
                     is AguiClient.ChatResult.Success -> {
