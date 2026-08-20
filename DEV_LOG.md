@@ -1,5 +1,42 @@
 # DEV_LOG.md — 小朵 Android 开发日志
 
+## 2026-08-20（S11 唤醒词准确率排查：三层根因全修 + 一声唤醒 10/10）
+
+> 接续交接文档 `handoff-desk-pet-android-kws-accuracy-2026-08-19.md`（任务：唤醒准确率诊断 + 唤醒词打断核查）。
+> 全证据链：`docs/verification/v17-kws-accuracy/README.md`。执行形态：主编排持票，builder×5 + critic×4（全不逊）。
+
+### 根因链（三层独立叠加，逐层有日志/实验石锤）
+
+1. **阈值 0.5 事故回归**（S11-1）：08-10 验证的 0.3 无测试锚，08-18 事故转录重放静默回退 0.5；
+   真机 08-19 重装的正是 0.5 构建。修复=KwsDefaults 常量+精确锚点测试；CONTEXT/spec/对账表三处 0.5 假事实修正。
+2. **文字轮云端分支事故丢失**（S11-5）：ChatViewModel 的 llmIsCloud 分支丢失（无锚），
+   症状=文字轮「账号或密码未配置」而语音正常。jadx 反编译 device-base/emulator-base 双源取证复原，
+   下沉 TextChatRouter 纯逻辑+双 MockWebServer 锚（取证产物入库 docs/verification/forensic-s11-cloud-branch/）。
+3. **真凶：门控丢弃语义碎裂 KWS 时间轴**（S11-6 探针 → S11-7 修复）：「整块不喂不补静音」挖掉
+   字间气口（打分压到阈值下=第一声必漏）+ 冻结部分分永不冲刷（被下一声补完=「第二声秒中」假象）。
+   探针证伪音频延迟论（cap lag=1-4ms）。修复=挂起窗 800ms（VAD 判停同源）+ gap-reset（sentinel 保序、
+   消费线程单点 reset、幂等沿）。桌面 sidecar 取证确认桌面同缺第二步语义=超越 parity 的真机证据增强。
+
+### 验收（真机 de61cd8）
+
+- **一声唤醒 10/10**（修复前：第一声 0/10、第二声 10/10）；命中即时，每轮后 gap reset 准点冲刷。
+- 基线 438→**454** 绿 skipped=0（+1 阈值锚 +2 spike +3 文字路由 +5 探针 +5 门控；56 套件）。
+- 唤醒词打断核查结论：当前结构不支持（三重屏障）；08-04 spike「零误触发」= 空证据（旁路 no-op），
+  S11-3 已重做真放行 spike（spikeFeedKws+fed 有效性闸），真机观测待做（见 PROGRESS 接手指引）。
+
+### 执行偏差留痕
+
+- 编排层一度判读错误：把「第二声秒中」归因音频管道秒级延迟（单声等待实验的表象），S11-6 探针数据
+  证伪后才锁定门控语义——教训=「第二声必中」类确定性模式是状态机/缓冲问题的指纹，不是检出率问题。
+- builder 票号注释误写 S12（实为 S11-6），编排层收口统一更正；critic P3 文档漂移（KwsEngine/AudioProbe KDoc）同轮修正。
+
+```evidence
+verify_cmd: ./gradlew.bat assembleDebug testDebugUnitTest --rerun-tasks（XML 亲算：56 suites / 454 tests / skipped=0 / failures=0 / errors=0）；真机 de61cd8 装机后：logcat KWS config dump 受 4KB 截断改以行为对拍；探针三声对拍（cap lag=1-4ms）；10 轮单声唤醒 10/10（日志 hits #7-#11 + 每轮 gap reset 冲刷行）
+verify_claim: 阈值 0.3 在机生效（行为对拍：一声 10/10）；文字轮云端分支复原（路由锚变异双红）；门控挂起窗+gap-reset 上线后首声检出 10/10、无冻结补完假命中
+files_touched: [voice/KwsEngine.kt, voice/KwsDefaults.kt, voice/KwsCore.kt, voice/AudioCapture.kt, voice/AudioProbe.kt(新), voice/VoiceStateRouter.kt, voice/VoiceSessionManager.kt, cloud/TextChatRouter.kt(新), chat/ChatViewModel.kt, ui/screens/AecSpikeSection.kt, tests +5 文件, EMULATOR.md, CONTEXT.md, docs/spec/assistant-app.spec.md, docs/voice-param-reconciliation-2026-07-28.md, docs/verification/v17-kws-accuracy/, docs/verification/forensic-s11-cloud-branch/, docs/solutions/(3 新篇)]
+```
+
+
 ## 2026-08-19（S10-3 验收 + 密钥取证恢复）
 
 > 背景：仓库 08-18 整体删除事故后于 08-19 从恢复树克隆回迁（git log 103a496 恢复基线起）。

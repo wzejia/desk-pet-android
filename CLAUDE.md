@@ -94,7 +94,7 @@ IDLE ──(唤醒词/按住说话)──▶ LISTENING ──(VAD判停)──�
 
 ### 基线（不可退）
 
-- 单测 **372 个**，skipped=0，failures=0，errors=0（44 测试套件）
+- 单测 **454 个**，skipped=0，failures=0，errors=0（56 测试套件）
 - 验证命令：`./gradlew.bat testDebugUnitTest --rerun-tasks`
 - 增量纪律：`CONSTRUCTION.md`「单测只增不减，skipped=0」
 

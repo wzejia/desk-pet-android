@@ -19,6 +19,7 @@
 | **S7** | **UI/语音/输入全面升级（S7-a~g）** | 各子切片验收见下；单测只增不减(基线 274) | ✅ 收官（345 测绿；真机验收全闭；盲测组 2 三连败关账 R3 保留；AEC spike 用户拍板挂起） |
 | **S8** | **UI 微调合集（S8-1~8）**：输入框回滚两层+横线 / 图标白底 / TTS 中按住=打断并接续 / 气泡渲染残留修复 / 气泡文字改流式（撤 reveal） / 气泡看不到开头补救 / 唤醒视觉反馈 / 等候三点动效 | 各票验收见下；单测只增不减（基线 345→356） | ✅ 全部收口（358 测绿 skipped=0；真机逐票验收 2026-08-05/06 过；真机期顺修 P2 竞态窗+strip-empty 死路+多功能键边沿缺陷+wozai 重制 e3，详见各票与 DEV_LOG 2026-08-06） |
 | **S10** | **悬浮窗贴边收纳（半身贴边）**：拖至左右缘松手滑入半身 / 单击滑出+可拖出 / 重启保持贴边 | 吸附几何 JVM 单测（模式 C）+ 模拟器/真机像素断言；voice/** 零 diff | ✅ 收口 2026-08-19（模拟器 B/A/A2/C/C2/D/E/F/G + 真机 RM-1~6 全绿，证据 `docs/verification/v16-edge-dock/`；⚠️ S10-1/S10-2 critic 独立评审欠账，08-21 配额恢复后补派） |
+| **S11** | **唤醒词准确率排查+打断核查**：阈值事故回归 / 文字轮云端分支丢失 / 门控时间轴碎裂（真凶）三修复 + spike 真重做 | 一声唤醒真机 10/10 + 基线只增不减 | ✅ 收口 2026-08-20（五票全 critic 不逊；一声 10/10；证据 `docs/verification/v17-kws-accuracy/`；spike 真机观测待做） |
 
 ## S0 地基
 
@@ -319,10 +320,48 @@
 - S10-1 → S10-2 → S10-3 严格串行；S10-1 可立即派
 - 真机仅 S10-3 用（互斥锁纪律）；模拟器操作全部显式 `-s emulator-5554`
 
+## S11 唤醒词准确率排查 + 唤醒词打断核查（2026-08-19 立项，用户两拍板：最小修复+取证 / 先重做有效 spike 再定）
+
+> 来源：用户报障「唤醒词准确率不高 + 检查是否支持唤醒词打断」。
+> 证据总链：`docs/verification/v17-kws-accuracy/README.md`。结论：三层独立根因叠加，全部修复并上锚。
+
+### S11-1 阈值恢复+锚点 ✅（critic 不逊；文档 P2 编排层已修）
+- [x] `KwsEngine.kt:101` 阈值回 0.3（08-10 真机验证值），经新 `KwsDefaults.KEYWORDS_THRESHOLD` 承载 + 精确锚点测试（改 0.5→红亲验）
+- [x] KwsEngine KDoc + EMULATOR.md §6 tag 漂移（KwsCore→KwsEngine）更正；CONTEXT.md/spec:71/对账表:45 三处 0.5 假事实修正（编排层，critic P2）
+- 验收：439 绿（438+1）；变异锚红绿往返成立
+
+### S11-3 AEC spike 重做（真放行）✅（critic 不逊 + 打回 1 轮：UI 脱钩修复；3 P3 顺手修落）
+- [x] `VoiceStateRouter.spikeFeedKws`（@Volatile，会话级）：SPEAKING+spike→KWS，PROCESSING 恒 DROP；VSM 委托属性镜像 kwsPaused 范式
+- [x] `AecSpikeSection` 废弃 200ms 捅 kwsPaused 的 no-op 旁路（08-04 空证据根因），开关直写标志；remember 初值读真态（导航离开≠disarm）
+- [x] KDoc 记录空证据教训 + 有效性闸（观测期 fed 须在 SPEAKING 期间增长，否则 spike 作废）
+- 验收：441 绿（+2）；变异锚（SPEAKING 回退恒 DROP→红）亲验；**真机误触发/检出率观测待做**（双合格才立项实现）
+
+### S11-5 文字轮云端分支恢复 ✅（critic 不逊；3 P3 增强修落）
+- [x] jadx 反编译 device-base（S9）+ emulator-base（S10）双源取证（产物入库 docs/verification/forensic-s11-cloud-branch/），按寄存器级伪码复原 08-14 分支
+- [x] 下沉纯逻辑 `cloud/TextChatRouter.kt`（路由+历史构建+Result 适配；历史=dropLast(1)+滤 SYSTEM/空文本+role.wire；systemPrompt=null；fileRefs 仅平台路）；ChatViewModel 手术接回（onDelta 两路共用，epoch/气泡/persist/清场下游零分叉）
+- [x] 锚：TextChatRouterTest 3 测（双 MockWebServer：云端路平台 0 请求/平台路云端 0 请求/500 透传 rate limited）；变异锚（恒走平台=事故丢失态）双红亲验
+- 验收：444 绿（+3）
+
+### S11-6 音频延迟定位探针 ✅（critic 不逊；编排层 KDoc 修正 2 处）
+- [x] `AudioProbe`（纯逻辑总开关+shouldLog/lagMs）+ AudioCapture emit 侧 `cap rms=… lag=Nms`（AudioRecord getTimestamp TIMEBASE_MONOTONIC）+ KwsCore feed 侧 `feed rms=…` + AecSpikeSection ③ 开关
+- [x] AudioProbeTest 5 测；变异锚（删 armed 判定→红）亲验；未 arm 零开销（每块一次 volatile 读）
+- 验收：449 绿（+5）；**探针结论：管道 lag=1-4ms 实时无积压——音频延迟论被证伪，真凶转向门控语义**
+
+### S11-7 KWS 门控时间轴修复 ✅（critic 不逊；2 P3 文档漂移编排层已修；真机验收 10/10）
+- [x] 挂起窗：过门后 `KwsDefaults.GATE_HANGOVER_BLOCKS`=8 块（800ms，VAD 判停同源）内低于门仍喂真实块（只消耗不续窗）
+- [x] gap-reset：连续低于门超窗→不喂+Work.GapReset sentinel 入队保序，reset 仅 decode 消费线程执行、幂等沿（过门才重新武装，新生流不 startup reset）
+- [x] KwsCoreHangoverTest 4 测+锚 1 测；双机制独立变异锚（删挂起窗 4 红/删 gap-reset 3 红）亲验
+- 验收：454 绿（+5）；**真机一声唤醒 10/10**（修复前第一声 0/10），每轮命中后 gap reset 准点冲刷
+- 留档（critic 观察项）：teardown→ensure 极速交替的理论竞态（后果上限=多/少一次幂等 reset，pre-existing）；6.4s 积压丢 sentinel 不重试（退回旧行为，无新故障）
+
+### S11 依赖序
+- S11-1 → S11-3 →（S11-5 取证复原）→ S11-6 → S11-7 串行（gradle 单项目构建锁，地界虽错开仍串行）
+- 真机窗口两段：08-19 晚（装机验阈值+10 轮快验）+ 08-20 下午（探针 3 声+S11-7 验收 10 轮）
+
 ## 全程纪律（违反复工）
 
 1. 子智能体编排协议见 CLAUDE.md：fan out builder、critic 盲测严评、loop 到不逊
 2. 四类事件立即记 `implementation-notes.html`；每日追加 `DEV_LOG.md`；每票完更新 `PROGRESS.md`
 3. 协议/参数只认知识包 + 对账表，实现偏离 = bug；Spec 漂移改 Spec 并记 notes
-4. 单测只增不减（当前基线 372，见 CLAUDE.md），skipped=0；禁 mock 被测对象 / 禁 `|| true`
+4. 单测只增不减（当前基线 454，见 CLAUDE.md），skipped=0；禁 mock 被测对象 / 禁 `|| true`
 5. 日志禁打 token/密码明文；catch 不静默吞，错误透传真实 msg

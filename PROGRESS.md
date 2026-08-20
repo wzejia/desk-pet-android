@@ -1,5 +1,40 @@
 # 小朵 Android M1 进度
 
+## 状态：S11 唤醒词准确率排查 ✅ 收口（2026-08-20，一声唤醒 10/10）+ 唤醒词打断核查（spike 真机观测待做）
+
+- **三层根因叠加，全部修复+上锚**（全证据链 `docs/verification/v17-kws-accuracy/README.md`）：
+  ①**阈值 0.5 事故回归**（S11-1）：08-10 的 0.3 无锚，转录重放静默回退 → KwsDefaults 常量+精确锚
+  （CONTEXT/spec/对账表三处 0.5 假事实修正）；
+  ②**文字轮云端分支事故丢失**（S11-5）：ChatViewModel 无锚内联分支被重建丢弃 → jadx 双源取证复原，
+  下沉 TextChatRouter+双 MockWebServer 锚（取证产物入库 docs/verification/forensic-s11-cloud-branch/）；
+  ③**真凶=门控丢弃语义碎裂 KWS 时间轴**（S11-6 探针定位 → S11-7 修复）：「整块不喂不补静音」
+  挖字间气口压分（第一声必漏）+ 冻结部分分不冲刷（第二声秒中假象）→ 挂起窗 800ms+gap-reset
+  （sentinel 保序/消费线程单点 reset/幂等沿）。**超越桌面 parity 的增强**（sidecar.py 取证桌面同缺）。
+- **验收**：真机 de61cd8 一声唤醒 **10/10**（修复前第一声 0/10、第二声 10/10）；
+  基线 438→**454** 绿 skipped=0（56 套件）；builder×5+critic×4 全不逊。
+- **唤醒词打断核查**：当前结构不支持（VoiceStateRouter SPEAKING/PROCESSING 恒 DROP + kwsPaused +
+  startListening 非 IDLE 早退三重屏障）；**08-04 AEC spike「零误触发」= 空证据**（旁路 no-op，KWS 全程
+  没收到音频，BLOCKED.md 已更正）；S11-3 已重做真放行 spike（`spikeFeedKws` + fed 有效性闸 +
+  AecSpikeSection ③ 延迟探针旁置）；sherpa 1.13.4 无 AEC（路封），VOICE_COMMUNICATION 硬件 AEC 已在用。
+- **⚠️ 欠账/待做**：spike 真机观测（误触发 ≥5min 0 命中 + TTS 中真声检出 ≥8/10，双合格才立项实现）；
+  S10-1/S10-2 critic 补审欠账（08-21 配额恢复后）。
+
+### 接手指引（下会话开场必读）
+
+1. **大盘**：S0-S10 + S11 全部收口。基线 **454 单测全绿 skipped=0**（`./gradlew.bat testDebugUnitTest --rerun-tasks` 复跑）。
+2. **剩余事项**：
+   - **spike 真机观测**（S11-3 设施已装机）：设置页 debug 区块「① 误触发采集：开 KWS 旁路」→
+     长回复 TTS 挂机 ≥5min 数 `keyword hit:`（带冒号，tag KwsEngine）=0 合格 + fed 增长佐证有效性；
+     检出率=TTS 中喊 10 声 ≥8/10。双合格 → 唤醒词打断立项评估报用户；不合格按 ADR 0003 降级关账。
+   - 观察票：全屏语音模式概率性白屏（08-18 用户报，未查）；P3 resolver source 日志标签歧义；
+     P3 VSM:473-477 else 分支缺直接测试覆盖；wozai volc/openai 资产待 key（tools/wozai/README.md）。
+   - S10-1/S10-2 critic 补审欠账（配额 08-21 恢复后补派）。
+3. **新增排障资产**：AudioProbe 延迟探针（设置页 debug ③ 按钮，用法见 v17 README §7）；
+  机构解法三篇（docs/solutions/：门控碎裂时间轴 / 无锚代码静默丢失 / spike 空证据佐证法）。
+4. 先读：本文件 S11 段 → DEV_LOG.md 2026-08-20 → v17 证据 README。
+
+---
+
 ## 状态：S10 悬浮窗贴边收纳 ✅ 收口（2026-08-19，模拟器+真机验收全绿）
 
 - **S10 三票收口**：S10-1 EdgeDock 吸附几何纯逻辑（+11 测，基线 427→438 skipped=0）；

@@ -214,5 +214,50 @@
   <li><strong>先读</strong>：本文件 + PROGRESS.md S8 收口段 + DEV_LOG.md 2026-08-05 条目</li>
 </ol>
 
+<h2>S11 唤醒词准确率排查（2026-08-19 ~ 08-20）</h2>
+
+<div class="decision">
+<h3>根因链：三层独立叠加（阈值回归 / 云端分支丢失 / 门控碎裂时间轴）</h3>
+<p><strong>决策</strong>：三层全部修复并上测试锚，非单点修补。<br>
+<strong>证据</strong>：<code>docs/verification/v17-kws-accuracy/README.md</code>（探针时间线、fed/gated 账目、10/10 验收日志）。<br>
+<strong>教训</strong>：①无测试锚的常量/分支在事故恢复的转录重放中静默丢失（阈值 0.5 回退 + 文字轮云端分支丢失双案，
+对拍基线入 tracked 区）；②「第二声必中」类确定性模式是状态机/缓冲问题的指纹，不是检出率问题——
+编排层一度误判为音频延迟（单声等待实验表象），S11-6 探针数据证伪后才锁定门控语义。</p>
+</div>
+
+<div class="decision">
+<h3>S11-7：挂起窗 + gap-reset（超越桌面 parity 的增强）</h3>
+<p><strong>决策</strong>：挂起窗 8 块=800ms（VAD 判停 800ms 同源依据）内低于门仍喂真实块（只消耗不续窗）；
+连续低于门超窗 → 不喂 + sentinel 入队保序、reset 仅 decode 消费线程、幂等沿。<br>
+<strong>理由</strong>：流式 transducer 输入时间轴不可压缩；波束部分分需要尾随静音冲刷，不进流即冻结。<br>
+<strong>桌面核对</strong>：sidecar.py:184-197 同样只丢不补、无 gap-reset——parity 一致但语义不正确，
+本修复属真机证据驱动增强（KDoc 已标注）。<br>
+<strong>代价</strong>：嘈杂环境每次过门事件增量喂 ≤8 块低能块（误触发风险有界，检出率日志可回收实证）。</p>
+</div>
+
+<div class="deviation">
+<h3>S11-5：TextChatRouter 下沉（与原实现的两处有意偏差）</h3>
+<p>①原实现路由内联 runChat（jadx 取证），复原下沉为独立纯逻辑类——AndroidViewModel 内联代码 JVM 不可测，
+正是上次无锚丢失的复败模式；代价=cloud↔chat 包级环（单模块可编译，留档）。②原实现仅云端路读
+<code>_messages.value</code>，复原无条件读后传入（StateFlow.value 读无副作用，语义惰性等价）。
+其余逐项与 jadx 寄存器伪码一致（critic 对拍过）。</p>
+</div>
+
+<div class="note">
+<h3>S11-3：spike 真放行（08-04 空证据更正）</h3>
+<p>08-04 AEC spike「5.8min 零误触发」系空证据（旁路对 SPEAKING 恒 DROP 是 no-op，KWS 全程无音频输入）。
+S11-3 真放行=<code>spikeFeedKws</code> 标志 + 有效性闸（观测期 fed 须在 SPEAKING 期间增长）。
+UI 语义：导航离开≠disarm（spike 流程要求跨导航保持 arm），remember 初值读真态；disarm 配对点=按钮 toggle/进程死亡。</p>
+</div>
+
+<div class="risk">
+<h3>未决/观察项</h3>
+<p>①spike 真机观测待做（误触发 ≥5min 0 命中 + TTS 中检出 ≥8/10 双合格才立项实现唤醒词打断，否则 ADR 0003 降级）。
+②critic 观察项留档：teardown→ensure 极速交替时旧 collector 与新 collector 并发 feed 的理论竞态
+（后果上限=多/少一次幂等 reset，pre-existing）；6.4s 积压 poll 恰丢 sentinel 则本次 gap-reset 不重试（退回旧行为）。
+③S11-6 探针观察者效应：cap 行同步文件 IO 先于 tryEmit，座位②测量含 ms 级探针自身开销（噪声≪秒级信号，可接受）。
+④日志总命中 11 vs 正式 10 轮（1 次为开测前交互，非误触发）。</p>
+</div>
+
 </body>
 </html>
