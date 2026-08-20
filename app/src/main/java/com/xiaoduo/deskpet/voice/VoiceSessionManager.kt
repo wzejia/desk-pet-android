@@ -189,6 +189,19 @@ class VoiceSessionManager(
             router.kwsPaused = v
         }
 
+    /**
+     * S11-3 AEC spike 调试开关（直通 router.spikeFeedKws）：true 时 SPEAKING 态麦块
+     * 放行 KWS decode。调试会话级开关——不被 backToIdle/状态迁移复位（与 kwsPaused
+     * 每轮语义不同），由 AecSpikeSection UI arm/disarm 配对管理；内存态无持久化，
+     * 进程死亡自然归 false。spike 期命中不产生用户可见行为：startListening 非 IDLE
+     * 早退（第三道屏障，本票不动）。
+     */
+    var spikeFeedKws: Boolean
+        get() = router.spikeFeedKws
+        set(v) {
+            router.spikeFeedKws = v
+        }
+
     /** S5 KWS 块订阅挂点：IDLE 态麦块回调（单条采麦流扇出）。 */
     @Volatile
     var kwsSink: ((ByteArray) -> Unit)? = null
