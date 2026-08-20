@@ -3,6 +3,7 @@ package com.xiaoduo.deskpet.voice
 import android.annotation.SuppressLint
 import android.media.AudioFormat
 import android.media.AudioRecord
+import android.media.AudioTimestamp
 import android.media.MediaRecorder
 import com.xiaoduo.deskpet.util.PetLogger
 import kotlinx.coroutines.channels.BufferOverflow
@@ -128,7 +129,10 @@ class AudioCapture {
             // = 保最新音频，绝不在读循环里干活）
             pumpBlocks(
                 read = { buf, off, len -> r.read(buf, off, len) },
-                emit = { block -> _blocks.tryEmit(block) },
+                emit = { block ->
+                    probeBlock(r, block) // 未 arm 时仅一次 volatile 读，零行为变化
+                    _blocks.tryEmit(block)
+                },
             )
         } finally {
             isRunning = false
@@ -139,8 +143,52 @@ class AudioCapture {
         }
     }
 
+    // ---------------- S11-6 延迟取证探针（只探不修，总开关 AudioProbe.armed） ----------------
+
+    /**
+     * getTimestamp 支持性闩：null=未探测；false=设备不支持（首行打 NA(unsupported) 后
+     * 不再调用，省 syscall）。仅读循环线程访问，无需 volatile。
+     */
+    private var timestampSupported: Boolean? = null
+
+    /**
+     * 采集侧探针：armed 且块过门时打一行 `cap rms=… lag=…`（tag AudioProbe）。
+     * lag = 采集时刻（TIMEBASE_MONOTONIC 时间戳）→此刻入队前观察时刻 = 系统音频通路
+     * （HAL/DSP）积压，与 KwsCore 侧 `feed rms=…` 行时间戳同域对照即得 app 中段积压。
+     * 门限取 [EnergyGate.DEFAULT_GATE] 而非用户校准门：诊断用固定口径，feed 侧按真实
+     * 动态门，两侧 rms 值原样落日志可互配。
+     * runCatching 兜底：探针永不向上抛——只探不修票，探针本身不得成为新故障源。
+     */
+    private fun probeBlock(r: AudioRecord, block: ByteArray) {
+        if (!AudioProbe.armed) return
+        val rms = EnergyGate.rmsOf(block)
+        if (!AudioProbe.shouldLog(rms, EnergyGate.DEFAULT_GATE)) return
+        val lagText = runCatching { captureLagText(r) }
+            .getOrElse { "NA(error:${it.message})" }
+        PetLogger.i(PROBE_TAG, "cap rms=%.4f lag=%s".format(rms, lagText))
+    }
+
+    private fun captureLagText(r: AudioRecord): String {
+        if (timestampSupported == false) return "NA" // 不支持已闩，不再尝试
+        val ts = AudioTimestamp()
+        // 时基取 TIMEBASE_MONOTONIC：与 System.nanoTime() 同域，差值即系统通路积压毫秒数
+        // （票据草稿写的 TIMECAPTURE 在 SDK 不存在，真实常量仅 TIMEBASE_MONOTONIC/BOOTTIME；
+        //   AudioRecord.getTimestamp 返回 int 状态码——boolean 是 AudioTrack 的签名，勿混）
+        return if (r.getTimestamp(ts, AudioTimestamp.TIMEBASE_MONOTONIC) == AudioRecord.SUCCESS) {
+            timestampSupported = true
+            "${AudioProbe.lagMs(System.nanoTime(), ts.nanoTime)}ms"
+        } else {
+            // 首行 NA(unsupported) 并闩死：过门块远在流启动后，此时 false 视为设备不支持
+            timestampSupported = false
+            "NA(unsupported)"
+        }
+    }
+
     companion object {
         private const val TAG = "AudioCapture"
+
+        /** 延迟取证探针日志 tag（grep 口径：`cap rms=` / `feed rms=` / `keyword hit:`）。 */
+        private const val PROBE_TAG = "AudioProbe"
 
         /** 块缓冲容量：64 块 ≈ 6.4s 消费侧 stall 容忍。 */
         internal const val BLOCKS_BUFFER_CAPACITY = 64
