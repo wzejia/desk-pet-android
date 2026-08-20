@@ -48,6 +48,8 @@
 | 块 / 采样 | 100ms @16k 直采直喂，Int16→float32/32768 | 同 | ✅ |
 | 用法 | accept_waveform → is_ready/decode/get_result → 命中 reset | 同 | ✅ |
 
+> **Corrigendum（2026-08-19）**：keywords_threshold 修订 **0.5 → 0.3**（2026-08-10 真机验证值，IDLE 态 10/10；08-18 仓库事故曾因无测试锚静默回退 0.5 致漏检回归）。锚：`voice/KwsDefaults.kt` + `KwsDefaultsTest`。本表为 07-28 历史快照，其余行不动。
+
 ### 状态机与半双工（sidecar.py，§3.5）
 
 - 四态 `idle/listening/processing/speaking` ✓；麦块分发：IDLE→KWS、LISTENING→AsrListener、processing+speaking 丢弃 ✓。

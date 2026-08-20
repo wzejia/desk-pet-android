@@ -68,7 +68,7 @@
 - TTS：直连 9803（勿经 166 转发），多帧 WAV 剥头拼 PCM，先缓冲全帧再播；合成前白名单消毒
 - 半双工：四态分发（idle→KWS / listening→VAD / 其余丢麦块）+ KWS pause flag
 - KWS：sherpa-onnx-1.13.4.aar（app/libs，abiFilters arm64-v8a），模型 5 文件 assets newFromAsset；
-  keywordsThreshold=0.5；RMS 门控默认 0.015 **可配置 + 校准入口（硬验收）**
+  keywordsThreshold=0.3 **【2026-08-19 修订】**（08-10 真机验证值 IDLE 态 10/10，原 0.5 弃用；锚 `voice/KwsDefaults.kt`）；RMS 门控默认 0.015 **可配置 + 校准入口（硬验收）**
 - reveal：`len(pcm)/2/24000` 句级均分逐字；播放阻塞写天然背压；失败降级 4.5 字/秒
   **【2026-08-05 撤销】S8-5 改流式直出**（delta 回调直接气泡上屏，不等音频），reveal 退役仅留类备查
 

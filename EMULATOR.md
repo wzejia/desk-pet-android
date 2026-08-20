@@ -130,7 +130,7 @@ PID=$("$ADB" $S shell pidof com.xiaoduo.deskpet | tr -d '\r')
 | `CloudLLM` | 云端对话链路 | `cloud llm ok, 35 chars, firstToken=1099 ms` |
 | `ChatViewModel` | 文字轮生命周期 | `chat send: 5 chars` / `chat round done` |
 | `VoiceFgService` | KWS 前台服务 | `always-on KWS started, gate=0.015` |
-| `KwsCore` | KWS 检出/门控统计 | fed/gated/decoded/hits 计数行 |
+| `KwsEngine` | KWS 检出/门控统计 | fed/gated/decoded/hits 计数行（`kws stats:`；KwsCore 的日志经 KwsEngine 注入的 logger 走 tag `KwsEngine`，写 `KwsCore` 会漏行；兜底 `grep -iE "kws"`） |
 | `AudioCapture` | 采麦状态 | `capture start, source=7, 16kHz/mono/Int16` |
 | `sherpa-onnx` | native 库（见 §7） | KeywordSpotterConfig…（W 级配置 dump） |
 | `Settings` | 设置页动作 | `KWS always-on enabled by user toggle` |

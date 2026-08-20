@@ -12,12 +12,13 @@ import com.xiaoduo.deskpet.util.PetLogger
 /**
  * KWS 引擎封装（sherpa-onnx KeywordSpotter，Android 绑定层）：
  * 本类只剩 native 构建与适配，全部线程/门控/统计/release 时序逻辑在 [KwsCore]
- * （纯 JVM，KwsCoreTest 11 测；此前整类绑死 native 零测，审计 P1 竞态即藏于此）。
+ * （纯 JVM，KwsCoreTest 11 测 + KwsCoreHangoverTest 4 测；此前整类绑死 native 零测，审计 P1 竞态即藏于此）。
  *
  * 对账表逐项：
- * - keywords_threshold 0.5 / num_threads 2 / provider cpu / 16kHz 直采直喂
+ * - keywords_threshold 0.3（08-10 真机验证值，锚定 [KwsDefaults]）/ num_threads 2 / provider cpu / 16kHz 直采直喂
  * - RMS 能量门控（默认 0.015，经 [gateProvider] 每次读取 = 校准写入即时生效）：
- *   rms<gate 整块不喂不判（防静音空转耗电）
+ *   rms<gate 整块不喂不判（防静音空转耗电）+ 挂起窗/gap-reset 保时间轴（S11-6 真机探针
+ *   石锤「第一声必漏」机制后的增强，语义见 [KwsCore] KDoc，锚 [KwsDefaults.GATE_HANGOVER_BLOCKS]）
  * - 用法：acceptWaveform → 循环 isReady/decode/getResult → 命中 reset
  * - Int16 → float32（/32768）后喂 sherpa（知识包 §5）
  *
@@ -83,7 +84,7 @@ class KwsEngine(
         /** 消费队列容量：64 块 ≈ 6.4s（与 AudioCapture 块缓冲同容量同策）。 */
         internal const val QUEUE_CAPACITY = 64
 
-        /** 对账表 KWS 节逐项（0.5 / 2线程 / cpu / 16k）。 */
+        /** 对账表 KWS 节逐项（阈值走 [KwsDefaults.KEYWORDS_THRESHOLD]=0.3 / 2线程 / cpu / 16k）。 */
         internal fun buildConfig(modelDir: String) = KeywordSpotterConfig(
             featConfig = FeatureConfig(sampleRate = SAMPLE_RATE, featureDim = 80),
             modelConfig = OnlineModelConfig(
@@ -98,7 +99,7 @@ class KwsEngine(
                 debug = false,
             ),
             keywordsFile = "$modelDir/keywords.txt",
-            keywordsThreshold = 0.5f,
+            keywordsThreshold = KwsDefaults.KEYWORDS_THRESHOLD,
             keywordsScore = 1.0f,
             maxActivePaths = 4,
             numTrailingBlanks = 1,

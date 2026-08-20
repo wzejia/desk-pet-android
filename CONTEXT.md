@@ -29,7 +29,7 @@
 - **TTS 消毒**：合成前逐字符白名单清洗 markdown/emoji；清洗后无 alnum 字符则跳过合成。
 - **VAD**：绝对阈值 RMS 语音检测，无校准期。speech_level=0.05、判起 300ms、判停 800ms、pre-roll 300ms；pre-roll deque 容量必须 = 判起块数 + pre_roll 块数 = 6。
 - **半双工**：对话期间三层防自激——状态机分发（processing/speaking 丢麦块）+ KWS pause flag + 单条采麦流复用（KWS 与 VAD 共用）。
-- **KWS**：唤醒词「小朵小朵」，sherpa-onnx KeywordSpotter，keywords_threshold=0.5，RMS 能量门控 0.015（单机校准值，须可配置 + 留校准入口）。
+- **KWS**：唤醒词「小朵小朵」，sherpa-onnx KeywordSpotter，keywords_threshold=0.3（2026-08-10 真机验证值 IDLE 态 10/10；08-18 事故曾静默回退 0.5 致漏检回归，锚 `voice/KwsDefaults.kt` + KwsDefaultsTest），RMS 能量门控 0.015（单机校准值，须可配置 + 留校准入口）。
 - **唤醒应答（Wake Ack）**：KWS 唤醒成功后小朵的固定应声「我在」（预录 wozai.wav，仅 KWS 唤醒路径播放，按住说话不播，可被打断（barge-in））。2026-08-07 用户拍板起不含前导「哎」（同日早前「哎,我在。」调研选型已废弃）。
 - **Reveal（边念边出字）**：按句级 PCM 精确时长 `len(pcm)/2/24000` 均分逐字显示；播放阻塞写天然背压；TTS 失败降级纯文字 4.5 字/秒。
 
