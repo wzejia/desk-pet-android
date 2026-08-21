@@ -146,7 +146,9 @@ class VoiceForegroundService : Service() {
             return
         }
         PetLogger.i(TAG, "wake word hit ($keyword), -> startListening")
-        // 半双工：仅 IDLE 可入（speaking/processing 期 kwsPaused + 状态分发双保险）；
+        // S12 唤醒词打断（spike 双合格转正）：SPEAKING/PROCESSING 麦块恒进 KWS，对话期
+        // 命中 = 打断当前轮——startListening 内 cancelCurrentTurn（停播/封轮/收泡/回 IDLE）
+        // 后接续播「我在」→ LISTENING；IDLE 期照旧直接唤醒；LISTENING 期不可达（VAD 占用）。
         // playWakeAck=true：KWS 唤醒路径播预录「我在」再进聆听（#9 顺序式，ADR 0003）
         VoiceClientFactory.session(this).startListening(playWakeAck = true)
     }
