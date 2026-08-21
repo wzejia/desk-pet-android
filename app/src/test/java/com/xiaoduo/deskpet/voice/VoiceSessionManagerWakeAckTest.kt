@@ -25,7 +25,9 @@ import java.util.concurrent.TimeUnit
  * - 迁移序列：startListening(playWakeAck=true) → SPEAKING(wozai) → 播完 → LISTENING；
  * - wakeAck=null（wozai 缺失/损坏降级）：直接 LISTENING，无 SPEAKING 中间态；
  * - 播放异常：仍进 LISTENING（播不出「我在」不吞整轮对话）；
- * - 重复唤醒防线（守卫四问 Q4）：SPEAKING(wozai) 期间重复 startListening 被 IDLE 守卫丢弃；
+ * - SPEAKING(wozai) 期再唤醒（S12 起麦块进 KWS 可达）= 唤醒打断唤醒：
+ *   归 VoiceSessionManagerWakeInterruptTest 覆盖（原「重复唤醒被 IDLE 守卫丢弃」
+ *   用例随 S12 删除——前提「唤醒在 SPEAKING 物理不可达」已不成立）；
  * - cancelCurrentTurn 三态：SPEAKING(wozai) 停播回 IDLE / LISTENING 停 VAD 回 IDLE /
  *   IDLE no-op；kwsPaused 只经 backToIdle 复位。
  *
@@ -151,21 +153,6 @@ class VoiceSessionManagerWakeAckTest {
         val mgr = newManager(ack)
         mgr.startListening(playWakeAck = true)
         // 播不出「我在」不该吞整轮对话——降级仍进聆听
-        awaitState(mgr, VoiceStateRouter.State.LISTENING)
-        assertEquals(1, ack.playCalls)
-    }
-
-    @Test
-    fun repeatedStartListeningDuringWakeAckIsIgnored() {
-        // 守卫四问 Q4：SPEAKING(wozai) 期重复唤醒——IDLE 守卫 + kwsPaused + DROP 三层防线
-        val ack = FakeWakeAck()
-        val mgr = newManager(ack)
-        mgr.startListening(playWakeAck = true)
-        assertTrue(ack.playStarted.await(5, TimeUnit.SECONDS))
-        mgr.startListening(playWakeAck = true) // 重复触发（物理不可达，逻辑守卫兜底）
-        assertEquals("重复 startListening 不得二次开播", 1, ack.playCalls)
-        assertEquals(VoiceStateRouter.State.SPEAKING, mgr.state)
-        ack.release()
         awaitState(mgr, VoiceStateRouter.State.LISTENING)
         assertEquals(1, ack.playCalls)
     }

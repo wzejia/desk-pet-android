@@ -5,8 +5,8 @@ import org.junit.Test
 
 /**
  * VoiceStateRouter 单测（纯逻辑）。
- * 覆盖：四态分发表（idle→KWS / listening→VAD / processing+speaking→DROP / KWS pause flag）+
- * 唤醒词前缀剥除三变体 + 非前缀不剥 + 剥后为空。
+ * 覆盖：四态分发表（idle→KWS / listening→VAD / speaking+processing→KWS——S12 唤醒词
+ * 打断转正 / KWS pause flag 只门 IDLE）+ 唤醒词前缀剥除三变体 + 非前缀不剥 + 剥后为空。
  */
 class VoiceStateRouterTest {
 
@@ -15,8 +15,9 @@ class VoiceStateRouterTest {
         val router = VoiceStateRouter()
         assertEquals(VoiceStateRouter.Sink.KWS, router.route(VoiceStateRouter.State.IDLE))
         assertEquals(VoiceStateRouter.Sink.VAD, router.route(VoiceStateRouter.State.LISTENING))
-        assertEquals(VoiceStateRouter.Sink.DROP, router.route(VoiceStateRouter.State.PROCESSING))
-        assertEquals(VoiceStateRouter.Sink.DROP, router.route(VoiceStateRouter.State.SPEAKING))
+        // S12：对话两态恒 KWS（唤醒词打断的声学前提；变异锚：回退恒 DROP → 红）
+        assertEquals(VoiceStateRouter.Sink.KWS, router.route(VoiceStateRouter.State.PROCESSING))
+        assertEquals(VoiceStateRouter.Sink.KWS, router.route(VoiceStateRouter.State.SPEAKING))
     }
 
     @Test
@@ -29,16 +30,18 @@ class VoiceStateRouterTest {
     }
 
     @Test
-    fun `S11-3 spike 放行 SPEAKING 麦块进 KWS 默认与 PROCESSING 恒 DROP`() {
+    fun `S12 唤醒词打断 SPEAKING 与 PROCESSING 默认进 KWS 且不受 kwsPaused 门控`() {
+        // S11-3 spike 真机双合格（TTS 播放 4min 误触发 0 / 播放中真声检出 8/10）后转正：
+        // 对话两态麦块恒进 KWS = 唤醒词打断的声学前提。spikeFeedKws 调试开关随本票退役
+        // （被生产行为取代，原 spike 用例同步删除）。
+        // 变异锚：SPEAKING/PROCESSING 回退恒 DROP → 对话期唤醒不可达 → 红
         val router = VoiceStateRouter()
-        // 默认 false：SPEAKING 恒 DROP（与既有分发表一致）
-        assertEquals(VoiceStateRouter.Sink.DROP, router.route(VoiceStateRouter.State.SPEAKING))
-        // spike arm：SPEAKING 麦块真实放行 KWS（08-04 空证据教训：旧 spike 只旁路
-        // kwsPaused，SPEAKING 恒 DROP，KWS 全程没收到音频）
-        router.spikeFeedKws = true
         assertEquals(VoiceStateRouter.Sink.KWS, router.route(VoiceStateRouter.State.SPEAKING))
-        // PROCESSING 不受 spike 影响（spike 只验 TTS 回声期，避免变量混杂）
-        assertEquals(VoiceStateRouter.Sink.DROP, router.route(VoiceStateRouter.State.PROCESSING))
+        assertEquals(VoiceStateRouter.Sink.KWS, router.route(VoiceStateRouter.State.PROCESSING))
+        // kwsPaused 只门 IDLE 分支——若门住对话两态，唤醒打断在对话期仍不可达
+        router.kwsPaused = true
+        assertEquals(VoiceStateRouter.Sink.KWS, router.route(VoiceStateRouter.State.SPEAKING))
+        assertEquals(VoiceStateRouter.Sink.KWS, router.route(VoiceStateRouter.State.PROCESSING))
     }
 
     @Test

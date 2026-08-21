@@ -3,10 +3,13 @@ package com.xiaoduo.deskpet.voice
 /**
  * 半双工四态麦块路由 + 唤醒词前缀剥除（纯逻辑，JVM 可测）。
  *
- * 依据：对账表状态机节（= 知识包 §3.5）：
- * - 麦块分发：IDLE→KWS / LISTENING→VAD / processing+speaking 丢弃
- *   （speaking 有 spikeFeedKws 调试逃生口，见属性）
- * - KWS pause flag：对话期间暂停 KWS decode 防 TTS 自声误触发（挂点留给 S5）
+ * 依据：对账表状态机节（= 知识包 §3.5）+ S12 唤醒词打断（2026-08-20 转正）：
+ * - 麦块分发：IDLE→KWS / LISTENING→VAD / SPEAKING+PROCESSING→KWS
+ *   （S11-3 spike 真机双合格后转正式产品行为：TTS 播放 4min 误触发 0——硬件 AEC
+ *   把回声压到能量门以下；播放中真声检出 8/10 达标。spikeFeedKws 调试开关随本票
+ *   退役，空证据史见 docs/solutions/workflow-issues/aec-spike-null-evidence-feed-verification.md）
+ * - KWS pause flag：只门 IDLE 分支（对话期回 IDLE 不即解 KWS）；SPEAKING/PROCESSING
+ *   不受其影响——唤醒词打断正是靠这两态持续进 KWS 才可达
  * - 唤醒词前缀兜底：ASR 文本若以 小朵小朵/小朵/小度小度 开头则剥除
  */
 class VoiceStateRouter {
@@ -16,29 +19,18 @@ class VoiceStateRouter {
     /** 麦块去向。 */
     enum class Sink { KWS, VAD, DROP }
 
-    /** S5 挂点：对话期间置 true 暂停 KWS decode（半双工第二层）。 */
+    /** S5 挂点：对话期间置 true（只门 IDLE 分支；SPEAKING/PROCESSING 恒进 KWS 不受其门）。 */
     @Volatile
     var kwsPaused: Boolean = false
-
-    /**
-     * S11-3 AEC spike 调试开关（会话级，默认 false）：true 时 SPEAKING 态麦块放行 KWS，
-     * 供真机重做「TTS 回声是否误触发唤醒词」有效实验。
-     * 08-04 空证据教训：旧 spike 只每 200ms 强制 kwsPaused=false，但本路由对 SPEAKING
-     * 恒 DROP，KWS 全程收不到音频——「5.8min 零误触发」从未证明硬件 AEC 可靠。
-     * 与 kwsPaused 的每轮语义不同：本标志不被任何状态迁移复位，由 UI arm/disarm 配对
-     * 管理；内存态无持久化，进程死亡自然归 false。
-     */
-    @Volatile
-    var spikeFeedKws: Boolean = false
 
     /** 当前态麦块去向（四态分发表）。 */
     fun route(state: State): Sink = when (state) {
         State.IDLE -> if (kwsPaused) Sink.DROP else Sink.KWS
         State.LISTENING -> Sink.VAD
-        State.PROCESSING -> Sink.DROP
-        // S11-3 回归守卫：SPEAKING 默认恒 DROP，仅 spike 放行（删 spikeFeedKws 分支 →
-        // spike 期 KWS 收不到块 → VoiceStateRouterTest spike 用例红）
-        State.SPEAKING -> if (spikeFeedKws) Sink.KWS else Sink.DROP
+        // S12 回归守卫：SPEAKING/PROCESSING 恒 KWS（唤醒词打断的声学前提，spike 双合格
+        // 转正——删此回退恒 DROP → 对话期唤醒词不可达 → VoiceStateRouterTest 红）
+        State.PROCESSING -> Sink.KWS
+        State.SPEAKING -> Sink.KWS
     }
 
     companion object {

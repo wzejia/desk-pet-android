@@ -23,12 +23,15 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicLong
 
 /**
  * 语音会话编排（半双工四态，知识包 §3.5 + 对账表状态机节）：
  *
  * idle / listening / processing / speaking；麦块经 [VoiceStateRouter] 分发
- * （idle→KWS 挂点 / listening→VAD / 其余丢弃）；[kwsPaused] 公开 var = S5 KWS pause flag 挂点；
+ * （idle→KWS 挂点 / listening→VAD / speaking+processing→KWS——S12 唤醒词打断转正，
+ * 对话期唤醒命中走 startListening(playWakeAck=true) 先 cancel 再接续）；
+ * [kwsPaused] 公开 var = S5 KWS pause flag 挂点（只门 IDLE 分支）；
  * [kwsSink] 公开 var = S5 KWS 块订阅挂点（单条采麦流复用）。
  *
  * 管线：VAD 判停 → ASR → 唤醒词前缀剥除 → AG-UI（增量单条）→ 逐字符分句 →
@@ -153,6 +156,14 @@ class VoiceSessionManager(
     /** #9「我在」播放 job（cancel 时先 cancel 置 isActive=false，job 体断点检查不再迁 LISTENING）。 */
     private var wozaiJob: Job? = null
 
+    /**
+     * wozai 播放世代号（S12 唤醒打断唤醒）：每次 playAckThenListen 自增，job 收尾
+     * 比对世代识别残跑旧 job——唤醒打断唤醒时旧 wozaiJob 的 finally 可落在新一轮
+     * 置 wakeAckActive=true 之后，无条件写会覆盖新一轮信号（世代闭包捕获，无
+     * 「job 体自读 wozaiJob 引用」的发布竞态）。
+     */
+    private val wozaiEpoch = AtomicLong(0)
+
     /** 在途 TTS 播放器（barge-in 停播挂点；playSentence 注册/注销）。 */
     @Volatile
     private var currentPlayer: VoicePlayer? = null
@@ -182,24 +193,15 @@ class VoiceSessionManager(
     private val _wakeAckActive = MutableStateFlow(false)
     val wakeAckActive: StateFlow<Boolean> = _wakeAckActive
 
-    /** S5 KWS pause flag 挂点（对话期间 true，暂停 KWS decode 防 TTS 自声误触发）。 */
+    /**
+     * S5 KWS pause flag 挂点（对话期间 true）。只门 router 的 IDLE 分支——对话期回到
+     * IDLE 不即解 KWS；SPEAKING/PROCESSING 两态麦块恒进 KWS 不受其门（S12 唤醒词
+     * 打断靠这两态持续进 KWS 才可达）。
+     */
     var kwsPaused: Boolean
         get() = router.kwsPaused
         set(v) {
             router.kwsPaused = v
-        }
-
-    /**
-     * S11-3 AEC spike 调试开关（直通 router.spikeFeedKws）：true 时 SPEAKING 态麦块
-     * 放行 KWS decode。调试会话级开关——不被 backToIdle/状态迁移复位（与 kwsPaused
-     * 每轮语义不同），由 AecSpikeSection UI arm/disarm 配对管理；内存态无持久化，
-     * 进程死亡自然归 false。spike 期命中不产生用户可见行为：startListening 非 IDLE
-     * 早退（第三道屏障，本票不动）。
-     */
-    var spikeFeedKws: Boolean
-        get() = router.spikeFeedKws
-        set(v) {
-            router.spikeFeedKws = v
         }
 
     /** S5 KWS 块订阅挂点：IDLE 态麦块回调（单条采麦流扇出）。 */
@@ -219,22 +221,26 @@ class VoiceSessionManager(
     private var pipelineJob: Job? = null
 
     /**
-     * 按住说话按下 / 唤醒后进入聆听（仅 IDLE 可入）。
+     * 按住说话按下 / 唤醒后进入聆听（任意态可入：对话态先打断再接续）。
      * [playWakeAck]=true（仅 KWS 唤醒路径）时走 #9 顺序式「我在」：
-     * SPEAKING 播预录应答（speaking 态天然丢麦块）→ 播完进 LISTENING；
+     * SPEAKING 播预录应答 → 播完进 LISTENING；
      * 按住说话/自检路径不传参不播（手指即即时反馈，播了反而延迟采麦）。
      */
     fun startListening(playWakeAck: Boolean = false) {
-        // S8-3：speaking/processing 态按住说话 = 打断并接续新一轮。复用 cancelCurrentTurn
-        // （停 TTS+停气泡+封轮+部分回复补发 done+回 IDLE），再走正常 IDLE->LISTENING 采音。
-        // 仅按住路径（playWakeAck=false）；唤醒路径不会在对话态发生（kwsPaused 期间 KWS
-        // 不解码，物理不可达）。LISTENING 态按住：已在采音，下方 if(state!=IDLE)return no-op。
-        if (!playWakeAck && (state == VoiceStateRouter.State.SPEAKING || state == VoiceStateRouter.State.PROCESSING)) {
+        // S8-3 按住打断 + S12 唤醒词打断（spike 双合格转正，两条路径共用同一打断接续）：
+        // speaking/processing 态 = 打断并接续新一轮。复用 cancelCurrentTurn（全同步：
+        // 封轮+停 TTS/停「我在」+收泡+部分回复补发 done+回 IDLE），返回后 state==IDLE，
+        // 唤醒路径再走「我在」→LISTENING，按住路径直进 LISTENING。
+        // S12 前唤醒路径在对话态物理不可达（对话两态麦块恒 DROP）；S12 起
+        // SPEAKING/PROCESSING 麦块恒进 KWS，唤醒打断可达（守卫四问 Q1-Q4 答卷见票据）。
+        // LISTENING 态唤醒仍物理不可达（VAD 占用麦块）；LISTENING 态按住：已在采音，
+        // 下方 if(state!=IDLE)return no-op。
+        if (state == VoiceStateRouter.State.SPEAKING || state == VoiceStateRouter.State.PROCESSING) {
             cancelCurrentTurn()
         }
         if (state != VoiceStateRouter.State.IDLE) return
         ensureCollectLoop()
-        kwsPaused = true // 半双工第二层：对话期暂停 KWS
+        kwsPaused = true // 半双工第二层：对话期 IDLE 分支暂停 KWS
         val ack = if (playWakeAck) wakeAck else null
         if (ack == null) {
             // 默认路径 + wozai 缺失/损坏降级：直接进聆听
@@ -243,7 +249,10 @@ class VoiceSessionManager(
             status("聆听中…（30s 无语音自动退出）")
             return
         }
-        // 顺序式「我在」：SPEAKING 期间麦块走 DROP + kwsPaused，重复唤醒物理不可达
+        // 顺序式「我在」：SPEAKING(wozai) 期麦块走 KWS（S12）——期间再喊唤醒词 =
+        // 唤醒打断唤醒：cancel 后重播「我在」（守卫四问 Q2：每轮需真人再喊，应用自身
+        // 音频不含唤醒词且无自馈，对照 08-10 strip 死循环教训；KwsCore 命中即 reset，
+        // 同一声词尾不会二次命中）
         playAckThenListen()
     }
 
@@ -254,6 +263,7 @@ class VoiceSessionManager(
      * 由 playPetOnceThen(JUMPING→WAITING) 接管视觉（悬浮窗）；wozai 完进 LISTENING 置 false。
      */
     private fun playAckThenListen() {
+        val epoch = wozaiEpoch.incrementAndGet()
         _wakeAckActive.value = true
         PetOverlayService.playPetOnceThen(PetFrameTable.JUMPING, PetFrameTable.WAITING)
         transition(VoiceStateRouter.State.SPEAKING, "wake-ack wozai")
@@ -269,11 +279,15 @@ class VoiceSessionManager(
                 // 播不出「我在」不该吞整轮对话——降级直接进聆听
                 logger("wake-ack play failed, fallback to listening: ${e.message}")
             } finally {
-                // S8-7：无条件复位 wakeAckActive（critic P2）--wozai 完时 state 已被
+                // S8-7：完成后复位 wakeAckActive（critic P2）--wozai 完时 state 已被
                 // onUtterance 抢跑切 PROCESSING 则原 if(state==SPEAKING) 跳过复位致残留，
                 // 下次 TTS SPEAKING 被误 gate（不切 TALKING）+ 全屏重复播 jumping。
-                // cancel 路径 cancelCurrentTurn 已置 false，此处重复写无害（幂等）
-                _wakeAckActive.value = false
+                // cancel 路径 cancelCurrentTurn 已置 false，此处重复写无害（幂等）。
+                // S12 回归守卫（世代比对）：唤醒打断唤醒时旧 wozaiJob 残跑收尾可落在
+                // 新一轮置 true 之后——世代已变则本 job 是旧轮残跑，不得复位新一轮信号
+                // （删世代比对 → 旧 finally 覆盖 → 第二轮 SPEAKING(wozai) 期信号丢失
+                //  → VoiceSessionManagerWakeInterruptTest 唤醒打断唤醒用例红）
+                if (wozaiEpoch.get() == epoch) _wakeAckActive.value = false
             }
             // cancel 双防线：cancelCurrentTurn 先 wozaiJob.cancel()（isActive=false 先行可见）
             // 再 wakeAck.stop() 打断 playBlocking；backToIdle 后 state 也非 SPEAKING。
@@ -416,7 +430,7 @@ class VoiceSessionManager(
     private fun routeBlock(block: ByteArray) {
         when (router.route(state)) {
             VoiceStateRouter.Sink.KWS -> kwsSink?.invoke(block) // S5 挂点，当前无订阅即丢
-            VoiceStateRouter.Sink.DROP -> Unit // processing/speaking 丢弃（半双工第一层）
+            VoiceStateRouter.Sink.DROP -> Unit // IDLE+kwsPaused 丢弃（对话期回 IDLE 不即解 KWS）
             VoiceStateRouter.Sink.VAD -> when (val ev = vad.feed(block)) {
                 is VadDetector.Event.Utterance -> {
                     logger("VAD utterance, ${ev.pcm.size} samples, maxLevel=%.4f".format(ev.maxLevel))
