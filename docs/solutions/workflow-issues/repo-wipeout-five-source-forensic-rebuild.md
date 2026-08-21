@@ -1,7 +1,7 @@
 ---
 title: 本地独占仓库被整体清空后的五源分层取证重建——转录重放+APK反编译+winfr鉴别+证据链sha1仲裁+上下文金档，以「438单测全绿+APK对拍」为验收锚
 date: 2026-08-19
-last_updated: 2026-08-19
+last_updated: 2026-08-21
 type: solution
 category: workflow-issues
 module: 仓库整体（git 工作树 + 构建资产 + 测试基线）
@@ -51,6 +51,8 @@ tags: [disaster-recovery, forensics, transcript-replay, jadx-decompile, winfr, e
 
 有了锚，每一层重建损伤都会被构建/测试自然暴露；没有锚，损伤会以「行为 subtly 不对」的形式潜伏。
 
+（**边界补注 2026-08-19**：这两条锚对**环境/密钥类**回归不可见——恢复树曾基线全绿且 APK 结构对拍通过，而 gitignored 密钥已整体缺席，直到真机语音轮才暴露。凡依赖本地秘密的链路，恢复验收须再加一条真凭证端到端。见 Related 盲区篇。）
+
 ### 第二步：按可信度分层取证，每层只信它能证明的
 
 核心原则：**每个来源都标注「它能证明什么」，交叉验证后才采信**。本次实证的分层（L0 最可信，L5 最不可信）：
@@ -63,7 +65,7 @@ tags: [disaster-recovery, forensics, transcript-replay, jadx-decompile, winfr, e
 | L1c 陈旧快照 | `E:\review-s0`（S0 时代工程快照，session history） | 工程骨架（gradlew/settings/gradle.properties）与 sherpa AAR（48847529B 逐字节吻合） | 快照日后的任何演进 |
 | L2 仲裁 | 证据链 sha1 对拍 | 「重建内容 == 当时真实落盘内容」（密码学级） | 只覆盖证据链记录过的文件（本次 hook 只挂 Bash\|Edit\|Write\|MultiEdit） |
 | L3 APK 资产 | 设备/模拟器上已装的最终构建 | 二进制资产（音频/图片/模型/配置 JSON）逐字节保真 | 源码（APK 里是编译产物，不含测试） |
-| L4 jadx 反编译 | 同上 APK 反编译 | 最终发布版的**逻辑结构**（类/方法/字符串全集） | 注释、原始格式、测试代码、被优化掉的细节 |
+| L4 jadx 反编译 | 同上 APK 反编译 | 最终发布版的**逻辑结构**（类/方法/字符串全集，含 BuildConfig 常量——打包期注入的密钥也可从此取回，08-19 盲区篇实证扩展） | 注释、原始格式、测试代码、被优化掉的细节 |
 | L5 winfr | 磁盘恢复 | 仅 MFT 驻留小文件（<~1KB）为真，且须 sha1 对拍确认 | 大文件内容（SSD TRIM 后数据簇为零或簇复用垃圾） |
 
 落地动作（按序）：
@@ -87,7 +89,7 @@ tags: [disaster-recovery, forensics, transcript-replay, jadx-decompile, winfr, e
 ### 第四步：冻结与止血
 
 - 全绿后立刻 `git init` + 基线提交（本次 `103a496`，本仓 main）——把恢复成果从「一堆易碎文件」变成「有锚点的历史」。
-- **本地独占 = 单点是本次事故的直接教训**：恢复完成后第一件事是建远程（哪怕私有库）或异盘镜像，并把「每日 push」写进纪律。本次恢复当即将成果推送至 GitHub 私有库（wzejia/desk-pet-android，本仓 origin）——推送前做密钥泄漏扫描（无明文密钥、无敏感文件入库，`.scratch/`、`local.properties`、`secrets/` 均 gitignore）。
+- **本地独占 = 单点是本次事故的直接教训**：恢复完成后第一件事是建远程（哪怕私有库）或异盘镜像，并把「每日 push」写进纪律。本次恢复当即将成果推送至 GitHub 私有库（wzejia/desk-pet-android，本仓 origin）——推送前做密钥泄漏扫描（无明文密钥、无敏感文件入库，`.scratch/`、`local.properties`、`secrets/` 均 gitignore）——**但 gitignore 同时意味着无恢复路径**：push/clone 天然不携带这些文件，灾难恢复清单必须把本地秘密文件逐项另列（异地备份/密码库/保全产物三选一），不能笼统「从 git 恢复」。见 Related 盲区篇。
 - 回迁技巧（session history）：整树迁回原位置前，先把目标目录里残留的会话工件（`.claude/`、`.scratch/`）移到临时 hold 目录，用 `git clone` 回迁（不带 build 产物）后再归还工件，不直接覆盖。
 - 环境事实随树归档：`local.properties` 的 `sdk.dir=E:/Android/Sdk`（开发机 Android 工具链在 E 盘、C 盘满载 (auto memory [claude])）；构建前必须 export JDK 17（`export PATH="/c/Program Files/Microsoft/jdk-17.0.20.8-hotspot/bin:$PATH"`，Git Bash 下 `./gradlew.bat`）。
 
@@ -96,7 +98,7 @@ tags: [disaster-recovery, forensics, transcript-replay, jadx-decompile, winfr, e
 - **本地独占仓库的整体丢失不是理论风险**。一次未知原因的清空（根因至今未定性）就足以抹掉全部历史；而「有会话转录 + 有设备上的 APK + 有证据链」这三件套，在没有任何传统备份的情况下把 231 个文件/32942 行恢复到 438 测全绿。方法论比运气重要。
 - **分层可信度是防二次伤害的关键**。重建期最大的敌人不是缺来源，而是把不可信的来源当可信的混进树里（winfr 簇复用垃圾、合并期 cat 失败输出、历史版本断言）。每类混入都会产生「看起来对」的文件，只有验收锚（构建绿 + 测试数对账 + sha1 仲裁）能系统性逼出它们。
 - **agent 工作流自带取证资产**：会话转录（全部工具调用全文）、证据链（落盘 sha1）、设备上的最终构建，三者构成传统备份之外的「意外冗余」。了解这些资产的存在与盲区（PowerShell 不入证据链、compaction 截断、转录无写入记录的悬案文件），事故时才能把恢复从「祈祷磁盘恢复」变成「工程学问题」。
-- **测试基线是恢复质量的唯一硬通货**。438 这个数是原仓库用数周开发沉淀的行为规格；恢复树复现它，等价于证明「行为层面无损」。「编译过了」证明不了任何事（本次 #3 构建就编译全过，仍藏着一个历史版本断言）。
+- **测试基线是恢复质量的唯一硬通货**。438 这个数是原仓库用数周开发沉淀的行为规格；恢复树复现它，等价于证明「行为层面无损」。「编译过了」证明不了任何事（本次 #3 构建就编译全过，仍藏着一个历史版本断言）。（**边界补注 2026-08-19**：等价性只覆盖测试可见的行为——gitignored 密钥丢失时基线照常全绿、对拍照常通过，环境类缺口只有真凭证端到端能暴露，见盲区篇。）
 
 ## When to Apply
 
@@ -174,3 +176,5 @@ tags: [disaster-recovery, forensics, transcript-replay, jadx-decompile, winfr, e
 - `docs/solutions/workflow-issues/platform-sse-zero-chars-server-side-diagnosis.md` — 证据链仲裁方法论近邻（三段证据判定真相 vs 本篇多源互证仲裁）。
 - `docs/solutions/workflow-issues/wm-size-matrix-privacy-and-page-identity.md` — 取证纪律（证据采集/取舍/防污染）方法论相邻。
 - `docs/solutions/ui-bugs/material3-121-modal-drawer-scrim-back.md` — 「反编译取 ground truth」微技术共享（javap vs jadx），弱相关。
+- `docs/solutions/workflow-issues/unanchored-code-silent-loss-in-rebuild.md` — 同事故盲区家族姊妹篇（代码侧：无测试锚的常量/分支静默丢失双案，S11 修复）。
+- `docs/solutions/workflow-issues/gitignored-secrets-lost-in-rebuild-recovered-from-evidence-apk.md` — 同事故盲区家族第三案·非代码变体（gitignored 秘密：git 路线恢复结构性不含，从保全 APK 反编译 BuildConfig 取回）。实证本篇五源清单与验收锚的边界——「五源」应读作「五源 + 已知盲区」。
