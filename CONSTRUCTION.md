@@ -20,6 +20,7 @@
 | **S8** | **UI 微调合集（S8-1~8）**：输入框回滚两层+横线 / 图标白底 / TTS 中按住=打断并接续 / 气泡渲染残留修复 / 气泡文字改流式（撤 reveal） / 气泡看不到开头补救 / 唤醒视觉反馈 / 等候三点动效 | 各票验收见下；单测只增不减（基线 345→356） | ✅ 全部收口（358 测绿 skipped=0；真机逐票验收 2026-08-05/06 过；真机期顺修 P2 竞态窗+strip-empty 死路+多功能键边沿缺陷+wozai 重制 e3，详见各票与 DEV_LOG 2026-08-06） |
 | **S10** | **悬浮窗贴边收纳（半身贴边）**：拖至左右缘松手滑入半身 / 单击滑出+可拖出 / 重启保持贴边 | 吸附几何 JVM 单测（模式 C）+ 模拟器/真机像素断言；voice/** 零 diff | ✅ 收口 2026-08-19（模拟器 B/A/A2/C/C2/D/E/F/G + 真机 RM-1~6 全绿，证据 `docs/verification/v16-edge-dock/`；⚠️ S10-1/S10-2 critic 独立评审欠账，08-21 配额恢复后补派） |
 | **S11** | **唤醒词准确率排查+打断核查**：阈值事故回归 / 文字轮云端分支丢失 / 门控时间轴碎裂（真凶）三修复 + spike 真重做 | 一声唤醒真机 10/10 + 基线只增不减 | ✅ 收口 2026-08-20（五票全 critic 不逊；一声 10/10；证据 `docs/verification/v17-kws-accuracy/`；spike 真机观测待做） |
+| **S12** | **唤醒词打断转正**：SPEAKING/PROCESSING 进 KWS + 唤醒路径打断接续 + spike 设施退役 | spike 双合格（误触发 0/4min+检出 8/10）+ 真机打断 8/8 | ✅ 收口 2026-08-21（正常+大音量两轮 8/8；观察票=AEC 偶发失效态；证据 v17 README §6） |
 
 ## S0 地基
 
@@ -358,10 +359,29 @@
 - S11-1 → S11-3 →（S11-5 取证复原）→ S11-6 → S11-7 串行（gradle 单项目构建锁，地界虽错开仍串行）
 - 真机窗口两段：08-19 晚（装机验阈值+10 轮快验）+ 08-20 下午（探针 3 声+S11-7 验收 10 轮）
 
+## S12 唤醒词打断转正（2026-08-21 收口，用户拍板立项）
+
+> 前置：S11-3 spike 真机双合格（误触发 0/4min 带喂流佐证 + 检出 8/10，v17 README §6.2）。
+> 用户两默认值拍板：打断时播「我在」；常开不设开关。
+
+### S12-1 转正实现 ✅（critic 不逊；F1/F3 顺手修，F2 记 notes）
+- [x] `VoiceStateRouter`：PROCESSING/SPEAKING 默认 → Sink.KWS（spikeFeedKws 设施退役删除：
+  router 属性/VSM 委托/AecSpikeSection ①② 段/VoiceSessionManagerSpikeFeedTest）
+- [x] `VoiceSessionManager.startListening`：打断分支扩展至唤醒路径（与 S8-3 按住打断同一
+  cancelCurrentTurn 分支）→ 播「我在」→LISTENING；新增 wozaiEpoch 世代守卫
+  （唤醒打断唤醒时旧 wozaiJob finally 不覆盖新轮 wakeAckActive，builder 自引入竞态抓修+变异锚③）
+- [x] `VoiceForegroundService` onWake 过时注释更正；AecSpikeSection 留 ③ 探针段
+- [x] 测试：WakeInterruptTest 3 测（SPEAKING 唤醒全链/PROCESSING 唤醒全链/世代守卫）；
+  删 SpikeFeedTest 与 WakeAckTest 废用例（前提失效）；router spike 用例 1:1 置换生产断言
+- 验收：455 绿（454−2+3）；三变异锚亲验；真机两轮 8/8（正常+大音量，播放中打断链日志完整）
+- 观察票：AEC 偶发失效态（08-21 上午首轮零命中窗，回声持续过门 fed+600/gated+0，重启后消失；
+  复发先查 fed/gated 形态定性，频发再评估 S12-2 状态感知门控）；S12 critic F2 全屏连喊视觉塌缩
+  （conflation 边缘，进 LISTENING 自愈，记 notes）
+
 ## 全程纪律（违反复工）
 
 1. 子智能体编排协议见 CLAUDE.md：fan out builder、critic 盲测严评、loop 到不逊
 2. 四类事件立即记 `implementation-notes.html`；每日追加 `DEV_LOG.md`；每票完更新 `PROGRESS.md`
 3. 协议/参数只认知识包 + 对账表，实现偏离 = bug；Spec 漂移改 Spec 并记 notes
-4. 单测只增不减（当前基线 454，见 CLAUDE.md），skipped=0；禁 mock 被测对象 / 禁 `|| true`
+4. 单测只增不减（当前基线 455，见 CLAUDE.md），skipped=0；禁 mock 被测对象 / 禁 `|| true`
 5. 日志禁打 token/密码明文；catch 不静默吞，错误透传真实 msg

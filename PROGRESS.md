@@ -1,5 +1,17 @@
 # 小朵 Android M1 进度
 
+## 状态：S12 唤醒词打断 ✅ 收口（2026-08-21，spike 双合格 → 转正 → 真机 8/8）
+
+- **唤醒词打断已上线**：TTS 播放/处理中喊「小朵小朵」= 打断并接续（停播→「我在」→聆听新命令）。
+  路由转正（SPEAKING/PROCESSING 恒进 KWS）+ startListening 唤醒路径打断接续（与 S8-3 按住打断
+  同一 cancelCurrentTurn 分支）+ wozaiEpoch 世代守卫（唤醒打断唤醒竞态）。
+  spikeFeedKws 调试设施退役（生产行为取代）；AecSpikeSection 仅留 ③ 延迟探针。
+- **验证链**（证据 v17 README §6）：spike 双合格（误触发 0/4min 带喂流佐证 + 检出 8/10）→
+  真机两轮 8/8（正常+大音量）。基线 455 绿 skipped=0（454−2 退役+3 新增）；critic 不逊（F1/F3 已修）。
+- **⚠️ 观察票（S12 遗留）**：AEC 偶发失效态——2026-08-21 上午首轮打断零命中，该窗回声持续过门
+  一分钟（fed +600/gated +0，与常态「回声在门下」相反），疑与刚重装首启有关，重启后消失未复现。
+  **复发时先查该窗 fed/gated 形态即可定性**；频发再评估状态感知门控（S12-2，本轮不盲修）。
+
 ## 状态：S11 唤醒词准确率排查 ✅ 收口（2026-08-20，一声唤醒 10/10）+ 唤醒词打断核查（spike 真机观测待做）
 
 - **三层根因叠加，全部修复+上锚**（全证据链 `docs/verification/v17-kws-accuracy/README.md`）：
@@ -21,17 +33,17 @@
 
 ### 接手指引（下会话开场必读）
 
-1. **大盘**：S0-S10 + S11 全部收口。基线 **454 单测全绿 skipped=0**（`./gradlew.bat testDebugUnitTest --rerun-tasks` 复跑）。
+1. **大盘**：S0-S12 全部收口。基线 **455 单测全绿 skipped=0**（`./gradlew.bat testDebugUnitTest --rerun-tasks` 复跑）。
 2. **剩余事项**：
-   - **spike 真机观测**（S11-3 设施已装机）：设置页 debug 区块「① 误触发采集：开 KWS 旁路」→
-     长回复 TTS 挂机 ≥5min 数 `keyword hit:`（带冒号，tag KwsEngine）=0 合格 + fed 增长佐证有效性；
-     检出率=TTS 中喊 10 声 ≥8/10。双合格 → 唤醒词打断立项评估报用户；不合格按 ADR 0003 降级关账。
-   - 观察票：全屏语音模式概率性白屏（08-18 用户报，未查）；P3 resolver source 日志标签歧义；
-     P3 VSM:473-477 else 分支缺直接测试覆盖；wozai volc/openai 资产待 key（tools/wozai/README.md）。
-   - S10-1/S10-2 critic 补审欠账（配额 08-21 恢复后补派）。
+   - **观察票：AEC 偶发失效态**（S12 遗留，见上）——用户报「喊打断没反应」时，拉该时段
+     `kws stats` 看 fed/gated 形态（回声持续过门=AEC 失效窗）；频发再评估 S12-2 状态感知门控。
+   - 观察票：全屏语音模式概率性白屏（08-18 用户报，未查）；全屏连喊唤醒视觉塌缩边缘（S12 critic F2，
+     进 LISTENING 自愈）；P3 resolver source 日志标签歧义；P3 VSM else 分支缺直接测试覆盖；
+     wozai volc/openai 资产待 key（tools/wozai/README.md）。
+   - S10-1/S10-2 critic 补审欠账（配额恢复后补派）。
 3. **新增排障资产**：AudioProbe 延迟探针（设置页 debug ③ 按钮，用法见 v17 README §7）；
   机构解法三篇（docs/solutions/：门控碎裂时间轴 / 无锚代码静默丢失 / spike 空证据佐证法）。
-4. 先读：本文件 S11 段 → DEV_LOG.md 2026-08-20 → v17 证据 README。
+4. 先读：本文件 S12/S11 段 → DEV_LOG.md 2026-08-21/20 → v17 证据 README。
 
 ---
 

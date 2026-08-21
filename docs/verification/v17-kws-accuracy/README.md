@@ -83,14 +83,45 @@
 - 口径备注：日志总命中 11 次 vs 正式 10 轮——多出的 1 次为正式开测前的交互唤醒，非误触发。
 - 误触发旁证：挂起窗+gap-reset 上线后观测窗内无异常命中（安静期 gap reset 即冻结尾分冲刷日志，无 hit）。
 
-## 6. 唤醒词打断核查结论（任务②）
+## 6. 唤醒词打断：核查 → spike 双合格 → S12 实现全链（任务②收口）
 
-- **当前结构不支持**（三重屏障逐行钉死）：`VoiceStateRouter.kt` SPEAKING/PROCESSING 恒 DROP（S11-3 前有）；
+### 6.1 核查结论（S11-3 前）
+
+- 原结构不支持（三重屏障逐行钉死）：`VoiceStateRouter.kt` SPEAKING/PROCESSING 恒 DROP；
   `kwsPaused` 对话期置位；`VoiceSessionManager.startListening` 非 IDLE 早退。
 - **08-04 AEC spike「5.8min 零误触发」证据无效**：旧 spike 旁路（每 200ms 强制 kwsPaused=false）对
-  SPEAKING 是 no-op——KWS 全程没收到音频。BLOCKED.md 已更正。S11-3 已重做真放行 spike
-  （`spikeFeedKws`，fed 增长为有效性闸），真机误触发/检出率观测待做。
+  SPEAKING 是 no-op——KWS 全程没收到音频。BLOCKED.md 已更正。S11-3 重做真放行 spike。
 - sherpa-onnx 1.13.4 无 AEC 模块（AAR 类全集已枚举，仅降噪器）；VOICE_COMMUNICATION 硬件 AEC 已在用。
+
+### 6.2 spike 真机双合格（2026-08-20 下午，S11-3 设施）
+
+- **误触发**：长回复 TTS 播放 ~4min，`keyword hit:` = **0**；有效性非空口——spike 武装日志在案，
+  播放起始 3 块过门进 KWS（AEC 收敛瞬态，max rms 0.15），其后回声全在门 0.015 之下——
+  **硬件 AEC 把 TTS 外放回声压到能量门以下**，误触发结构性近乎不可能。
+- **检出率**：TTS 播放中真声 10 声，**8/10**（达标线 ≥8/10）；命中全记日志不打断（第三屏障按设计工作）；
+  fed 播放期持续增长（6587→6748）喂流有效。AEC 对近场人声有约 2 成损耗=打断能力固有成本。
+
+### 6.3 S12 实现（用户拍板：打断时播「我在」+ 常开不设开关）
+
+- 路由转正：PROCESSING/SPEAKING 默认 → KWS；spikeFeedKws 设施退役（生产行为取代调试旁路）。
+- 打断接续：startListening 唤醒路径 (SPEAKING||PROCESSING) → cancelCurrentTurn（S8-3 同一分支同一代码）
+  → 播「我在」→ LISTENING。
+- builder 抓到自引入竞态一处并修复：wozaiEpoch 世代守卫（唤醒打断唤醒时旧 wozaiJob finally
+  不覆盖新一轮 wakeAckActive），配变异锚③。
+- 455 绿（454−2 退役+3 新增）；三变异锚亲验（回退恒 DROP 红 2 / 唤醒早退恢复红 3 / 删世代比对红 1）。
+
+### 6.4 S12 真机验收（2026-08-21，de61cd8）
+
+- **第二轮（正常条件）**：故事播放中喊 → hit #4 链完整（SPEAKING 19:24:16.9 开播 → 21.4 命中 →
+  barge-in cancel → 「我在」→ LISTENING），后续 3 声唤醒应答正常。4/4。
+- **大音量轮**（用户调大媒体音量）：播放中打断 1 声全链成功 + 后续 3 声正常。4/4。
+  （该轮 App 于 18:08 重启过，探针未武装，无 cap 行；结果以 hit/state 链为准。）
+- **合计两轮 8/8**。正常条件 + 大音量条件均验证通过。
+- **未解偶发窗（观察票）**：2026-08-21 上午 09:06-09:09 首轮测试零命中——该窗内 TTS 回声在麦上
+  持续过门一分钟（fed +600/gated +0，与所有其他窗「回声在门下」相反），指向 **AEC 偶发失效态**
+  （回声未被消除全量进麦，人声被掩蔽）。触发条件未知（疑与 09:03 重装 App 后 09:05 首启有关），
+  18:08 重启后消失未复现。**再遇「喊打断没反应」→ 先看该窗 fed/gated 形态即可秒判是否同因**；
+  若复发频繁，评估 S12-2 状态感知门控（SPEAKING 期门控抬高）——本轮未做（不盲修，失败模型未坐实）。
 
 ## 7. 附：探针用法（S11-6 保留设施）
 

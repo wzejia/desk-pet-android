@@ -13,16 +13,12 @@
   曾胜（反馈贴触点+保留会话上下文+波形振幅真实）。代码侧 R3 已 critic 不逊并装机。
   **后注（2026-08-05 S8-1 用户拍板）：输入框视觉回滚两层+恢复横线——用户视觉拍板优先于盲测口径，
   单容器方向撤回，「能力 chips 重赛」条件作废；P1/P3 手势功能修复与功能层参数保留（S8-1 票明示）。**
-- **AEC spike（2026-08-20 更正重开，有效版设施已就绪）**：⚠️ **08-04 的「误触发 2/3 轮 ~5.8min 0 命中」
-  证据无效**——旧 spike 旁路只每 200ms 强制 kwsPaused=false，但 VoiceStateRouter 对 SPEAKING/PROCESSING
-  恒 DROP，TTS 播放全程 KWS 根本没收到音频（「零命中」=实验从未运行，非「AEC 可靠」；
-  见 docs/solutions/workflow-issues/aec-spike-null-evidence-feed-verification.md）。
-  **S11-3 已重做真放行 spike**（`spikeFeedKws`：SPEAKING 麦块真实进 KWS；设置页 debug 区块 ① 按钮；
-  有效性闸=观测期 `kws stats` 的 fed 须在 SPEAKING 期间增长）。**待做真机观测**：
-  误触发=长回复 TTS 挂机 ≥5min 数 `keyword hit:`（带冒号，tag KwsEngine）应为 0；
-  检出率=TTS 中真声喊 10 次 ≥8/10。双合格 → 唤醒词打断立项评估报用户拍板；任一不合格按 ADR 0003
-  降级（按住说话替代）关账。（历史背景：08-04 晚用户拍板挂起，检出率未测；原恢复条件=用户发话，
-  2026-08-19 用户发话核查打断能力，本条目即其续。）
+- **AEC spike ✅ 关账（2026-08-21 S12 收口）**：spike 双合格（误触发 0/4min 带喂流佐证 + 检出 8/10）
+  → 用户拍板立项 → S12 唤醒词打断转正并真机验证 8/8。历史更正留档：08-04 的「零误触发」为空证据
+  （旁路 no-op，见 docs/solutions/workflow-issues/aec-spike-null-evidence-feed-verification.md）。
+  **转为观察票：AEC 偶发失效态**——2026-08-21 上午首轮打断零命中窗（回声持续过门 fed+600/gated+0，
+  与常态相反；疑与刚重装首启有关，重启后消失未复现）。复发时先查该窗 fed/gated 形态定性；
+  频发再评估 S12-2 状态感知门控（SPEAKING 期门控抬高）。
 - **B2 敞口仅余主观项（随日常使用回收，非工单）**：②⑥ AEC 长观察、③播放听感与句间断音、
   ⑦ sticky 保活确认。（B2 原文存档见 git 历史 2026-07-31 版。）
 

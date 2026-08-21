@@ -38,7 +38,7 @@ IDLE ──(唤醒词/按住说话)──▶ LISTENING ──(VAD判停)──�
 - **新旧轮隔离**：`currentTurn` 引用 + `turn !== currentTurn` 检查——旧轮残跑协程持旧 TurnFlags 引用，迟到 delta/终态被拒绝
 - **cancelCurrentTurn 分支**：IDLE→no-op / LISTENING→停VAD回IDLE / PROCESSING+SPEAKING→封轮→停播→停管线→收泡→回IDLE
 - **S8-3 barge-in 接续**：speaking/processing 态按住说话 → cancelCurrentTurn → 同一次按住直接进 LISTENING 采音
-- **S8-7 唤醒反馈**：`wakeAckActive` StateFlow gate 视觉映射（SPEAKING+true → JUMPING→WAITING，跳过通用 TALKING）；应答音/纯唤醒词重听共用入口 `playAckThenListen()`（改应答音注意两个调用点）
+- **S8-7 唤醒反馈**：`wakeAckActive` StateFlow gate 视觉映射（SPEAKING+true → JUMPING→WAITING，跳过通用 TALKING）；应答音入口 `playAckThenListen()`（S12 起对话态唤醒经 cancel 接续也可达）
 
 ### 聊天层：文字/语音统一视图
 
@@ -94,7 +94,7 @@ IDLE ──(唤醒词/按住说话)──▶ LISTENING ──(VAD判停)──�
 
 ### 基线（不可退）
 
-- 单测 **454 个**，skipped=0，failures=0，errors=0（56 测试套件）
+- 单测 **455 个**，skipped=0，failures=0，errors=0（56 测试套件）
 - 验证命令：`./gradlew.bat testDebugUnitTest --rerun-tasks`
 - 增量纪律：`CONSTRUCTION.md`「单测只增不减，skipped=0」
 

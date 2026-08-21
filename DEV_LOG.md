@@ -1,5 +1,36 @@
 # DEV_LOG.md — 小朵 Android 开发日志
 
+## 2026-08-21（S12 唤醒词打断转正：spike 双合格 → 实现 → 真机 8/8）
+
+> 承接 08-20 S11 收口后的 spike 观测与立项拍板。全证据：`docs/verification/v17-kws-accuracy/README.md` §6。
+
+### spike 真机双合格（08-20 下午）
+- 误触发：TTS ~4min 零命中，且**有效性有喂流佐证**（起始 3 块过门 max rms 0.15，其后回声全在门下）——
+  硬件 AEC 把回声压到能量门以下；与 08-04 空证据（没喂）本质不同。
+- 检出率：播放中真声 8/10（≥8/10 达标）；AEC 近场人声损耗 ~2 成为固有成本。
+- 用户拍板立项实现。
+
+### S12 实现（builder+critic 不逊）
+- 路由转正：PROCESSING/SPEAKING 默认进 KWS；spikeFeedKws 调试设施退役（①② 按钮/委托属性/测试随删，
+  生产行为取代）。打断接续=cancelCurrentTurn（与 S8-3 按住打断同一分支）→「我在」→LISTENING。
+- builder 抓到并修复自引入竞态：wozaiEpoch 世代守卫（唤醒打断唤醒，旧 wozaiJob finally 覆盖新轮信号）。
+- 455 绿（454−2+3）；三变异锚亲验；critic 3 P3（F1 注释漂移已修，F2 全屏连喊视觉塌缩记 notes，F3 过时 KDoc 已修）。
+
+### 真机验收（08-21）
+- 正常条件 4/4 + 大音量 4/4 = **8/8**（播放中打断链 hit→barge-in cancel→「我在」→LISTENING 日志完整）。
+- **未解偶发窗（观察票）**：上午首轮零命中——该窗回声持续过门一分钟（fed +600/gated +0），
+  指向 AEC 偶发失效态（疑与刚重装首启有关），重启后消失。复发时先查该窗 fed/gated 形态即可定性；
+  频发再评估状态感知门控（S12-2，本轮不盲修）。
+- 真机两次掉线插曲（08-20 晚/08-21 晨）均为 USB 连接问题，重插即恢复。
+
+```evidence
+verify_cmd: ./gradlew.bat assembleDebug testDebugUnitTest --rerun-tasks（XML 亲算：56 suites / 455 tests / skipped=0 / failures=0 / errors=0）；真机 de61cd8 两轮打断实测 8/8（日志 hit #4 大音量轮 18:09:51 全链 + 正常轮 09:24:21 全链）；spike 双合格（误触发 0/4min + 检出 8/10）
+verify_claim: 唤醒词打断生产行为验证通过（播放中喊→停播→我在→聆听）；误触发结构性近零（AEC 压回声入门下）；唯一未解窗为 AEC 偶发失效态（观察票）
+files_touched: [voice/VoiceStateRouter.kt, voice/VoiceSessionManager.kt, voice/VoiceForegroundService.kt, ui/screens/AecSpikeSection.kt, tests(+WakeInterrupt −SpikeFeedTest −废用例), CLAUDE.md, docs/verification/v17-kws-accuracy/README.md]
+```
+
+
+
 ## 2026-08-20（S11 唤醒词准确率排查：三层根因全修 + 一声唤醒 10/10）
 
 > 接续交接文档 `handoff-desk-pet-android-kws-accuracy-2026-08-19.md`（任务：唤醒准确率诊断 + 唤醒词打断核查）。

@@ -214,6 +214,41 @@
   <li><strong>先读</strong>：本文件 + PROGRESS.md S8 收口段 + DEV_LOG.md 2026-08-05 条目</li>
 </ol>
 
+<h2>S12 唤醒词打断转正（2026-08-20 ~ 08-21）</h2>
+
+<div class="decision">
+<h3>产品决策：打断时播「我在」+ 常开不设开关</h3>
+<p><strong>决策</strong>（用户拍板）：①打断后走完整唤醒流程（播「我在」再聆听）而非静默直切聆听——
+与 IDLE 唤醒体验一致，且防止用户抢话丢字头；②SPEAKING/PROCESSING 进 KWS 是生产默认行为，
+不设用户开关——spike 证实误触发结构性近零（硬件 AEC 把回声压到能量门以下），出错一行路由可撤。</p>
+</div>
+
+<div class="deviation">
+<h3>spikeFeedKws 设施退役（删除而非保留）</h3>
+<p>S11-3 建的调试旁路在双合格后被生产行为（路由恒 KWS）取代——保留会造成两条等价路径漂移。
+删除范围：router 属性/VSM 委托/AecSpikeSection ①② 段/SpikeFeedTest/router spike 用例；
+净测试数 +1（454→455，新增 WakeInterruptTest 3 测 > 删 2）。WakeAckTest 删一用例因其前提
+「唤醒在 SPEAKING 物理不可达」随 S12 失效（新行为由 WakeInterruptTest 唤醒打断唤醒用例覆盖，
+playCalls==2 断言取代原 ==1）。</p>
+</div>
+
+<div class="decision">
+<h3>wozaiEpoch 世代守卫（builder 自引入竞态的抓修）</h3>
+<p>唤醒打断唤醒时，旧 wozaiJob 的 finally 无条件写 <code>_wakeAckActive=false</code> 可落在新一轮
+置 true 之后覆盖信号。守卫=AtomicLong 世代号（playAckThenListen 入口自增、闭包捕获、finally 比对）。
+变异锚③（删世代比对→红）亲验。残留微秒 check-then-act 窗后果上限=一轮视觉退化，进 LISTENING 自愈。</p>
+</div>
+
+<div class="risk">
+<h3>已知限制（记档不修）</h3>
+<p>①<strong>AEC 偶发失效态</strong>（观察票）：08-21 上午首轮打断零命中窗，回声持续过门一分钟
+（fed+600/gated+0，与常态「回声在门下」相反）——疑与刚重装首启有关，重启后消失。
+复发先查该窗 fed/gated 形态定性；频发再评估 S12-2 状态感知门控（不盲修：失败模型未坐实，
+大音量复测 4/4 反证了「回声过门必灭」简单模型）。②<strong>全屏连喊视觉塌缩</strong>（critic F2）：
+唤醒打断唤醒在一次同步调用内完成，StateFlow conflation 下组合键塌缩为不变，第二轮 wozai 期
+JUMPING 可能不重播（罕见窗，听觉反馈在，进 LISTENING 自愈；根治需事件流带世代号，暂不做）。</p>
+</div>
+
 <h2>S11 唤醒词准确率排查（2026-08-19 ~ 08-20）</h2>
 
 <div class="decision">
