@@ -41,6 +41,9 @@
 
 - `fs-idle-pet-062.png`：真机首轮反馈修复后——宠物宽改 0.62×屏宽（原 440dp 钳制在 360dp 真机
   占屏高 49% 压字幕区）；字幕改尾部跟随（takeLast 200 + …，原 maxLines+Ellipsis 只露开头）+ 限 4 行
+- `chat-markdown-shared.png`：字幕升级为富文本+滑动查看（用户 08-24 提需）——MarkdownContent
+  抽取共享（ChatScreen −231 行 → ui/components/），聊天页回归实证（粗体/列表渲染原样）；
+  全屏字幕=共享富文本 + 112dp 限高滚动 + 贴底跟随（上滑 48dp 阈值外不打断）
 
 ### 3. 待真机语音验收（用户现场，模拟器声学边界）
 

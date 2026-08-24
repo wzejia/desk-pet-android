@@ -641,5 +641,16 @@ Android 行为有意偏离桌面端；spritesheet 素材行布局未动，runnin
 原型验收过的尺寸应以比例（屏宽/屏高占比）而非绝对值落到代码。</p>
 </div>
 
+<div class="entry decision">
+<span class="tag">设计决策</span><span class="meta">2026-08-24 ｜ 全屏字幕 ｜ S14 字幕升级：富文本+滑动查看（用户提需）</span>
+<p><b>决策</b>：全屏字幕从纯文本（尾部截取）升级为 ①共享聊天页 Markdown 渲染（段落/列表/
+代码/表格同款）②可滑动查看+流式贴底跟随（贴底自动滚底，上滑 48dp 阈值外不打断，回底恢复）。
+<b>实现</b>：ChatScreen 私有的 MarkdownContent 套件（231 行）抽取为 <code>ui/components/MarkdownContent.kt</code>
+共享组件（样式参数化：bodyStyle/smallStyle/contentColor，默认值=聊天页原样零回归）；
+全屏字幕限高 112dp 可滚动（与宠物下缘保距防重叠），尾截逻辑弃用。
+<b>权衡</b>：不另起第 4 套 Markdown 渲染（聊天 Compose/气泡 BubbleTextStrip 已有 2 套），
+抽取共享防分叉；跟随用「等两帧再滚」处理 maxValue 布局延迟。</p>
+</div>
+
 </body>
 </html>

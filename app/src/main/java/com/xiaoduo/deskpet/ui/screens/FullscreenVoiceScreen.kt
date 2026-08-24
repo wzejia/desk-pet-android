@@ -21,12 +21,14 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -35,6 +37,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -44,6 +47,7 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -57,7 +61,6 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -70,6 +73,7 @@ import com.xiaoduo.deskpet.chat.ChatViewModel
 import com.xiaoduo.deskpet.pet.PetFrameTable
 import com.xiaoduo.deskpet.pet.PetState
 import com.xiaoduo.deskpet.ui.PetView
+import com.xiaoduo.deskpet.ui.components.MarkdownContent
 import com.xiaoduo.deskpet.ui.theme.XiaoduoDimens
 import com.xiaoduo.deskpet.util.PetLogger
 import com.xiaoduo.deskpet.util.Prefs
@@ -252,19 +256,32 @@ fun FullscreenVoiceScreen(
                     .drop(transcriptBaseline) // 进入前旧消息不渲染（基线见上）
                     .lastOrNull { it.role == ChatMessage.Role.ASSISTANT }
                 lastAssistant?.takeIf { it.text.isNotEmpty() }?.let { msg ->
-                    Text(
-                        // S14 字幕=跟随最新：长回复只显尾部（用户真机反馈「显示最上面的内容」——
-                        // maxLines+Ellipsis 截尾只露开头，与字幕跟随最新的预期相反）
-                        text = if (msg.text.length > SUBTITLE_TAIL_CHARS) {
-                            "…" + msg.text.takeLast(SUBTITLE_TAIL_CHARS)
-                        } else {
-                            msg.text
-                        },
-                        style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp),
-                        color = TranscriptColor,
-                        maxLines = 4,
-                        overflow = TextOverflow.Clip,
-                    )
+                    // S14 字幕升级（用户 2026-08-24）：富文本（共享聊天页 MarkdownContent，
+                    // 段落/列表/代码/表格同渲染）+ 可滑动查看。流式贴底跟随：贴底时新 delta
+                    // 自动滚底；用户上滑查看期间不打断，滑回底部（48dp 阈值）恢复跟随。
+                    val scrollState = rememberScrollState()
+                    val followThresholdPx = with(LocalDensity.current) { 48.dp.toPx() }.toInt()
+                    LaunchedEffect(msg.text) {
+                        val wasNearBottom = scrollState.maxValue - scrollState.value <= followThresholdPx
+                        if (wasNearBottom) {
+                            withFrameNanos { } // 等内容布局完成再滚（maxValue 才含新内容）
+                            withFrameNanos { }
+                            scrollState.scrollTo(scrollState.maxValue)
+                        }
+                    }
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(max = SUBTITLE_MAX_H_DP.dp)
+                            .verticalScroll(scrollState),
+                    ) {
+                        MarkdownContent(
+                            text = msg.text,
+                            bodyStyle = MaterialTheme.typography.bodyMedium.copy(lineHeight = 20.sp),
+                            smallStyle = MaterialTheme.typography.bodySmall.copy(lineHeight = 17.sp),
+                            contentColor = TranscriptColor,
+                        )
+                    }
                 }
             }
         }
@@ -517,8 +534,8 @@ private const val PET_FULLSCREEN_MAX_W_DP = 440
 /** S14-2 宠物宽度占屏宽比例（原型验收值 0.62；原 440dp 钳制在 360dp 真机致宠物占屏高 49% 压字幕区）。 */
 private const val PET_FULLSCREEN_WIDTH_RATIO = 0.62f
 
-/** S14 字幕尾部跟随：超长回复只显最后 N 字符（前补 …）。 */
-private const val SUBTITLE_TAIL_CHARS = 200
+/** S14 字幕区高度上限（可滚动，超高内容滑动查看；与宠物下缘保留间距防重叠）。 */
+private const val SUBTITLE_MAX_H_DP = 112
 
 /**
  * 全屏底色（用户 2026-08-04 拍板改判：黑场 #0D0D0D → 白底）。取近白 #FAFAFA 而非纯白
