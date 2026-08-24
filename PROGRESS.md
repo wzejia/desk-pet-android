@@ -55,6 +55,11 @@
 3. **新增排障资产**：AudioProbe 延迟探针（设置页 debug ③ 按钮，用法见 v17 README §7）；
   机构解法三篇（docs/solutions/：门控碎裂时间轴 / 无锚代码静默丢失 / spike 空证据佐证法）。
 4. 先读：本文件 S12/S11 段 → DEV_LOG.md 2026-08-21/20 → v17 证据 README。
+5. **事故销案（2026-08-24）**：08-18 仓库清空事故与 08-24 C:\Users 隐藏事件两案同凶——
+  **cliguard**（美团内部 CLI 风控组件，portal-portm.meituan.com）误伤：把 `E:\desk-pet-android`
+  误判为 Claude 工作产物清理，把 `C:\Users`/`Administrator`/`.claude.json` 隐藏。证据闭环
+  （`systemHide`/`recycleBinHide`/`checkExplorerRunning` + `claude-acl-main`/`acl.json` + 沙箱爬目录行为）。
+  非恶意，已处置（daemon 杀、目录隔离、复活监控静默）。详见 `C:\Users\Administrator\desk-pet-recovery\2026-08-18\RECOVERY-STATE.md` §10。
 
 ---
 
