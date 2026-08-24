@@ -162,11 +162,10 @@ fun FullscreenVoiceScreen(
     val transcriptBaseline = remember { chatVm.messages.value.size }
 
     // 尺寸钳制（critic 返工 P1）：PetView.onDraw 帧图拉伸填满 View 无内缩，视图宽超屏宽
-    // 必被屏缘平切。真机 1440×3168 @640dpi → 屏宽 360dp；spritesheet 四态内容 bbox
-    // ~80% 帧宽（x 极值 18-173/192）→ 等比上限 ≈2.3×（440dp 视图内容恰贴屏缘）。
-    // 取 min(2.3× 设计宽, 屏宽)，高按帧纵横比 192:208 等比跟随。
+    // 必被屏缘平切。S14-2 起宽度改原型比例 0.62×屏宽（原 min(440dp, 屏宽) 在 360dp 真机上
+    // 高达屏高 49%，下缘压进字幕区致重叠——用户真机反馈 2026-08-24）；440dp 上限钳制保留。
     val screenWidthDp = LocalConfiguration.current.screenWidthDp.dp
-    val petWidth = min(PET_FULLSCREEN_MAX_W_DP.dp, screenWidthDp)
+    val petWidth = (screenWidthDp * PET_FULLSCREEN_WIDTH_RATIO).coerceAtMost(PET_FULLSCREEN_MAX_W_DP.dp)
     val petHeight = petWidth * PetView.PET_HEIGHT_DP / PetView.PET_WIDTH_DP
 
     // S14-2 三段式重排（原型 v6 验收 2026-08-24，调研=豆包/通义「顶部功能条→中央主视觉→
@@ -254,11 +253,17 @@ fun FullscreenVoiceScreen(
                     .lastOrNull { it.role == ChatMessage.Role.ASSISTANT }
                 lastAssistant?.takeIf { it.text.isNotEmpty() }?.let { msg ->
                     Text(
-                        text = msg.text,
+                        // S14 字幕=跟随最新：长回复只显尾部（用户真机反馈「显示最上面的内容」——
+                        // maxLines+Ellipsis 截尾只露开头，与字幕跟随最新的预期相反）
+                        text = if (msg.text.length > SUBTITLE_TAIL_CHARS) {
+                            "…" + msg.text.takeLast(SUBTITLE_TAIL_CHARS)
+                        } else {
+                            msg.text
+                        },
                         style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp),
                         color = TranscriptColor,
-                        maxLines = 6,
-                        overflow = TextOverflow.Ellipsis,
+                        maxLines = 4,
+                        overflow = TextOverflow.Clip,
                     )
                 }
             }
@@ -504,13 +509,16 @@ private fun ControlDrawer(
 private const val TAG = "FullscreenVoice"
 
 /**
- * 全屏 PetView 宽度上限（dp）：帧 192dp 的 ≈2.3×。
- * 约束来源（critic 返工 P1）：原 2.5×=480dp 只算了放大倍数，没算真机屏宽 360dp
- * （1440px @640dpi）硬约束——PetView 帧图拉伸填满 View，视图超屏宽即被屏缘平切；
- * 帧内容 bbox ~80% 帧宽，2.3×（440dp）时内容恰贴屏缘不裁。高度按 192:208 等比跟随，
- * 不再单列常量（防宽高比脱节）。
+ * 全屏 PetView 宽度上限（dp）：S14-2 起为比例钳制的保底上限（实际宽度 = 屏宽 ×
+ * [PET_FULLSCREEN_WIDTH_RATIO]，远不达此值；保留防超宽屏比例失调）。
  */
 private const val PET_FULLSCREEN_MAX_W_DP = 440
+
+/** S14-2 宠物宽度占屏宽比例（原型验收值 0.62；原 440dp 钳制在 360dp 真机致宠物占屏高 49% 压字幕区）。 */
+private const val PET_FULLSCREEN_WIDTH_RATIO = 0.62f
+
+/** S14 字幕尾部跟随：超长回复只显最后 N 字符（前补 …）。 */
+private const val SUBTITLE_TAIL_CHARS = 200
 
 /**
  * 全屏底色（用户 2026-08-04 拍板改判：黑场 #0D0D0D → 白底）。取近白 #FAFAFA 而非纯白
