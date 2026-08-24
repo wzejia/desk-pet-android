@@ -43,6 +43,9 @@ class MainActivity : ComponentActivity() {
      */
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
+        // S14 白屏治理取证锚：singleTask 后所有拉起路径（悬浮窗菜单/KWS 通知/启动器）
+        // 统一路由到同一实例——此日志出现即证明未走重建（对比 onCreate）
+        PetLogger.i("MainActivity", "onNewIntent -> existing instance reused")
         handleViewLastRoundIntent(intent)
     }
 

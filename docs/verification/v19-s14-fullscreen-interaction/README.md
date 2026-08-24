@@ -49,3 +49,14 @@
 
 唤醒 → 悬浮窗「我在」气泡（播完即收）+ 全屏「我在」青色大字 / 聆听声波起伏 / 思考三点 /
 说话期打断键可点 / 字幕开关当场生效。
+
+### 4. 概率性白屏销案（08-18 观察票，2026-08-24 第一性原理排查）
+
+- **根因**（三层拆解→两机制实证）：A. Manifest 无 configChanges → 配置变化（旋转/IME/深色/字体）
+  即销毁重建 Activity，Compose 树全拆 = 白闪（真机落盘：08-18 当天 10 次 onCreate 无进程重启、
+  多次夹在两次进全屏之间；08-24 进全屏 4s 后重建）；B. standard launchMode + 三处 NEW_TASK
+  拉起点（悬浮窗菜单×2/KWS 通知）可叠加重复实例，配对断裂（08-24 双 enter 无 exit）。
+- **修复**：`launchMode="singleTask"` + configChanges 13 项；MainActivity.onNewIntent 加取证日志。
+- **模拟器对照实验**：修复前全屏中强制旋转 → 必现「exit→onCreate→enter」churn；修复后同操作
+  **零 churn**（日志干净，横屏截图内容完好）；NEW_TASK 重复拉起 → onNewIntent 复用实例无 onCreate。
+- 遗留 edge：横屏全屏布局未优化（宠物过大压 caption）；ColorOS 杀后台冷启白屏属系统行为。

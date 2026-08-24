@@ -58,9 +58,9 @@
 2. **剩余事项**：
    - **观察票：AEC 偶发失效态**（S12 遗留，见上）——用户报「喊打断没反应」时，拉该时段
      `kws stats` 看 fed/gated 形态（回声持续过门=AEC 失效窗）；频发再评估 S12-2 状态感知门控。
-   - 观察票：全屏语音模式概率性白屏（08-18 用户报，未查）；全屏连喊唤醒视觉塌缩边缘（S12 critic F2，
+   - 观察票：全屏连喊唤醒视觉塌缩边缘（S12 critic F2，
      进 LISTENING 自愈）；P3 resolver source 日志标签歧义；P3 VSM else 分支缺直接测试覆盖；
-     wozai volc/openai 资产待 key（tools/wozai/README.md）。
+     wozai volc/openai 资产待 key（tools/wozai/README.md）；横屏全屏布局未优化（S14 遗留 edge）。
    - S10-1/S10-2 critic 补审欠账（配额恢复后补派）。
 3. **新增排障资产**：AudioProbe 延迟探针（设置页 debug ③ 按钮，用法见 v17 README §7）；
   机构解法三篇（docs/solutions/：门控碎裂时间轴 / 无锚代码静默丢失 / spike 空证据佐证法）。
@@ -104,7 +104,9 @@
   方案 C 混合落地——三家云默认音色资产内置（wozai-aliyun.wav 在位；volc/openai 暂缺见下）+ 自定义音色「保存即合成+启动补漏」动态缓存；四层兜底链（缓存→厂商资产→wozai.wav→直进聆听）；**播放路径零网络结构性守卫**（DynamicWakeAck 只持 resolve 闭包）；VSM 零 diff。
 - **基线 372→427** skipped=0（+5 契约 +46 纯逻辑 +4 resolver +2 返工守卫）。
 - **接手指引（S9 遗留）**：
-  1. **观察票：全屏语音模式概率性白屏**（2026-08-18 用户报，无 crash 记录，S9 范围外未查）——复现路径/截图/logcat 待取。
+  1. ~~观察票：全屏语音模式概率性白屏~~（2026-08-18 用户报）→ **2026-08-24 销案**：无 configChanges
+     配置变化即重建 Activity（08-18 当天 10 次 onCreate 实证）+ standard launchMode 多实例叠加，
+     Manifest 结构性修复（configChanges 13 项 + singleTask），模拟器旋转/重拉实验验证（v19 README §4）。
   2. P3 小修：resolver source 日志在 platform 模式 provider 字段带残留云厂商值（选择正确仅标签歧义，一行修）。
   3. wozai-volcengine.wav 待 VOLC_SPEECH_KEY（现为空）；wozai-openai.wav 待可用端点（dashscope compatible-mode /audio/speech 对 gpt-4o-mini-tts 404）。补跑：`tools/wozai/synth_cloud.py --vendor X` + `WakeAckAssetsContractTest` 必备集加一行。
   4. parity 夹具已冻结（sha1 input=06249392/expected=5651d36f），勿再 `--emit-parity-fixture`；改「我在」文案须 Kotlin（TtsVoiceDefaults.TEXT）与 Python 双侧同步并升缓存版本目录。

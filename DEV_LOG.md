@@ -15,6 +15,14 @@
 - 豆包「打电话」/ 通义语音通话同构：三段式「顶部功能条→中央大球（律动主反馈）→底部
   •••+状态字+常驻控制栏（红挂断=退出）」；字幕开关都在场内。「三个点」行业通行但只是弱辅助。
 
+### 概率性白屏销案（第一性原理+实验复现）
+- 白屏三层拆解（视图树销毁/组合为空/渲染不绘）→ 落盘日志+模拟器实验锁定机制 A：无 configChanges
+  →配置变化即重建 Activity（08-18 当天 10 次 onCreate 夹在进全屏之间；强制旋转修复前必现 churn）；
+  机制 B：standard launchMode + 三处 NEW_TASK 拉起点可叠加重复实例（08-24 双 enter 无 exit 实锤）。
+- 修复：Manifest 补 configChanges 13 项 + singleTask；onNewIntent 加取证日志。
+- 验证：修复后全屏中强制旋转零 churn（横屏截图内容完好）；重复拉起走 onNewIntent 复用实例。
+- 遗留：横屏全屏布局未优化（edge）；真机包待设备回连后装。
+
 ### 施工（S14-1~3 全绿）
 - VSM playAckThenListen 挂 bubble.show("我在") + 正常播完 hide（三保险收泡）；WakeAckTest +3 测。
 - 全屏三段式重排 + 字幕开关进场 + caption 17sp/「我在」19sp 青色 + 7 柱声波 + 思考三点 +

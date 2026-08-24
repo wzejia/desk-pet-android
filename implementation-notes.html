@@ -663,5 +663,26 @@ Android 行为有意偏离桌面端；spritesheet 素材行布局未动，runnin
 目标值+帧时钟插值避免块率跳变。</p>
 </div>
 
+<div class="entry defect">
+<span class="tag">缺陷修复</span><span class="meta">2026-08-24 ｜ 全 App ｜ 概率性白屏（08-18 观察票销案，第一性原理根因+结构性修复）</span>
+<p><b>症状</b>：App 偶发白屏（08-18 首报于全屏语音模式，挂观察票近两月）。
+<b>第一性原理拆解</b>：白屏=窗口只剩背景，仅三层可能——①视图树被整树销毁（Activity 重建/多实例叠加）；
+②组合失败为空；③渲染线程不绘制。取证（真机 PetLogger 落盘 + 模拟器实验）锁定①的两条机制：
+<b>机制 A（主因）</b>：Manifest 无 <code>configChanges</code> → 旋转/IME 开合/深色/字体等配置变化即
+销毁重建 Activity，Compose 树全拆 → 白窗至重组完成。实证：08-18 当天 <b>10 次 onCreate</b>（无进程重启）
+且多次夹在两次进全屏之间；08-24 17:20 进全屏 4 秒后 Activity 重建；模拟器强制旋转实验
+<b>修复前必现</b>「exit fullscreen → onCreate → enter fullscreen」churn。
+<b>机制 B（并发）</b>：无 <code>launchMode</code>（standard）+ 三处 <code>FLAG_ACTIVITY_NEW_TASK</code> 拉起点
+（悬浮窗菜单×2/KWS 前台通知）→ 可叠加重复 MainActivity 实例，进入/退出配对断裂、白闪+
+悬浮窗隐藏态泄漏（08-24 17:20 双 enter 无 exit 实锤配对断裂）。
+<b>修复</b>：① <code>configChanges</code> 全声明（orientation/screenSize/keyboardHidden/uiMode/fontScale/
+density/locale 等 13 项）——配置变化交给 Compose 重组，Activity 不再销毁；
+② <code>launchMode="singleTask"</code>——所有拉起路径统一路由同一实例（onNewIntent 加取证日志）；
+③ 排除法说明：PetLogger 为同步落盘，onDispose 日志缺失=确未执行（非丢日志），系 teardown 竞态，
+随①②消除触发源而闭环。<b>验证</b>：修复后模拟器全屏中强制旋转<b>零 churn</b>（日志+横屏截图内容完好）；
+NEW_TASK 重复拉起 → onNewIntent 复用同一实例。<b>遗留边界</b>：横屏全屏布局未优化
+（宠物过大压 caption，Edge case 记此）；ColorOS 激进杀后台后的冷启白屏属系统行为不在此票。</p>
+</div>
+
 </body>
 </html>
