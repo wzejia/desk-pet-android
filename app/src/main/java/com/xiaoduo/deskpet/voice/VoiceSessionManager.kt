@@ -269,6 +269,11 @@ class VoiceSessionManager(
         PetOverlayService.setPetState(PetFrameTable.WAITING)
         transition(VoiceStateRouter.State.SPEAKING, "wake-ack wozai")
         status("我在")
+        // S14-1：「我在」应声可视化——悬浮窗气泡同步显示（纯现场反馈，不进消息流）。
+        // 收泡三保险：正常播完进聆听前 hide（下方 wozaiJob 收尾）/ cancel 路径
+        // cancelCurrentTurn 收泡 / onBubbleShown 兜底（回 IDLE 延时收）。
+        bubble.show("我在")
+        bubbleHidePolicy.onBubbleShown()
         wozaiJob = scope.launch(Dispatchers.IO) {
             // cancel 先于开播到达（job.cancel 先行于 wakeAck.stop）：直接不播
             if (!isActive) return@launch
@@ -295,6 +300,7 @@ class VoiceSessionManager(
             // 留痕（critic P3-⑥）：双查是 check-then-act，cancel 与 transition 间有微秒窗——
             // 最坏拦不住一次已落地的 LISTENING 迁移（30s 无语音超时自愈回 IDLE），无状态泄漏
             if (isActive && state == VoiceStateRouter.State.SPEAKING) {
+                bubble.hide() // S14-1：应声泡随聆听开始收（降级路径同走，不留残泡）
                 vad.start()
                 transition(VoiceStateRouter.State.LISTENING, "wozai done, VAD start")
                 status("聆听中…（30s 无语音自动退出）")

@@ -345,11 +345,12 @@ class VoiceSessionManagerWakeInterruptTest {
         assertEquals("打断后应同步进 SPEAKING(wozai): ${sink.events}", VoiceStateRouter.State.SPEAKING, mgr.state)
         assertTrue("唤醒入口应置 wakeAckActive=true", mgr.wakeAckActive.value)
         assertTrue("wozai 应在 5s 内开播", ack.playStarted.await(5, TimeUnit.SECONDS))
+
+        ack.release() // 「我在」播完 → LISTENING（S14-1 应声泡在此正常收 hide，属预期新行为）
+        awaitState(mgr, VoiceStateRouter.State.LISTENING)
+        // 快照取在 wozai 正常收尾后：不变量针对的是下方残跑管线，非 wozai 完成收泡
         val snapshot = sink.events.size
         val bubbleSnapshot = bubble.ops.size
-
-        ack.release() // 「我在」播完 → LISTENING
-        awaitState(mgr, VoiceStateRouter.State.LISTENING)
         assertFalse("wozai 完进 LISTENING 应复位 wakeAckActive", mgr.wakeAckActive.value)
         assertTrue("聆听期 kwsPaused 应为 true", mgr.kwsPaused)
         assertEquals(1, ack.playCalls)
@@ -401,11 +402,12 @@ class VoiceSessionManagerWakeInterruptTest {
         assertEquals("打断后应同步进 SPEAKING(wozai): ${sink.events}", VoiceStateRouter.State.SPEAKING, mgr.state)
         assertTrue("唤醒入口应置 wakeAckActive=true", mgr.wakeAckActive.value)
         assertTrue("wozai 应在 5s 内开播", ack.playStarted.await(5, TimeUnit.SECONDS))
-        val snapshot = sink.events.size
-        val bubbleSnapshot = bubble.ops.size
 
         ack.release()
         awaitState(mgr, VoiceStateRouter.State.LISTENING)
+        // 快照取在 wozai 正常收尾后（S14-1 应声泡 hide 属预期，见上一用例注释）
+        val snapshot = sink.events.size
+        val bubbleSnapshot = bubble.ops.size
         assertFalse("wozai 完进 LISTENING 应复位 wakeAckActive", mgr.wakeAckActive.value)
         assertTrue("聆听期 kwsPaused 应为 true", mgr.kwsPaused)
         assertEquals(1, ack.playCalls)

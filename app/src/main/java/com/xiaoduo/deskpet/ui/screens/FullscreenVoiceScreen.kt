@@ -2,25 +2,35 @@ package com.xiaoduo.deskpet.ui.screens
 
 import android.Manifest
 import android.content.pm.PackageManager
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Mic
-import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -36,14 +46,19 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.min
@@ -95,8 +110,8 @@ fun FullscreenVoiceScreen(
     val messages by chatVm.messages.collectAsState()
     var petView by remember { mutableStateOf<PetView?>(null) }
 
-    // 进入读一次即可：设置页改动发生在离开全屏期间，回来自动重进组合重读
-    val transcriptOn = remember { Prefs.fullscreenTranscript(context) }
+    // S14-2：字幕开关搬进场内（右上），当场切换写回 Prefs——原进入读一次、改动要退出到设置页
+    var transcriptOn by remember { mutableStateOf(Prefs.fullscreenTranscript(context)) }
     val kwsOn = remember { Prefs.kwsEnabled(context) }
     val micGranted = remember {
         ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) ==
@@ -154,107 +169,83 @@ fun FullscreenVoiceScreen(
     val petWidth = min(PET_FULLSCREEN_MAX_W_DP.dp, screenWidthDp)
     val petHeight = petWidth * PetView.PET_HEIGHT_DP / PetView.PET_WIDTH_DP
 
+    // S14-2 三段式重排（原型 v6 验收 2026-08-24，调研=豆包/通义「顶部功能条→中央主视觉→
+    // 底部状态区+常驻控制」）：左 ✕ / 右字幕 → 中央宠物（中心上移 42% 屏高）→ 状态区下 1/4
+    val screenHeightDp = LocalConfiguration.current.screenHeightDp.dp
+    val petTopPad = ((screenHeightDp * 0.42f) - (petHeight / 2)).coerceAtLeast(0.dp)
+    var drawerOpen by remember { mutableStateOf(false) }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(FullscreenBg),
     ) {
-        // 右上角关闭（盲测返工#2：静态图无任何退出路径——低存在感圆形容器适配深色底，
-        // 样式语言对齐顶栏 mic 入口；2026-08-07 起为唯一退出入口）
-        IconButton(
-            onClick = {
-                PetLogger.i(TAG, "close button -> exit fullscreen")
-                onExit()
-            },
+        // 顶部栏：左 ✕ 退出（双入口之一，2026-08-24 拍板保留）/ 右「字幕」开关
+        // （S14-2 搬进场内，当场切换写回 Prefs——原要退出到设置页才能改）
+        Row(
             modifier = Modifier
-                .align(Alignment.TopEnd)
+                .fillMaxWidth()
+                .align(Alignment.TopCenter)
                 .statusBarsPadding()
                 .padding(XiaoduoDimens.SpaceS),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            Box(
-                modifier = Modifier
-                    .size(36.dp)
-                    .background(CloseBg, CircleShape),
-                contentAlignment = Alignment.Center,
+            IconButton(
+                onClick = {
+                    PetLogger.i(TAG, "close button -> exit fullscreen")
+                    onExit()
+                },
             ) {
-                Icon(
-                    Icons.Filled.Close,
-                    contentDescription = "退出全屏",
-                    modifier = Modifier.size(20.dp),
-                    tint = CloseTint,
-                )
-            }
-        }
-
-        Column(
-            modifier = Modifier.fillMaxSize(),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center,
-        ) {
-            AndroidView(
-                factory = { ctx -> PetView(ctx).also { petView = it } },
-                modifier = Modifier
-                    .width(petWidth)
-                    .height(petHeight),
-            )
-            // 相位 caption（盲测返工#1：静态图无任何状态线索——订阅 stateFlow 与宠物四态
-            // 同源）。语义边界防误删：spec「无文字默认」指无**转写**文字（转写开关仍默认关），
-            // 本 caption 是状态反馈不是转写。降级时 caption 位让给出路提示（KWS 未开/mic 未授权，
-            // 原中央提示保留于此，此时相位文案无意义且会误导）
-            val hint = when {
-                !micGranted -> "麦克风未授权，语音不可用；请退出后到设置页授权"
-                !kwsOn -> "语音唤醒未开启，请退出后到设置页开启"
-                else -> null
-            }
-            Spacer(modifier = Modifier.height(XiaoduoDimens.SpaceM))
-            // caption 行（盲测返工①②）：文案主语化消歧 + 聆听/说话态左侧状态小图标——
-            // LISTENING=mic 图标+迷你声波柱（随真实收音 RMS 起伏，静态截图也可见 mic）；
-            // SPEAKING=小喇叭；PROCESSING/IDLE 不需要图标
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                if (hint == null) {
-                    when (voiceState) {
-                        VoiceStateRouter.State.LISTENING -> {
-                            Icon(
-                                Icons.Filled.Mic,
-                                contentDescription = null,
-                                modifier = Modifier.size(16.dp),
-                                tint = HaloCyan,
-                            )
-                            Spacer(modifier = Modifier.width(3.dp))
-                            MiniWaveform(rms = listenRms, color = HaloCyan)
-                            Spacer(modifier = Modifier.width(6.dp))
-                        }
-                        VoiceStateRouter.State.SPEAKING -> {
-                            Icon(
-                                Icons.Filled.VolumeUp,
-                                contentDescription = null,
-                                modifier = Modifier.size(16.dp),
-                                tint = HaloCyan,
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                        }
-                        else -> Unit
-                    }
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .background(CloseBg, CircleShape),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        Icons.Filled.Close,
+                        contentDescription = "退出全屏",
+                        modifier = Modifier.size(20.dp),
+                        tint = CloseTint,
+                    )
                 }
-                Text(
-                    text = hint ?: captionFor(voiceState),
-                    style = MaterialTheme.typography.bodyMedium.copy(fontSize = 15.sp),
-                    color = if (hint != null) HintColor else CaptionColor,
-                    textAlign = TextAlign.Center,
-                )
             }
+            Text(
+                text = "字幕",
+                fontSize = 13.sp,
+                color = if (transcriptOn) Color.White else CloseTint,
+                modifier = Modifier
+                    .background(if (transcriptOn) HaloCyan else CloseBg, RoundedCornerShape(16.dp))
+                    .clickable {
+                        transcriptOn = !transcriptOn
+                        Prefs.setFullscreenTranscript(context, transcriptOn)
+                    }
+                    .padding(horizontal = 14.dp, vertical = 7.dp),
+            )
         }
 
-        // 底部区：仅全屏转写（设置项，默认关）——渲染进入后新增的最后一条 assistant，流式跟随
-        // （2026-08-07 精简：原底部红色挂断钮与「长按小朵打开菜单」提示已删，见文件头注释）
+        // 中央宠物（S14-2：中心自 Column 居中上移至屏高 42%，给状态区让出下 1/4）
+        AndroidView(
+            factory = { ctx -> PetView(ctx).also { petView = it } },
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .padding(top = petTopPad)
+                .width(petWidth)
+                .height(petHeight),
+        )
+
+        // 转写区（字幕开时）：S14-2 随迁至状态区上方（原贴底）；transcriptBaseline 语义不变——
+        // 只渲染进入后新增的 assistant，防进全屏瞬间亮出上一轮旧回复
         if (transcriptOn) {
             Column(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
                     .navigationBarsPadding()
                     .padding(
-                        horizontal = XiaoduoDimens.SpaceL,
-                        vertical = XiaoduoDimens.SpaceM,
+                        start = XiaoduoDimens.SpaceL,
+                        end = XiaoduoDimens.SpaceL,
+                        bottom = (STATUS_ZONE_BOTTOM_DP + 72).dp,
                     ),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
@@ -272,6 +263,63 @@ fun FullscreenVoiceScreen(
                 }
             }
         }
+
+        // 状态区（S14-2 核心）：屏幕下 1/4（脱离宠物正下方），指示器在上 caption 在下。
+        // 聆听=7 柱声波（RMS/EMA 数据源不变）/ 思考=三点跳动 / 唤醒应答=「我在」大字。
+        // 语义边界防误删：spec「无文字默认」指无**转写**文字，caption 是状态反馈不是转写；
+        // 降级时 caption 位让给出路提示（KWS 未开/mic 未授权，此时相位文案无意义且会误导）
+        val hint = when {
+            !micGranted -> "麦克风未授权，语音不可用；请退出后到设置页授权"
+            !kwsOn -> "语音唤醒未开启，请退出后到设置页开启"
+            else -> null
+        }
+        Column(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(bottom = STATUS_ZONE_BOTTOM_DP.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            if (hint == null) {
+                when (voiceState) {
+                    VoiceStateRouter.State.LISTENING -> ListeningWaveform(rms = listenRms, color = HaloCyan)
+                    VoiceStateRouter.State.PROCESSING -> ThinkingDots()
+                    else -> Spacer(modifier = Modifier.height(INDICATOR_H_DP.dp)) // 占位防跳动
+                }
+                Spacer(modifier = Modifier.height(XiaoduoDimens.SpaceM))
+            }
+            val ackActive = voiceState == VoiceStateRouter.State.SPEAKING && wakeAckActive
+            Text(
+                text = hint ?: captionFor(voiceState, wakeAckActive),
+                style = MaterialTheme.typography.bodyMedium.copy(
+                    fontSize = if (ackActive) 19.sp else 17.sp,
+                ),
+                color = when {
+                    hint != null -> HintColor
+                    ackActive -> AckColor // S14-1：「我在」应声大字（青色强调，纯现场反馈不进消息流）
+                    else -> CaptionColor
+                },
+                textAlign = TextAlign.Center,
+            )
+        }
+
+        // S14-3 底部控制抽屉（原型验收 2026-08-24）：把手在面板顶缘一体移动，默认只露把手；
+        // 打断=非 IDLE 可点（cancelCurrentTurn，与 OverlayMenu 打断同入口）；退出=红叉（双入口之二）
+        ControlDrawer(
+            open = drawerOpen,
+            onToggle = { drawerOpen = !drawerOpen },
+            onOpen = { drawerOpen = true },
+            onClose = { drawerOpen = false },
+            interruptEnabled = voiceState != VoiceStateRouter.State.IDLE,
+            onInterrupt = {
+                PetLogger.i(TAG, "drawer interrupt -> cancelCurrentTurn")
+                session.cancelCurrentTurn()
+            },
+            onExit = {
+                PetLogger.i(TAG, "drawer exit -> exit fullscreen")
+                onExit()
+            },
+            modifier = Modifier.align(Alignment.BottomCenter),
+        )
     }
 }
 
@@ -284,39 +332,171 @@ private fun petStateForVoice(state: VoiceStateRouter.State): PetState = when (st
 }
 
 /** 会话四态 → caption 文案（主语化消歧，盲测返工①：「正在说话…」谁在说？；
- *  状态反馈非转写，与宠物四态同源）。 */
-private fun captionFor(state: VoiceStateRouter.State): String = when (state) {
-    VoiceStateRouter.State.IDLE -> "说『小朵小朵』开始对话"
-    VoiceStateRouter.State.LISTENING -> "正在听你说…"
-    VoiceStateRouter.State.PROCESSING -> "小朵正在思考…"
-    VoiceStateRouter.State.SPEAKING -> "小朵正在回答…"
+ *  状态反馈非转写，与宠物四态同源）。
+ *  S14-1：SPEAKING && wakeAckActive = 唤醒应答期 →「我在」（原显示「小朵正在回答…」误导）。 */
+private fun captionFor(state: VoiceStateRouter.State, wakeAckActive: Boolean = false): String = when {
+    state == VoiceStateRouter.State.SPEAKING && wakeAckActive -> "我在"
+    else -> when (state) {
+        VoiceStateRouter.State.IDLE -> "说『小朵小朵』开始对话"
+        VoiceStateRouter.State.LISTENING -> "在听，请说…" // S14-2 文案（原型验收）
+        VoiceStateRouter.State.PROCESSING -> "小朵思考中…"
+        VoiceStateRouter.State.SPEAKING -> "小朵回答中…"
+    }
 }
 
 /**
- * 聆听态迷你声波柱（盲测返工②，caption 左侧第二状态线索）：
- * 3 柱高随真实收音 RMS 起伏（listenRms，与已删光环原同一路 EMA 数据源）；
- * 静音时柱落最小高，mic 图标本身已是静态可辨线索。
+ * S14-2 聆听指示器：7 柱 52×28dp 声波（原 3 柱 12×14 迷你柱，用户反馈「三个点不明显」——
+ * 调研发现豆包/通义同符号但主反馈靠中央视觉，小朵宠物静止后指示器必须自身够明显）。
+ * 柱高随真实收音 RMS 起伏（listenRms，EMA 数据源不变）；对称因子中间高两边低。
  */
 @Composable
-private fun MiniWaveform(rms: Float, color: Color) {
+private fun ListeningWaveform(rms: Float, color: Color) {
     val level = ((rms - RMS_FLOOR) / RMS_SPAN).coerceIn(0f, 1f)
-    Canvas(modifier = Modifier.size(width = 12.dp, height = 14.dp)) {
-        val barW = 2.5.dp.toPx()
-        val gap = 1.75.dp.toPx()
-        val minH = size.height * 0.25f
-        for (i in 0 until 3) {
-            val factor = when (i) {
-                0 -> 0.6f
-                1 -> 1f
-                else -> 0.75f
-            }
-            val h = minH + (size.height - minH) * level * factor
+    Canvas(modifier = Modifier.size(width = 52.dp, height = 28.dp)) {
+        val barW = 4.dp.toPx()
+        val gap = 4.dp.toPx()
+        val minH = size.height * 0.2f
+        val factors = floatArrayOf(0.45f, 0.7f, 0.9f, 1f, 0.9f, 0.7f, 0.45f)
+        for (i in factors.indices) {
+            val h = minH + (size.height - minH) * level * factors[i]
             drawRoundRect(
                 color = color,
                 topLeft = Offset(i * (barW + gap), (size.height - h) / 2f),
                 size = Size(barW, h),
                 cornerRadius = CornerRadius(barW / 2f),
             )
+        }
+    }
+}
+
+/** S14-2 思考指示器：三点错相跳动（••• 行业通用符号，豆包/通义同款）。 */
+@Composable
+private fun ThinkingDots() {
+    val transition = rememberInfiniteTransition(label = "thinkingDots")
+    Row(
+        modifier = Modifier.height(INDICATOR_H_DP.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        repeat(3) { i ->
+            val dy by transition.animateFloat(
+                initialValue = 0f,
+                targetValue = -7f,
+                animationSpec = infiniteRepeatable(
+                    animation = tween(
+                        durationMillis = 500,
+                        delayMillis = i * 160,
+                        easing = FastOutSlowInEasing,
+                    ),
+                    repeatMode = RepeatMode.Reverse,
+                ),
+                label = "dot$i",
+            )
+            Box(
+                modifier = Modifier
+                    .size(9.dp)
+                    .offset(y = dy.dp)
+                    .background(DotColor, CircleShape),
+            )
+        }
+    }
+}
+
+/**
+ * S14-3 底部控制抽屉（原型 v6 验收 2026-08-24）：把手在面板顶缘一体移动，默认 translateY
+ * 只露 30dp 把手区；点把手/上滑展开，下滑/再点收起（250ms）。双键无文字说明（豆包风：
+ * 60dp 灰底圆 #EDF0F2 统一底色，语义交给图标色）——打断=深色停止块 24dp（非 IDLE 可点），
+ * 退出=红叉 28dp（双入口之二，左上 ✕ 保留）。
+ */
+@Composable
+private fun ControlDrawer(
+    open: Boolean,
+    onToggle: () -> Unit,
+    onOpen: () -> Unit,
+    onClose: () -> Unit,
+    interruptEnabled: Boolean,
+    onInterrupt: () -> Unit,
+    onExit: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val offsetY by animateDpAsState(
+        targetValue = if (open) 0.dp else DRAWER_HIDDEN_OFFSET_DP.dp,
+        animationSpec = tween(durationMillis = 250),
+        label = "drawerOffset",
+    )
+    val density = LocalDensity.current
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .navigationBarsPadding()
+            .offset { IntOffset(0, offsetY.roundToPx()) }
+            .shadow(8.dp, RoundedCornerShape(topStart = 18.dp, topEnd = 18.dp))
+            .background(DrawerBg, RoundedCornerShape(topStart = 18.dp, topEnd = 18.dp))
+            .pointerInput(density) {
+                val threshold = with(density) { 48.dp.toPx() }
+                var dragTotal = 0f
+                detectVerticalDragGestures(
+                    onDragStart = { dragTotal = 0f },
+                    onVerticalDrag = { _, amount -> dragTotal += amount },
+                    onDragEnd = {
+                        if (dragTotal < -threshold) onOpen() else if (dragTotal > threshold) onClose()
+                    },
+                )
+            },
+    ) {
+        // 把手区（30dp 整条可点）：44×5dp 横线，与面板一体移动
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(DRAWER_HANDLE_H_DP.dp)
+                .clickable(onClick = onToggle),
+            contentAlignment = Alignment.TopCenter,
+        ) {
+            Box(
+                modifier = Modifier
+                    .padding(top = 9.dp)
+                    .size(width = 44.dp, height = 5.dp)
+                    .background(HandleColor, RoundedCornerShape(3.dp)),
+            )
+        }
+        // 双键行（无文字说明）
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 12.dp, bottom = 18.dp),
+            horizontalArrangement = Arrangement.spacedBy(56.dp, Alignment.CenterHorizontally),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            // 打断（停止块）：VSM 非 IDLE 才可点（与 OverlayMenu 打断门控同语义）
+            Box(
+                modifier = Modifier
+                    .size(60.dp)
+                    .alpha(if (interruptEnabled) 1f else 0.35f)
+                    .background(DrawerBtnBg, CircleShape)
+                    .let { if (interruptEnabled) it.clickable(onClick = onInterrupt) else it },
+                contentAlignment = Alignment.Center,
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(24.dp)
+                        .background(StopIconColor, RoundedCornerShape(5.dp)),
+                )
+            }
+            // 退出全屏（红叉）
+            Box(
+                modifier = Modifier
+                    .size(60.dp)
+                    .background(DrawerBtnBg, CircleShape)
+                    .clickable(onClick = onExit),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    Icons.Filled.Close,
+                    contentDescription = "退出全屏",
+                    modifier = Modifier.size(28.dp),
+                    tint = ExitRed,
+                )
+            }
         }
     }
 }
@@ -348,6 +528,23 @@ private val CloseTint = Color(0xFF5A5A5A)
 
 /** 状态图标/声波柱用色：角色霓虹描边青色系加深档（白底对比保证，原 PhaseHalo 环色）。 */
 private val HaloCyan = Color(0xFF19B8D8)
+
+/** S14-1「我在」应声 caption 强调色（HaloCyan 加深档，白底可读）。 */
+private val AckColor = Color(0xFF1298B5)
+
+/** S14-2 状态区底距（屏幕下 1/4 定位）与指示器高度。 */
+private const val STATUS_ZONE_BOTTOM_DP = 150
+private const val INDICATOR_H_DP = 28
+
+/** S14-3 抽屉几何：把手区 30dp；总高 120dp（30+12+60+18），关闭时外露把手 30 → 隐藏偏移 90dp。 */
+private const val DRAWER_HANDLE_H_DP = 30
+private const val DRAWER_HIDDEN_OFFSET_DP = 90
+private val DrawerBg = Color(0xF7FAFAFA)
+private val HandleColor = Color(0x2E000000)
+private val DrawerBtnBg = Color(0xFFEDF0F2)
+private val StopIconColor = Color(0xFF3A3A3A)
+private val ExitRed = Color(0xFFFF3B30)
+private val DotColor = Color(0xFF9AA0A6)
 
 /** RMS→能级归一（对账表实测域：静音 ~0.001-0.006 / 说话 ~0.036 / 门控上限 0.05）。 */
 private const val RMS_FLOOR = 0.005f

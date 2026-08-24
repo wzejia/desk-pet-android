@@ -1,5 +1,27 @@
 # DEV_LOG.md — 小朵 Android 开发日志
 
+## 2026-08-24（S14 全屏语音页交互改版 +「我在」可视化）
+
+> 起因：用户报「我在」无气泡无动作 + 全屏页交互差。流程：问题盘点（四层根因代码实证）→
+> 真机调研豆包/通义（.scratch/research-voice-ui/ 实拍）→ 逐项拍板 → HTML 原型 v1-v6 → TDD 施工。
+> 全证据：`docs/verification/v19-s14-fullscreen-interaction/README.md`。
+
+### 根因盘点（用户确认后立项）
+- 「我在」零视觉：bubble.show 只挂 LLM 回复/错误；wozai 是资产播放不碰气泡/消息流；
+  S13 后 SPEAKING(wozai)=WAITING 静止与聆听同帧；statusText 唯一消费者是设置页 debug。
+- 全屏：caption 15sp 挤宠物正下方 + 16dp 三柱弱指示 + 无打断手势 + 字幕开关要退出到设置页。
+
+### 调研（真机实拍）
+- 豆包「打电话」/ 通义语音通话同构：三段式「顶部功能条→中央大球（律动主反馈）→底部
+  •••+状态字+常驻控制栏（红挂断=退出）」；字幕开关都在场内。「三个点」行业通行但只是弱辅助。
+
+### 施工（S14-1~3 全绿）
+- VSM playAckThenListen 挂 bubble.show("我在") + 正常播完 hide（三保险收泡）；WakeAckTest +3 测。
+- 全屏三段式重排 + 字幕开关进场 + caption 17sp/「我在」19sp 青色 + 7 柱声波 + 思考三点 +
+  底部抽屉（把手一体移动，双键灰底无文字，打断=cancelCurrentTurn 非 IDLE 可点）。
+- 基线 457→460 绿 skipped=0；WakeInterrupt ×2 快照点后移适配（wozai 完成收 hide 属预期）。
+- 模拟器：三段式+抽屉开合截图入 v19；语音相位（气泡/大字/声波/打断）留真机用户现场验收。
+
 ## 2026-08-24（S13 形象动作改造：静止 idle + 说话才动）
 
 > 流程：交接文档（08-24 优化棒）→ 用户提需求「平时不动，说话才动」→ 三轮 ask_user 拍板 →
