@@ -1,5 +1,28 @@
 # DEV_LOG.md — 小朵 Android 开发日志
 
+## 2026-08-24（S13 形象动作改造：静止 idle + 说话才动）
+
+> 流程：交接文档（08-24 优化棒）→ 用户提需求「平时不动，说话才动」→ 三轮 ask_user 拍板 →
+> HTML 原型 v1（hd-v2 素材）被否 → v2（现 APK idle 行做说话动画）逐项拍板 → 实现。
+> 全证据：`docs/verification/v18-s13-pet-motion/README.md`。
+
+### 定案（用户逐项拍板）
+- 说话 = 当前 APK idle 行 6 帧 @120ms/帧；idle/waiting/review/failed 静止 = idle 行第 0 帧；
+  唤醒跳、点击挥手全取消；hd-v2 2x 素材方案经原型对比被否决（不换素材）。
+
+### 改动
+- PetFrameTable/pet_states.json：四循环态 row0 frames=1；TALKING=row0 6帧 720ms；
+  pet_states.json 偏离桌面镜像（SHA 60b45124…，notes 记档）。
+- 接线：VSM/FullscreenVoiceScreen 唤醒 JUMPING→直接 WAITING（wakeAckActive 门控保留）；
+  PetOverlayService 单击挥手移除+playPetOnceThen 删除；ChatScreen 顶栏点击挥手移除；
+  PetView playOnceThenIdle/playOnceThen 死代码删除。
+- 测试：455→457 绿 skipped=0（+2 新增：静止永不推进/S13 契约；「行号唯一」契约改为 row0 有意共享）。
+
+### 验收
+- 模拟器：悬浮窗宠物 1s 双截图裁剪 MD5 逐字节一致（静止铁证）；聊天轮连拍
+  SENDING=静止同 hash / STREAMING≠静止帧（diff 局限面部嘴眼区）/ 完成回静止。
+- 语音轮主观观感留真机日常回收（模拟器声学边界）。
+
 ## 2026-08-21（S12 唤醒词打断转正：spike 双合格 → 实现 → 真机 8/8）
 
 > 承接 08-20 S11 收口后的 spike 观测与立项拍板。全证据：`docs/verification/v17-kws-accuracy/README.md` §6。

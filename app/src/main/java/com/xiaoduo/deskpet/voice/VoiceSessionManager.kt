@@ -259,13 +259,14 @@ class VoiceSessionManager(
     /**
      * 顺序式「我在」→ LISTENING（KWS 唤醒路径与纯唤醒词重听路径共用）。
      * 前置：kwsPaused 已置 true（对话期）。SPEAKING(wozai) 播预录应答 → 播完进 LISTENING。
-     * S8-7：入口置 wakeAckActive 让 transition(SPEAKING) 跳过通用 TALKING 映射，
-     * 由 playPetOnceThen(JUMPING→WAITING) 接管视觉（悬浮窗）；wozai 完进 LISTENING 置 false。
+     * S8-7：入口置 wakeAckActive 让 transition(SPEAKING) 跳过通用 TALKING 映射；
+     * S13：唤醒视觉由 JUMPING 一次性改为直接 WAITING 静止（用户 2026-08-24 拍板取消唤醒跳）；
+     * wozai 完进 LISTENING 置 false。
      */
     private fun playAckThenListen() {
         val epoch = wozaiEpoch.incrementAndGet()
         _wakeAckActive.value = true
-        PetOverlayService.playPetOnceThen(PetFrameTable.JUMPING, PetFrameTable.WAITING)
+        PetOverlayService.setPetState(PetFrameTable.WAITING)
         transition(VoiceStateRouter.State.SPEAKING, "wake-ack wozai")
         status("我在")
         wozaiJob = scope.launch(Dispatchers.IO) {
@@ -680,8 +681,8 @@ class VoiceSessionManager(
         }
         // 对话状态→精灵行映射（知识包 §4.1 CONVERSATION_VISUAL）：listening→waiting /
         // processing→review / speaking→talking / idle→idle；服务未运行时 companion no-op
-        // S8-7：唤醒路径 SPEAKING(wozai) wakeAckActive=true 时跳过 TALKING--视觉由
-        // startListening 的 playPetOnceThen(JUMPING->WAITING) 接管；TTS 回复走通用 TALKING
+        // S8-7+S13：唤醒路径 SPEAKING(wozai) wakeAckActive=true 时跳过 TALKING——视觉由
+        // playAckThenListen 入口的 setPetState(WAITING) 静止帧承担；TTS 回复走通用 TALKING
         if (!(to == VoiceStateRouter.State.SPEAKING && _wakeAckActive.value)) {
             PetOverlayService.setPetState(
                 when (to) {

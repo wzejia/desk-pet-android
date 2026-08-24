@@ -308,8 +308,9 @@ class VoiceSessionManagerWakeAckTest {
 
     @Test
     fun wakeAckActiveSignalsDuringWozaiThenClearsOnListening() {
-        // S8-7：唤醒路径 wakeAckActive 时序--入口置 true（transition gate 跳 TALKING，由
-        // playOnceThen(JUMPING->WAITING) 接管），wozai 完进 LISTENING 置 false。
+        // S8-7：唤醒路径 wakeAckActive 时序--入口置 true（transition gate 跳 TALKING，
+        // S13 起视觉=入口直接 WAITING 静止，原 playOnceThen(JUMPING->WAITING) 已取消），
+        // wozai 完进 LISTENING 置 false。
         // 变异锚：删入口置 true -> SPEAKING 时 wakeAckActive=false -> transition 误设 TALKING -> 红；
         //        删 wozai 完置 false -> LISTENING 时仍 true（残留，下次 SPEAKING 漏 gate）-> 红
         val ack = FakeWakeAck()
@@ -317,7 +318,7 @@ class VoiceSessionManagerWakeAckTest {
         assertFalse("IDLE 态 wakeAckActive 应 false", mgr.wakeAckActive.value)
         mgr.startListening(playWakeAck = true)
         assertEquals(VoiceStateRouter.State.SPEAKING, mgr.state)
-        assertTrue("唤醒入口应置 wakeAckActive=true（gate TALKING，jumping 接管）", mgr.wakeAckActive.value)
+        assertTrue("唤醒入口应置 wakeAckActive=true（gate TALKING，S13 起 WAITING 静止接管）", mgr.wakeAckActive.value)
         assertTrue(ack.playStarted.await(5, TimeUnit.SECONDS))
         ack.release()
         awaitState(mgr, VoiceStateRouter.State.LISTENING)

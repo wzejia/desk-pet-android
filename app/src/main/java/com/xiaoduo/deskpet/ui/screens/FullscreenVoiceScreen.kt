@@ -118,13 +118,13 @@ fun FullscreenVoiceScreen(
     }
 
     // 相位驱动四态（petView 同为 key：视图 attach 晚于相位变化时补齐漏应用，同 PetStatusBar 策略）
-    // S8-7：唤醒路径（wakeAckActive）SPEAKING 期间播 JUMPING 一次->WAITING（即时明确动作），
-    // 跳过通用 TALKING；与悬浮窗 transition gate 同源对齐（两模式一致）
+    // S8-7+S13：唤醒路径（wakeAckActive）SPEAKING 期间直接 WAITING 静止（唤醒跳已取消，
+    // 用户 2026-08-24 拍板），跳过通用 TALKING；与悬浮窗 transition gate 同源对齐（两模式一致）
     val wakeAckActive by session.wakeAckActive.collectAsState()
     LaunchedEffect(voiceState, wakeAckActive, petView) {
         val pv = petView ?: return@LaunchedEffect
         if (voiceState == VoiceStateRouter.State.SPEAKING && wakeAckActive) {
-            pv.playOnceThen(PetFrameTable.JUMPING, PetFrameTable.WAITING)
+            pv.setState(PetFrameTable.WAITING)
         } else {
             pv.setState(petStateForVoice(voiceState))
         }

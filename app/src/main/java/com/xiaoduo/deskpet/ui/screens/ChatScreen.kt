@@ -63,7 +63,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
@@ -285,7 +284,6 @@ private fun PetStatusBar(
     onOpenFullscreenVoice: () -> Unit,
 ) {
     var petView by remember { mutableStateOf<PetView?>(null) }
-    val latestPhase by rememberUpdatedState(phase)
     // 相位 → 精灵状态：petView 同为 key——视图 attach 晚于相位变化时补齐漏应用（相位竞争返工）
     LaunchedEffect(phase, petView) {
         petView?.setState(petStateFor(phase))
@@ -321,16 +319,8 @@ private fun PetStatusBar(
             }
             AndroidView(
                 factory = { context ->
-                    PetView(context).apply {
-                        setOnClickListener {
-                            PetLogger.d("ChatScreen", "pet clicked -> waving once")
-                            // 挥手一遍后回到「相位驱动状态」而非硬回 IDLE——否则 sending/
-                            // streaming 中途点一下，精灵提前装闲直到下次相位切换（相位竞争返工）
-                            animator.setState(PetFrameTable.WAVING, once = true) {
-                                animator.setState(petStateFor(latestPhase))
-                            }
-                        }
-                    }.also { petView = it }
+                    // S13：点击挥手取消（用户 2026-08-24 拍板），头像仅作相位展示
+                    PetView(context).also { petView = it }
                 },
                 modifier = Modifier.size(32.dp),
             )

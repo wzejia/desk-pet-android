@@ -600,5 +600,19 @@ gate/停止键/上传链）第三次迁移仍全保留——该清单已成输�
 临时全屏原图 rm*_raw.png 已全部删除。</p>
 </div>
 
+<div class="entry decision">
+<span class="tag">设计决策</span><span class="meta">2026-08-24 ｜ 形象/动画 ｜ S13 静止 idle + 说话才动（用户逐项拍板）</span>
+<p><b>决策</b>：idle/waiting/review/failed 四循环态全部静止 = idle 行(row 0)第 0 帧；
+talking = idle 行 6 帧 @120ms/帧（眩眼+嘴型微动，身体不动）；唤醒跳、点击挥手（悬浮窗+主页）全部取消。
+用户先在 HTML 原型（designs/xiaoduo-motion-preview/）上过目 v2 后拍板。
+<b>权衡</b>：曾提出 hd-v2 高清素材（384×416，桌面仓 .scratch，已验收）重建 2x sheet 方案，
+用户原型对比后否决（「对当前改造后的动画都不满意」），改为零素材风险方案——不换 sheet、不引入新资产，
+仅改帧表映射+接线。<b>偏差</b>：pet_states.json 不再是桌面端原样镜像（SHA 914b11d7…→60b45124…），
+Android 行为有意偏离桌面端；spritesheet 素材行布局未动，running/waving/jumping 行保留不接线，
+未来恢复任一动作只需接线。
+<b>契约弱化记档</b>：「行号唯一」护栏改为「row0 有意共享 + row1-4 遗留行唯一」。
+<b>未决</b>：语音轮（悬浮窗 SPEAKING/唤醒 WAITING）主观观感留真机日常回收，模拟器声学不可验。</p>
+</div>
+
 </body>
 </html>

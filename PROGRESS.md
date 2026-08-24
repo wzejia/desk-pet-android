@@ -1,5 +1,16 @@
 # 小朵 Android M1 进度
 
+## 状态：S13 形象动作改造 ✅ 收口（2026-08-24，静止 idle + 说话才动）
+
+- **定案（用户逐项拍板，HTML 原型过目后确认）**：idle/waiting/review/failed 四循环态全部
+  静止 = idle 行第 0 帧；说话 = idle 行 6 帧 @120ms/帧；唤醒跳、点击挥手全取消；
+  不换素材（hd-v2 2x 方案经原型对比被否决）。
+- **改动**：PetFrameTable/pet_states.json 帧表重映射（pet_states 偏离桌面镜像，notes 记档）；
+  唤醒 JUMPING→直接 WAITING（门控保留）；单击挥手/playPetOnceThen/playOnceThenIdle 死链全清。
+- **验收**：基线 455→**457 绿 skipped=0**（+2 新增零删除）；模拟器悬浮窗双截图裁剪 MD5
+  逐字节一致（静止铁证）+ 聊天轮连拍说话期≠静止帧（diff 限面部）。
+  证据 `docs/verification/v18-s13-pet-motion/README.md`。语音轮观感留真机日常回收。
+
 ## 状态：S12 唤醒词打断 ✅ 收口（2026-08-21，spike 双合格 → 转正 → 真机 8/8）
 
 - **唤醒词打断已上线**：TTS 播放/处理中喊「小朵小朵」= 打断并接续（停播→「我在」→聆听新命令）。
@@ -33,7 +44,7 @@
 
 ### 接手指引（下会话开场必读）
 
-1. **大盘**：S0-S12 全部收口。基线 **455 单测全绿 skipped=0**（`./gradlew.bat testDebugUnitTest --rerun-tasks` 复跑）。
+1. **大盘**：S0-S13 全部收口。基线 **457 单测全绿 skipped=0**（`./gradlew.bat testDebugUnitTest --rerun-tasks` 复跑）。
 2. **剩余事项**：
    - **观察票：AEC 偶发失效态**（S12 遗留，见上）——用户报「喊打断没反应」时，拉该时段
      `kws stats` 看 fed/gated 形态（回声持续过门=AEC 失效窗）；频发再评估 S12-2 状态感知门控。

@@ -18,7 +18,6 @@ import android.view.WindowManager
 import android.widget.FrameLayout
 import com.xiaoduo.deskpet.pet.EdgeDock
 import com.xiaoduo.deskpet.pet.OverlayClamp
-import com.xiaoduo.deskpet.pet.PetFrameTable
 import com.xiaoduo.deskpet.pet.PetState
 import com.xiaoduo.deskpet.ui.PetView
 import com.xiaoduo.deskpet.ui.overlay.BubbleOwner
@@ -382,8 +381,8 @@ class PetOverlayService : Service() {
                         if (docked != null) {
                             animateSlideTo(EdgeDock.slideOutX(docked, petW, dm.widthPixels), "undock $docked")
                         } else {
-                            PetLogger.d(TAG, "overlay pet clicked -> waving once")
-                            pet.playOnceThenIdle(PetFrameTable.WAVING)
+                            // S13：点击挥手取消（用户 2026-08-24 拍板），非贴边态单击无动作
+                            PetLogger.d(TAG, "overlay pet clicked (no-op, waving removed in S13)")
                         }
                     }
                     dragging = false
@@ -565,12 +564,7 @@ class PetOverlayService : Service() {
         }
     }
 
-    /** 一次性动作后落到目标循环行（S8-7 唤醒即时反馈：jumping 一次->talking/waiting）。 */
-    fun playPetOnceThen(state: PetState, then: PetState) {
-        handler.post {
-            petView?.playOnceThen(state, then)
-        }
-    }
+    /** 一次性动作 API 已随 S13 移除（唤醒跳取消，循环态全静止）。 */
 
     // ---------------- 全屏语音模式（S7-d）：双窗口隐藏/恢复 ----------------
 
@@ -635,9 +629,5 @@ class PetOverlayService : Service() {
             instance?.setPetState(state)
         }
 
-        /** playPetOnceThen 的 companion 转发：服务未运行 / 悬浮窗未构建时 no-op 不崩。 */
-        fun playPetOnceThen(state: PetState, then: PetState) {
-            instance?.playPetOnceThen(state, then)
-        }
     }
 }

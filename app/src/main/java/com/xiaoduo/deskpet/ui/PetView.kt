@@ -45,20 +45,6 @@ class PetView(context: Context) : View(context) {
 
     fun setState(state: PetState) = animator.setState(state)
 
-    /** 播一遍指定状态后回 idle（点击挥手）。 */
-    fun playOnceThenIdle(state: PetState) {
-        animator.setState(state, once = true) {
-            animator.setState(PetFrameTable.IDLE)
-        }
-    }
-
-    /** 播一遍指定状态后落到目标循环行（S8-7 唤醒即时反馈：jumping 一次→talking/waiting）。 */
-    fun playOnceThen(state: PetState, then: PetState) {
-        animator.setState(state, once = true) {
-            animator.setState(then)
-        }
-    }
-
     override fun onAttachedToWindow() {
         super.onAttachedToWindow()
         attached = true

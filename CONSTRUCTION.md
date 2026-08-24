@@ -359,6 +359,17 @@
 - S11-1 → S11-3 →（S11-5 取证复原）→ S11-6 → S11-7 串行（gradle 单项目构建锁，地界虽错开仍串行）
 - 真机窗口两段：08-19 晚（装机验阈值+10 轮快验）+ 08-20 下午（探针 3 声+S11-7 验收 10 轮）
 
+## S13 形象动作改造（2026-08-24 收口，用户逐项拍板）
+
+> 流程特例：HTML 原型先行（designs/xiaoduo-motion-preview/ v1 被否 → v2 拍板）后实现。
+> 全证据：docs/verification/v18-s13-pet-motion/README.md。
+
+- [x] 帧表重映射：idle/waiting/review/failed = row0 frames=1 静止；talking = row0 6帧 @120ms
+- [x] 唤醒跳取消：VSM + FullscreenVoiceScreen 改直接 WAITING（wakeAckActive 门控保留）
+- [x] 点击挥手取消：PetOverlayService 单击 + ChatScreen 顶栏；playPetOnceThen/playOnceThenIdle 死链清除
+- [x] pet_states.json 同步（偏离桌面镜像记档 notes）；契约测试「行号唯一」→「row0 有意共享」
+- [x] 验收：457 绿 skipped=0（+2）；模拟器静止双截图 MD5 一致 + 说话期≠静止帧
+
 ## S12 唤醒词打断转正（2026-08-21 收口，用户拍板立项）
 
 > 前置：S11-3 spike 真机双合格（误触发 0/4min 带喂流佐证 + 检出 8/10，v17 README §6.2）。

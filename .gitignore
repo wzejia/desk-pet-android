@@ -13,3 +13,4 @@ app/build/
 # 凭据等本地秘密文件，永不入库
 secrets/
 *.keystore
+designs/
