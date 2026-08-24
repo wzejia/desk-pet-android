@@ -44,6 +44,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -81,6 +82,8 @@ import com.xiaoduo.deskpet.voice.EnergyGate
 import com.xiaoduo.deskpet.voice.ReplyCarrier
 import com.xiaoduo.deskpet.voice.VoiceClientFactory
 import com.xiaoduo.deskpet.voice.VoiceStateRouter
+import kotlin.math.exp
+import kotlin.math.sin
 
 /**
  * 全屏语音模式（S7-d，ADR 0003）：复用 VoiceSessionManager/KWS 共享链路，不另开 KWS。
@@ -303,7 +306,7 @@ fun FullscreenVoiceScreen(
         ) {
             if (hint == null) {
                 when (voiceState) {
-                    VoiceStateRouter.State.LISTENING -> ListeningWaveform(rms = listenRms, color = HaloCyan)
+                    VoiceStateRouter.State.LISTENING -> ListeningWaveform(rms = { listenRms }, color = HaloCyan)
                     VoiceStateRouter.State.PROCESSING -> ThinkingDots()
                     else -> Spacer(modifier = Modifier.height(INDICATOR_H_DP.dp)) // 占位防跳动
                 }
@@ -367,20 +370,40 @@ private fun captionFor(state: VoiceStateRouter.State, wakeAckActive: Boolean = f
 }
 
 /**
- * S14-2 聆听指示器：7 柱 52×28dp 声波（原 3 柱 12×14 迷你柱，用户反馈「三个点不明显」——
- * 调研发现豆包/通义同符号但主反馈靠中央视觉，小朵宠物静止后指示器必须自身够明显）。
- * 柱高随真实收音 RMS 起伏（listenRms，EMA 数据源不变）；对称因子中间高两边低。
+ * S14-2 聆听指示器：7 柱 52×28dp 声波（用户反馈「三个点不明显」升级版）。
+ * S14 卡顿改进（2026-08-24 用户真机反馈）：原按音频块（~10-20Hz）直接驱动重组，视觉跳变——
+ * ①帧时钟插值：RMS 只作目标值在帧循环里读（lambda 延迟读，组合期不触碰状态 → 零重组）；
+ * 显示值做帧率无关指数趋近（~120ms 时间常数），60fps 平滑；
+ * ②显示/时间状态仅被 Canvas draw 阶段读取 → 只触发重绘不重组（Compose draw-phase 读状态手法）；
+ * ③柱间正弦相位摆动：静音时也微微起伏（有生命感），不再 7 柱机械同涨同落。
  */
 @Composable
-private fun ListeningWaveform(rms: Float, color: Color) {
-    val level = ((rms - RMS_FLOOR) / RMS_SPAN).coerceIn(0f, 1f)
+private fun ListeningWaveform(rms: () -> Float, color: Color) {
+    val display = remember { mutableFloatStateOf(0f) }
+    val timeMs = remember { mutableLongStateOf(0L) }
+    LaunchedEffect(Unit) {
+        var last = 0L
+        while (true) {
+            withFrameNanos { now ->
+                val dtMs = if (last == 0L) 16f else ((now - last) / 1_000_000f).coerceIn(1f, 50f)
+                last = now
+                timeMs.longValue = now / 1_000_000
+                val target = ((rms() - RMS_FLOOR) / RMS_SPAN).coerceIn(0f, 1f)
+                val k = 1f - exp(-dtMs / 120f) // 帧率无关趋近系数（120ms 时间常数）
+                display.floatValue += (target - display.floatValue) * k
+            }
+        }
+    }
     Canvas(modifier = Modifier.size(width = 52.dp, height = 28.dp)) {
         val barW = 4.dp.toPx()
         val gap = 4.dp.toPx()
         val minH = size.height * 0.2f
         val factors = floatArrayOf(0.45f, 0.7f, 0.9f, 1f, 0.9f, 0.7f, 0.45f)
+        val t = timeMs.longValue / 1000f // draw 阶段读状态：仅重绘，不重组
+        val level = display.floatValue
         for (i in factors.indices) {
-            val h = minH + (size.height - minH) * level * factors[i]
+            val wobble = 0.78f + 0.22f * sin(t * 5.2f + i * 1.7f)
+            val h = minH + (size.height - minH) * level * factors[i] * wobble
             drawRoundRect(
                 color = color,
                 topLeft = Offset(i * (barW + gap), (size.height - h) / 2f),

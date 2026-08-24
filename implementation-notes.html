@@ -652,5 +652,16 @@ Android 行为有意偏离桌面端；spritesheet 素材行布局未动，runnin
 抽取共享防分叉；跟随用「等两帧再滚」处理 maxValue 布局延迟。</p>
 </div>
 
+<div class="entry defect">
+<span class="tag">缺陷修复</span><span class="meta">2026-08-24 ｜ 全屏聆听声波 ｜ S14 声波动画卡顿（用户真机反馈）</span>
+<p><b>症状</b>：全屏聆听时声波柱动画卡顿。<b>根因</b>：RMS 按音频块（~10-20Hz）直写 snapshot 状态，
+每个块触发一片 Compose 子树<b>重组</b>，柱高按块率跳变（视觉 ~10fps）。
+<b>修复</b>（Compose 标准手法）：①帧时钟插值——RMS 改 lambda 延迟读（组合期不触状态，零重组），
+显示值在 <code>withFrameNanos</code> 循环里做帧率无关指数趋近（120ms 时间常数）→ 60fps；
+②显示/时间状态只在 Canvas draw 阶段读取 → 只重绘不重组；③柱间正弦相位摆动（静音也微起伏）。
+<b>教训</b>：高频数据源（音频块/传感器）驱动 UI 的两板斧——状态读取下沉到 draw 阶段避免重组，
+目标值+帧时钟插值避免块率跳变。</p>
+</div>
+
 </body>
 </html>
