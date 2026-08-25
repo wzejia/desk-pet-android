@@ -72,6 +72,9 @@
    - 观察票：全屏连喊唤醒视觉塌缩边缘（S12 critic F2，
      进 LISTENING 自愈）；P3 resolver source 日志标签歧义；P3 VSM else 分支缺直接测试覆盖；
      wozai volc/openai 资产待 key（tools/wozai/README.md）；横屏全屏布局未优化（S14 遗留 edge）。
+   - 观察票（S15 code-review 立案）：cancel 与 wozaiJob transition 微秒竞态窗内，驻留 swap job
+     可给已取消轮补挂「在听…」幽灵提示泡（守卫只看 epoch+state，cancel 不 bump epoch）；
+     30s 聆听超时自愈，识别特征=「state -> LISTENING 后无 VAD 事件」。复现再修，不盲修。
    - S10-1/S10-2 critic 补审欠账（配额恢复后补派）。
 3. **新增排障资产**：AudioProbe 延迟探针（设置页 debug ③ 按钮，用法见 v17 README §7）；
   机构解法三篇（docs/solutions/：门控碎裂时间轴 / 无锚代码静默丢失 / spike 空证据佐证法）。

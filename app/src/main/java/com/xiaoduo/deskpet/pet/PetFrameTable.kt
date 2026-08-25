@@ -24,6 +24,7 @@ object PetFrameTable {
     // S13（2026-08-24 用户拍板）：IDLE/WAITING/REVIEW/FAILED = idle 行(row 0)第 0 帧静止；
     // TALKING = idle 行 6 帧 @120ms/帧（眨眼+嘴型微动，身体不动）；
     // RUNNING/WAVING/JUMPING 行保留但不接线（唤醒跳/点击挥手已取消）。
+    // 注：静止态（frames=1）的 durationMs 无驱动语义（永不推进），保留原值仅备忘历史节奏。
     val IDLE = PetState("idle", row = 0, frames = 1, durationMs = 1100)
     val RUNNING_RIGHT = PetState("running-right", row = 1, frames = 8, durationMs = 1060)
     val RUNNING_LEFT = PetState("running-left", row = 2, frames = 8, durationMs = 1060)

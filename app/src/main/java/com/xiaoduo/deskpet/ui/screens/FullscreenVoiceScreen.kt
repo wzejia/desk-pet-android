@@ -65,7 +65,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.unit.min
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import com.xiaoduo.deskpet.PetOverlayService
@@ -86,23 +85,23 @@ import kotlin.math.exp
 import kotlin.math.sin
 
 /**
- * 全屏语音模式（S7-d，ADR 0003）：复用 VoiceSessionManager/KWS 共享链路，不另开 KWS。
- * - 界面：近白 #FAFAFA 满屏（用户 2026-08-04 拍板改判，原黑场 #0D0D0D 废弃，色值选择
- *   理由见 FullscreenBg 注释）+ 居中 PetView ≈2.3×（宽 min(440dp, 屏宽) 钳制、高按
- *   192:208 等比——真机屏宽 360dp 硬约束，超宽必被屏缘平切，见 PET_FULLSCREEN_MAX_W_DP）
- *   + stateFlow 相位驱动四态（listening→waiting / processing→review / speaking→talking）。
- * - 状态反馈：小朵正下方相位 caption（主语化，与宠物四态同源）+ 聆听/说话态状态小图标
- *   （mic+声波柱随 RMS / 小喇叭）。语义边界——spec「无文字默认」指无**转写**文字
- *   （转写开关仍默认关），caption 是状态反馈不是转写。
- * - 操作可见性：右上角低存在感关闭钮（=退出全屏，唯一退出入口）。
- *   （2026-08-07 精简拍板：相位光环 PhaseHalo / 红色挂断钮 / 长按菜单全删——挂断钮与
- *   关闭钮同为退出全屏零功能损失；菜单三项「退出全屏/打开设置/隐藏悬浮窗」均与既有入口
- *   重复（设置走主 App，悬浮窗开关设置页已有）；状态反馈由 caption+迷你声波+宠物四态承担。
+ * 全屏语音模式（S7-d，ADR 0003；S14 三段式重排 2026-08-24 原型验收）：复用
+ * VoiceSessionManager/KWS 共享链路，不另开 KWS。
+ * - 布局（S14-2 三段式，调研=豆包/通义）：顶部栏（左 ✕ 退出 / 右「字幕」开关当场写回
+ *   Prefs）→ PetView（宽 0.62×屏宽、中心屏高 42%，440dp 上限钳制保留；原居中 ≈2.3×
+ *   方案在 360dp 真机占屏高 49% 压字幕区，已废）→ 状态区下 1/4（相位 caption 17sp；
+ *   聆听=7 柱声波 RMS 帧时钟插值 / 思考=三点跳动 / 唤醒应答=「我在」19sp 青色）。
+ *   语义边界——spec「无文字默认」指无**转写**文字，caption 是状态反馈不是转写。
+ * - 控制（S14-3）：底部抽屉默认只露把手（点把手/上滑展开）——打断键（非 IDLE 可点 →
+ *   cancelCurrentTurn）+ 红叉退出；与左上 ✕ 双退出入口（2026-08-24 拍板保留，反转
+ *   08-07「关闭钮唯一退出入口」精简拍板：抽屉收纳后应急退出仍要一键可达）。
+ *   （2026-08-07 精简拍板：相位光环 PhaseHalo / 红色挂断钮 / 长按菜单全删；
  *   悬浮窗手势集的长按菜单不在本屏，不受影响。）
  * - 进出配对（DisposableEffect）：进入＝会话预热 → 隐藏悬浮窗双窗 → 载体切 FULLSCREEN；
  *   退出严格逆序（先恢复 OVERLAY 再恢复窗口，两语句间 append 落 GONE 窗不闪泡）。
  * - 回复默认无文字（TTS+小朵 talking，全屏分支 BubbleSink 恒 no-op 天然达成）；
- *   设置项「全屏转写」开 → 底部渲染对话流最后一条新增 assistant（流式跟随，VM 单一事实源）。
+ *   「字幕」开 → 状态区上方渲染对话流最后一条新增 assistant（S14：共享 MarkdownContent
+ *   富文本 + 112dp 限高可滑动 + 流式贴底跟随，VM 单一事实源）。
  * - 降级不死态：KWS 未开 / mic 未授权 → caption 位显示出路提示（指向主 App 设置页），
  *   不崩不抢权限申请。
  */
