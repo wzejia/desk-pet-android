@@ -16,6 +16,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -50,6 +51,8 @@ class VoiceSessionManager(
     private val scope: CoroutineScope,
     private val logger: (String) -> Unit = { msg -> PetLogger.i(TAG, msg) },
     private val wakeAck: WakeAck? = null,
+    /** S15：「我在」播完驻留时长（ms），驻留结束换「在听…」聆听提示泡；测试注入小值。 */
+    private val listeningHintLingerMs: Long = 2_500L,
 ) {
 
     /** ASR 模式分支：云端按配置厂商分发（pcm 包 WAV），平台走 AsrClient。 */
@@ -164,6 +167,32 @@ class VoiceSessionManager(
      */
     private val wozaiEpoch = AtomicLong(0)
 
+    /** S15：当前气泡内容为本 VSM 挂的「在听…」提示（transition 离聆听收泡的归属判定）。 */
+    @Volatile
+    private var listeningHintActive = false
+
+    /** S15：wozai 完成进聆听前置位——transition(LISTENING) 消费一次不当即显提示泡，
+     *  「我在」驻留 linger 后由 swap job 顶替（防一闪而过，用户 2026-08-24 拍板）。 */
+    @Volatile
+    private var suppressListeningHintOnce = false
+
+    /** S15 聆听提示泡：内容顶替式 show（BubbleView 重打，无 hide 间隙）。 */
+    private fun showListeningHint() {
+        bubble.show(LISTENING_HINT)
+        listeningHintActive = true
+    }
+
+    /** S15：「我在」驻留 [listeningHintLingerMs] 后换聆听提示泡。守卫：世代变（被新轮
+     *  唤醒打断）/已离聆听（cancel 或 ASR 抢跑进 PROCESSING）→ 不补枪。 */
+    private fun scheduleListeningHintSwap(epoch: Long) {
+        scope.launch {
+            delay(listeningHintLingerMs)
+            if (wozaiEpoch.get() == epoch && state == VoiceStateRouter.State.LISTENING) {
+                showListeningHint()
+            }
+        }
+    }
+
     /** 在途 TTS 播放器（barge-in 停播挂点；playSentence 注册/注销）。 */
     @Volatile
     private var currentPlayer: VoicePlayer? = null
@@ -270,8 +299,8 @@ class VoiceSessionManager(
         transition(VoiceStateRouter.State.SPEAKING, "wake-ack wozai")
         status("我在")
         // S14-1：「我在」应声可视化——悬浮窗气泡同步显示（纯现场反馈，不进消息流）。
-        // 收泡三保险：正常播完进聆听前 hide（下方 wozaiJob 收尾）/ cancel 路径
-        // cancelCurrentTurn 收泡 / onBubbleShown 兜底（回 IDLE 延时收）。
+        // 收泡保险：cancel 路径 cancelCurrentTurn 收泡 / onBubbleShown 策略兜底；
+        // S15 起正常播完不再即收——驻留 linger 后由 swap job 换「在听…」提示泡（防一闪而过）。
         bubble.show("我在")
         bubbleHidePolicy.onBubbleShown()
         wozaiJob = scope.launch(Dispatchers.IO) {
@@ -300,10 +329,13 @@ class VoiceSessionManager(
             // 留痕（critic P3-⑥）：双查是 check-then-act，cancel 与 transition 间有微秒窗——
             // 最坏拦不住一次已落地的 LISTENING 迁移（30s 无语音超时自愈回 IDLE），无状态泄漏
             if (isActive && state == VoiceStateRouter.State.SPEAKING) {
-                bubble.hide() // S14-1：应声泡随聆听开始收（降级路径同走，不留残泡）
                 vad.start()
+                // S15：置一次性抑制标——transition(LISTENING) 不当即显提示泡，
+                // 「我在」驻留 linger 后由 swap job 顶替（内容替换，无 hide 间隙）
+                suppressListeningHintOnce = true
                 transition(VoiceStateRouter.State.LISTENING, "wozai done, VAD start")
                 status("聆听中…（30s 无语音自动退出）")
+                scheduleListeningHintSwap(epoch)
             }
         }
     }
@@ -674,8 +706,27 @@ class VoiceSessionManager(
     }
 
     private fun transition(to: VoiceStateRouter.State, reason: String) {
+        val from = state
         state = to
         _stateFlow.value = to
+        // S15 聆听提示泡（用户 2026-08-24：S13 静止化后聆听期零反馈缺口）：
+        // 进 LISTENING——wozai 路径被一次性抑制标拦住（驻留 swap job 负责顶替「我在」）；
+        // 多轮回听（from==SPEAKING）不显（S5：回复泡跨轮驻留不收，语义不动）；
+        // 其余新鲜进入（按住/降级，from==IDLE）即显「在听…」低存在感提示泡。
+        if (to == VoiceStateRouter.State.LISTENING) {
+            when {
+                suppressListeningHintOnce -> suppressListeningHintOnce = false
+                from == VoiceStateRouter.State.SPEAKING -> Unit
+                else -> showListeningHint()
+            }
+        }
+        // 离 LISTENING 即收提示泡（思考期无泡；回复 delta/错误泡到达时另行 show 顶替）
+        if (from == VoiceStateRouter.State.LISTENING &&
+            to != VoiceStateRouter.State.LISTENING && listeningHintActive
+        ) {
+            listeningHintActive = false
+            bubble.hide()
+        }
         // 回归守卫：回 IDLE 且 KWS 意愿已撤 → 收采麦循环（删此 → 对话中 stopIdleCapture
         // 后 collectJob 挂活 = 麦克风孤儿空采 → VoiceSessionManagerIdleCaptureTest 红）
         if (to == VoiceStateRouter.State.IDLE && !idleCaptureWanted && collectJob != null) {
@@ -717,5 +768,8 @@ class VoiceSessionManager(
 
     companion object {
         private const val TAG = "VoiceSession"
+
+        /** S15 聆听提示泡文案（低存在感：聆听期悬浮窗持续反馈）。 */
+        private const val LISTENING_HINT = "在听…"
     }
 }

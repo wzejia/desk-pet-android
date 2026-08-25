@@ -684,5 +684,16 @@ NEW_TASK 重复拉起 → onNewIntent 复用同一实例。<b>遗留边界</b>�
 （宠物过大压 caption，Edge case 记此）；ColorOS 激进杀后台后的冷启白屏属系统行为不在此票。</p>
 </div>
 
+<div class="entry decision">
+<span class="tag">设计决策</span><span class="meta">2026-08-24 ｜ 悬浮窗气泡 ｜ S15 聆听提示泡 +「我在」驻留（改进盘点 1+2 拍板）</span>
+<p><b>决策</b>：①聆听期悬浮窗显「在听…」低存在感提示泡（S13 静止化后聆听零反馈缺口）；
+离聆听即收，思考期无泡；②「我在」播完驻留 2.5s 后<b>内容顶替</b>为「在听…」（无 hide 间隙，防一闪而过）。
+<b>实现要点</b>：transition() 统一管理提示泡生命周期（进/出 LISTENING），多轮回听
+（from==SPEAKING）刻意不显——S5「回复泡跨轮驻留不收」语义不动；wozai 路径用一次性抑制标
++驻留 swap job（世代+在聆双守卫，被打断轮不补枪）。<b>权衡</b>：考虑过把 hint 挂
+PetOverlayService 侧，最终选 VSM transition 中心化管理——纯 Kotlin 可单测（4 个时序用例），
+Android 侧零改动。<b>待回收</b>：唤醒路径声学连贯感（「我在」2.5s→「在听…」）留真机日常。</p>
+</div>
+
 </body>
 </html>

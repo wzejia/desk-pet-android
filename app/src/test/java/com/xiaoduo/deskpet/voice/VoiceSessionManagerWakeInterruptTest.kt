@@ -228,6 +228,7 @@ class VoiceSessionManagerWakeInterruptTest {
             scope = scope,
             logger = {},
             wakeAck = wakeAck,
+            listeningHintLingerMs = 150, // S15：驻留 swap 注入小值，下方 sleep 300 后再快照
         ).also { it.transcriptSink = sink }
     }
 
@@ -346,9 +347,10 @@ class VoiceSessionManagerWakeInterruptTest {
         assertTrue("唤醒入口应置 wakeAckActive=true", mgr.wakeAckActive.value)
         assertTrue("wozai 应在 5s 内开播", ack.playStarted.await(5, TimeUnit.SECONDS))
 
-        ack.release() // 「我在」播完 → LISTENING（S14-1 应声泡在此正常收 hide，属预期新行为）
+        ack.release() // 「我在」播完 → LISTENING（S15：驻留 swap 在 150ms 后补「在听…」，属预期）
         awaitState(mgr, VoiceStateRouter.State.LISTENING)
-        // 快照取在 wozai 正常收尾后：不变量针对的是下方残跑管线，非 wozai 完成收泡
+        // 快照取在驻留 swap 落地后：不变量针对的是下方残跑管线，非 wozai 收尾/提示泡
+        Thread.sleep(300)
         val snapshot = sink.events.size
         val bubbleSnapshot = bubble.ops.size
         assertFalse("wozai 完进 LISTENING 应复位 wakeAckActive", mgr.wakeAckActive.value)
@@ -405,7 +407,8 @@ class VoiceSessionManagerWakeInterruptTest {
 
         ack.release()
         awaitState(mgr, VoiceStateRouter.State.LISTENING)
-        // 快照取在 wozai 正常收尾后（S14-1 应声泡 hide 属预期，见上一用例注释）
+        // 快照取在驻留 swap 落地后（S15，见上一用例注释）
+        Thread.sleep(300)
         val snapshot = sink.events.size
         val bubbleSnapshot = bubble.ops.size
         assertFalse("wozai 完进 LISTENING 应复位 wakeAckActive", mgr.wakeAckActive.value)

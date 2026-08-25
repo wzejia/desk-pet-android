@@ -106,6 +106,7 @@ class VoiceSessionManagerWakeAckTest {
     private fun newManager(
         wakeAck: VoiceSessionManager.WakeAck? = null,
         bubble: VoiceSessionManager.BubbleSink = NoopBubble,
+        lingerMs: Long = 400,
     ): VoiceSessionManager {
         // 不可达端点占位：本组用例不触发管线，零网络
         val asr = AsrClient(OkHttpClient(), "http://127.0.0.1:9/asr", logger = {})
@@ -125,6 +126,7 @@ class VoiceSessionManagerWakeAckTest {
             scope = scope,
             logger = {},
             wakeAck = wakeAck,
+            listeningHintLingerMs = lingerMs,
         )
     }
 
@@ -210,31 +212,46 @@ class VoiceSessionManagerWakeAckTest {
         assertEquals(0, ack.stopCalls)
     }
 
-    // ===== S14-1 「我在」应声泡可视化（纯现场反馈，不进消息流） =====
+    // ===== S14-1「我在」应声泡可视化（纯现场反馈，不进消息流） =====
+    // ===== S15 聆听提示泡 +「我在」驻留延长 =====
 
     @Test
-    fun wozaiBubbleShownOnWakeAndHiddenOnCompletion() {
-        val ack = FakeWakeAck()
+    fun holdToTalkShowsListeningHintBubble() {
         val bubble = RecordingBubble()
-        val mgr = newManager(ack, bubble)
-        mgr.startListening(playWakeAck = true)
-        // show 与 SPEAKING 迁移同在 playAckThenListen 同步段
-        assertEquals("唤醒即显「我在」泡", listOf("show:我在"), bubble.events.toList())
-        ack.release()
-        awaitState(mgr, VoiceStateRouter.State.LISTENING)
-        // 正常播完进聆听前收泡：show→hide 恰好一轮
-        assertEquals(listOf("show:我在", "hide"), bubble.events.toList())
+        val mgr = newManager(null, bubble)
+        mgr.startListening() // 按住路径（playWakeAck=false 默认）
+        assertEquals(VoiceStateRouter.State.LISTENING, mgr.state)
+        assertEquals("按住进聆听即显提示泡", listOf("show:在听…"), bubble.events.toList())
+        mgr.cancelCurrentTurn()
+        assertEquals(VoiceStateRouter.State.IDLE, mgr.state)
+        assertEquals("离聆听提示泡即收", listOf("show:在听…", "hide"), bubble.events.toList())
     }
 
     @Test
-    fun wozaiBubbleHiddenOnPlayFailureFallback() {
+    fun wozaiAckLingersThenSwapsToListeningHint() {
+        val ack = FakeWakeAck()
+        val bubble = RecordingBubble()
+        val mgr = newManager(ack, bubble) // linger=400ms（测试注入）
+        mgr.startListening(playWakeAck = true)
+        assertEquals("唤醒即显「我在」泡", listOf("show:我在"), bubble.events.toList())
+        ack.release()
+        awaitState(mgr, VoiceStateRouter.State.LISTENING)
+        // S15 驻留：wozai 播完不即收（linger 内零新气泡操作）
+        assertEquals(listOf("show:我在"), bubble.events.toList())
+        Thread.sleep(600) // 越过 linger
+        // 驻留结束换聆听提示泡（内容顶替，无 hide 间隙）
+        assertEquals(listOf("show:我在", "show:在听…"), bubble.events.toList())
+    }
+
+    @Test
+    fun wozaiAckLingerSwapAlsoAppliesOnPlayFailureFallback() {
         val ack = FakeWakeAck().apply { throwOnPlay = IOException("tts device gone") }
         val bubble = RecordingBubble()
         val mgr = newManager(ack, bubble)
         mgr.startListening(playWakeAck = true)
-        // 播放失败降级进聆听同样收泡（不留 12s 残泡）
         awaitState(mgr, VoiceStateRouter.State.LISTENING)
-        assertEquals(listOf("show:我在", "hide"), bubble.events.toList())
+        Thread.sleep(600)
+        assertEquals(listOf("show:我在", "show:在听…"), bubble.events.toList())
     }
 
     @Test
@@ -246,10 +263,11 @@ class VoiceSessionManagerWakeAckTest {
         assertTrue(ack.playStarted.await(5, TimeUnit.SECONDS))
         mgr.cancelCurrentTurn() // cancel 路径自身收泡（cancelCurrentTurn → bubble.hide）
         assertEquals(VoiceStateRouter.State.IDLE, mgr.state)
-        Thread.sleep(300) // 等被打断的 wozaiJob 收尾窗口
+        Thread.sleep(600) // 越过 linger：被打断轮的 swap job 不得迟补「在听…」
         assertEquals("cancel 收泡恰好一次，job 收尾不得补枪",
             1, bubble.events.count { it == "hide" })
         assertEquals(listOf("show:我在", "hide"), bubble.events.take(2))
+        assertFalse("被打断轮不得迟补聆听提示泡", bubble.events.any { it == "show:在听…" })
         // 尾部允许 hideLater：onBubbleShown 武装后回 IDLE 的策略廷时收（与回复轮同行为，幂等无害）
     }
 
