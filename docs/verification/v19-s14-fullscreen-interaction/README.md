@@ -44,6 +44,9 @@
 - `chat-markdown-shared.png`：字幕升级为富文本+滑动查看（用户 08-24 提需）——MarkdownContent
   抽取共享（ChatScreen −231 行 → ui/components/），聊天页回归实证（粗体/列表渲染原样）；
   全屏字幕=共享富文本 + 112dp 限高滚动 + 贴底跟随（上滑 48dp 阈值外不打断）
+- `s15-holdtalk-hint.png`（S15）：按住说话聆听提示泡「在听…」实证（宠物头顶气泡清晰可见）；
+  日志链 `LISTENING → bubble show 3 chars → manual release → hide → IDLE`；
+  唤醒路径「我在」驻留 2.5s→「在听…」顶替，真机 08-25 现场验收过
 
 ### 3. 真机语音验收 ✅（2026-08-24 用户现场全过）
 
