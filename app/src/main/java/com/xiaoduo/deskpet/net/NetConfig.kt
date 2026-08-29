@@ -32,6 +32,16 @@ object NetEndpoints {
         }
     }
 
+    /** S16 agent 列表：443 反代 https://{host}/ai-server/agent/list（2026-08-25 实测可用，与 [agentStreamUrl] 同范式） */
+    fun agentListUrl(platformBase: String): String {
+        val host = runCatching { URI(platformBase.trim()).host }.getOrNull()
+        return if (host.isNullOrBlank()) {
+            platformBase.trimEnd('/') + "/ai-server/agent/list"
+        } else {
+            "https://$host/ai-server/agent/list"
+        }
+    }
+
     /** TTS 流式：POST {ttsBase}/audio/tts/stream */
     fun ttsStreamUrl(ttsBase: String): String = ttsBase.trimEnd('/') + "/audio/tts/stream"
 

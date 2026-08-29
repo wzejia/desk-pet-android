@@ -1,5 +1,14 @@
 # 小朵 Android M1 进度
 
+## 状态：S16 平台智能体选择 ✅ 收口（2026-08-29 模拟器验收，真机风格感受留日常）
+
+- **交付**：设置页「平台智能体」选择器（POST /agent/list 443 反代实测，列表单选 9 agent）；
+  AguiClient agentId 常量->动态 provider（切换即时生效）；Prefs 持久化（id+显示名）。
+  语义（用户拍板）：agentId 仅请求头路由（提示词/MCP 不同），thread 连续性与本地历史不动。
+- **验收**：461->**467 绿 skipped=0**（AgentList ×4 + NetEndpoints +2）；模拟器实证
+  列表拉取/选择保存/强杀重启保持/换 agent 对话正常（thread 复用+回复知识域吻合）。
+  证据 `docs/verification/v20-s16-agent-selection/`。
+
 ## 状态：S15 聆听期反馈泡+「我在」驻留 ✅ 收口（2026-08-25 真机验收，改进盘点 1+2）
 
 - **交付**：①进聆听悬浮窗显「在听…」提示泡（S13 静止化后聆听零反馈缺口），离聆听即收，
@@ -65,7 +74,7 @@
 
 ### 接手指引（下会话开场必读）
 
-1. **大盘**：S0-S15 全部收口。基线 **461 单测全绿 skipped=0**（`./gradlew.bat testDebugUnitTest --rerun-tasks` 复跑）。
+1. **大盘**：S0-S16 全部收口。基线 **467 单测全绿 skipped=0**（`./gradlew.bat testDebugUnitTest --rerun-tasks` 复跑）。
 2. **剩余事项**：
    - **观察票：AEC 偶发失效态**（S12 遗留，见上）——用户报「喊打断没反应」时，拉该时段
      `kws stats` 看 fed/gated 形态（回声持续过门=AEC 失效窗）；频发再评估 S12-2 状态感知门控。

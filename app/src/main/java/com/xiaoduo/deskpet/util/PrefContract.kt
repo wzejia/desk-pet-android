@@ -39,4 +39,12 @@ object PrefContract {
 
     /** S7 交付的全部设置键，升级后必须原样保留。 */
     val S7_KEYS: Set<String> = setOf(KEY_FULLSCREEN_TRANSCRIPT)
+
+    // ---- S16 平台智能体选择 ----
+    const val KEY_AGENT_ID = "platform_agent_id"          // String, 请求头 agentId（默认 chatAgent）
+    const val KEY_AGENT_DISPLAY_NAME = "platform_agent_name" // String, 离线显示名缓存（默认空 -> 显 id）
+
+    const val DEFAULT_AGENT_ID = "chatAgent"
+
+    val S16_KEYS: Set<String> = setOf(KEY_AGENT_ID, KEY_AGENT_DISPLAY_NAME)
 }

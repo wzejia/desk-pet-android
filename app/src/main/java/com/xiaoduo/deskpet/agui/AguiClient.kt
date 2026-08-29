@@ -35,7 +35,10 @@ class AguiClient(
     private val credentials: () -> Pair<String, String>,
     private val tokenCache: TokenCache,
     private val threadStore: ThreadIdStore,
-    private val agentId: String = DEFAULT_AGENT_ID,
+    /** S16：agentId 动态 provider（设置页切换即时生效，无需重建 client；默认 chatAgent）。 */
+    private val agentIdProvider: () -> String = { DEFAULT_AGENT_ID },
+    /** S16：agent 列表 POST {listUrl}（443 反代 https://{host}/ai-server/agent/list，实测同族端点）。 */
+    private val listUrl: String = streamUrl.removeSuffix("/agent/stream") + "/agent/list",
     private val logger: (String) -> Unit = {},
     private val clock: () -> Long = System::currentTimeMillis,
 ) {
@@ -148,6 +151,28 @@ class AguiClient(
         data class Done(val meta: FileMeta) : UploadCall
         data object Unauthorized : UploadCall
         data class Failed(val message: String) : UploadCall
+    }
+
+    /** S16 agent 摘要（/agent/list 条目；description 可空，name 缺失回退 id）。 */
+    data class AgentBrief(
+        val agentId: String,
+        val agentName: String,
+        val agentDescription: String?,
+    )
+
+    /** listAgents 的结果（S16 agent 选择）。 */
+    sealed interface AgentListResult {
+        data class Ok(val agents: List<AgentBrief>) : AgentListResult
+
+        /** 网络失败 / 信封非 200 / 鉴权失败（透明重登后仍 401）。 */
+        data class Error(val message: String) : AgentListResult
+    }
+
+    /** listAgents 单次调用的内部结果（401 单独分型，与 delete/rename/upload 同模式）。 */
+    private sealed interface AgentListCall {
+        data class Done(val agents: List<AgentBrief>) : AgentListCall
+        data object Unauthorized : AgentListCall
+        data class Failed(val message: String) : AgentListCall
     }
 
     /** thread 管理接口前缀 = streamUrl 去末段 /stream（知识包 §2.2）。 */
@@ -297,13 +322,13 @@ class AguiClient(
         logger("createThreadId POST $url")
         val body = JSONObject()
             .put("threadName", threadName?.takeIf { it.isNotBlank() } ?: THREAD_NAME)
-            .put("agentId", agentId)
+            .put("agentId", agentIdProvider())
             .toString()
             .toRequestBody(JSON)
         val req = Request.Builder()
             .url(url)
             .header("Authorization", "Bearer $token")
-            .header("agentId", agentId)
+            .header("agentId", agentIdProvider())
             .post(body)
             .build()
         val respText = try {
@@ -380,6 +405,71 @@ class AguiClient(
         return result
     }
 
+    /**
+     * S16：拉取平台 agent 列表（POST {listUrl} 空 body + Bearer，信封 code==200 data.list[]）。
+     * 供设置页选择器；401 透明重登 1 次（与 deleteThread 同模式，重登额度独立）。
+     * 交互语义（用户 08-25 拍板）：agentId 仅请求头路由（提示词/MCP 不同），
+     * thread 连续性与本地历史均不动。
+     */
+    fun listAgents(): AgentListResult {
+        var token = ensureToken() ?: return AgentListResult.Error(lastAuthError ?: "登录失败")
+        var reloginRetried = false
+        while (true) {
+            when (val r = listAgentsOnce(token)) {
+                is AgentListCall.Done -> return AgentListResult.Ok(r.agents)
+                is AgentListCall.Failed -> return AgentListResult.Error(r.message)
+                AgentListCall.Unauthorized -> {
+                    if (reloginRetried) return AgentListResult.Error("透明重登后 agent/list 仍鉴权失败")
+                    reloginRetried = true
+                    logger("agent/list HTTP 401, token 视为过期，透明重登 1 次")
+                    tokenCache.clear()
+                    token = login() ?: return AgentListResult.Error(lastAuthError ?: "token 过期透明重登失败")
+                }
+            }
+        }
+    }
+
+    /** 单次 agent/list 调用；name 缺失回退 id，条目缺 agentId 则跳过（脏数据容错）。 */
+    private fun listAgentsOnce(token: String): AgentListCall {
+        logger("agent/list POST $listUrl")
+        val req = Request.Builder()
+            .url(listUrl)
+            .header("Authorization", "Bearer $token")
+            .post("{}".toRequestBody(JSON))
+            .build()
+        return try {
+            http.newCall(req).execute().use { resp ->
+                val text = resp.body?.string().orEmpty()
+                when {
+                    resp.code == 401 || resp.code == 403 -> AgentListCall.Unauthorized
+                    !resp.isSuccessful -> AgentListCall.Failed("agent/list HTTP ${resp.code}: ${envelopeMsg(text)}")
+                    else -> {
+                        val env = runCatching { JSONObject(text) }.getOrElse {
+                            return AgentListCall.Failed("agent/list 响应非 JSON: ${text.take(80)}")
+                        }
+                        if (env.optInt("code") != 200) {
+                            return AgentListCall.Failed("agent/list 信封非 200: ${envelopeMsg(text)}")
+                        }
+                        val list = env.optJSONObject("data")?.optJSONArray("list")
+                            ?: return AgentListCall.Failed("agent/list 信封缺 data.list")
+                        val agents = (0 until list.length()).mapNotNull { i ->
+                            val o = list.optJSONObject(i) ?: return@mapNotNull null
+                            val id = o.optString("agentId").takeIf { it.isNotBlank() } ?: return@mapNotNull null
+                            AgentBrief(
+                                agentId = id,
+                                agentName = o.optString("agentName").ifBlank { id },
+                                agentDescription = o.optString("agentDescription").takeIf { it.isNotBlank() },
+                            )
+                        }
+                        AgentListCall.Done(agents)
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            AgentListCall.Failed("agent/list 网络失败: ${e.message ?: e.javaClass.simpleName}")
+        }
+    }
+
     /** 单次 deleteThread 调用；幂等语义：服务端非成功响应（重复删/不存在/信封非 200）→ Gone。 */
     private fun deleteThreadOnce(token: String, threadId: String): DeleteCall {
         val url = "$threadBaseUrl/deleteThread"
@@ -388,7 +478,7 @@ class AguiClient(
         val req = Request.Builder()
             .url(url)
             .header("Authorization", "Bearer $token")
-            .header("agentId", agentId)
+            .header("agentId", agentIdProvider())
             .post(body)
             .build()
         return try {
@@ -466,7 +556,7 @@ class AguiClient(
         val req = Request.Builder()
             .url(url)
             .header("Authorization", "Bearer $token")
-            .header("agentId", agentId)
+            .header("agentId", agentIdProvider())
             .post(body)
             .build()
         return try {
@@ -545,13 +635,13 @@ class AguiClient(
         logger("uploadFile POST $uploadUrl ($fileName, ${bytes.size} bytes)")
         val body = MultipartBody.Builder()
             .setType(MultipartBody.FORM)
-            .addFormDataPart("fileClass", "agent----$agentId----$threadId")
+            .addFormDataPart("fileClass", "agent----${agentIdProvider()}----$threadId")
             .addFormDataPart("file", fileName, bytes.toRequestBody(OCTET_STREAM))
             .build()
         val req = Request.Builder()
             .url(uploadUrl)
             .header("Authorization", "Bearer $token")
-            .header("agentId", agentId)
+            .header("agentId", agentIdProvider())
             .post(body)
             .build()
         return try {
@@ -623,7 +713,7 @@ class AguiClient(
         val req = Request.Builder()
             .url(streamUrl)
             .header("Accept", "text/event-stream")
-            .header("agentId", agentId)
+            .header("agentId", agentIdProvider())
             .header("Authorization", "Bearer $token")
             .post(payload.toString().toRequestBody(JSON))
             .build()

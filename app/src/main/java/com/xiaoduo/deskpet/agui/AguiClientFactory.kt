@@ -6,6 +6,7 @@ import com.xiaoduo.deskpet.net.NetConfig
 import com.xiaoduo.deskpet.net.NetEndpoints
 import com.xiaoduo.deskpet.net.TokenStore
 import com.xiaoduo.deskpet.util.PetLogger
+import com.xiaoduo.deskpet.util.Prefs
 
 /**
  * AguiClient 的 Android 装配层：把 net/ 的端点派生、TokenStore 与全局 OkHttp 单例
@@ -27,9 +28,11 @@ object AguiClientFactory {
             loginUrl = NetEndpoints.loginUrl(platformBase),
             streamUrl = NetEndpoints.agentStreamUrl(platformBase),
             uploadUrl = NetEndpoints.uploadUrl(platformBase),
+            listUrl = NetEndpoints.agentListUrl(platformBase),
             credentials = { NetConfig.account(app) to NetConfig.password(app) },
             tokenCache = TokenStoreCache(TokenStore(app)),
             threadStore = PrefsThreadIdStore(app),
+            agentIdProvider = { Prefs.agentId(app) },
             logger = logger,
         )
     }

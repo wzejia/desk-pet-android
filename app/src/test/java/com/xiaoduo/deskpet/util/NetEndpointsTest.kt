@@ -54,6 +54,22 @@ class NetEndpointsTest {
     }
 
     @Test
+    fun `agent list goes through 443 reverse proxy not 8080`() {
+        assertEquals(
+            "https://10.0.18.166/ai-server/agent/list",
+            NetEndpoints.agentListUrl("http://10.0.18.166:8080")
+        )
+    }
+
+    @Test
+    fun `agent list falls back to base plus path when host unparsable`() {
+        assertEquals(
+            "not a url/ai-server/agent/list",
+            NetEndpoints.agentListUrl("not a url")
+        )
+    }
+
+    @Test
     fun `tts urls derive from tts base`() {
         assertEquals(
             "http://10.0.18.97:9803/audio/tts/stream",

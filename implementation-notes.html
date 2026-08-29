@@ -695,5 +695,17 @@ PetOverlayService 侧，最终选 VSM transition 中心化管理——纯 Kotlin
 Android 侧零改动。<b>待回收</b>：唤醒路径声学连贯感（「我在」2.5s→「在听…」）留真机日常。</p>
 </div>
 
+<div class="entry decision">
+<span class="tag">设计决策</span><span class="meta">2026-08-29 ｜ 协议层/设置页 ｜ S16 平台智能体选择</span>
+<p><b>决策</b>：移动端 agent 选择采用<b>列表单选</b>（平台现成 POST /agent/list，443 反代实测 9 agent），
+替代桌面端的手填 PLATFORM_AGENT_ID 文本框。<b>语义拍板（用户）</b>：agentId 仅请求头路由
+（不同 agent=不同提示词/MCP），thread 连续性与本地历史不动--切换后对话继续、历史可查看。
+<b>实现</b>：AguiClient 的 agentId 构造常量改动态 provider（切换即时生效无需重建 client）；
+listAgents() 复用登录/信封/透明重登机制（401 单次重试与 deleteThread 同模式）。
+<b>权衡</b>：考虑过 thread 按 agent 隔离（每 agent 独立记忆），被用户否--动机只是换提示词/MCP，
+对话要连续；也考虑过 AgentListClient 独立类，否--重复登录/信封/重登逻辑，违反深模块原则。
+<b>边界</b>：换 agent 后旧 thread 继续用，服务端记忆跨 agent 混写（桌面端同行为，用户知情）。</p>
+</div>
+
 </body>
 </html>

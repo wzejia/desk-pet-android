@@ -96,4 +96,26 @@ object Prefs {
     fun setFullscreenTranscript(context: Context, enabled: Boolean) {
         sp(context).edit().putBoolean(KEY_FULLSCREEN_TRANSCRIPT, enabled).apply()
     }
+
+    // ---- S16 平台智能体选择（设置页列表单选；agentId=请求头路由，thread 连续性不动） ----
+    const val KEY_AGENT_ID = PrefContract.KEY_AGENT_ID
+    const val KEY_AGENT_DISPLAY_NAME = PrefContract.KEY_AGENT_DISPLAY_NAME
+
+    /** 请求头 agentId（AguiClientFactory 动态 provider 读此）。默认 chatAgent=桌面端同默认。 */
+    fun agentId(context: Context): String =
+        sp(context).getString(KEY_AGENT_ID, null)?.takeIf { it.isNotBlank() }
+            ?: PrefContract.DEFAULT_AGENT_ID
+
+    /** 设置行离线显示名（未缓存时回退 agentId 本身）。 */
+    fun agentDisplayName(context: Context): String =
+        sp(context).getString(KEY_AGENT_DISPLAY_NAME, null)?.takeIf { it.isNotBlank() }
+            ?: agentId(context)
+
+    /** 选择即存：id（协议路由）+ 显示名（离线显名）一起写。 */
+    fun setAgent(context: Context, agentId: String, displayName: String) {
+        sp(context).edit()
+            .putString(KEY_AGENT_ID, agentId.trim())
+            .putString(KEY_AGENT_DISPLAY_NAME, displayName.trim())
+            .apply()
+    }
 }

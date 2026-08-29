@@ -24,6 +24,7 @@
 | **S13** | **形象动作改造**：四循环态静止=idle 行第 0 帧 / 说话=idle 行 6 帧@120ms / 唤醒跳·点击挥手取消 | 457 测绿 + 模拟器静止双图 MD5 一致 + 说话期≠静止帧 | ✅ 收口 2026-08-24（原型过目后拍板；证据 v18；13d9206） |
 | **S14** | **全屏语音页交互改版+「我在」可视化**：「我在」气泡+全屏大字 / 三段式重排 / 底部抽屉双键 / 字幕富文本滚动 / 白屏销案 | 460 测绿 + 模拟器五相位+抽屉开合 + 旋转零 churn | ✅ 收口 2026-08-24（真机现场验收全过；证据 v19） |
 | **S15** | **聆听期反馈泡+「我在」驻留**：进聆听显「在听…」离即收 /「我在」驻留 2.5s 后内容顶替 | 461 测绿 + 模拟器按住说话日志链+截图 | ✅ 收口 2026-08-25（真机现场验收过） |
+| **S16** | **平台智能体选择**：设置页列表单选 agent（/agent/list 443 反代实测）/ agentId 动态 provider / 会话记忆保留 | 467 测绿 + 模拟器列表/选择/持久化/换 agent 对话 | ✅ 收口 2026-08-29（真机风格感受留日常） |
 
 ## S0 地基
 
@@ -361,6 +362,28 @@
 ### S11 依赖序
 - S11-1 → S11-3 →（S11-5 取证复原）→ S11-6 → S11-7 串行（gradle 单项目构建锁，地界虽错开仍串行）
 - 真机窗口两段：08-19 晚（装机验阈值+10 轮快验）+ 08-20 下午（探针 3 声+S11-7 验收 10 轮）
+
+## S16 平台智能体选择（2026-08-25 立项，参考桌面端 PLATFORM_AGENT_ID 机制）
+
+> 需求（用户 08-25）：移动端可选择 agent（不同 agent 配不同提示词/MCP）。
+> 拍板：会话记忆保留，切换后能正常查看对话（桌面端语义：agentId 是请求头选择器，
+> thread 连续性不动，本地历史不动）；选择器升级为列表单选（平台有现成 /agent/list）。
+> 实测：POST https://{host}/ai-server/agent/list 空 body+Bearer，信封 code=200 data.list[]
+> 返回 9 agent（yearChatAgent 年报助手 / hkChatAgent 环控 / ragChatAgent 知识库 /
+> mjjAgent / langflow / accessAgent 小朵 / archiveAgent / constructionAgent / chatAgent 智能问答）。
+> 注：默认 agent 名「智能问答」（agentId 仍 chatAgent，桌面端同默认）。
+
+- [x] S16-1 协议层（TDD）：AguiClient.listAgents()（复用登录/信封/透明重登，401 单次重试）
+  + agentId 构造参数改动态 provider（chat/delete/rename/upload 头与 createThreadId body 全部
+  改读 provider）+ NetEndpoints.agentListUrl（443 反代范式）
+- [x] S16-2 存储与装配：Prefs.agentId（默认 chatAgent）+ agentDisplayName（离线显名）+
+  AguiClientFactory 装 provider 与 listUrl
+- [x] S16-3 设置页 UI：「端点与账号」区加「平台智能体」行（显当前名）-> 点击弹层单选列表
+  （拉取中/失败重试/名称+描述+勾选；标准控件不另做 HTML 原型）
+- [x] S16-4 验证：单测全绿 467（461+6）+ 模拟器实测列表拉取（9 agent）/选择保存
+  （agent selected -> hkChatAgent）/强杀重启保持（当前：环控）/换 agent 后对话正常
+  （thread 复用 + RUN_FINISHED 337 chars，回复知识域吻合）；证据 v20
+- [ ] 真机现场：切 agent 后语音对话回复风格变化（提示词生效主观感受，用户日常回收）
 
 ## S15 聆听期反馈泡 +「我在」驻留延长（2026-08-25 收口，真机验收过）
 
