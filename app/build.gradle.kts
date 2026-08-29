@@ -38,6 +38,9 @@ android {
     buildTypes {
         release {
             isMinifyEnabled = false
+            // 安装包可直接安装分享：release 挂 debug 签名（混淆未开，sherpa-onnx JNI
+            // /Compose 反射未过 proguard 验证；正式发布时换上传密钥库+混淆规则）
+            signingConfig = signingConfigs.getByName("debug")
         }
     }
 
