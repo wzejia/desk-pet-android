@@ -45,8 +45,14 @@ M1（悬浮桌宠本体）与「助手化」大切片（S0-S8）均已收口；�
 
 ## 基线（不可退）
 
-- 单测基线 **467 个**，skipped=0；新增只增不减；验证 `./gradlew.bat testDebugUnitTest --rerun-tasks`
+- 单测基线 **472 个**，skipped=0；新增只增不减；验证 `./gradlew.bat testDebugUnitTest --rerun-tasks`
 - `assembleDebug` 绿；spritesheet.webp MD5 `53c81ce652518f7fc7bf70554f363f54`；pet_states.json SHA256 `60b45124…4366`（S13 起 Android 行为有意偏离桌面镜像，见 implementation-notes 2026-08-24）
+
+## 当前状态（2026-08-29）
+
+- **S17 全屏字幕三合一适配收口**（模拟器+板子验收）：布局统一走纯 Kotlin 计算器
+  （跨区字幕+比例系统化+列宽钳制+上让位），99 组设备矩阵不变量；手机零回归；
+  横屏宠物压字幕破损销案。472 测绿。
 
 ## 当前状态（2026-08-29）
 

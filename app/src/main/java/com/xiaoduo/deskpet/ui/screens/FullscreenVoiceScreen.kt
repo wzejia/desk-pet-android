@@ -74,6 +74,7 @@ import com.xiaoduo.deskpet.pet.PetFrameTable
 import com.xiaoduo.deskpet.pet.PetState
 import com.xiaoduo.deskpet.ui.PetView
 import com.xiaoduo.deskpet.ui.components.MarkdownContent
+import com.xiaoduo.deskpet.ui.FullscreenVoiceLayout
 import com.xiaoduo.deskpet.ui.theme.XiaoduoDimens
 import com.xiaoduo.deskpet.util.PetLogger
 import com.xiaoduo.deskpet.util.Prefs
@@ -167,17 +168,17 @@ fun FullscreenVoiceScreen(
     // 否则进全屏瞬间若会话末条恰为 assistant 非空，会直接亮出上一轮旧回复
     val transcriptBaseline = remember { chatVm.messages.value.size }
 
-    // 尺寸钳制（critic 返工 P1）：PetView.onDraw 帧图拉伸填满 View 无内缩，视图宽超屏宽
-    // 必被屏缘平切。S14-2 起宽度改原型比例 0.62×屏宽（原 min(440dp, 屏宽) 在 360dp 真机上
-    // 高达屏高 49%，下缘压进字幕区致重叠——用户真机反馈 2026-08-24）；440dp 上限钳制保留。
-    val screenWidthDp = LocalConfiguration.current.screenWidthDp.dp
-    val petWidth = (screenWidthDp * PET_FULLSCREEN_WIDTH_RATIO).coerceAtMost(PET_FULLSCREEN_MAX_W_DP.dp)
-    val petHeight = petWidth * PetView.PET_HEIGHT_DP / PetView.PET_WIDTH_DP
-
-    // S14-2 三段式重排（原型 v6 验收 2026-08-24，调研=豆包/通义「顶部功能条→中央主视觉→
-    // 底部状态区+常驻控制」）：左 ✕ / 右字幕 → 中央宠物（中心上移 42% 屏高）→ 状态区下 1/4
-    val screenHeightDp = LocalConfiguration.current.screenHeightDp.dp
-    val petTopPad = ((screenHeightDp * 0.42f) - (petHeight / 2)).coerceAtLeast(0.dp)
+    // S17 布局锚点：统一走 FullscreenVoiceLayout 计算器（纯 Kotlin 可测，99 组设备
+    // 矩阵不变量验证）。三合一适配（用户 2026-08-29 拍板）：宠物 min(0.62×宽, 440dp,
+    // 0.45×高等比)（横屏不再顶格压字幕）；字幕跨区（宠物底+16dp -> 状态区顶-12dp，
+    // 底对齐可滚动，大屏自动放大）；列宽钳 520dp + 字号随 min(宽,高) 缩放。
+    // 关键性质：360×792 手机上输出与 S14-2 验收值一致（零回归）。
+    // 尺寸钳制背景（critic 返工 P1）：PetView.onDraw 帧图拉伸填满 View 无内缩，超宽必平切。
+    val cfg = LocalConfiguration.current
+    val anchors = remember(cfg.screenWidthDp, cfg.screenHeightDp) {
+        FullscreenVoiceLayout.anchors(cfg.screenWidthDp.toFloat(), cfg.screenHeightDp.toFloat())
+    }
+    val fontScale = anchors.fontScale
     var drawerOpen by remember { mutableStateOf(false) }
 
     Box(
@@ -235,9 +236,9 @@ fun FullscreenVoiceScreen(
             factory = { ctx -> PetView(ctx).also { petView = it } },
             modifier = Modifier
                 .align(Alignment.TopCenter)
-                .padding(top = petTopPad)
-                .width(petWidth)
-                .height(petHeight),
+                .padding(top = anchors.petTopDp.dp)
+                .width(anchors.petWidthDp.dp)
+                .height(anchors.petHeightDp.dp),
         )
 
         // 转写区（字幕开时）：S14-2 随迁至状态区上方（原贴底）；transcriptBaseline 语义不变——
@@ -247,11 +248,8 @@ fun FullscreenVoiceScreen(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
                     .navigationBarsPadding()
-                    .padding(
-                        start = XiaoduoDimens.SpaceL,
-                        end = XiaoduoDimens.SpaceL,
-                        bottom = (STATUS_ZONE_BOTTOM_DP + 72).dp,
-                    ),
+.padding(bottom = anchors.subtitleBottomDp.dp)
+.width(anchors.subtitleColumnWidthDp.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 val lastAssistant = messages
@@ -274,13 +272,13 @@ fun FullscreenVoiceScreen(
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .heightIn(max = SUBTITLE_MAX_H_DP.dp)
+                            .heightIn(max = anchors.subtitleMaxHeightDp.dp)
                             .verticalScroll(scrollState),
                     ) {
                         MarkdownContent(
                             text = msg.text,
-                            bodyStyle = MaterialTheme.typography.bodyMedium.copy(lineHeight = 20.sp),
-                            smallStyle = MaterialTheme.typography.bodySmall.copy(lineHeight = 17.sp),
+                            bodyStyle = MaterialTheme.typography.bodyMedium.copy(lineHeight = (20 * fontScale).sp),
+smallStyle = MaterialTheme.typography.bodySmall.copy(lineHeight = (17 * fontScale).sp),
                             contentColor = TranscriptColor,
                         )
                     }
@@ -300,7 +298,8 @@ fun FullscreenVoiceScreen(
         Column(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
-                .padding(bottom = STATUS_ZONE_BOTTOM_DP.dp),
+.padding(bottom = anchors.statusBottomDp.dp)
+.width(anchors.subtitleColumnWidthDp.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             if (hint == null) {
@@ -315,7 +314,7 @@ fun FullscreenVoiceScreen(
             Text(
                 text = hint ?: captionFor(voiceState, wakeAckActive),
                 style = MaterialTheme.typography.bodyMedium.copy(
-                    fontSize = if (ackActive) 19.sp else 17.sp,
+                    fontSize = if (ackActive) (19 * fontScale).sp else (17 * fontScale).sp,
                 ),
                 color = when {
                     hint != null -> HintColor
@@ -548,18 +547,6 @@ private fun ControlDrawer(
 private const val TAG = "FullscreenVoice"
 
 /**
- * 全屏 PetView 宽度上限（dp）：S14-2 起为比例钳制的保底上限（实际宽度 = 屏宽 ×
- * [PET_FULLSCREEN_WIDTH_RATIO]，远不达此值；保留防超宽屏比例失调）。
- */
-private const val PET_FULLSCREEN_MAX_W_DP = 440
-
-/** S14-2 宠物宽度占屏宽比例（原型验收值 0.62；原 440dp 钳制在 360dp 真机致宠物占屏高 49% 压字幕区）。 */
-private const val PET_FULLSCREEN_WIDTH_RATIO = 0.62f
-
-/** S14 字幕区高度上限（可滚动，超高内容滑动查看；与宠物下缘保留间距防重叠）。 */
-private const val SUBTITLE_MAX_H_DP = 112
-
-/**
  * 全屏底色（用户 2026-08-04 拍板改判：黑场 #0D0D0D → 白底）。取近白 #FAFAFA 而非纯白
  * #FFFFFF：宠物白身在纯白上轮廓全靠描边，近白底给白身留一档明度差，描边分层更稳；
  * 同时与 App 主界面浅色 surface 同族，进出全屏不闪色温。
@@ -578,9 +565,6 @@ private val HaloCyan = Color(0xFF19B8D8)
 
 /** S14-1「我在」应声 caption 强调色（HaloCyan 加深档，白底可读）。 */
 private val AckColor = Color(0xFF1298B5)
-
-/** S14-2 状态区底距（屏幕下 1/4 定位）与指示器高度。 */
-private const val STATUS_ZONE_BOTTOM_DP = 150
 private const val INDICATOR_H_DP = 28
 
 /** S14-3 抽屉几何：把手区 30dp；总高 120dp（30+12+60+18），关闭时外露把手 30 → 隐藏偏移 90dp。 */
