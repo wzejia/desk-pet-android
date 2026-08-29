@@ -24,9 +24,11 @@ object KwsDefaults {
      * 把打分压到阈值下——真机「第一声必漏」机制①）；连续低于门超窗才停喂并对
      * KWS 流 gap-reset 一次（冲刷冻结尾分——「第二声秒中」假象机制②）。
      *
-     * 取值依据：与 VadDetector.SILENCE_END_TICKS=8（800ms 判停）同源——本项目
-     * 语义里短于 800ms 的静默仍属同一口气；块长 100ms 锚知识包 §5 与桌面
-     * sidecar.py _KWS_BLOCK_MS=100。
+     * 取值依据：块长 100ms 锚知识包 §5 与桌面 sidecar.py _KWS_BLOCK_MS=100。
+     * 原与 VadDetector.SILENCE_END_TICKS 同源（8/800ms）--2026-08-29 起 VAD 端点提速
+     * 为 4 块/400ms（用户拍板，对账表补注 3），但 KWS 挂起窗独立保持 8：其保护对象
+     * 是唤醒词字间气口（真机「第一声必漏」修复实证参数），与说话端点判定语义不同，
+     * 不随 VAD 联动。
      */
     const val GATE_HANGOVER_BLOCKS = 8
 }

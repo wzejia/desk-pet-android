@@ -32,14 +32,14 @@ class VadDetectorTest {
     }
 
     @Test
-    fun `three loud blocks trigger and eight silence blocks end utterance`() {
+    fun `three loud blocks trigger and four silence blocks end utterance`() {
         val vad = VadDetector()
         vad.start()
         assertTrue(feedN(vad, loud, 3).isEmpty())
         assertTrue(vad.isSpeaking)
 
-        assertTrue(feedN(vad, zero, 7).isEmpty()) // 7 块静音不判停
-        val ev = vad.feed(zero) // 第 8 块判停
+        assertTrue(feedN(vad, zero, 3).isEmpty()) // 3 块静音不判停（句中短停顿保护）
+        val ev = vad.feed(zero) // 第 4 块判停（400ms，2026-08-29 拍板提速）
         assertTrue(ev is VadDetector.Event.Utterance)
         // deque 里只有 3 触发块 → utterance = 3 块 = 9600 字节，恰为 min_utterance 边界（>= 通过）
         assertEquals(3 * VadDetector.BLOCK_SAMPLES, (ev as VadDetector.Event.Utterance).pcm.size)
@@ -54,11 +54,11 @@ class VadDetectorTest {
         feedN(vad, loud, 3) // 判起
         assertTrue(vad.isSpeaking)
         feedN(vad, loud, 2) // 继续说话
-        val events = feedN(vad, zero, 8) // 判停
+        val events = feedN(vad, zero, 4) // 判停（400ms）
 
         assertEquals(1, events.size)
         val pcm = (events[0] as VadDetector.Event.Utterance).pcm
-        // 3 pre-roll + 3 触发块 + 2 说话块 = 8 块；尾部 8 块静音不进 buffer
+        // 3 pre-roll + 3 触发块 + 2 说话块 = 8 块；尾部 4 块静音不进 buffer
         assertEquals(8 * VadDetector.BLOCK_SAMPLES, pcm.size)
         assertEquals(100, pcm[0].toInt()) // 首块 = 低电平 pre-roll（防丢首字）
         assertEquals(100, pcm[3 * VadDetector.BLOCK_SAMPLES - 1].toInt())
@@ -163,7 +163,7 @@ class VadDetectorTest {
         repeat(3) { assertNull(vad.feed(bytes)) }
         assertTrue(vad.isSpeaking)
         var ev: VadDetector.Event? = null
-        repeat(8) { ev = vad.feed(ByteArray(VadDetector.BLOCK_BYTES)) }
+        repeat(4) { ev = vad.feed(ByteArray(VadDetector.BLOCK_BYTES)) } // 400ms 判停
         assertTrue(ev is VadDetector.Event.Utterance)
         assertEquals(3 * VadDetector.BLOCK_SAMPLES, (ev as VadDetector.Event.Utterance).pcm.size)
     }

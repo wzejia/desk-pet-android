@@ -5,8 +5,10 @@ import kotlin.math.sqrt
 /**
  * 绝对阈值 VAD + PCM 累积（纯逻辑、零 Android 依赖，100ms PCM 块逐块喂入）。
  *
- * 参数逐项照抄 docs/voice-param-reconciliation-2026-07-28.md VAD 节（单一事实源），
- * 行为对齐桌面端 voice_listen.py AsrListener（HEAD 实测）。与桌面端唯一差异：
+ * 参数对齐 docs/voice-param-reconciliation-2026-07-28.md VAD 节（单一事实源），
+ * 行为对齐桌面端 voice_listen.py AsrListener（HEAD 实测）--例外：silence_end_ticks
+ * 2026-08-29 用户拍板 8->4（端点提速，有意偏离桌面端，对账表补注 3）。
+ * 与桌面端另一差异：
  * 30s 超时 / 8s 最长句用块数（100ms/块）替代 time.monotonic()，使 JVM 单测可确定性验证。
  */
 class VadDetector {
@@ -15,7 +17,9 @@ class VadDetector {
         const val SPEECH_LEVEL = 0.05          // 归一化音量阈值 = RMS/8000
         const val RMS_REF = 8000.0
         const val SPEECH_START_TICKS = 3       // 连续超阈值判说话开始（300ms）
-        const val SILENCE_END_TICKS = 8        // 连续低于阈值判说话结束（800ms）
+        const val SILENCE_END_TICKS = 4        // 连续低于阈值判说话结束（400ms；2026-08-29
+                                              // 用户拍板端点提速，有意偏离桌面端 8 块/800ms--
+                                              // 代价：句中停顿 >400ms 会被截断，见对账表补注 3）
         const val MIN_UTTERANCE_TICKS = 3      // 更短当噪音丢弃
         const val LISTEN_TIMEOUT_S = 30        // 生效值 30s（sidecar 显式传参；勿用类默认值 8）
         const val MAX_UTTERANCE_S = 8          // 说话超时强制结束（防增益爬升噪声永不结束）

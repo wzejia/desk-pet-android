@@ -12,7 +12,7 @@
 |---|---|---|---|
 | speech_level | 0.05（rms/8000 归一化） | 0.05 | ✅ |
 | speech_start_ticks | 3 块（300ms） | 3 块 | ✅ |
-| silence_end_ticks | 8 块（800ms） | 8 块 | ✅ |
+| silence_end_ticks | 8 块（800ms） | 8 块 | ⚠️ Android 2026-08-29 起 4 块（400ms），见补注 4 |
 | min_utterance_ticks | 3 块（min_bytes = 3×1600×2 = 9600） | 3 块 | ✅ |
 | listen_timeout_s | **30.0**（sidecar 显式传参；类默认值 8.0 未生效） | 30s | ✅（⚠️ 补注 1） |
 | max_utterance_s | 8.0 | 8s | ✅ |
@@ -61,10 +61,11 @@
 1. **listen_timeout_s 默认值陷阱**：`AsrListener.__init__` 默认 8.0，但 sidecar.py:397 显式传 `30.0`，生效值 30s。Kotlin 实现**直接硬编码 30s**（勿照抄类默认值）。桌面端 `sidecar.py:522` 文档串里「8s 超时计时」是过期注释（桌面仓库只读，不回改）。
 2. **知识包 §7.1 #6 自相矛盾已澄清**：#6 说「仅 `。！？` + flush 阈值 200」，与 §3.1 表（`。！？!?;`+\n，MIN 4/MAX 30）冲突——#6 是 voice-assistant 项目的历史教训描述，**当前 HEAD 权威 = §3.1 表**。已在知识包 #6 补一行澄清。
 3. `voice_listen.py` 类文档串里 min_bytes「× 0.3（2880 字节）」是阶段一残留描述，实际代码无 0.3 系数（9600 字节）——桌面仓库只读不回改，Kotlin 按 9600 字节实现。
+4. **【Android 有意偏离】silence_end_ticks 8 -> 4（800ms -> 400ms）**：2026-08-29 用户拍板端点提速（「说完 ~1s 才结束 LISTENING」体验问题）。代价：句中停顿 >400ms 会被截断成多句（VAD 单次触发，截断即半句进 LLM）。KWS 能量挂起窗 GATE_HANGOVER_BLOCKS 保持 8 不联动（保护对象是唤醒词字间气口，语义不同）。桌面端仍 800ms 不动。
 
 ## Kotlin 验收清单（M3 逐项打勾）
 
-- [ ] speech_level 0.05 / start 3 / end 8 / min 3（9600B）/ timeout **30s** / max 8s / pre_roll 3 / deque **6** / 块 100ms@16k
+- [ ] speech_level 0.05 / start 3 / end 8（->4，补注 4）/ min 3（9600B）/ timeout **30s** / max 8s / pre_roll 3 / deque **6** / 块 100ms@16k
 - [ ] 分句：`。！？!?;`+\n，MIN 4，MAX 30，词边界回退，逐字符喂，残留收尾
 - [ ] 消毒：白名单 + alnum/space + **连续空白压缩** + 空则跳过
 - [ ] KWS：threshold 0.5 / gate 0.015（可配置）/ threads 2 / 命中 reset

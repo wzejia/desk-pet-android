@@ -707,5 +707,15 @@ listAgents() 复用登录/信封/透明重登机制（401 单次重试与 delete
 <b>边界</b>：换 agent 后旧 thread 继续用，服务端记忆跨 agent 混写（桌面端同行为，用户知情）。</p>
 </div>
 
+<div class="entry deviation">
+<span class="tag">有意偏差</span><span class="meta">2026-08-29 ｜ VAD 端点 ｜ silence_end_ticks 8->4（800ms->400ms）</span>
+<p><b>偏差</b>：VadDetector.SILENCE_END_TICKS 由对账表锁定的 8 块/800ms（桌面端同款）改为
+4 块/400ms。<b>动机</b>（用户 08-29 拍板）：说完话后 LISTENING 持续 ~1s 才结束，端点延迟体感差；
+用户明确「不跟随桌面端」。<b>代价（已告知）</b>：句中停顿 &gt;400ms 会被截断--VAD 单次触发，
+截断即半句进 LLM。<b>关联决策</b>：KWS 能量挂起窗 GATE_HANGOVER_BLOCKS 保持 8 不联动
+（保护对象=唤醒词字间气口，真机「第一声必漏」修复实证参数，与说话端点语义不同）；
+stopListening 松手冲刷循环上界随常量自动变 4。对账表补注 4 落档。</p>
+</div>
+
 </body>
 </html>
