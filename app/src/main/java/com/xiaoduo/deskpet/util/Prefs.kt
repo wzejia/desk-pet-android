@@ -118,4 +118,40 @@ object Prefs {
             .putString(KEY_AGENT_DISPLAY_NAME, displayName.trim())
             .apply()
     }
+
+    // ---- S18 VAD 说话阈值（环境校准联动；rk3568 噪声底骑线致判停失效而立） ----
+    const val KEY_VAD_SPEECH_LEVEL = PrefContract.KEY_VAD_SPEECH_LEVEL
+    const val DEFAULT_VAD_SPEECH_LEVEL = 0.05
+
+    fun vadSpeechLevel(context: Context): Double =
+        sp(context).getFloat(KEY_VAD_SPEECH_LEVEL, DEFAULT_VAD_SPEECH_LEVEL.toFloat())
+            .toDouble()
+
+    fun setVadSpeechLevel(context: Context, level: Double) {
+        sp(context).edit()
+            .putFloat(KEY_VAD_SPEECH_LEVEL, level.toFloat())
+            .apply()
+    }
+
+    /** S18：采麦源模式。0=VOICE_COMMUNICATION（手机默认，硬件 AEC）/ 1=VOICE_RECOGNITION
+     *  （绕开通话链）/ 2=UNPROCESSED（板子 HAL/codec AGC 释放慢的最后一试）。 */
+    const val KEY_MIC_SOURCE_MODE = PrefContract.KEY_MIC_SOURCE_MODE
+    const val MIC_SOURCE_COMMUNICATION = 0
+    const val MIC_SOURCE_RECOGNITION = 1
+    const val MIC_SOURCE_UNPROCESSED = 2
+
+    fun micSourceMode(context: Context): Int {
+        val sp = sp(context)
+        if (sp.contains(KEY_MIC_SOURCE_MODE)) return sp.getInt(KEY_MIC_SOURCE_MODE, MIC_SOURCE_COMMUNICATION)
+        // 旧 bool 键迁移（S18 早期版本写入）
+        return if (sp.getBoolean(PrefContract.KEY_MIC_RAW_SOURCE, false)) MIC_SOURCE_RECOGNITION
+        else MIC_SOURCE_COMMUNICATION
+    }
+
+    fun setMicSourceMode(context: Context, mode: Int) {
+        sp(context).edit()
+            .putInt(KEY_MIC_SOURCE_MODE, mode.coerceIn(0, 2))
+            .putBoolean(PrefContract.KEY_MIC_RAW_SOURCE, false) // 迁移源清零
+            .apply()
+    }
 }

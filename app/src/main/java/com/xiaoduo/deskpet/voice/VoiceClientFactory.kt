@@ -8,6 +8,7 @@ import com.xiaoduo.deskpet.net.NetConfig
 import com.xiaoduo.deskpet.net.NetEndpoints
 import com.xiaoduo.deskpet.ui.overlay.BubbleOwner
 import com.xiaoduo.deskpet.util.PetLogger
+import com.xiaoduo.deskpet.util.Prefs
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -95,7 +96,7 @@ object VoiceClientFactory {
         val app = context.applicationContext
         val s = session ?: synchronized(this) {
             session ?: VoiceSessionManager(
-                capture = AudioCapture(),
+                capture = AudioCapture(sourceMode = Prefs.micSourceMode(app)),
                 asr = asr(app),
                 tts = tts(app),
                 aguiFactory = { AguiClientFactory.create(app) },
@@ -108,6 +109,8 @@ object VoiceClientFactory {
                 ),
                 scope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
                 wakeAck = wakeAck(app),
+                // S18：VAD 阈值校准联动（每块现读，校准写入即时生效）
+                vadSpeechLevel = { Prefs.vadSpeechLevel(app) },
             ).also { session = it }
         }
         // S9-3 冷路径接线：装配完成后触发应答音预取（保存即合成的「启动补漏」半边）。

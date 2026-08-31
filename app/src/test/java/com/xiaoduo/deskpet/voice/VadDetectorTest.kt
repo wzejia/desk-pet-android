@@ -21,6 +21,30 @@ class VadDetectorTest {
     private fun feedN(vad: VadDetector, b: ShortArray, n: Int): List<VadDetector.Event> =
         (1..n).mapNotNull { vad.feed(b) }
 
+    /** S18：阈值可注入（校准联动）--provider 抬高后原 loud(0.125) 沦为静音，更响块才算语音 */
+    @Test
+    fun `injected speech level provider raises the bar`() {
+        val vad = VadDetector(speechLevelProvider = { 0.2 })
+        vad.start()
+        // loud=0.125 < 0.2 -> 静音；讲话中阈值抬高后旧 loud 块计为静音
+        repeat(3) { assertNull(vad.feed(block(2000))) } // 0.25 >= 0.2 判起
+        assertTrue(vad.isSpeaking)
+        assertNull(vad.feed(loud))    // 0.125 < 0.2 -> 说话中静音块（below=1）
+        assertNull(vad.feed(zero))    // below=2
+        assertNull(vad.feed(zero))    // below=3
+        assertTrue(vad.feed(zero) is VadDetector.Event.Utterance) // below=4 判停
+    }
+
+    /** S18：默认 provider 与硬编码 0.05 行为一致（回归保障） */
+    @Test
+    fun `default provider keeps 0_05 semantics`() {
+        val vad = VadDetector()
+        vad.start()
+        assertNull(vad.feed(block(360)))  // 0.045 < 0.05 静音
+        repeat(3) { assertNull(vad.feed(block(420))) } // 0.0525 >= 0.05 判起
+        assertTrue(vad.isSpeaking)
+    }
+
     @Test
     fun `two loud blocks do not trigger speech start`() {
         val vad = VadDetector()

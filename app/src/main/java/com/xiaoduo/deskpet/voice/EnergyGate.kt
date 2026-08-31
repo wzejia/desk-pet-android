@@ -70,6 +70,15 @@ object EnergyGate {
     fun suggestThreshold(stats: CalibrationStats): Float =
         (stats.p95 * 2.5f).coerceIn(MIN_GATE, MAX_GATE)
 
+    /**
+     * S18：VAD 说话电平阈值建议 = clamp(环境 p95 × 1.6, 0.05, 0.15)。
+     * 依据：阈值须压过噪声底（×1.6 余量）且远低于人声；下限 0.05 = 对账表默认
+     * （手机安静环境 p95≈0.006 回 0.05，行为零变化）；上限 0.15 防极端环境吞语音。
+     * 实测锚点：rk3568 板子 p95=0.0496 -> 0.079（噪声回落阈值下，判停恢复）。
+     */
+    fun suggestVadSpeechLevel(stats: CalibrationStats): Double =
+        (stats.p95 * 1.6).coerceIn(0.05, 0.15)
+
     /** 最近秩百分位：index = ceil(p*n)-1。 */
     private fun percentile(sorted: List<Float>, p: Double): Float {
         val idx = (ceil(p * sorted.size).toInt() - 1).coerceIn(0, sorted.size - 1)

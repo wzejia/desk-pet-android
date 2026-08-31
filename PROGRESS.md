@@ -1,5 +1,18 @@
 # 小朵 Android M1 进度
 
+## 状态：S18 VAD 阈值校准联动 + 板子声学诊断 🔨 S18-1/2 收口（2026-08-31，板子终验待回收）
+
+- **诊断**（板子 rk3568「打断不灵敏」三层排查）：打断检测正常（KWS 全中），病灶=**板子无
+  AEC（effects 空）+ 底层 AGC 慢释放**，聆听期噪声底 0.08-0.34 顶住 VAD 判停拖满 8.3s。
+  证据链 `docs/verification/v22-s18-vad-calibration/`（含 board-logs.md 存证）。
+- **交付**：VAD 阈值校准联动（provider 注入+校准双值写入，手机零变化）；采麦源三档
+  （通话/识别/原始，重启生效）；聆听期电平轨迹诊断。472->**475 测绿**。
+- **接手指引**：① 板子切「采麦源：原始」-> 强杀重启 -> 重新校准（看分布是否分散=摆脱
+  AGC）-> 受控测试（喊唤醒只说「你好」，utterance 应 ~1 万级非 132800）；② 无效则上
+  **自适应 VAD 阈值**（聆听期 EMA 跟踪噪声底，vad diag level 日志已备数据）；
+  ③ AguiClientTest.blankExternalMessageIdFallsBackToGenerated 偶发失败一次（单跑绿，
+  观察）。
+
 ## 状态：S17 全屏字幕三合一适配 ✅ 收口（2026-08-29 模拟器+板子验收）
 
 - **交付**：全屏页布局统一走纯 Kotlin `FullscreenVoiceLayout` 计算器（99 组设备矩阵
@@ -84,7 +97,7 @@
 
 ### 接手指引（下会话开场必读）
 
-1. **大盘**：S0-S17 全部收口。基线 **472 单测全绿 skipped=0**（`./gradlew.bat testDebugUnitTest --rerun-tasks` 复跑）。
+1. **大盘**：S0-S17 收口 + S18 部分收口。基线 **475 单测全绿 skipped=0**（`./gradlew.bat testDebugUnitTest --rerun-tasks` 复跑）。
 2. **剩余事项**：
    - **观察票：AEC 偶发失效态**（S12 遗留，见上）——用户报「喊打断没反应」时，拉该时段
      `kws stats` 看 fed/gated 形态（回声持续过门=AEC 失效窗）；频发再评估 S12-2 状态感知门控。

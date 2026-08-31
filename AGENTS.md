@@ -45,8 +45,14 @@ M1（悬浮桌宠本体）与「助手化」大切片（S0-S8）均已收口；�
 
 ## 基线（不可退）
 
-- 单测基线 **472 个**，skipped=0；新增只增不减；验证 `./gradlew.bat testDebugUnitTest --rerun-tasks`
+- 单测基线 **475 个**，skipped=0；新增只增不减；验证 `./gradlew.bat testDebugUnitTest --rerun-tasks`
 - `assembleDebug` 绿；spritesheet.webp MD5 `53c81ce652518f7fc7bf70554f363f54`；pet_states.json SHA256 `60b45124…4366`（S13 起 Android 行为有意偏离桌面镜像，见 implementation-notes 2026-08-24）
+
+## 当前状态（2026-08-31）
+
+- **S18 VAD 阈值校准联动 + 板子声学诊断（S18-1/2 收口）**：板子 rk3568 无 AEC + 底层
+  AGC 慢释放致聆听拖满 8.3s（诊断链 v22）；VAD 阈值校准联动 + 采麦源三档 + 电平轨迹
+  诊断落地，475 测绿。板子终验（UNPROCESSED 源）与自适应阈值终方案待回收。
 
 ## 当前状态（2026-08-29）
 

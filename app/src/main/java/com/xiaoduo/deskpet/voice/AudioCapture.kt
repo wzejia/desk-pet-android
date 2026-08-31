@@ -26,7 +26,17 @@ import kotlinx.coroutines.launch
  *
  * 调用方须先确保持有 RECORD_AUDIO 运行时权限（设置页语音自检走真实申请路径）。
  */
-class AudioCapture {
+class AudioCapture(
+    /**
+     * S18（rk3568 声学诊断）：采麦源模式。
+     * 0=VOICE_COMMUNICATION（默认，手机硬件 AEC 防外放回声，坑 #35）；
+     * 1=VOICE_RECOGNITION（绕开通话预处理链）；2=UNPROCESSED（HAL/codec 级 AGC 的最后一试，
+     * 板子 rk809 AGC 释放极慢--说话/播放后噪声底抬到 0.08-0.34 顶满 VAD 8s 不判停，
+     * 实测换 VOICE_RECOGNITION 校准分布仍钉死 0.046-0.049=AGC 在更底层）。
+     * 各模式构造失败均 fallback DEFAULT 记日志。
+     */
+    private val sourceMode: Int = 0,
+) {
 
     /** 100ms PCM 块广播流（缓冲 64 块 ≈ 6.4s，满则丢最旧——与 VAD pre-roll deque 同策，保最新音频）。 */
     val blocks: SharedFlow<ByteArray> get() = _blocks
@@ -85,11 +95,14 @@ class AudioCapture {
             AudioFormat.ENCODING_PCM_16BIT,
         )
         val bufSize = maxOf(minBuf, VadDetector.BLOCK_BYTES * 8)
-        // VOICE_COMMUNICATION 优先（硬件 AEC）；初始化失败降级 DEFAULT（坑 #35 注释）
-        for (source in listOf(
-            MediaRecorder.AudioSource.VOICE_COMMUNICATION,
-            MediaRecorder.AudioSource.DEFAULT,
-        )) {
+        // 源候选：mode 决定首选源，初始化失败降级 DEFAULT（坑 #35 注释）
+        val preferred = when (sourceMode) {
+            1 -> MediaRecorder.AudioSource.VOICE_RECOGNITION
+            2 -> MediaRecorder.AudioSource.UNPROCESSED
+            else -> MediaRecorder.AudioSource.VOICE_COMMUNICATION
+        }
+        val candidates = listOf(preferred, MediaRecorder.AudioSource.DEFAULT)
+        for (source in candidates) {
             val r = runCatching {
                 AudioRecord(
                     source,

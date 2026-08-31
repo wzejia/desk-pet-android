@@ -53,6 +53,8 @@ class VoiceSessionManager(
     private val wakeAck: WakeAck? = null,
     /** S15：「我在」播完驻留时长（ms），驻留结束换「在听…」聆听提示泡；测试注入小值。 */
     private val listeningHintLingerMs: Long = 2_500L,
+    /** S18：VAD 说话电平阈值 provider（环境校准联动；默认 VadDetector 0.05）。 */
+    private val vadSpeechLevel: () -> Double = { VadDetector.SPEECH_LEVEL },
 ) {
 
     /** ASR 模式分支：云端按配置厂商分发（pcm 包 WAV），平台走 AsrClient。 */
@@ -245,7 +247,7 @@ class VoiceSessionManager(
     @Volatile
     var transcriptSink: TranscriptSink? = null
 
-    private val vad = VadDetector()
+    private val vad = VadDetector(speechLevelProvider = vadSpeechLevel)
     private var collectJob: Job? = null
     private var pipelineJob: Job? = null
 
@@ -446,6 +448,10 @@ class VoiceSessionManager(
     /** 测试缝：采麦消费循环是否活着（孤儿空采回归断言用）。 */
     internal val collectLoopActive: Boolean get() = collectJob?.isActive == true
 
+    /** S18 声学诊断：聆听期已消费块数（每 10 块打一行电平轨迹）。 */
+    @Volatile
+    private var vadDiagTicks = 0
+
     private fun teardownIdleCapture() {
         collectJob?.cancel()
         collectJob = null
@@ -470,19 +476,27 @@ class VoiceSessionManager(
         when (router.route(state)) {
             VoiceStateRouter.Sink.KWS -> kwsSink?.invoke(block) // S5 挂点，当前无订阅即丢
             VoiceStateRouter.Sink.DROP -> Unit // IDLE+kwsPaused 丢弃（对话期回 IDLE 不即解 KWS）
-            VoiceStateRouter.Sink.VAD -> when (val ev = vad.feed(block)) {
-                is VadDetector.Event.Utterance -> {
-                    logger("VAD utterance, ${ev.pcm.size} samples, maxLevel=%.4f".format(ev.maxLevel))
-                    onUtterance(ev)
+            VoiceStateRouter.Sink.VAD -> {
+                // S18 声学诊断：聆听期电平轨迹（每 10 块=1s 一行；量化 rk3568 AGC 释放曲线）
+                vadDiagTicks++
+                if (vadDiagTicks % 10 == 0) {
+                    val lvl = EnergyGate.rmsOf(block) * (32768f / 8000f)
+                    logger("vad diag level=%.4f".format(lvl))
                 }
-                is VadDetector.Event.Timeout -> {
-                    // 一值定层（坑 #19）：maxLevel≈0.0001 系统层（权限/麦），0.01-0.05 阈值问题
-                    logger("VAD listen timeout, maxLevel=%.4f".format(ev.maxLevel))
-                    transition(VoiceStateRouter.State.IDLE, "listen timeout")
-                    status("30s 未说话，回 idle（maxLevel=%.4f）".format(ev.maxLevel))
-                    kwsPaused = false
+                when (val ev = vad.feed(block)) {
+                    is VadDetector.Event.Utterance -> {
+                        logger("VAD utterance, ${ev.pcm.size} samples, maxLevel=%.4f".format(ev.maxLevel))
+                        onUtterance(ev)
+                    }
+                    is VadDetector.Event.Timeout -> {
+                        // 一值定层（坑 #19）：maxLevel≈0.0001 系统层（权限/麦），0.01-0.05 阈值问题
+                        logger("VAD listen timeout, maxLevel=%.4f".format(ev.maxLevel))
+                        transition(VoiceStateRouter.State.IDLE, "listen timeout")
+                        status("30s 未说话，回 idle（maxLevel=%.4f）".format(ev.maxLevel))
+                        kwsPaused = false
+                    }
+                    null -> Unit
                 }
-                null -> Unit
             }
         }
     }

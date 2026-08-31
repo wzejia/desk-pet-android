@@ -47,4 +47,12 @@ object PrefContract {
     const val DEFAULT_AGENT_ID = "chatAgent"
 
     val S16_KEYS: Set<String> = setOf(KEY_AGENT_ID, KEY_AGENT_DISPLAY_NAME)
+
+    // ---- S18 VAD 说话阈值（环境校准联动）----
+    const val KEY_VAD_SPEECH_LEVEL = "vad_speech_level"   // Float，默认 0.05（对账表）
+
+    const val KEY_MIC_RAW_SOURCE = "mic_raw_source"       // Boolean（S18 旧键，迁移源）
+    const val KEY_MIC_SOURCE_MODE = "mic_source_mode"     // Int：0=通话 1=识别 2=原始
+
+    val S18_KEYS: Set<String> = setOf(KEY_VAD_SPEECH_LEVEL, KEY_MIC_SOURCE_MODE)
 }

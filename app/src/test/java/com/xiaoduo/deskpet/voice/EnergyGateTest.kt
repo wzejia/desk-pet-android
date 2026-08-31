@@ -97,4 +97,18 @@ class EnergyGateTest {
         assertEquals(0.003f, EnergyGate.MIN_GATE)
         assertEquals(0.05f, EnergyGate.MAX_GATE)
     }
+
+    /** S18：VAD 说话阈值建议 = clamp(p95×1.6, 0.05, 0.15)；手机安静环境回默认 0.05（零变化） */
+    @Test
+    fun `suggest vad speech level covers phone board and clamp`() {
+        // 手机安静环境 p95≈0.006 -> 0.0096 -> 下限 0.05（与现硬编码一致，零回归）
+        val phone = EnergyGate.statsOf(List(50) { 0.006f })
+        assertEquals(0.05, EnergyGate.suggestVadSpeechLevel(phone), 1e-6)
+        // rk3568 板子实测域 p95≈0.049 -> 0.0788（噪声回落阈值之下；均匀样本 0.0487×1.6）
+        val board = EnergyGate.statsOf(List(50) { 0.0487f })
+        assertEquals(0.0779, EnergyGate.suggestVadSpeechLevel(board), 0.001)
+        // 极端吵闹 p95=0.12 -> 0.192 -> 上限 0.15
+        val loudRoom = EnergyGate.statsOf(List(50) { 0.12f })
+        assertEquals(0.15, EnergyGate.suggestVadSpeechLevel(loudRoom), 1e-6)
+    }
 }

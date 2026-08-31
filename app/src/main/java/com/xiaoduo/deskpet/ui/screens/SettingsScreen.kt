@@ -813,6 +813,18 @@ private fun KwsSection(context: Context) {
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Spacer(modifier = Modifier.padding(top = XiaoduoDimens.SpaceS))
+        var micMode by remember { mutableStateOf(Prefs.micSourceMode(context)) }
+        val micModeLabel = when (micMode) {
+            Prefs.MIC_SOURCE_RECOGNITION -> "识别（绕开通话链）"
+            Prefs.MIC_SOURCE_UNPROCESSED -> "原始（UNPROCESSED）"
+            else -> "通话（默认，硬件 AEC）"
+        }
+        TextButtonRow("采麦源：$micModeLabel（点击切换；重启 App 生效，改后请重新校准）") {
+            micMode = (micMode + 1) % 3
+            Prefs.setMicSourceMode(context, micMode)
+            PetLogger.i("Settings", "mic source mode -> $micMode (effective after app restart)")
+        }
+        Spacer(modifier = Modifier.padding(top = XiaoduoDimens.SpaceS))
         KwsCalibration(context) { written -> gate = written }
         status?.let {
             Text(
@@ -834,6 +846,7 @@ private fun KwsCalibration(context: Context, onGateWritten: (Float) -> Unit) {
     var running by remember { mutableStateOf(false) }
     var report by remember { mutableStateOf<String?>(null) }
     var suggested by remember { mutableStateOf<Float?>(null) }
+    var suggestedVad by remember { mutableStateOf(0.05) }
     val scope = rememberCoroutineScope()
 
     Column(modifier = Modifier.fillMaxWidth()) {
@@ -856,12 +869,15 @@ private fun KwsCalibration(context: Context, onGateWritten: (Float) -> Unit) {
                         val stats = EnergyGate.statsOf(rmsValues)
                         val s = EnergyGate.suggestThreshold(stats)
                         suggested = s
+                        // S18：VAD 说话阈值同步建议（板子噪声底骑 0.05 线致判停失效）
+                        val vadLevel = EnergyGate.suggestVadSpeechLevel(stats)
+                        suggestedVad = vadLevel
                         report = "样本 ${stats.count} 块：中位 %.4f / p95 %.4f / 峰值 %.4f → 建议 %.3f"
-                            .format(stats.median, stats.p95, stats.max, s)
+                            .format(stats.median, stats.p95, stats.max, s, vadLevel)
                         PetLogger.i(
                             "Settings",
                             "kws calibration: n=${stats.count} median=${stats.median} " +
-                                "p95=${stats.p95} max=${stats.max} suggest=$s",
+                                "p95=${stats.p95} max=${stats.max} suggest=$s vad=$vadLevel",
                         )
                     }
                     running = false
@@ -879,11 +895,17 @@ private fun KwsCalibration(context: Context, onGateWritten: (Float) -> Unit) {
         suggested?.let { s ->
             Button(onClick = {
                 Prefs.setKwsGate(context, s)
+                Prefs.setVadSpeechLevel(context, suggestedVad)
                 val written = Prefs.kwsGate(context)
+                val vadWritten = Prefs.vadSpeechLevel(context)
                 onGateWritten(written)
-                PetLogger.i("Settings", "kws gate written: $written")
-                Toast.makeText(context, "已写入阈值 %.3f".format(written), Toast.LENGTH_SHORT).show()
-            }) { Text("写入建议阈值 %.3f".format(s)) }
+                PetLogger.i("Settings", "kws gate written: $written, vad level written: $vadWritten")
+                Toast.makeText(
+                    context,
+                    "已写入：能量门 %.3f / 说话阈值 %.3f".format(written, vadWritten),
+                    Toast.LENGTH_SHORT,
+                ).show()
+            }) { Text("写入建议阈值（门 %.3f + 说话 %.3f）".format(s, suggestedVad)) }
         }
     }
 }
@@ -897,7 +919,7 @@ private suspend fun collectAmbientRms(context: Context, seconds: Int): List<Floa
         // KWS 常开中：复用同一条采麦流（知识包 §3.5 单流纪律）
         collectRmsFor(seconds, session.captureBlocks, out)
     } else {
-        val capture = AudioCapture()
+        val capture = AudioCapture(sourceMode = Prefs.micSourceMode(context))
         val ioScope = CoroutineScope(Dispatchers.IO)
         try {
             capture.start(ioScope)

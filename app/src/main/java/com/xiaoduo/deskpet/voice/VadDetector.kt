@@ -11,7 +11,14 @@ import kotlin.math.sqrt
  * 与桌面端另一差异：
  * 30s 超时 / 8s 最长句用块数（100ms/块）替代 time.monotonic()，使 JVM 单测可确定性验证。
  */
-class VadDetector {
+class VadDetector(
+    /**
+     * S18：说话电平阈值动态 provider（默认 0.05，与桌面端对账一致）。
+     * 环境音校准联动（rk3568 板子噪声底 ~0.049 骑在 0.05 上致判停永不触发、
+     * 每轮拖满 8s 强制上限）：校准写入 Prefs -> 此处每块现读，即时生效。
+     */
+    private val speechLevelProvider: () -> Double = { SPEECH_LEVEL },
+) {
 
     companion object {
         const val SPEECH_LEVEL = 0.05          // 归一化音量阈值 = RMS/8000
@@ -94,7 +101,7 @@ class VadDetector {
         if (!isActive || block.isEmpty()) return null
         val level = levelOf(block)
         if (level > maxLevel) maxLevel = level
-        val isSpeech = level >= SPEECH_LEVEL
+        val isSpeech = level >= speechLevelProvider()
 
         if (!isSpeaking) {
             // 未说话超 listen_timeout 回 IDLE——先查超时再消费本块（同桌面端顺序）
