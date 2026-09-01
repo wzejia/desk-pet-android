@@ -754,5 +754,16 @@ EMA 双轨（慢跟踪 0.1 + 条件上攻 0.35），上攻条件用<b>两个独�
 max-utterance 测试数据改波动幅度（语义修正而非放水）。</p>
 </div>
 
+<div class="entry decision">
+<span class="tag">设计决策</span><span class="meta">2026-08-31 ｜ 语音管线 ｜ S20 MCP 调用结果静音开关</span>
+<p><b>需求</b>（用户拍板）：密集架自带语音播报，含 MCP 工具调用轮手机只上屏不播音（防双播）。
+<b>机制</b>（探针实测事件序）：TOOL_CALL_START/END/RESULT 先于最终文本到达->
+SSE 消费者置标记，TTS 生产者「开关关+本轮有工具调用」则跳过合成（文字照上屏/上泡）。
+<b>排障留痕</b>（默认参数陷阱）：runOnce 调用点漏传 onToolCallEvent--该参数有默认值
+{}，编译通过静默吞回调，表现=标记永不置位。定位手法=二分测试（AguiClient.chat 层
+单测 fired=0 实锤在 client 内而非 VSM）。<b>教训</b>：可选回调参数透传链改动后，
+必须有一个穿透全链路的 e2e 断言（单点测试全绿也可能是调用点漏接）。</p>
+</div>
+
 </body>
 </html>

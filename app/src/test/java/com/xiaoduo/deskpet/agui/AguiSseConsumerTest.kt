@@ -15,6 +15,21 @@ class AguiSseConsumerTest {
         AguiSseConsumer(onDelta = { collector.add(it) })
 
     /** 1. 正常流：RUN_STARTED → RAW → STEP_STARTED → TEXT_MESSAGE_*×N → SNAPSHOT → RUN_FINISHED，全文拼接 */
+    /** S20-1：TOOL_CALL_START 触发 onToolCallEvent（MCP 静音开关的标记源） */
+    @Test
+    fun `tool call start fires callback`() {
+        var fired = 0
+        val c = AguiSseConsumer(onToolCallEvent = { fired++ })
+        c.feedLine("""data: {"type":"TOOL_CALL_START","toolCallId":"t1","toolCallName":"mjj_move"}""")
+        c.feedLine("""data: {"type":"TOOL_CALL_END","toolCallId":"t1"}""")
+        c.feedLine("""data: {"type":"TOOL_CALL_RESULT","toolCallId":"t1","content":"ok"}""")
+        c.feedLine("""data: {"type":"TEXT_MESSAGE_CONTENT","delta":"已打开"}""")
+        c.feedLine("""data: {"type":"RUN_FINISHED","runId":"r"}""")
+        assertEquals(1, fired)
+        val r = c.finish()
+        assertTrue(r is AguiSseConsumer.RunResult.Success)
+    }
+
     @Test
     fun normalFlowConcatenatesFullText() {
         val deltas = mutableListOf<String>()

@@ -111,6 +111,8 @@ object VoiceClientFactory {
                 wakeAck = wakeAck(app),
                 // S18：VAD 阈值校准联动（每块现读，校准写入即时生效）
                 vadSpeechLevel = { Prefs.vadSpeechLevel(app) },
+                // S20：MCP 结果播报开关（每句现读，切换即时生效）
+                speakMcpResultProvider = { Prefs.speakMcpResult(app) },
             ).also { session = it }
         }
         // S9-3 冷路径接线：装配完成后触发应答音预取（保存即合成的「启动补漏」半边）。

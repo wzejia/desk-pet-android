@@ -181,6 +181,29 @@ class AguiClientAgentListTest {
         assertEquals("hkChatAgent", takeRequest().getHeader("agentId")) // stream2
     }
 
+    /** S20 二分定位：chat 流含 TOOL_CALL_START 时 onToolCallEvent 必须触发 */
+    @Test
+    fun `chat fires onToolCallEvent when stream has tool call`() {
+        val cache = MemTokenCache().apply { token = TOKEN_A }
+        val threads = MemThreadStore().apply { map[AguiClient.DEFAULT_THREAD_KEY] = THREAD_ID }
+        var fired = 0
+        val sse = listOf(
+            """{"type":"RUN_STARTED","runId":"r"}""",
+            """{"type":"TOOL_CALL_START","toolCallId":"t1"}""",
+            """{"type":"TEXT_MESSAGE_CONTENT","messageId":"m1","delta":"好"}""",
+            """{"type":"RUN_FINISHED","runId":"r"}""",
+        ).joinToString("\n\n") { "data: " + it } + "\n\n"
+        server.enqueue(
+            MockResponse().setHeader("Content-Type", "text/event-stream").setBody(sse),
+        )
+        val result = client(cache, threads).chat(
+            "你好",
+            onToolCallEvent = { fired++ },
+        )
+        println("result=$result fired=$fired")
+        org.junit.Assert.assertEquals(1, fired)
+    }
+
     companion object {
         private const val TOKEN_A = "11111111-1111-1111-1111-111111111111"
         private const val TOKEN_B = "22222222-2222-2222-2222-222222222222"

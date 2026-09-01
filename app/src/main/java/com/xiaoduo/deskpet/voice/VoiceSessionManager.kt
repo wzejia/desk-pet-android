@@ -55,6 +55,8 @@ class VoiceSessionManager(
     private val listeningHintLingerMs: Long = 2_500L,
     /** S18：VAD 说话电平阈值 provider（环境校准联动；默认 VadDetector 0.05）。 */
     private val vadSpeechLevel: () -> Double = { VadDetector.SPEECH_LEVEL },
+    /** S20：MCP 调用结果是否播报（默认 true；false 时含工具调用轮跳过 TTS，文字照上屏）。 */
+    private val speakMcpResultProvider: () -> Boolean = { true },
 ) {
 
     /** ASR 模式分支：云端按配置厂商分发（pcm 包 WAV），平台走 AsrClient。 */
@@ -73,9 +75,27 @@ class VoiceSessionManager(
     }
 
     /** 语音 LLM 模式分支：云端走 OpenAI 兼容（无状态），平台走 AguiClient（线程记忆）。 */
+    /** S20：本轮是否出现 MCP 工具调用（TOOL_CALL_START 到达即置位；云端路径无 MCP 恒 false）。 */
+    private val turnSawToolCall = java.util.concurrent.atomic.AtomicBoolean(false)
+
     private fun voiceChat(stripped: String, onDelta: (String) -> Unit): AguiClient.ChatResult {
-        val ctx = appContext ?: return aguiFactory().chat(stripped, onDelta = onDelta)
-        if (!NetConfig.llmIsCloud(ctx)) return aguiFactory().chat(stripped, onDelta = onDelta)
+        turnSawToolCall.set(false) // S20：每轮归零
+        val ctx = appContext ?: return aguiFactory().chat(
+            stripped,
+            onDelta = onDelta,
+            onToolCallEvent = {
+                turnSawToolCall.set(true)
+                logger("MCP tool call seen (TOOL_CALL_START)")
+            },
+        )
+        if (!NetConfig.llmIsCloud(ctx)) return aguiFactory().chat(
+            stripped,
+            onDelta = onDelta,
+            onToolCallEvent = {
+                turnSawToolCall.set(true)
+                logger("MCP tool call seen (TOOL_CALL_START)")
+            },
+        )
         return when (val r = CloudClientFactory.chat(ctx).chat(listOf(Message("user", stripped)), null, onDelta)) {
             is OpenAIChatClient.Result.Success -> AguiClient.ChatResult.Success(r.text, r.firstTokenLatencyMs, 1)
             is OpenAIChatClient.Result.Error -> AguiClient.ChatResult.Error(r.message)
@@ -692,6 +712,13 @@ class VoiceSessionManager(
             try {
                 for (original in sentences) {
                     if (turn.sealed) break // barge-in 出口
+                    // S20 MCP 结果静音（用户拍板：密集架自带播报）：含工具调用轮跳过合成，
+                    // 文字已随 delta 上屏/上泡不受影响；TOOL_CALL_START 先于文本到达
+                    // （探针实测事件序），分句时标记已知
+                    if (!speakMcpResultProvider() && turnSawToolCall.get()) {
+                        logger("MCP 结果静音开关：含工具调用轮跳过 TTS")
+                        continue
+                    }
                     val clean = TtsSanitizer.sanitize(original)
                     if (clean.isEmpty()) {
                         logger("sanitize 后无 alnum，跳过合成: $original")

@@ -204,6 +204,17 @@ fun SettingsScreen(onBack: () -> Unit, onOpenPermissions: () -> Unit) {
             // ---- 端点与账号（R4）----
             SectionTitle("端点与账号")
             AgentPicker(context)
+            var speakMcp by remember { mutableStateOf(Prefs.speakMcpResult(context)) }
+            RowSwitch(
+                title = "MCP 调用结果播报",
+                subtitle = "关闭后：含工具调用的回复只上屏不播音（密集架等设备自带播报场景，避免双播）",
+                checked = speakMcp,
+                enabled = true,
+            ) { on ->
+                speakMcp = on
+                Prefs.setSpeakMcpResult(context, on)
+                PetLogger.i("Settings", "speak_mcp_result -> $on")
+            }
             Spacer(Modifier.height(XiaoduoDimens.SpaceS))
             EndpointEditor(context)
 

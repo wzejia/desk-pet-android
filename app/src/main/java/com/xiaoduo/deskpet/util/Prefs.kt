@@ -154,4 +154,14 @@ object Prefs {
             .putBoolean(PrefContract.KEY_MIC_RAW_SOURCE, false) // 迁移源清零
             .apply()
     }
+
+    /** S20：MCP 调用结果播报开关（默认开；关=含工具调用轮手机静默，设备自带播报场景）。 */
+    const val KEY_SPEAK_MCP_RESULT = PrefContract.KEY_SPEAK_MCP_RESULT
+
+    fun speakMcpResult(context: Context): Boolean =
+        sp(context).getBoolean(KEY_SPEAK_MCP_RESULT, true)
+
+    fun setSpeakMcpResult(context: Context, speak: Boolean) {
+        sp(context).edit().putBoolean(KEY_SPEAK_MCP_RESULT, speak).apply()
+    }
 }

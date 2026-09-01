@@ -54,5 +54,9 @@ object PrefContract {
     const val KEY_MIC_RAW_SOURCE = "mic_raw_source"       // Boolean（S18 旧键，迁移源）
     const val KEY_MIC_SOURCE_MODE = "mic_source_mode"     // Int：0=通话 1=识别 2=原始
 
+    // ---- S20 MCP 调用结果播报开关 ----
+    const val KEY_SPEAK_MCP_RESULT = "speak_mcp_result"   // Boolean，默认 true
+
     val S18_KEYS: Set<String> = setOf(KEY_VAD_SPEECH_LEVEL, KEY_MIC_SOURCE_MODE)
+    val S20_KEYS: Set<String> = setOf(KEY_SPEAK_MCP_RESULT)
 }

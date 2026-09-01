@@ -19,6 +19,8 @@ import org.json.JSONObject
  */
 class AguiSseConsumer(
     private val onDelta: (String) -> Unit = {},
+    /** S20：TOOL_CALL_START 触发（MCP 静音开关标记源；每轮至多语义上多次调用，调用方自幂等）。 */
+    private val onToolCallEvent: () -> Unit = {},
 ) {
 
     sealed interface RunResult {
@@ -61,6 +63,7 @@ class AguiSseConsumer(
                 }
             }
             "MESSAGES_SNAPSHOT" -> snapshotText = extractLastAssistantText(json)
+            "TOOL_CALL_START" -> onToolCallEvent() // S20：MCP 调用轮标记（先于最终文本到达）
             "RUN_FINISHED" -> sawRunFinished = true
             // RUN_STARTED / RAW / STEP_STARTED / TEXT_MESSAGE_START/END 等一律忽略（#24）
         }
