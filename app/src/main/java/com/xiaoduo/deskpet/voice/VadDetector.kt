@@ -11,11 +11,24 @@ import kotlin.math.sqrt
  * 与桌面端另一差异：
  * 30s 超时 / 8s 最长句用块数（100ms/块）替代 time.monotonic()，使 JVM 单测可确定性验证。
  */
+/**
+ * S19-1 自适应噪声底 v5（rk3568 无 AEC + 底层 AGC 慢释放致非平稳噪声下固定阈值
+ * 数学不可收敛）。EMA 双轨（WebRTC 式 attack/release）：
+ * - 低于阈值块：noiseFloor 慢跟踪（0.1）--环境噪声上/下都跟随；
+ * - 持续 ≥[NOISE_ATTACK_SUSTAIN_TICKS] 块高电平 <b>且</b>（远低于语音峰值
+ *   level < speechPeak×[NOISE_ATTACK_PEAK_HALF]，或电平平台稳定 (max-min)/mean
+ *   < [PLATEAU_STABLE_RATIO]）-> 判定「抬升噪声」快速上攻（0.35）；
+ *   连续语音=波动大且贴峰值，两通道天然区分；
+ * - 判起阈值 = max(provider, floor×2.0)、判停阈值 = max(provider, floor×1.4)；
+ * - start() 不清 EMA（设备声学属性跨轮保持--泵态多轮重启免幽灵轮）。
+ * 手机安静域 floor≈0.001 -> 阈值=provider 零回归（单测锁定）。
+ */
 class VadDetector(
     /**
      * S18：说话电平阈值动态 provider（默认 0.05，与桌面端对账一致）。
      * 环境音校准联动（rk3568 板子噪声底 ~0.049 骑在 0.05 上致判停永不触发、
      * 每轮拖满 8s 强制上限）：校准写入 Prefs -> 此处每块现读，即时生效。
+     * S19-1 起作自适应阈值的<b>下限</b>（max(provider, p20×k)）。
      */
     private val speechLevelProvider: () -> Double = { SPEECH_LEVEL },
 ) {
@@ -39,6 +52,31 @@ class VadDetector(
 
         /** deque 容量 = 判起 3 + pre_roll 3 = 6（与判起同长则触发前保留实为 0，双栈踩过两次） */
         const val PRE_ROLL_CAPACITY = SPEECH_START_TICKS + PRE_ROLL_TICKS // 6
+
+        /** S19-1 「持续高电平疑似抬升噪声」的持续块数（1s）。 */
+        const val NOISE_ATTACK_SUSTAIN_TICKS = 10
+
+        /** S19-1 抬升噪声上攻速率（快）。 */
+        const val NOISE_ATTACK_RATE = 0.35
+
+        /** S19-1 低于阈值块噪声底跟踪速率（慢，上下双向）。 */
+        const val NOISE_TRACK_RATE = 0.10
+
+        /** S19-1 上攻通道①：level 低于语音峰值 EMA 的比例（噪声 < 语音一半）。 */
+        const val NOISE_ATTACK_PEAK_HALF = 0.5
+
+        /** S19-1 上攻通道②：平台判据--最近 10 块 (max-min)/mean 低于此值=稳定非语音。 */
+        const val PLATEAU_STABLE_RATIO = 0.25
+
+        /** S19-1 噪声底上限（防病理态阈值吞语音）。 */
+        const val NOISE_FLOOR_MAX = 0.5
+
+        /** S19-1 语音峰值 EMA 逐块衰减（0.5%/块，防上轮响度压制下轮轻声）。 */
+        const val SPEECH_PEAK_DECAY = 0.995
+
+        /** S19-1 判起/判停对噪声底的倍率。 */
+        const val ADAPTIVE_START_FACTOR = 2.0
+        const val ADAPTIVE_END_FACTOR = 1.4
         const val LISTEN_TIMEOUT_TICKS = LISTEN_TIMEOUT_S * 1000 / BLOCK_MS // 300
         const val MAX_UTTERANCE_TICKS = MAX_UTTERANCE_S * 1000 / BLOCK_MS   // 80
     }
@@ -70,10 +108,24 @@ class VadDetector(
     private var listenTicks = 0 // 未判起期间已消费块数（30s = 300 块）
     private var speechTicks = 0 // 判起后已消费块数（8s = 80 块强制结束）
 
+    /** S19-1 噪声底 EMA（设备声学属性，跨轮保持；见类注释双轨更新规则）。 */
+    private var noiseFloor = 0.0
+
+    /** S19-1 语音峰值 EMA（说话块推升、逐块衰减；上攻通道①的基准）。 */
+    private var speechPeak = 0.0
+
+    /** S19-1 连续超阈值块数（达 [NOISE_ATTACK_SUSTAIN_TICKS] 触发疑似抬升噪声判定）。 */
+    private var sustainedAbove = 0
+
+    /** S19-1 平台判据用小窗（最近 10 块电平）。 */
+    private val plateauWindow = ArrayDeque<Double>()
+
     /** 开始监听（重置全部状态 + 启动超时计数）。单次触发停止后由调用方重新 start。 */
     fun start() {
         buffer.clear()
         preRoll.clear()
+        // S19-1：noiseFloor/speechPeak/sustainedAbove/plateauWindow 刻意不清--
+        // 设备声学属性跨轮保持（泵态多轮重启若清零会无限幽灵轮）
         aboveTicks = 0
         belowTicks = 0
         maxLevel = 0.0
@@ -101,7 +153,25 @@ class VadDetector(
         if (!isActive || block.isEmpty()) return null
         val level = levelOf(block)
         if (level > maxLevel) maxLevel = level
-        val isSpeech = level >= speechLevelProvider()
+        val isSpeech = level >= if (isSpeaking) endThreshold() else startThreshold()
+        // S19-1 双轨噪声底更新（判完再更新，本块不受影响）
+        speechPeak = maxOf(speechPeak * SPEECH_PEAK_DECAY, level)
+        plateauWindow.addLast(level)
+        while (plateauWindow.size > NOISE_ATTACK_SUSTAIN_TICKS) plateauWindow.removeFirst()
+        if (isSpeech) {
+            sustainedAbove++
+            if (sustainedAbove >= NOISE_ATTACK_SUSTAIN_TICKS &&
+                (level < speechPeak * NOISE_ATTACK_PEAK_HALF || isPlateau())
+            ) {
+                // 抬升噪声（AGC 泵态/播放后增益慢释）：噪声底快速上攻
+                noiseFloor = (noiseFloor + (level - noiseFloor) * NOISE_ATTACK_RATE)
+                    .coerceAtMost(NOISE_FLOOR_MAX)
+            }
+        } else {
+            sustainedAbove = 0
+            // 低于阈值：噪声底慢速上下跟随
+            noiseFloor += (level - noiseFloor) * NOISE_TRACK_RATE
+        }
 
         if (!isSpeaking) {
             // 未说话超 listen_timeout 回 IDLE——先查超时再消费本块（同桌面端顺序）
@@ -163,6 +233,23 @@ class VadDetector(
     }
 
     /** Int16 PCM 归一化音量：min(1.0, RMS/8000)（削波信号钳位到 1.0，同 voice_listen.py:48）。 */
+    /** S19-1 判起阈值 = max(provider, 噪声底×2.0)。 */
+    private fun startThreshold(): Double =
+        maxOf(speechLevelProvider(), noiseFloor * ADAPTIVE_START_FACTOR)
+
+    /** S19-1 判停阈值 = max(provider, 噪声底×1.4)（恒 < 判起阈值）。 */
+    private fun endThreshold(): Double =
+        maxOf(speechLevelProvider(), noiseFloor * ADAPTIVE_END_FACTOR)
+
+    /** S19-1 平台判据：最近块电平 (max-min)/mean < [PLATEAU_STABLE_RATIO]（AGC 钉死特征）。 */
+    private fun isPlateau(): Boolean {
+        if (plateauWindow.size < NOISE_ATTACK_SUSTAIN_TICKS) return false
+        val max = plateauWindow.max()
+        val min = plateauWindow.min()
+        val mean = plateauWindow.average()
+        return mean > 0.0 && (max - min) / mean < PLATEAU_STABLE_RATIO
+    }
+
     private fun levelOf(block: ShortArray): Double {
         var sum = 0.0
         for (s in block) sum += s.toDouble() * s

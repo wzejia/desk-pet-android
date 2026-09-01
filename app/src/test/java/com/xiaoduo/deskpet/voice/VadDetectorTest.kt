@@ -125,9 +125,12 @@ class VadDetectorTest {
     fun `max utterance 8s forces end with accumulated speech only`() {
         val vad = VadDetector()
         vad.start()
-        feedN(vad, loud, 3) // 判起（buffer = 3 触发块）
-        assertTrue(feedN(vad, loud, 80).isEmpty()) // 80 块 = 8s 全部消费
-        val ev = vad.feed(loud) // 第 81 块：speechTicks=80 触发强制结束，本块不消费
+        // S19-1 起恒定幅度会触发平台通道判停（稳定非语音特征），真实语音波动：
+        // 交替 800/1400（level 0.1/0.175，均值波动 >25%），8s 语义保持
+        fun speechBlock(i: Int) = block(if (i % 2 == 0) 800 else 1400)
+        (1..3).forEach { vad.feed(speechBlock(it)) } // 判起（buffer = 3 触发块）
+        assertTrue((1..80).mapNotNull { vad.feed(speechBlock(it + 3)) }.isEmpty()) // 80 块全消费
+        val ev = vad.feed(speechBlock(84)) // 第 81 块：speechTicks=80 触发强制结束
         assertTrue(ev is VadDetector.Event.Utterance)
         assertEquals(
             (3 + 80) * VadDetector.BLOCK_SAMPLES,
@@ -175,6 +178,87 @@ class VadDetectorTest {
         val ev = vad.feed(zero)
         assertTrue(ev is VadDetector.Event.Timeout)
         assertEquals(1.0, (ev as VadDetector.Event.Timeout).maxLevel, 1e-9)
+    }
+
+    /** S19-1：AGC 泵态--语音后噪声被抬到 0.25（amp 2000），判停阈值应自适应跟高，
+     *  utterance 正常结束而不是拖满 8s 强制上限（rk3568 实测病灶 132800 samples 修复目标） */
+    @Test
+    fun `agc pumped noise floor adapts and ends utterance promptly`() {
+        val vad = VadDetector()
+        vad.start()
+        // 安静期（amp 48 -> level 0.006）建噪声底
+        feedN(vad, block(48), 5)
+        // 说话：amp 6000 -> level 0.75
+        feedN(vad, block(6000), 5)
+        assertTrue(vad.isSpeaking)
+        // AGC 泵态：噪声被抬到 amp 2000（level 0.25）持续送 -- 若不自适应则 0.25 > 0.05 永不判停
+        val evs = feedN(vad, block(2000), 40) // 4s 泵态噪声
+        val utterance = evs.filterIsInstance<VadDetector.Event.Utterance>().firstOrNull()
+        assertTrue("泵态噪声下 4s 内应判停（实测应远低于 80 块上限）", utterance != null)
+        // 判停发生在早期（阈值跟高后），而非撞 max utterance
+        val idx = evs.indexOfFirst { it is VadDetector.Event.Utterance }
+        assertTrue("判停应发生在泵态噪声开始后 20 块内，实际第 ${idx + 1} 块", idx < 20)
+    }
+
+    /** S19-1：AGC 指数衰减仿真--泵态噪声 0.30 衰减，判停不依赖衰减完成 */
+    @Test
+    fun `agc decay curve ends utterance before full decay`() {
+        val vad = VadDetector()
+        vad.start()
+        feedN(vad, block(48), 5)                       // 安静建底
+        feedN(vad, block(6000), 5)                     // 说话
+        assertTrue(vad.isSpeaking)
+        // 噪声从 0.30 指数衰减（rk809 AGC 慢释放曲线），全程高于校准阈值 0.05
+        var level = 0.30
+        var fired = -1
+        for (i in 1..40) {
+            val amp = (level * 8000).toInt().coerceAtLeast(1)
+            val ev = vad.feed(block(amp))
+            if (ev is VadDetector.Event.Utterance) { fired = i; break }
+            level *= 0.94 // 慢释放：每块衰减 6%（8s 后仍 0.30×0.94^80≈0.002）
+        }
+        assertTrue("衰减曲线下应判停（40 块内）", fired > 0)
+        assertTrue("判停应发生在衰减早期（<25 块），实际第 $fired 块", fired < 25)
+    }
+
+    /** S19-1：手机安静域零回归--噪声 0.006 时阈值回校准下限 0.05，
+     *  行为与硬编码版一致（3 块判起 0.0525、4 块 0.045 判停） */
+    @Test
+    fun `quiet phone domain keeps 0_05 behavior unchanged`() {
+        val vad = VadDetector()
+        vad.start()
+        feedN(vad, block(48), 5) // 噪声底 0.006
+        assertNull(vad.feed(block(360)))  // 0.045 < 0.05 静音
+        feedN(vad, block(420), 3)         // 0.0525 >= 0.05 判起
+        assertTrue(vad.isSpeaking)
+        feedN(vad, block(360), 3)         // 0.045 静音 3 块不判停
+        val ev = vad.feed(block(360))     // 第 4 块判停
+        assertTrue(ev is VadDetector.Event.Utterance)
+    }
+
+    /** S19-1 泵态幽灵轮：首轮（EMA 未学到泵态）允许短幽灵 utterance（<2.5s，非 8s），
+     *  二轮（EMA 已学到）泵态噪声不再误判起 */
+    @Test
+    fun `pumped noise ghosts once briefly then becomes immune`() {
+        val vad = VadDetector()
+        vad.start()
+        // 首轮泵态（amp 2000 = level 0.25）：前 3 块 provider 判起->幽灵轮，
+        // 但平台/半峰通道应让 utterance 远早于 8s 结束
+        val evs = feedN(vad, block(2000), 30)
+        val ghost = evs.filterIsInstance<VadDetector.Event.Utterance>().firstOrNull()
+        assertTrue("首轮允许短幽灵轮", ghost != null)
+        assertTrue(
+            "幽灵轮应 <2.5s（25 块），实际 ${ghost!!.pcm.size / VadDetector.BLOCK_SAMPLES} 块",
+            ghost.pcm.size / VadDetector.BLOCK_SAMPLES < 25,
+        )
+        // 二轮（调用方重启，EMA 保持）：泵态噪声不再误判起
+        vad.start()
+        val evs2 = feedN(vad, block(2000), 20)
+        assertTrue(evs2.isEmpty())
+        assertFalse(vad.isSpeaking)
+        // 真说话 0.75 仍判起
+        feedN(vad, block(6000), 3)
+        assertTrue(vad.isSpeaking)
     }
 
     @Test

@@ -258,6 +258,7 @@ class VoiceSessionManager(
      * 按住说话/自检路径不传参不播（手指即即时反馈，播了反而延迟采麦）。
      */
     fun startListening(playWakeAck: Boolean = false) {
+        emptyAsrResumesLeft = EMPTY_ASR_MAX_RESUMES // S19-2：新对话链，续听额度复位
         // S8-3 按住打断 + S12 唤醒词打断（spike 双合格转正，两条路径共用同一打断接续）：
         // speaking/processing 态 = 打断并接续新一轮。复用 cancelCurrentTurn（全同步：
         // 封轮+停 TTS/停「我在」+收泡+部分回复补发 done+回 IDLE），返回后 state==IDLE，
@@ -452,6 +453,13 @@ class VoiceSessionManager(
     @Volatile
     private var vadDiagTicks = 0
 
+    /** S19-2 空 ASR 续听剩余额度（真文本/新对话链复位）。 */
+    @Volatile
+    private var emptyAsrResumesLeft = EMPTY_ASR_MAX_RESUMES
+
+    /** 测试缝：续听额度读取（S19-2 单测断言用）。 */
+    internal val emptyAsrResumesForTest: Int get() = emptyAsrResumesLeft
+
     private fun teardownIdleCapture() {
         collectJob?.cancel()
         collectJob = null
@@ -525,6 +533,17 @@ class VoiceSessionManager(
                 logger("pipeline abort at ASR: ${r.message}")
                 // 封轮（cancel 先于 ASR 返回）：静默落地，错误泡/状态行都属幽灵输出
                 if (turn.sealed || currentTurn !== turn) return
+                // S19-2 空 ASR 续听（rk3568 泵态幽灵轮实测 20:57）：纯噪声误触发 utterance
+                // 的 ASR 空文本不是「失败」而是「没说话」--重进聆听而非落 IDLE，
+                // 上限 [EMPTY_ASR_MAX_RESUMES] 次防持续噪声下无限幽灵循环。
+                if (r.message.startsWith(EMPTY_ASR_PREFIX) && emptyAsrResumesLeft > 0) {
+                    emptyAsrResumesLeft--
+                    logger("empty ASR（纯噪声轮），续听（剩 $emptyAsrResumesLeft 次）")
+                    vad.start()
+                    transition(VoiceStateRouter.State.LISTENING, "empty asr, resume listening")
+                    status("聆听中…（30s 无语音自动退出）")
+                    return
+                }
                 status("ASR 失败：${r.message}")
                 bubbleHidePolicy.onBubbleShown() // 错误泡同走 12s 自动收（critic ②）
                 bubble.show("没听清：${r.message}")
@@ -557,6 +576,7 @@ class VoiceSessionManager(
             }
             return
         }
+        emptyAsrResumesLeft = EMPTY_ASR_MAX_RESUMES // S19-2：真文本到达，续听额度复位
         logger("ASR->LLM send latency=${System.currentTimeMillis() - asrStart}ms")
         status("小朵思考中…")
         // 封轮检查（critic P2-③）：cancel 在 ASR 在飞期间封轮后，残跑管线不得再上屏——
@@ -785,5 +805,11 @@ class VoiceSessionManager(
 
         /** S15 聆听提示泡文案（低存在感：聆听期悬浮窗持续反馈）。 */
         private const val LISTENING_HINT = "在听…"
+
+        /** S19-2 空 ASR 错误前缀（平台+云端三家统一约定：{prefix}…）。 */
+        private const val EMPTY_ASR_PREFIX = "ASR 返回空文本"
+
+        /** S19-2 续听上限（防持续噪声下无限幽灵循环）。 */
+        internal const val EMPTY_ASR_MAX_RESUMES = 2
     }
 }
