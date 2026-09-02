@@ -830,5 +830,19 @@ VoicePlayer 配速器（pacer 线程）——写入只入「已写未播」队�
 winPow 在播放期稳定非零。</p>
 </div>
 
+<div class="entry open-question">
+<span class="tag">未决问题</span><span class="meta">2026-09-02 ｜ 声学 ｜ 复测结论：漏检全部落在长回复窗，AGC 深压缩假说待 RMS 数据钉死</span>
+<p><b>复测数据</b>（PID11025，20:06-20:12）：消回声开/关两阶段各 3-4 次短回复打断全中
+（4~20s 内）；漏检 2 次=49s 与 110s+ 长回复（双引擎零命中、fed 持续、用户触控/放弃
+收场）。NLMS 开关与漏检无关（配速器修复后 refBacklog 已健康 1112~4328）。<b>假说</b>：
+板子 codec AGC 慢释放深压缩（S18 实证其存在）——播报持续 30s+ 后增益越压越深，
+人声连同回声一起被压进噪声底；NLMS 线性减法救不了已被非线性增益压扁的信号；
+「0.5m 大声喊反而唤不醒」吻合（总输入越响压得越狠）。<b>待验证</b>（已装 in/out RMS
+遥测）：若长播报期 inRms 持续走低=AGC 压制实锤。<b>若实锤，出路</b>：①采麦源切
+UNPROCESSED（S18 已交付三档设置，若 HAL 支持则绕开 codec AGC，与 NLMS 组成完整解）
+②HAL 不支持 raw 则走部署层 tinymix 关 codec AGC。<b>教训</b>：非线性时变系统里，
+线性回声消除只是必要条件，增益链路（AGC）才是长时窗的胜负手。</p>
+</div>
+
 </body>
 </html>

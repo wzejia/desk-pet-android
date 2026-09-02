@@ -269,6 +269,10 @@ class VoiceSessionManager(
      *  无参考（IDLE/聆听）processBlock 原样直通，零行为变更。 */
     private val echoCanceller = NlmsEchoCanceller()
 
+    // S23 遥测累加器：50 块窗口内进/出 RMS 均值（口径同 vad diag level，可直接对照校准分布）
+    private var echoDiagIn = 0.0
+    private var echoDiagOut = 0.0
+
     /** UI 状态行回调（设置页语音自检显示进度；Compose snapshot state 跨线程写安全）。 */
     @Volatile
     var statusListener: ((String) -> Unit)? = null
@@ -516,9 +520,19 @@ class VoiceSessionManager(
                 // S23：播放期麦块先过 NLMS 消回声再进 KWS（主+影子双引擎同受益）；
                 // 无参考/开关关=原样直通（processBlock 内部有新鲜度快路径）
                 val out = if (echoCancelProvider()) echoCanceller.processBlock(block) else block
-                // S23 遥测：每 50 个消回声块落一行（证实 NLMS 真在跑 + 参考积压/窗能量水位）
-                if (out !== block && echoCanceller.processedBlocks % 50 == 0L) {
-                    logger("echo cancel active: ${echoCanceller.statsSnapshot()}")
+                // S23 遥测：每 50 个消回声块落一行（证实 NLMS 真在跑 + 参考积压/窗能量水位 +
+                // 进/出 RMS——AGC 深压制（长播报越久 in 越低）与 NLMS 实效（out<<in=在消）同屏可见）
+                if (out !== block) {
+                    echoDiagIn += (EnergyGate.rmsOf(block) * (32768f / 8000f)).toDouble()
+                    echoDiagOut += (EnergyGate.rmsOf(out) * (32768f / 8000f)).toDouble()
+                    if (echoCanceller.processedBlocks % 50 == 0L) {
+                        logger(
+                            "echo cancel active: ${echoCanceller.statsSnapshot()} " +
+                                "inRms=%.4f outRms=%.4f".format(echoDiagIn / 50, echoDiagOut / 50),
+                        )
+                        echoDiagIn = 0.0
+                        echoDiagOut = 0.0
+                    }
                 }
                 kwsSink?.invoke(out) // S5 挂点，当前无订阅即丢
             }
