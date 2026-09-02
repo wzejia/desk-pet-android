@@ -73,7 +73,7 @@ class VoiceSessionManagerMcpMuteTest {
         server.shutdown()
     }
 
-    private fun newManager(sink: RecSink, speakMcp: Boolean): VoiceSessionManager {
+    private fun newManager(sink: RecSink, speakMcp: Boolean, rewakeAfterTool: Boolean = true): VoiceSessionManager {
         val asr = AsrClient(OkHttpClient(), server.url("/asr").toString(), logger = {})
         val tts = TtsClient(
             OkHttpClient(),
@@ -100,6 +100,7 @@ class VoiceSessionManagerMcpMuteTest {
             scope = scope,
             logger = {},
             speakMcpResultProvider = { speakMcp },
+            rewakeAfterToolCallProvider = { rewakeAfterTool },
         ).also { it.transcriptSink = sink }
     }
 
@@ -126,6 +127,48 @@ class VoiceSessionManagerMcpMuteTest {
         )
 
     /** TTS 流式响应：NDJSON 一帧 audioData（base64 WAV 剥头）+ done 帧（TtsClient 协议） */
+    /** S21：独立开关（默认开）——含工具调用轮结束后回 IDLE（KWS 守门需重新唤醒），不走多轮续听 */
+    @Test
+    fun `rewake on sends tool call turn to idle instead of multi-turn listen`() {
+        val sink = RecSink()
+        val mgr = newManager(sink, speakMcp = false, rewakeAfterTool = true)
+        server.enqueue(asrOk("打开1号密集架"))
+        server.enqueue(loginOk())
+        server.enqueue(threadOk())
+        server.enqueue(toolCallSse("已为您打开。"))
+
+        utterance(mgr)
+        pumpTurn(sink)
+
+        val deadline = System.currentTimeMillis() + 4000
+        while (System.currentTimeMillis() < deadline) {
+            if (mgr.stateFlow.value == VoiceStateRouter.State.IDLE) break
+            Thread.sleep(25)
+        }
+        assertEquals(VoiceStateRouter.State.IDLE, mgr.stateFlow.value)
+    }
+
+    /** S21：开关关——工具轮后保持现状（多轮续听重启 LISTENING） */
+    @Test
+    fun `rewake off keeps multi-turn listening after tool call turn`() {
+        val sink = RecSink()
+        val mgr = newManager(sink, speakMcp = false, rewakeAfterTool = false)
+        server.enqueue(asrOk("打开1号密集架"))
+        server.enqueue(loginOk())
+        server.enqueue(threadOk())
+        server.enqueue(toolCallSse("已为您打开。"))
+
+        utterance(mgr)
+        pumpTurn(sink)
+
+        val deadline = System.currentTimeMillis() + 4000
+        while (System.currentTimeMillis() < deadline) {
+            if (mgr.stateFlow.value == VoiceStateRouter.State.LISTENING) break
+            Thread.sleep(25)
+        }
+        assertEquals(VoiceStateRouter.State.LISTENING, mgr.stateFlow.value)
+    }
+
     private fun ttsOk() = MockResponse().setBody(
         """{"audioData":"UklGRuwAAABXQVZFZm10IBAAAAABAAEAgD4AAAB9AAACABAAZGF0YcgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=="}""" + "\n" +
         """{"type":"done"}""" + "\n",
@@ -159,7 +202,7 @@ class VoiceSessionManagerMcpMuteTest {
     @Test
     fun `mute on skips tts for tool call turn but keeps transcript`() {
         val sink = RecSink()
-        val mgr = newManager(sink, speakMcp = false)
+        val mgr = newManager(sink, speakMcp = false, rewakeAfterTool = false)
         server.enqueue(asrOk("打开1号密集架"))
         server.enqueue(loginOk())
         server.enqueue(threadOk())
@@ -186,7 +229,7 @@ class VoiceSessionManagerMcpMuteTest {
     @Test
     fun `mute off keeps tts for tool call turn`() {
         val sink = RecSink()
-        val mgr = newManager(sink, speakMcp = true)
+        val mgr = newManager(sink, speakMcp = true, rewakeAfterTool = false)
         server.enqueue(asrOk("打开1号密集架"))
         server.enqueue(loginOk())
         server.enqueue(threadOk())

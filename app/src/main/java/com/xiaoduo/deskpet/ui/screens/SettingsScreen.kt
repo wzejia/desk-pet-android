@@ -215,6 +215,17 @@ fun SettingsScreen(onBack: () -> Unit, onOpenPermissions: () -> Unit) {
                 Prefs.setSpeakMcpResult(context, on)
                 PetLogger.i("Settings", "speak_mcp_result -> $on")
             }
+            var rewakeTool by remember { mutableStateOf(Prefs.rewakeAfterToolCall(context)) }
+            RowSwitch(
+                title = "工具调用后需重新唤醒",
+                subtitle = "开启后：含工具调用的回复结束后回到唤醒词守门（避免设备自带播报被当用户语音继续对话）",
+                checked = rewakeTool,
+                enabled = true,
+            ) { on ->
+                rewakeTool = on
+                Prefs.setRewakeAfterToolCall(context, on)
+                PetLogger.i("Settings", "rewake_after_tool -> $on")
+            }
             Spacer(Modifier.height(XiaoduoDimens.SpaceS))
             EndpointEditor(context)
 

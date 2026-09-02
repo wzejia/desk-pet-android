@@ -57,6 +57,10 @@ class VoiceSessionManager(
     private val vadSpeechLevel: () -> Double = { VadDetector.SPEECH_LEVEL },
     /** S20：MCP 调用结果是否播报（默认 true；false 时含工具调用轮跳过 TTS，文字照上屏）。 */
     private val speakMcpResultProvider: () -> Boolean = { true },
+    // S21（用户拍板 2026-09-02，独立开关默认开）：含 MCP 工具调用的轮次结束后回 IDLE
+    // （KWS 守门需重新「小朵小朵」唤醒），不走多轮续听——密集架自带播报会被 VAD 当用户
+    // 语音收下续出幽灵对话（甚至再触发 MCP 调用）。会话线程服务端保留，重唤醒不丢上下文。
+    private val rewakeAfterToolCallProvider: () -> Boolean = { true },
 ) {
 
     /** ASR 模式分支：云端按配置厂商分发（pcm 包 WAV），平台走 AsrClient。 */
@@ -684,9 +688,14 @@ class VoiceSessionManager(
             // 切到 LISTENING（非 IDLE）--原仅靠 state!=IDLE 拦截失效，须加 !sealed 防残跑
             // 多轮迁移重复 vad.start 干扰新轮采音（删此 -> 残跑重置 VAD pre-roll -> 红）
             if (currentTurn === turn && state != VoiceStateRouter.State.IDLE && !turn.sealed) {
-                vad.start()
-                transition(VoiceStateRouter.State.LISTENING, "multi-turn, VAD restart")
-                status("继续聆听…（30s 无语音退出）")
+                if (rewakeAfterToolCallProvider() && turnSawToolCall.get()) {
+                    // S21：工具轮后需重新唤醒——机器播报时段不进 VAD 续听，KWS 守门
+                    backToIdle("tool call turn, re-wake required")
+                } else {
+                    vad.start()
+                    transition(VoiceStateRouter.State.LISTENING, "multi-turn, VAD restart")
+                    status("继续聆听…（30s 无语音退出）")
+                }
             }
         } catch (e: CancellationException) {
             sentences.close() // 幂等（正常路径已 close）；取消拆解也让 ttsConsumer 落地

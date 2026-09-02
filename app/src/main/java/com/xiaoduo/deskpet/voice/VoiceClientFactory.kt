@@ -113,6 +113,8 @@ object VoiceClientFactory {
                 vadSpeechLevel = { Prefs.vadSpeechLevel(app) },
                 // S20：MCP 结果播报开关（每句现读，切换即时生效）
                 speakMcpResultProvider = { Prefs.speakMcpResult(app) },
+                // S21：工具轮后需重新唤醒（工具轮结束回 IDLE，KWS 守门）
+                rewakeAfterToolCallProvider = { Prefs.rewakeAfterToolCall(app) },
             ).also { session = it }
         }
         // S9-3 冷路径接线：装配完成后触发应答音预取（保存即合成的「启动补漏」半边）。

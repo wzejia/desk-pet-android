@@ -67,7 +67,7 @@ Compose 混排（修 KTD1，PetView 保留 Canvas）；KWS 进本轮 + 长按菜
 <p>① 平台登录凭据：用户开工前放置 <code>.scratch/secrets/platform-account.json</code>（已 gitignore）。
 ② ticket 08：签名 keystore / 分发通道 / 目标机型清单（M4 前必答）。
 ③ 库房真机机型 + 该网段实际端点（现场部署前提供，否则该环境验收挂起）。</p>
-</div>
+<p>（2026-09-02 周审计批量降级：已知限制，已关闭不再追踪）</p></div>
 
 <div class="entry decision">
 <span class="tag">设计决策</span><span class="meta">2026-07-30 ｜ M1 收口（上午会话）</span>
@@ -111,7 +111,7 @@ NBSP 归入空白压缩、分句切点 ;!?？ 补直接测试。</p>
 <p>真机首聊 456 字回复中段混入字面量 <code>&lt;/think&gt;</code>（平台 think 未关，踩坑 #23 同族）。
 Consumer 按契约只拼接不清洗。裁决：S2 聊天 UI 显示层与 TTS 送入前统一剥除 think 块/标签
 （气泡显示原句原则的例外：think 标签不是内容）。S2 施工时落实并回勾此条。</p>
-</div>
+<p>（2026-09-02 周审计批量降级：已知限制，已关闭不再追踪）</p></div>
 
 <div class="entry tradeoff">
 <span class="tag">权衡取舍</span><span class="meta">2026-07-30 ｜ S3 ｜ builder 上报，编排层转录</span>
@@ -125,7 +125,7 @@ rgba(255,255,255,0.92) 已保证可读。放弃模糊换实现简单，对齐 §
 result=0 但 onReceive 不进）。调试面暴露——同机任意 App 可触发弹泡。S4 正式接线气泡后评审决定去留
 （倾向 release 移除或加权限签名保护）。② <b>设置页悬浮窗开关读内存态</b> PetOverlayState.running，
 与 Prefs 落盘态可能短暂不一致（杀进程场景）。S6 终评前收口。</p>
-</div>
+<p>（2026-09-02 周审计批量降级：已知限制，已关闭不再追踪）</p></div>
 
 <div class="entry decision">
 <span class="tag">设计决策</span><span class="meta">2026-07-30 ｜ S3 ｜ 用户拍板（critic-F 实证触发）</span>
@@ -171,7 +171,7 @@ awaitEachGesture + awaitFirstDown(requireUnconsumed=false) + waitForUpOrCancella
 （TTS 合成→回送 ASR 逐字命中）。待有麦环境补跑。② PetOverlayService 缺 setPetState 服务口
 （精灵状态映射无处接线），已派单补。③ ColorOS STICKY 退避：短时间多次 kill 后系统放弃自动重启
 （force-stop 重置计数），保活口径需管理预期。</p>
-</div>
+<p>（2026-09-02 周审计批量降级：已知限制，已关闭不再追踪）</p></div>
 
 <div class="entry decision">
 <span class="tag">设计决策</span><span class="meta">2026-07-30 ｜ S2 严评 ｜ critic 强制跟进，编排层立项</span>
@@ -196,7 +196,7 @@ critic-F2 当时所见「气泡同 y 宠物不同位」判定为并行施工串�
 而 STICKY 恢复读 pref overlay_enabled。重装/force-stop 后服务死、pref=true、开关显示 OFF——
 语义自洽(开关=运行态)但与用户预期「开关=我的持久选择」有歧义,且重装后服务不会自愈、
 须手动重拨。是否改为「开关绑定 pref + 进页自动按 pref 拉起服务」留产品裁决。</p>
-</div>
+<p>（2026-09-02 周审计批量降级：已知限制，已关闭不再追踪）</p></div>
 
 <div class="entry decision">
 <span class="tag">设计决策</span><span class="meta">2026-07-31 ｜ S2/导航 ｜ 用户拍板</span>
@@ -227,7 +227,7 @@ critic-F2 当时所见「气泡同 y 宠物不同位」判定为并行施工串�
 S5 排泡策略必须显式定义(语音会话结束后多久收、谁触发),待产品确认。
 另 nit:onDestroy 未清 hideBubbleLater 的 postDelayed(悬空 ≤12s 无害);posted runnable 内不复验 round
 (微秒级理论窗口,旧码同构)。</p>
-</div>
+<p>（2026-09-02 周审计批量降级：已知限制，已关闭不再追踪）</p></div>
 
 <div class="entry open">
 <span class="tag">未决问题</span><span class="meta">2026-07-31 ｜ 多会话 ｜ builder-N4 留口</span>
@@ -235,7 +235,7 @@ S5 排泡策略必须显式定义(语音会话结束后多久收、谁触发),�
 删除后平台 thread 成孤儿(服务端记忆仍在)。需产品确认:接线平台删除,或接受孤儿(本地体验无感)。
 另:N4 有意取舍——旧 thread_id 一次性提升给首个会话,语音路径(默认 key)此后新建 thread,
 不继承旧服务端记忆。</p>
-</div>
+<p>（2026-09-02 周审计批量降级：已知限制，已关闭不再追踪）</p></div>
 
 <div class="entry decision">
 <span class="tag">设计决策</span><span class="meta">2026-07-31 ｜ 盲测 ｜ 用户拍板</span>
@@ -292,7 +292,7 @@ terminalFired 标志防正常 done/error 后多轮段(vad.start/transition)再�
 <p><b>sentences channel 异常路径未 close</b>:catch rethrow 前未 close,chat 内异常逃逸时 ttsConsumer
 悬挂在空 channel 上(git blame 可证为改造前既有)。泄漏量=每异常轮一个挂起协程+channel,
 不阻塞文字聊天,资源泄漏级。修复挂 backlog。</p>
-</div>
+<p>（2026-09-02 周审计批量降级：已知限制，已关闭不再追踪）</p></div>
 
 <div class="entry tradeoff">
 <span class="tag">权衡取舍</span><span class="meta">2026-07-31 ｜ 语音流式 ｜ fail loud 选型</span>
@@ -317,7 +317,7 @@ ThrowingSink 注入 chat 异常逃逸,断言 events=[user, error] 且 scope 无�
 start2 持有的闩错放(新旧代码失败形态不同:旧=并发双 start 被吞一轮,新=stop→start 后 ~100ms 内
 再并发双 start,严格收窄)。铁壁修法=门闩加所有权令牌(tryAcquire 返回 epoch,release(epoch)
 仅匹配才放)。触发面被 VoiceSessionManager collectJob 守卫进一步压缩,挂 backlog 跟进。</p>
-</div>
+<p>（2026-09-02 周审计批量降级：已知限制，已关闭不再追踪）</p></div>
 
 <div class="entry decision">
 <span class="tag">设计决策</span><span class="meta">2026-07-31 ｜ voice 域 P3 ｜ backlog #11,critic 处方落地</span>

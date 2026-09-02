@@ -164,4 +164,14 @@ object Prefs {
     fun setSpeakMcpResult(context: Context, speak: Boolean) {
         sp(context).edit().putBoolean(KEY_SPEAK_MCP_RESULT, speak).apply()
     }
+
+    /** S21：工具调用后需重新唤醒（默认开；工具轮结束回 IDLE，不走多轮续听）。 */
+    const val KEY_REWAKE_AFTER_TOOL = PrefContract.KEY_REWAKE_AFTER_TOOL
+
+    fun rewakeAfterToolCall(context: Context): Boolean =
+        sp(context).getBoolean(KEY_REWAKE_AFTER_TOOL, true)
+
+    fun setRewakeAfterToolCall(context: Context, rewake: Boolean) {
+        sp(context).edit().putBoolean(KEY_REWAKE_AFTER_TOOL, rewake).apply()
+    }
 }
