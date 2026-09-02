@@ -130,6 +130,72 @@ class NlmsEchoCancellerTest {
     }
 
     @Test
+    fun `jittery reference pacing still suppresses`() {
+        // 板子 2026-09-02 遥测形态复刻：playbackHeadPosition 粒度/超前使参考推送节奏
+        // 震荡（refBacklog 1484~8671）→ 恒定配对的对齐反复失效。周期互相关自对齐后
+        // 应稳定抑制（删对齐 -> 震荡窗内窗外交替 -> ERLE 崩 -> 红）
+        val c = NlmsEchoCanceller()
+        val rng = Random(11)
+        val path = EchoPath(delay = 900, gain = 0.7f)
+        val nBlocks = 140
+        val stream = Array(nBlocks) { noise(rng, block, 0.5f) }
+        var pushIdx = 0
+        var echoEnergy = 0.0
+        var residualEnergy = 0.0
+        for (b in 0 until nBlocks) {
+            val mic = path.render(stream[b])
+            // 推送节奏抖动：随机 0/1/2 块，但超前钳 ≤2 块（pacer 按播放头推送，
+            // 物理上不可能持续超前——无界漂移场景由溢出测试覆盖）
+            val r = rng.nextInt(3)
+            repeat(if (r == 0) 2 else if (r == 1) 0 else 1) {
+                if (pushIdx < minOf(b + 2, nBlocks)) c.pushReference(stream[pushIdx++])
+            }
+            if (pushIdx <= b && pushIdx < nBlocks) c.pushReference(stream[pushIdx++]) // 保底不落后
+            val out = c.process(mic)
+            if (b >= 110) {
+                echoEnergy += energy(mic)
+                residualEnergy += energy(out)
+            }
+        }
+        val erleDb = 10.0 * log10(echoEnergy / residualEnergy)
+        assertTrue("抖动节奏下 ERLE=$erleDb dB 应 ≥10dB", erleDb >= 10.0)
+    }
+
+    @Test
+    fun `divergence guard keeps output bounded and recovers`() {
+        // 板子形态复刻：double-talk（大声人声+回声）使未收敛滤波器发散（outRms 4x 输入，
+        // 2026-09-02 20:23 遥测实证）→ 守卫须在数块内止住放大（out<=1.5x in），且
+        // 人声消失后恢复抑制
+        val c = NlmsEchoCanceller()
+        val rng = Random(5)
+        val path = EchoPath(delay = 900, gain = 0.7f)
+        val voice = noise(rng, block * 25, 0.9f) // 2.5s 大声人声（独立于参考）
+        val ratios = ArrayList<Double>()
+        for (b in 0 until 80) {
+            val ref = noise(rng, block, 0.5f)
+            val echo = path.render(ref)
+            val mic = FloatArray(block) { i ->
+                if (b in 20 until 45) echo[i] + voice[(b - 20) * block + i] else echo[i]
+            }
+            c.pushReference(ref)
+            val out = c.process(mic)
+            if (b >= 50) ratios.add(energy(out) / maxOf(energy(mic), 1e-12))
+        }
+        val worst = ratios.max()
+        assertTrue("人声结束后 out/in 最差比=$worst 应 ≤1.5", worst <= 1.5)
+        val c2 = NlmsEchoCanceller() // 恢复力：同场景跑完后再量纯回声段
+        var echoE = 0.0; var residE = 0.0
+        for (b in 0 until 60) {
+            val ref = noise(rng, block, 0.5f)
+            val mic2 = path.render(ref)
+            c2.pushReference(ref)
+            val out = c2.process(mic2)
+            if (b >= 40) { echoE += energy(mic2); residE += energy(out) }
+        }
+        assertTrue("恢复后 ERLE=${10.0 * log10(echoE / residE)} dB 应 ≥10dB", 10.0 * log10(echoE / residE) >= 10.0)
+    }
+
+    @Test
     fun `block byte path round-trips and cancels`() {
         // 16bit PCM 字节入口（VSM routeBlock 实际用法）：有参考时不得直通，无参考直通
         val c = NlmsEchoCanceller()

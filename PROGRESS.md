@@ -137,7 +137,7 @@
 
 ### 接手指引（下会话开场必读）
 
-1. **大盘**：S0-S17 收口 + S18-S20 部分收口。基线 **493 单测全绿 skipped=0**（`./gradlew.bat testDebugUnitTest --rerun-tasks` 复跑）。
+1. **大盘**：S0-S17 收口 + S18-S20 部分收口。基线 **496 单测全绿 skipped=0**（`./gradlew.bat testDebugUnitTest --rerun-tasks` 复跑）。
 2. **剩余事项**：
    - **观察票：AEC 偶发失效态**（S12 遗留，见上）——用户报「喊打断没反应」时，拉该时段
      `kws stats` 看 fed/gated 形态（回声持续过门=AEC 失效窗）；频发再评估 S12-2 状态感知门控。
