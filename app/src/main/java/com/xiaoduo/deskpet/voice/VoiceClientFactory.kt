@@ -115,6 +115,8 @@ object VoiceClientFactory {
                 speakMcpResultProvider = { Prefs.speakMcpResult(app) },
                 // S21：工具轮后需重新唤醒（工具轮结束回 IDLE，KWS 守门）
                 rewakeAfterToolCallProvider = { Prefs.rewakeAfterToolCall(app) },
+                // S23：播放期回声消除实验开关（每块现读，切换即时生效）
+                echoCancelProvider = { Prefs.echoCancelEnabled(app) },
             ).also { session = it }
         }
         // S9-3 冷路径接线：装配完成后触发应答音预取（保存即合成的「启动补漏」半边）。

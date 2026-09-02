@@ -17,6 +17,8 @@ import androidx.core.content.ContextCompat
 import com.xiaoduo.deskpet.util.PetLogger
 import com.xiaoduo.deskpet.util.Prefs
 import com.xiaoduo.deskpet.voice.KwsEngine
+import com.xiaoduo.deskpet.voice.KwsDefaults
+import com.xiaoduo.deskpet.voice.VoiceStateRouter
 import com.xiaoduo.deskpet.voice.OnceGate
 import com.xiaoduo.deskpet.voice.VoiceClientFactory
 
@@ -35,6 +37,10 @@ class VoiceForegroundService : Service() {
 
     @Volatile
     private var engine: KwsEngine? = null
+
+    /** S22 影子引擎（低阈值第二 spotter）：仅 SPEAKING/PROCESSING 期喂流，命中只记
+     *  日志不打断——板子一晚数据（真打断漏检补给率 vs 回声自误触率）定转正阈值。 */
+    private var shadowEngine: KwsEngine? = null
 
     /**
      * 销毁标志（critic ① P1 麦泄漏竞态修复）。时序推演：
@@ -122,19 +128,44 @@ class VoiceForegroundService : Service() {
                 stopSelf()
                 return@Thread
             }
+            // S22 影子引擎：独立加载失败不拖死主引擎（影子是观测通道非功能通道）
+            val shadow = try {
+                KwsEngine(
+                    assetManager = assets,
+                    gateProvider = { Prefs.kwsGate(this) },
+                    onKeyword = { keyword ->
+                        val st = VoiceClientFactory.session(this).stateFlow.value
+                        PetLogger.i(TAG, "S22 shadow hit during $st (thr=${KwsDefaults.SHADOW_KEYWORDS_THRESHOLD}): $keyword")
+                    },
+                    logger = { msg -> PetLogger.i("KwsShadow", msg) },
+                    keywordsThreshold = KwsDefaults.SHADOW_KEYWORDS_THRESHOLD,
+                )
+            } catch (t: Throwable) {
+                PetLogger.e(TAG, "shadow KwsEngine init failed (non-fatal): ${t.message}")
+                null
+            }
             // 收尾与 onDestroy 互斥：加载窗口内服务已销毁 → 放引擎走人，不挂 sink（critic ①）
             synchronized(lock) {
                 if (destroyed) {
                     PetLogger.w(TAG, "service destroyed during KwsEngine init, release and bail")
                     e.release()
+                    shadow?.release()
                     return@Thread
                 }
                 engine = e
+                shadowEngine = shadow
                 val session = VoiceClientFactory.session(this)
-                session.kwsSink = { block -> e.feed(block) }
+                session.kwsSink = { block ->
+                    e.feed(block)
+                    // 影子只喂播放/处理期（打断窗）：IDLE 期主引擎 0.3 已 10/10，无需观测
+                    val st = session.stateFlow.value
+                    if (st == VoiceStateRouter.State.SPEAKING || st == VoiceStateRouter.State.PROCESSING) {
+                        shadow?.feed(block)
+                    }
+                }
                 session.startIdleCapture()
             }
-            PetLogger.i(TAG, "always-on KWS started, gate=${Prefs.kwsGate(this)}")
+            PetLogger.i(TAG, "always-on KWS started (shadow=${shadow != null}), gate=${Prefs.kwsGate(this)}")
         }, "kws-init").start()
     }
 
@@ -164,6 +195,8 @@ class VoiceForegroundService : Service() {
             }
             engine?.release()
             engine = null
+            shadowEngine?.release()
+            shadowEngine = null
         }
         super.onDestroy()
     }

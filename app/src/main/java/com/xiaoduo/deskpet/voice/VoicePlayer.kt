@@ -25,6 +25,10 @@ class VoicePlayer {
     @Volatile
     private var stopped = false
 
+    /** S23 参考分接头：已写 PCM 推给回声消除器（NlmsEchoCanceller）作 NLMS 参考。
+     *  null = 无订阅零开销。回调在播放线程同步调，实现方须轻量（环形缓冲 memcpy 级）。 */
+    var referenceListener: ((pcm: ByteArray, sampleRate: Int) -> Unit)? = null
+
     /** 在途 AudioTrack 引用（stop 需直接停硬件加速打断，不等下一轮写循环）。 */
     @Volatile
     private var activeTrack: AudioTrack? = null
@@ -118,6 +122,7 @@ class VoicePlayer {
             if (stopped) throw IOException("stopped")
             val n = track.write(pcm, off, pcm.size - off)
             if (n < 0) throw IOException("AudioTrack write error $n")
+            referenceListener?.invoke(pcm.copyOfRange(off, off + n), SR)
             off += n
         }
     }

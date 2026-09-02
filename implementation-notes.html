@@ -788,5 +788,19 @@ SSE 消费者置标记，TTS 生产者「开关关+本轮有工具调用」则�
 标记，多轮续听决策点门控；既有 mute 双测显式 rewakeAfterTool=false 做开关隔离。</p>
 </div>
 
+<div class="entry decision">
+<span class="tag">设计决策</span><span class="meta">2026-09-02 ｜ 声学 ｜ S22 影子低阈值 KWS + S23 NLMS 参考回声消除</span>
+<p><b>问题</b>：板子播放期「小朵小朵」打断成功率受限=无 AEC 回声掩蔽+AGC 增益压缩
+（手机 H2 裁决正常，问题锁板子）。<b>A 影子通道</b>（S22）：sherpa 同模型第二 spotter
+阈值 0.15，仅 SPEAKING/PROCESSING 期喂流，命中只记日志——一晚数据定转正阈值，避开
+「回声自误触」赌博。<b>C NLMS 根治</b>（S23，P4 挂账提前）：TTS PCM 自产=完美参考信号，
+NLMS 自适应滤波从麦块减回声再喂 KWS（主+影子双受益）。<b>延迟对齐取巧</b>：参考在写
+AudioTrack 时推入必然领先麦中回声，因果滤波器窗内天然吸收，免显式延迟标定；窗长
+2048 taps=128ms 覆盖板子管道延迟经验值。<b>性能</b>：6.6M 乘加/100ms 块，仅播放期工作，
+无参考原数组直通（IDLE 零开销，既有 489 测零影响实证）。<b>挂账</b>：wozai 短应答
+（DynamicWakeAck 独立 VoicePlayer）未接参考——0.6s 窗口内再唤醒是罕见过渡态，先不接；
+24k→16k 参考重采样是相邻对平均近似（参考用途足够，不做抗混叠滤波器）。</p>
+</div>
+
 </body>
 </html>

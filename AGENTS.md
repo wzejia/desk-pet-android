@@ -45,7 +45,7 @@ M1（悬浮桌宠本体）与「助手化」大切片（S0-S8）均已收口；�
 
 ## 基线（不可退）
 
-- 单测基线 **488 个**，skipped=0；新增只增不减；验证 `./gradlew.bat testDebugUnitTest --rerun-tasks`
+- 单测基线 **493 个**，skipped=0；新增只增不减；验证 `./gradlew.bat testDebugUnitTest --rerun-tasks`
 - `assembleDebug` 绿；spritesheet.webp MD5 `53c81ce652518f7fc7bf70554f363f54`；pet_states.json SHA256 `60b45124…4366`（S13 起 Android 行为有意偏离桌面镜像，见 implementation-notes 2026-08-24）
 
 ## 当前状态（2026-08-31）

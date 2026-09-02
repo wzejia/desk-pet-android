@@ -31,4 +31,11 @@ object KwsDefaults {
      * 不随 VAD 联动。
      */
     const val GATE_HANGOVER_BLOCKS = 8
+
+    /**
+     * S22 影子通道阈值（播放期第二 spotter）：0.15 = 初始探针值（主阈值 0.3 的一半）。
+     * 影子模式命中只记日志不打断——板子一晚数据（真打断漏检补给率 vs 回声自误触率）
+     * 定转正阈值后再调；改本值 = 改影子数据口径，必须同步 KwsDefaultsTest 并记 KDoc。
+     */
+    const val SHADOW_KEYWORDS_THRESHOLD = 0.15f
 }

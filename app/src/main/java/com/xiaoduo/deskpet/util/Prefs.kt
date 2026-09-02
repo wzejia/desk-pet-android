@@ -174,4 +174,14 @@ object Prefs {
     fun setRewakeAfterToolCall(context: Context, rewake: Boolean) {
         sp(context).edit().putBoolean(KEY_REWAKE_AFTER_TOOL, rewake).apply()
     }
+
+    /** S23：播放期回声消除（NLMS 参考消回声喂 KWS；默认开，A/B 对照可关）。 */
+    const val KEY_ECHO_CANCEL = PrefContract.KEY_ECHO_CANCEL
+
+    fun echoCancelEnabled(context: Context): Boolean =
+        sp(context).getBoolean(KEY_ECHO_CANCEL, true)
+
+    fun setEchoCancelEnabled(context: Context, enabled: Boolean) {
+        sp(context).edit().putBoolean(KEY_ECHO_CANCEL, enabled).apply()
+    }
 }

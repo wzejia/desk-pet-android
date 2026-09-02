@@ -19,6 +19,13 @@ class KwsDefaultsTest {
     }
 
     @Test
+    fun `shadow keywords threshold is the S22 probe 0_15`() {
+        // S22 影子通道初始探针值（主阈值一半）。精确断言：影子数据口径锚——改值
+        // 前后两晚板子日志不可比。禁范围断言。
+        assertEquals(0.15f, KwsDefaults.SHADOW_KEYWORDS_THRESHOLD)
+    }
+
+    @Test
     fun `gate hangover window is the VAD-anchored 8 blocks`() {
         // 精确断言：8 块 × 100ms/块 = 800ms，与 VadDetector.SILENCE_END_TICKS=8
         // （800ms 判停）同源——短于 800ms 的静默在本项目语义里仍属同一口气。禁范围断言。

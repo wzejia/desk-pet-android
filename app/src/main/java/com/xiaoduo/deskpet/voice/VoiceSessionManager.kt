@@ -61,6 +61,8 @@ class VoiceSessionManager(
     // （KWS 守门需重新「小朵小朵」唤醒），不走多轮续听——密集架自带播报会被 VAD 当用户
     // 语音收下续出幽灵对话（甚至再触发 MCP 调用）。会话线程服务端保留，重唤醒不丢上下文。
     private val rewakeAfterToolCallProvider: () -> Boolean = { true },
+    // S23（P4 提前）：播放期回声消除实验开关（默认开；关=麦块直通 KWS，A/B 对照用）
+    private val echoCancelProvider: () -> Boolean = { true },
 ) {
 
     /** ASR 模式分支：云端按配置厂商分发（pcm 包 WAV），平台走 AsrClient。 */
@@ -262,6 +264,10 @@ class VoiceSessionManager(
     /** S5 KWS 块订阅挂点：IDLE 态麦块回调（单条采麦流扇出）。 */
     @Volatile
     var kwsSink: ((ByteArray) -> Unit)? = null
+
+    /** S23 NLMS 回声消除器：TTS 参考由 ttsConsumer 的 player 分接头推入；
+     *  无参考（IDLE/聆听）processBlock 原样直通，零行为变更。 */
+    private val echoCanceller = NlmsEchoCanceller()
 
     /** UI 状态行回调（设置页语音自检显示进度；Compose snapshot state 跨线程写安全）。 */
     @Volatile
@@ -506,7 +512,12 @@ class VoiceSessionManager(
 
     private fun routeBlock(block: ByteArray) {
         when (router.route(state)) {
-            VoiceStateRouter.Sink.KWS -> kwsSink?.invoke(block) // S5 挂点，当前无订阅即丢
+            VoiceStateRouter.Sink.KWS -> {
+                // S23：播放期麦块先过 NLMS 消回声再进 KWS（主+影子双引擎同受益）；
+                // 无参考/开关关=原样直通（processBlock 内部有新鲜度快路径）
+                val out = if (echoCancelProvider()) echoCanceller.processBlock(block) else block
+                kwsSink?.invoke(out) // S5 挂点，当前无订阅即丢
+            }
             VoiceStateRouter.Sink.DROP -> Unit // IDLE+kwsPaused 丢弃（对话期回 IDLE 不即解 KWS）
             VoiceStateRouter.Sink.VAD -> {
                 // S18 声学诊断：聆听期电平轨迹（每 10 块=1s 一行；量化 rk3568 AGC 释放曲线）
@@ -746,6 +757,8 @@ class VoiceSessionManager(
         // 消费者：单 player 流式跨句复用同一 AudioTrack（消除逐句重建 ~120ms 空隙）
         val player = VoicePlayer()
         currentPlayer = player // barge-in 停播挂点（整轮一个，不再逐句覆盖）
+        // S23：TTS 已写 PCM 推消回声器作 NLMS 参考（自产 PCM=完美参考信号）
+        player.referenceListener = { pcm, sr -> echoCanceller.pushReferencePcm(pcm, sr) }
         try {
             for (pcm in audioQueue) {
                 // 窗口二查（critic P1-①）：synthesize 阻塞期间 cancel 可过境，进 play 前必须再查岗

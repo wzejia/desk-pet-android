@@ -31,9 +31,10 @@ class KwsEngine(
     onKeyword: (String) -> Unit,
     logger: (String) -> Unit = { msg -> PetLogger.i(TAG, msg) },
     modelDir: String = MODEL_DIR,
+    keywordsThreshold: Float = KwsDefaults.KEYWORDS_THRESHOLD,
 ) {
 
-    private val spotter = KeywordSpotter(assetManager, buildConfig(modelDir))
+    private val spotter = KeywordSpotter(assetManager, buildConfig(modelDir, keywordsThreshold))
     private val stream: OnlineStream = spotter.createStream()
 
     private val core = KwsCore(
@@ -84,8 +85,9 @@ class KwsEngine(
         /** 消费队列容量：64 块 ≈ 6.4s（与 AudioCapture 块缓冲同容量同策）。 */
         internal const val QUEUE_CAPACITY = 64
 
-        /** 对账表 KWS 节逐项（阈值走 [KwsDefaults.KEYWORDS_THRESHOLD]=0.3 / 2线程 / cpu / 16k）。 */
-        internal fun buildConfig(modelDir: String) = KeywordSpotterConfig(
+        /** 对账表 KWS 节逐项（主阈值 [KwsDefaults.KEYWORDS_THRESHOLD]=0.3 / 2线程 / cpu / 16k）。
+         *  S22：阈值参数化——影子通道传 [KwsDefaults.SHADOW_KEYWORDS_THRESHOLD]。 */
+        internal fun buildConfig(modelDir: String, keywordsThreshold: Float) = KeywordSpotterConfig(
             featConfig = FeatureConfig(sampleRate = SAMPLE_RATE, featureDim = 80),
             modelConfig = OnlineModelConfig(
                 transducer = OnlineTransducerModelConfig(
@@ -99,7 +101,7 @@ class KwsEngine(
                 debug = false,
             ),
             keywordsFile = "$modelDir/keywords.txt",
-            keywordsThreshold = KwsDefaults.KEYWORDS_THRESHOLD,
+            keywordsThreshold = keywordsThreshold,
             keywordsScore = 1.0f,
             maxActivePaths = 4,
             numTrailingBlanks = 1,

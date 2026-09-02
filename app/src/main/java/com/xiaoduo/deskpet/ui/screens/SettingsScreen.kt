@@ -226,6 +226,17 @@ fun SettingsScreen(onBack: () -> Unit, onOpenPermissions: () -> Unit) {
                 Prefs.setRewakeAfterToolCall(context, on)
                 PetLogger.i("Settings", "rewake_after_tool -> $on")
             }
+            var echoCancel by remember { mutableStateOf(Prefs.echoCancelEnabled(context)) }
+            RowSwitch(
+                title = "播放期回声消除（实验）",
+                subtitle = "用自身播报作参考信号消回声，提升播报中喊「小朵小朵」打断成功率（板子无 AEC 场景）",
+                checked = echoCancel,
+                enabled = true,
+            ) { on ->
+                echoCancel = on
+                Prefs.setEchoCancelEnabled(context, on)
+                PetLogger.i("Settings", "echo_cancel -> $on")
+            }
             Spacer(Modifier.height(XiaoduoDimens.SpaceS))
             EndpointEditor(context)
 
