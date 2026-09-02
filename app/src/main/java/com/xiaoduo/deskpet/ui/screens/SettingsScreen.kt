@@ -237,6 +237,30 @@ fun SettingsScreen(onBack: () -> Unit, onOpenPermissions: () -> Unit) {
                 Prefs.setEchoCancelEnabled(context, on)
                 PetLogger.i("Settings", "echo_cancel -> $on")
             }
+            var ttsVol by remember { mutableStateOf(Prefs.ttsVolume(context)) }
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = XiaoduoDimens.SpaceS),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(Modifier.weight(1f)) {
+                    Text("小朵播报音量", style = MaterialTheme.typography.bodyLarge)
+                    Text(
+                        "板子满格音量会打爆麦克风致播报中喊不醒（削波实测）；当前 ${(ttsVol * 100).toInt()}%",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Slider(
+                        value = ttsVol,
+                        onValueChange = {
+                            ttsVol = it
+                            Prefs.setTtsVolume(context, it)
+                        },
+                        valueRange = 0.2f..1f,
+                    )
+                }
+            }
             Spacer(Modifier.height(XiaoduoDimens.SpaceS))
             EndpointEditor(context)
 

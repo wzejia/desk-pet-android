@@ -15,7 +15,11 @@ import java.io.IOException
  * - resolve() 落空（全链 miss）抛 IOException → 走 [VoiceSessionManager] 既有
  *   catch 降级「fallback to listening」，与现状播放失败行为一致（不吞整轮对话）。
  */
-class DynamicWakeAck(private val resolve: () -> ByteArray?) : VoiceSessionManager.WakeAck {
+class DynamicWakeAck(
+    private val resolve: () -> ByteArray?,
+    /** S24：wozai 同走 App 内播报音量（与 TTS 一致，防「我在」削波麦克风）。 */
+    private val volumeProvider: () -> Float = { 1f },
+) : VoiceSessionManager.WakeAck {
 
     @Volatile
     private var player: VoicePlayer? = null
@@ -26,6 +30,7 @@ class DynamicWakeAck(private val resolve: () -> ByteArray?) : VoiceSessionManage
         if (isCancelled()) return
         val pcm = resolve() ?: throw IOException("no wake-ack source")
         val p = VoicePlayer()
+        p.volume = volumeProvider()
         player = p
         try {
             // 注册后复查（critic P1-①，语义自 AssetWakeAck 迁移）：cancel 先于注册到达时

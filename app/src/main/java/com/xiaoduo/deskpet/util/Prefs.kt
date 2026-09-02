@@ -184,4 +184,15 @@ object Prefs {
     fun setEchoCancelEnabled(context: Context, enabled: Boolean) {
         sp(context).edit().putBoolean(KEY_ECHO_CANCEL, enabled).apply()
     }
+
+    /** S24：小朵播报音量（App 内，不动系统音量）。默认 0.45≈板子实测工作点
+     *  （系统 15→9 档约 -7dB，麦克风退出削波区，播报期唤醒恢复）。 */
+    const val KEY_TTS_VOLUME = PrefContract.KEY_TTS_VOLUME
+
+    fun ttsVolume(context: Context): Float =
+        sp(context).getFloat(KEY_TTS_VOLUME, 0.45f)
+
+    fun setTtsVolume(context: Context, volume: Float) {
+        sp(context).edit().putFloat(KEY_TTS_VOLUME, volume.coerceIn(0.1f, 1f)).apply()
+    }
 }

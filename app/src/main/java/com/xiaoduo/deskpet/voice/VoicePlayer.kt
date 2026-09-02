@@ -25,6 +25,13 @@ class VoicePlayer {
     @Volatile
     private var stopped = false
 
+    /** S24 App 内播报音量（0..1，默认 1=跟随系统）：治板子满格音量致麦克风削波
+     *  （2026-09-02 实证：系统音量 15→9 后 inRms 0.8~1.3 削波区降到 0.4 线性区，
+     *  播报期唤醒 0/2min → 7/90s）。buildTrack 统一施加，播放/流式双路径覆盖；
+     *  不动系统音量——密集架自带播报（同媒体流）保持满格。
+     */
+    var volume: Float = 1f
+
     /** S23 参考分接头：已播 PCM 按播放头位置推给回声消除器（NlmsEchoCanceller）作
      *  NLMS 参考。null = 无订阅零开销。回调在配速线程触发，实现方须轻量（memcpy 级）。 */
     var referenceListener: ((pcm: ByteArray, sampleRate: Int) -> Unit)? = null
@@ -238,6 +245,7 @@ class VoicePlayer {
             .setBufferSizeInBytes(bufBytes)
             .setTransferMode(AudioTrack.MODE_STREAM)
             .build()
+            .apply { setVolume(volume) } // S24：App 内音量（build 后 play 前设置，双路径共用）
 
     companion object {
         private const val TAG = "VoicePlayer"

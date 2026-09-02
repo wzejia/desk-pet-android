@@ -63,6 +63,8 @@ class VoiceSessionManager(
     private val rewakeAfterToolCallProvider: () -> Boolean = { true },
     // S23（P4 提前）：播放期回声消除实验开关（默认开；关=麦块直通 KWS，A/B 对照用）
     private val echoCancelProvider: () -> Boolean = { true },
+    // S24：App 内播报音量（治板子满格致麦克风削波；每轮现读，设置页滑杆即时生效）
+    private val ttsVolumeProvider: () -> Float = { 1f },
 ) {
 
     /** ASR 模式分支：云端按配置厂商分发（pcm 包 WAV），平台走 AsrClient。 */
@@ -775,6 +777,7 @@ class VoiceSessionManager(
         // 消费者：单 player 流式跨句复用同一 AudioTrack（消除逐句重建 ~120ms 空隙）
         val player = VoicePlayer()
         currentPlayer = player // barge-in 停播挂点（整轮一个，不再逐句覆盖）
+        player.volume = ttsVolumeProvider() // S24：App 内播报音量（须在首建 track 前设置）
         // S23：TTS 已写 PCM 推消回声器作 NLMS 参考（自产 PCM=完美参考信号）
         player.referenceListener = { pcm, sr -> echoCanceller.pushReferencePcm(pcm, sr) }
         try {

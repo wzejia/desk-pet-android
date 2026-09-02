@@ -117,6 +117,8 @@ object VoiceClientFactory {
                 rewakeAfterToolCallProvider = { Prefs.rewakeAfterToolCall(app) },
                 // S23：播放期回声消除实验开关（每块现读，切换即时生效）
                 echoCancelProvider = { Prefs.echoCancelEnabled(app) },
+                // S24：App 内播报音量（每轮现读，滑杆即时生效）
+                ttsVolumeProvider = { Prefs.ttsVolume(app) },
             ).also { session = it }
         }
         // S9-3 冷路径接线：装配完成后触发应答音预取（保存即合成的「启动补漏」半边）。
@@ -143,7 +145,10 @@ object VoiceClientFactory {
             PetLogger.w(TAG, "wozai.wav header invalid (need 44B RIFF PCM), wake-ack disabled: ${wav.size}B")
             return null
         }
-        return DynamicWakeAck { wakeAckResolver(context).resolve() }
+        return DynamicWakeAck(
+            resolve = { wakeAckResolver(context).resolve() },
+            volumeProvider = { Prefs.ttsVolume(context) },
+        )
     }
 
     /** 解析器单例：memo/资产名单 memo 挂实例上，跨唤醒复用（线程安全：@Volatile+双检）。 */

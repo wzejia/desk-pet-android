@@ -58,6 +58,7 @@ object PrefContract {
     const val KEY_SPEAK_MCP_RESULT = "speak_mcp_result"   // Boolean，默认 true
     const val KEY_REWAKE_AFTER_TOOL = "rewake_after_tool" // Boolean，默认 true（S21）
     const val KEY_ECHO_CANCEL = "echo_cancel"             // Boolean，默认 true（S23 实验）
+    const val KEY_TTS_VOLUME = "tts_volume"               // Float 0..1，默认 0.45（S24）
 
     val S18_KEYS: Set<String> = setOf(KEY_VAD_SPEECH_LEVEL, KEY_MIC_SOURCE_MODE)
     val S20_KEYS: Set<String> = setOf(KEY_SPEAK_MCP_RESULT)

@@ -861,5 +861,17 @@ UNPROCESSED（S18 已交付三档设置，若 HAL 支持则绕开 codec AGC，�
 （消回声生效）且 refBacklog 稳定千级。</p>
 </div>
 
+<div class="entry decision">
+<span class="tag">设计决策</span><span class="meta">2026-09-02 深夜 ｜ 声学 ｜ S24 满格音量削波=播放期唤不醒的第一性根因</span>
+<p><b>三轮板子数据闭环</b>：①NLMS 零抑制+发散（v1-v8 修好工程 bug）；②in/out RMS 遥测
+证伪 AGC 压制假说（inRms 无走低）；③音量实验一锤定音——媒体音量 15/15 满格，扬声器贴麦
+克风致 <b>ADC 削波</b>（inRms 0.76~1.28），线性消回声三假设（线性/时不变/参考对齐）全违反；
+音量 15→9 后 inRms 0.38~0.51 线性区，播报期唤醒 0/2min→7/90s。<b>教训</b>：软件调参三轮
+不如一次物理变量控制实验——「先测能量，再调算法」应成声学排障第一律；S18 的受控实验
+方法论再次命中。<b>修复</b>：App 内 TTS 音量（VoicePlayer.setVolume，TTS+wozai 双路径，
+默认 0.45≈-7dB 工作点，设置页滑杆），系统音量恢复满格——密集架自带播报不受影响。
+NLMS 保留（削波缓解后线性区贡献转正+发散守卫兜底）；S22 影子维持观测位。</p>
+</div>
+
 </body>
 </html>
