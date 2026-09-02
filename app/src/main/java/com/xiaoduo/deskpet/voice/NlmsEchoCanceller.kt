@@ -108,8 +108,21 @@ class NlmsEchoCanceller(
     fun process(mic: FloatArray): FloatArray {
         if (now() - lastRefAt > REF_FRESH_MS || refWrite - refRead < mic.size) {
             // 参考断供（停播/欠账）：消费位置对齐到最新，防陈旧参考污染下一轮
-            if (refWrite - refRead < mic.size) refRead = maxOf(refRead, refWrite - filterLen)
+            if (refWrite - refRead < mic.size) {
+                refRead = maxOf(refRead, refWrite - filterLen)
+                recomputeWinPow() // 跳转后窗能量失效（增量维护只适用连续滑动）
+            }
             return mic.copyOf()
+        }
+        // 溢出重同步（防御层）：积压超 环容-滤波窗-块 说明上游节奏失控（如写入节奏直推
+        // bug——2026-09-02 板子实证），环内容已被覆盖。**重同步目标=最小积压（当前块）**
+        // 而非任意合法位：回声源滞后参考 L 样本，只有 refRead 贴身跟踪 mic 时间轴，
+        // 滤波窗 [t-窗长, t] 才能罩住回声源（大积压=窗内全是历史样本，永远对不齐——
+        // 单测 `reference overflow resyncs` 实证：目标留 4544 积压时 ERLE=0）
+        val overflow = refWrite - refRead - (refCap - filterLen - mic.size)
+        if (overflow > 0) {
+            refRead = refWrite - mic.size
+            recomputeWinPow() // 跳转后窗能量失效，全量重算（罕见事件，代价可接受）
         }
         val out = FloatArray(mic.size)
         processedBlocks++
@@ -144,6 +157,18 @@ class NlmsEchoCanceller(
             refRead++
         }
         return out
+    }
+
+    /** refRead 跳转后按新窗全量重算窗能量（增量维护只在连续滑动时有效）。 */
+    private fun recomputeWinPow() {
+        winPow = 0f
+        var idx = (refRead % refCap).toInt()
+        val taps = min(filterLen.toLong(), refRead + 1).toInt()
+        for (j in 0 until taps) {
+            val x = refBuf[idx]
+            winPow += x * x
+            if (--idx < 0) idx += refCap
+        }
     }
 
     /** 遥测快照：参考积压（样本）+ 滤波窗能量 + 累计处理块（诊断 NLMS 是否真在跑）。 */

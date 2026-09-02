@@ -25,9 +25,23 @@ class VoicePlayer {
     @Volatile
     private var stopped = false
 
-    /** S23 参考分接头：已写 PCM 推给回声消除器（NlmsEchoCanceller）作 NLMS 参考。
-     *  null = 无订阅零开销。回调在播放线程同步调，实现方须轻量（环形缓冲 memcpy 级）。 */
+    /** S23 参考分接头：已播 PCM 按播放头位置推给回声消除器（NlmsEchoCanceller）作
+     *  NLMS 参考。null = 无订阅零开销。回调在配速线程触发，实现方须轻量（memcpy 级）。 */
     var referenceListener: ((pcm: ByteArray, sampleRate: Int) -> Unit)? = null
+
+    // ---- S23 参考配速器（pacer）----
+    // 教训（2026-09-02 板子遥测 refBacklog 103万->601万 实证）：参考必须按「播放节奏」
+    // 推送而非「写入节奏」——AudioTrack 应用缓冲 1s + 长句阻塞写会让写入领先真实出声
+    // 达秒级，新鲜度窗 400ms 外 93% 麦块直通、偶处理的参考又是被环覆盖过的陈旧数据，
+    // NLMS 全程减垃圾信号=零效果。配速器按 playbackHeadPosition 每 10ms 放对应 PCM，
+    // 参考与声学回声严格同轴（残余管道延迟由 NLMS 滤波窗吸收）。
+    private val refLock = Object()
+    private val refPending = ArrayDeque<ByteArray>()
+    private var refPendingOff = 0
+
+    @Volatile
+    private var refPacerRunning = false
+    private var refPacer: Thread? = null
 
     /** 在途 AudioTrack 引用（stop 需直接停硬件加速打断，不等下一轮写循环）。 */
     @Volatile
@@ -82,6 +96,7 @@ class VoicePlayer {
             activeTrack = track
             streamWrittenFrames = 0
             track.play()
+            startRefPacer(track)
         }
         writeAll(track, pcm)
         streamWrittenFrames += pcm.size / 2
@@ -104,12 +119,71 @@ class VoicePlayer {
     fun reset() = releaseStream()
 
     private fun releaseStream() {
+        stopRefPacer()
         val track = streamTrack ?: return
         streamTrack = null
         if (activeTrack === track) activeTrack = null
         runCatching { track.stop() }
         track.release()
         streamWrittenFrames = 0
+    }
+
+    // ---------------- S23 参考配速器 ----------------
+
+    private fun startRefPacer(track: AudioTrack) {
+        if (referenceListener == null || refPacerRunning) return
+        refPacerRunning = true
+        refPacer = Thread({
+            var lastHead = 0
+            var alive = true
+            while (refPacerRunning && alive) {
+                val head = runCatching { track.playbackHeadPosition }.getOrElse {
+                    alive = false
+                    0
+                }
+                val newFrames = head - lastHead // int 差天然 mod 2^32（24k 回卷周期 ~24h）
+                if (alive && newFrames > 0) {
+                    lastHead = head
+                    drainRefPending(newFrames * 2)
+                }
+                Thread.sleep(10)
+            }
+        }, "ref-pacer").apply { isDaemon = true; start() }
+    }
+
+    /** 按已播帧数从「已写未播」队列放出 PCM 给消回声器；欠账（写滞后于播）不补零。 */
+    private fun drainRefPending(needBytes: Int) {
+        val listener = referenceListener ?: return
+        var need = needBytes
+        while (need > 0) {
+            val chunk: ByteArray = synchronized(refLock) {
+                val head = refPending.firstOrNull()
+                if (head == null) {
+                    null
+                } else {
+                    val take = minOf(head.size - refPendingOff, need)
+                    val part = head.copyOfRange(refPendingOff, refPendingOff + take)
+                    refPendingOff += take
+                    if (refPendingOff == head.size) {
+                        refPending.removeFirst()
+                        refPendingOff = 0
+                    }
+                    part
+                }
+            } ?: return
+            listener.invoke(chunk, SR)
+            need -= chunk.size
+        }
+    }
+
+    private fun stopRefPacer() {
+        refPacerRunning = false
+        refPacer?.join(200)
+        refPacer = null
+        synchronized(refLock) {
+            refPending.clear()
+            refPendingOff = 0
+        }
     }
 
     // ---------------- 共享原语 ----------------
@@ -122,7 +196,10 @@ class VoicePlayer {
             if (stopped) throw IOException("stopped")
             val n = track.write(pcm, off, pcm.size - off)
             if (n < 0) throw IOException("AudioTrack write error $n")
-            referenceListener?.invoke(pcm.copyOfRange(off, off + n), SR)
+            // S23：入「已写未播」队列，由配速器按播放头位置推送（勿在此直推=写入节奏错位）
+            if (referenceListener != null) synchronized(refLock) {
+                refPending.addLast(pcm.copyOfRange(off, off + n))
+            }
             off += n
         }
     }

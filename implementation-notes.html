@@ -815,5 +815,20 @@ S22 低阈值转正无增量价值（命中集合同），数据轨提前收口�
 （板子管道延迟可能>128ms）与 AGC 非线性（回声路径时变，NLMS 跟踪不上）。</p>
 </div>
 
+<div class="entry tradeoff">
+<span class="tag">权衡取舍</span><span class="meta">2026-09-02 ｜ 声学 ｜ S23 参考节奏根因：写入节奏 ≠ 播放节奏（配速器修复）</span>
+<p><b>根因</b>（遥测 refBacklog 103万->601万=375s 铁证）：NLMS 参考最初在 writeAll 里
+按「写入节奏」直推——AudioTrack 应用缓冲 1s + 长句阻塞写使参考以 ~1s/次突发推入，
+新鲜度窗 400ms 外 93% 麦块直通；偶处理的块参考又是被环覆盖数千轮的陈旧数据 →
+首晚消回声实际零贡献（用户体感「差不多/0.5m 接不住」与此自洽）。<b>修复</b>：
+VoicePlayer 配速器（pacer 线程）——写入只入「已写未播」队列，按 playbackHeadPosition
+每 10ms 放出对应 PCM，参考与声学回声严格同轴。<b>防御层</b>：消回声器溢出重同步——
+积压超环容-窗-块时重置 refRead=refWrite-mic.size（<b>目标必须最小积压</b>：回声源滞后
+参考 L 样本，只有 refRead 贴身跟踪 mic 时间轴滤波窗才罩得住回声源；首版目标留 4544
+积压时单测实证 ERLE=0）+ 跳转后 winPow 全量重算（增量维护只适用连续滑动，否则归一化
+步长爆炸输 NaN——单测实证）。<b>明证指标</b>：复测遥测 refBacklog 应在 0~2000 样本级，
+winPow 在播放期稳定非零。</p>
+</div>
+
 </body>
 </html>

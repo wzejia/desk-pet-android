@@ -106,6 +106,30 @@ class NlmsEchoCancellerTest {
     }
 
     @Test
+    fun `reference overflow resyncs and still suppresses`() {
+        // 防御层锚（旧版写入节奏直推 bug 形态）：先灌 3 倍环容失控积压，再恢复正常
+        // 节奏——重同步后应重新对齐并达到抑制指标（删溢出重同步 -> 环内容错位 -> 红）
+        val c = NlmsEchoCanceller()
+        val rng = Random(9)
+        c.pushReference(noise(rng, 8192 * 3, 0.5f)) // 失控积压（历史 bug 形态）
+        val path = EchoPath(delay = 900, gain = 0.7f)
+        var echoEnergy = 0.0
+        var residualEnergy = 0.0
+        for (b in 0 until 60) {
+            val ref = noise(rng, block, 0.5f)
+            val mic = path.render(ref)
+            c.pushReference(ref)
+            val out = c.process(mic)
+            if (b >= 40) {
+                echoEnergy += energy(mic)
+                residualEnergy += energy(out)
+            }
+        }
+        val erleDb = 10.0 * log10(echoEnergy / residualEnergy)
+        assertTrue("溢出重同步后 ERLE=$erleDb dB 应 ≥10dB", erleDb >= 10.0)
+    }
+
+    @Test
     fun `block byte path round-trips and cancels`() {
         // 16bit PCM 字节入口（VSM routeBlock 实际用法）：有参考时不得直通，无参考直通
         val c = NlmsEchoCanceller()
