@@ -516,6 +516,10 @@ class VoiceSessionManager(
                 // S23：播放期麦块先过 NLMS 消回声再进 KWS（主+影子双引擎同受益）；
                 // 无参考/开关关=原样直通（processBlock 内部有新鲜度快路径）
                 val out = if (echoCancelProvider()) echoCanceller.processBlock(block) else block
+                // S23 遥测：每 50 个消回声块落一行（证实 NLMS 真在跑 + 参考积压/窗能量水位）
+                if (out !== block && echoCanceller.processedBlocks % 50 == 0L) {
+                    logger("echo cancel active: ${echoCanceller.statsSnapshot()}")
+                }
                 kwsSink?.invoke(out) // S5 挂点，当前无订阅即丢
             }
             VoiceStateRouter.Sink.DROP -> Unit // IDLE+kwsPaused 丢弃（对话期回 IDLE 不即解 KWS）

@@ -50,6 +50,11 @@ class NlmsEchoCanceller(
     /** 当前滤波窗参考能量（增量维护：加新减旧，免每样本全窗求和）。 */
     private var winPow = 0f
 
+    /** 遥测：实际走过消回声路径的块数（routeBlock 侧按 out!==block 口径亦可，这里自证）。 */
+    @Volatile
+    var processedBlocks = 0L
+        private set
+
     /** 播放侧入口：推入已写 AudioTrack 的 PCM（24kHz 先 3:2 重采样到 16k）。 */
     fun pushReferencePcm(pcm: ByteArray, sampleRate: Int) {
         val floats = EnergyGate.int16ToFloat(pcm)
@@ -107,6 +112,7 @@ class NlmsEchoCanceller(
             return mic.copyOf()
         }
         val out = FloatArray(mic.size)
+        processedBlocks++
         for (i in mic.indices) {
             val endIdx = (refRead % refCap).toInt() // x[0]=最新参考样本的环内下标
             val taps = min(filterLen.toLong(), refRead + 1).toInt()
@@ -139,6 +145,10 @@ class NlmsEchoCanceller(
         }
         return out
     }
+
+    /** 遥测快照：参考积压（样本）+ 滤波窗能量 + 累计处理块（诊断 NLMS 是否真在跑）。 */
+    fun statsSnapshot(): String =
+        "refBacklog=${refWrite - refRead} winPow=%.1f blocks=$processedBlocks".format(winPow)
 
     companion object {
         /** 滤波窗 2048 taps=128ms@16k：覆盖板子音频管道延迟经验上限（30~120ms）。 */
