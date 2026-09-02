@@ -20,8 +20,12 @@ class PetView(context: Context) : View(context) {
 
     val animator = FrameAnimator(PetFrameTable.DEFAULT)
 
-    private val sheet: Bitmap =
-        context.assets.open("spritesheet.webp").use { BitmapFactory.decodeStream(it) }
+    // 进程级共享帧图（rk3288 fork 提案回流，2026-09-01 评估采纳）：全 App 5 处创建点
+    // （悬浮窗/聊天页头像/空态/全屏页/侧栏）若各自解码 1536×1872 RGBA（~10MB/份），
+    // 32 位 ~67MB 堆顶必爆（API<26 位图还在 Dalvik 堆）；64 位机虽不炸但浪费 ~40MB
+    // native 内存，且全屏页每次进入都重解码一份。帧图只读（drawBitmap src 矩形切帧），
+    // 跨视图并发共享安全；不 recycle（进程级常驻，代价一份 10MB）。
+    private val sheet: Bitmap = obtainSheet(context)
 
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
     private val src = Rect()
@@ -71,6 +75,17 @@ class PetView(context: Context) : View(context) {
         /** 宠物视图尺寸（不含气泡位），单位 dp。 */
         const val PET_WIDTH_DP = 192
         const val PET_HEIGHT_DP = 208
+
+        /** 进程级共享帧图（双检锁防护并发首建；AndroidView factory 并发场景）。 */
+        @Volatile
+        private var sharedSheet: Bitmap? = null
+
+        private fun obtainSheet(context: Context): Bitmap =
+            sharedSheet ?: synchronized(this) {
+                sharedSheet ?: context.assets.open("spritesheet.webp").use {
+                    BitmapFactory.decodeStream(it)
+                }.also { sharedSheet = it }
+            }
         /** 悬浮窗尺寸 = 宠物尺寸 192x208dp（2026-07-30 裁决偏差 A：M1 不预留气泡位，M2 加气泡时 updateLayout 扩高） */
         const val WINDOW_WIDTH_DP = 192
         const val WINDOW_HEIGHT_DP = 208

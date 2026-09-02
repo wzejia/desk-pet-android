@@ -765,5 +765,17 @@ SSE 消费者置标记，TTS 生产者「开关关+本轮有工具调用」则�
 必须有一个穿透全链路的 e2e 断言（单点测试全绿也可能是调用点漏接）。</p>
 </div>
 
+<div class="entry decision">
+<span class="tag">设计决策</span><span class="meta">2026-09-01 ｜ 渲染性能 ｜ PetView 帧图进程级共享（rk3288 fork 提案回流）</span>
+<p><b>背景</b>：rk3288 fork 提案（whitescreen-bitmap-sharing-proposal.md）--PetView 5 处创建点
+各自解码 1536×1872 RGBA 帧图（~10MB/份），API&lt;26+32 位堆顶必爆白屏假死。<b>主仓评估</b>：
+问题逐行实证存在（PetView.kt:23 实例解码；5 创建点全中）；minSdk 26+64 位不炸堆但浪费
+~40MB native 内存，且全屏页每次进入重解码一份（峰值抖动）。<b>采纳</b>：obtainSheet 双检锁
+进程级共享，永不 recycle（帧图只读，跨视图共享安全）。<b>验证</b>：486 测绿；模拟器 4 轮
+导航压力 Native Heap 63.4->64.4MB 稳定无泄漏；全屏页视觉无损。<b>边界</b>：与原仓 08-18
+「概率性白屏」观察票（configChanges+singleTask 销案）非同源--那张是重建型，这张是堆耗尽型；
+表象同为「白屏无 crash 日志」，排障先看 dumpsys meminfo 堆水位再 traces。</p>
+</div>
+
 </body>
 </html>
