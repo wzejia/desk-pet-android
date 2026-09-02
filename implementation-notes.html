@@ -777,5 +777,16 @@ SSE 消费者置标记，TTS 生产者「开关关+本轮有工具调用」则�
 表象同为「白屏无 crash 日志」，排障先看 dumpsys meminfo 堆水位再 traces。</p>
 </div>
 
+<div class="entry decision">
+<span class="tag">设计决策</span><span class="meta">2026-09-02 ｜ 语音管线 ｜ S21 工具调用后需重新唤醒</span>
+<p><b>问题</b>：板子多轮续听窗（工具轮结束后 LISTENING 30s）把密集架自带播报（取档/归还）
+当用户语音收下 → ASR→LLM 幽灵对话，甚至再触发 MCP 调用。<b>方案对比</b>：A 工具轮后回 IDLE
+（用户提案，采纳）/ B 静默窗（猜播报时长，不可控）/ C 声学区分（板子无 AEC+AGC 钉死，无可靠
+特征）/ D 话术黑名单（脆弱）。<b>采纳 A</b>（用户拍板独立开关，默认开）：工具轮结束 backToIdle
+=KWS 守门；「回 IDLE」并非对话中断——会话线程服务端保留，重唤醒上下文还在；KWS 板子实测
+抗噪（噪声 fed 11 万块误触发个位数），机器播报不会误唤醒。<b>实现</b>：复用 S20 turnSawToolCall
+标记，多轮续听决策点门控；既有 mute 双测显式 rewakeAfterTool=false 做开关隔离。</p>
+</div>
+
 </body>
 </html>
