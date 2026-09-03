@@ -897,5 +897,19 @@ kws-decode×2 + ref-pacer 全默认优先级与 UI 主线程同级，思考态�
 密集架 App 自身 NPE 崩溃与其 GuardService 看护行为为厂商侧独立问题（时间线已存证）。</p>
 </div>
 
+<div class="entry decision">
+<span class="tag">设计决策</span><span class="meta">2026-09-03 ｜ 渲染 ｜ S25c 三点冻结定案：四探针分层定位 + 双 keeper 保活</span>
+<p><b>四探针实验</b>（用户目视+日志双证）：1 Compose 帧钟（draw 阶段 Canvas）动 / 2 裸
+Choreographer 动 / 3 delay 计时器动 / 4 rememberInfiniteTransition（依赖重组）冻——主线程
+健康、vsync 正常、帧钟正常，**死的是重组驱动路径**；日志 31 秒长轮 a/b 每秒 +1013ms 稳定、
+d 恒=2 实锤。<b>反直觉对照</b>：S25 生产版（与行 1 同机制）单独冻（跳一下即停），诊断版
+里同机制在动——差异=诊断版并存裸 Choreographer 重挂；推定 OEM Choreographer（RK/softwinner
+定制系统）单订阅者重挂存在缺口，多一个持续回调即稳。<b>定案修复</b>：ThinkingDots=draw
+阶段动画（S25 已有）+ 双 keeper（裸 Choreographer 重挂 + 400ms delay 心跳，零状态写入），
+删除全部诊断脚手架；旧版 rememberInfiniteTransition 在此板判死（行 4 实证）。<b>遗留
+known-unknown</b>：重组路径为何单订阅者冻结未深挖（Compose 1.6.8 + OEM 定制 Choreographer
+交互），双 keeper 为实证组合非机理结论；若未来其他重组动画冻结同法治之。</p>
+</div>
+
 </body>
 </html>

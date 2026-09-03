@@ -378,6 +378,10 @@
 
 - [x] S25-1：ThinkingDots 改帧时钟+draw 阶段读状态（withFrameNanos + Canvas 升余弦
   跳动脉冲，零重组）；496 测绿；板子已装。ChatScreen.TypingDots 同家族未收到报告不动（观察）
+- [x] S25c 定案（四探针实验）：行1帧钟/行2裸Choreo/行3计时器全动、行4旧版（重组依赖）
+  冻——死的是重组驱动路径非帧管线；且诊断版并存裸 Choreographer 时同机制动画在动
+  （S25 单独冻）→ OEM Choreographer 单订阅者重挂疑缺口。定案版=draw 阶段动画+双
+  keeper（Choreographer 重挂+400ms 心跳），诊断脚手架全删；496 测绿板子已装
 - [x] S25b 根因补枪（板子实测 S25 后三点仍冻结+白屏）：主线程 CPU 饿死（Skipped 301 帧
   实证，新旧动画 API 同冻=帧时钟断供非写法问题）——kws-decode×2 + ref-pacer 降
   MIN_PRIORITY（队列驱动节奏无害）；496 测绿板子已装。冷启动 5s JIT 白屏彻底治=

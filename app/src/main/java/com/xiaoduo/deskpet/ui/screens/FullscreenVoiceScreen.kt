@@ -305,7 +305,7 @@ smallStyle = MaterialTheme.typography.bodySmall.copy(lineHeight = (17 * fontScal
             if (hint == null) {
                 when (voiceState) {
                     VoiceStateRouter.State.LISTENING -> ListeningWaveform(rms = { listenRms }, color = HaloCyan)
-                    VoiceStateRouter.State.PROCESSING -> ThinkingDotsDiag() // S25c 临时诊断：四机制探针+看门狗，定案后换回 ThinkingDots()
+                    VoiceStateRouter.State.PROCESSING -> ThinkingDots()
                     else -> Spacer(modifier = Modifier.height(INDICATOR_H_DP.dp)) // 占位防跳动
                 }
                 Spacer(modifier = Modifier.height(XiaoduoDimens.SpaceM))
@@ -424,6 +424,24 @@ private fun ThinkingDots() {
             withFrameNanos { now -> timeMs.longValue = now / 1_000_000 }
         }
     }
+    // S25c 定案双 keeper（板子帧管线保活，诊断版四探针实证组合）：S25 纯 draw 阶段
+    // 动画单独冻（跳一下即停），加裸 Choreographer 重挂后整轮稳定——OEM Choreographer
+    // 单订阅者重挂疑有缺口；400ms 心跳为第二保底唤醒源。零状态写入零重组开销。
+    DisposableEffect(Unit) {
+        val ch = android.view.Choreographer.getInstance()
+        val cb = object : android.view.Choreographer.FrameCallback {
+            override fun doFrame(frameTimeNanos: Long) {
+                ch.postFrameCallback(this)
+            }
+        }
+        ch.postFrameCallback(cb)
+        onDispose { ch.removeFrameCallback(cb) }
+    }
+    LaunchedEffect(Unit) {
+        while (true) {
+            kotlinx.coroutines.delay(400)
+        }
+    }
     Canvas(modifier = Modifier.size(width = 43.dp, height = INDICATOR_H_DP.dp)) {
         val t = timeMs.longValue / 1000f // draw 阶段读状态：仅重绘，不重组
         val dotD = 9.dp.toPx()
@@ -436,112 +454,6 @@ private fun ThinkingDots() {
             val hop = 0.5f - 0.5f * kotlin.math.cos(2f * Math.PI.toFloat() * phase)
             val cy = size.height / 2f - lift * hop
             drawCircle(color = DotColor, radius = dotD / 2f, center = Offset(cx0 + i * (dotD + gap), cy))
-        }
-    }
-}
-
-/** S25c 临时诊断（板子三点冻结定位，定案后整段删除换回 ThinkingDots）：
- *  四行探针区分冻结层——1=Compose 帧钟（withFrameNanos）/2=原生 Choreographer
- *  postFrameCallback/3=协程 delay 计时器/4=旧版 rememberInfiniteTransition；
- *  另有看门狗（Default 线程）：三层计数全停 3s 自动 dump 主线程栈。 */
-@Composable
-private fun ThinkingDotsDiag() {
-    val aTime = remember { mutableLongStateOf(0L) } // 1 帧钟
-    val bTime = remember { mutableLongStateOf(0L) } // 2 Choreographer
-    val cTick = remember { mutableStateOf(0) } // 3 delay 计时
-    val dPhase = remember { mutableStateOf(0) } // 4 旧版（由无限动画的重组驱动计数）
-    LaunchedEffect(Unit) {
-        while (true) withFrameNanos { now -> aTime.longValue = now / 1_000_000 }
-    }
-    DisposableEffect(Unit) {
-        val ch = android.view.Choreographer.getInstance()
-        val cb = object : android.view.Choreographer.FrameCallback {
-            override fun doFrame(frameTimeNanos: Long) {
-                bTime.longValue = frameTimeNanos / 1_000_000
-                ch.postFrameCallback(this)
-            }
-        }
-        ch.postFrameCallback(cb)
-        onDispose { ch.removeFrameCallback(cb) }
-    }
-    LaunchedEffect(Unit) {
-        while (true) {
-            kotlinx.coroutines.delay(400)
-            cTick.value++
-        }
-    }
-    // 看门狗（Default 线程）：三层计数 3 秒无变化 -> dump 主线程栈（一次冻结一案）
-    LaunchedEffect(Unit) {
-        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
-            var stallA = 0L; var stallB = 0L; var stallC = 0
-            var dumped = false
-            while (true) {
-                kotlinx.coroutines.delay(1000)
-                val a = aTime.longValue; val b = bTime.longValue; val c = cTick.value
-                val aStuck = a == stallA; val bStuck = b == stallB; val cStuck = c == stallC
-                if (aStuck && bStuck && cStuck) {
-                    if (!dumped) {
-                        dumped = true
-                        val st = android.os.Looper.getMainLooper().thread.stackTrace
-                        PetLogger.e(
-                            "S25diag",
-                            "ALL STUCK (a=$a b=$b c=$c) main stack:\n" +
-                                st.take(28).joinToString("\n") { "  at $it" },
-                        )
-                    }
-                } else {
-                    dumped = false
-                }
-                stallA = a; stallB = b; stallC = c
-                PetLogger.i("S25diag", "a=$a b=$b c=$c d=${dPhase.value}")
-            }
-        }
-    }
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        DiagDotRow(label = "1帧钟", color = Color(0xFFE5484D)) { ((aTime.longValue / 1500f) % 1f + 1f) % 1f }
-        DiagDotRow(label = "2Choreo", color = Color(0xFF46A758)) { ((bTime.longValue / 1500f) % 1f + 1f) % 1f }
-        DiagDotRow(label = "3计时", color = Color(0xFF00A2C7)) { (cTick.value % 3) / 3f }
-        // 4 旧版：无限动画重组驱动（动=旧时钟也活着；每帧重组计数+1）
-        val transition = rememberInfiniteTransition(label = "diagOld")
-        val dy by transition.animateFloat(
-            initialValue = 0f, targetValue = -7f,
-            animationSpec = infiniteRepeatable(tween(500, easing = FastOutSlowInEasing), RepeatMode.Reverse),
-            label = "diagOldDy",
-        )
-        LaunchedEffect(dy) { dPhase.value++ }
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text("4旧版", style = MaterialTheme.typography.labelSmall, color = Color(0xFF9AA0A6))
-            repeat(3) { i ->
-                Box(
-                    Modifier
-                        .size(9.dp)
-                        .offset(y = (dy - if (i == 1) 3f else 0f).dp)
-                        .background(DotColor, CircleShape),
-                )
-            }
-        }
-    }
-}
-
-/** 诊断单行：三圆点按 phase(0..1) 轮转抬升。 */
-@Composable
-private fun DiagDotRow(label: String, color: Color, phase: () -> Float) {
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-        Text(label, style = MaterialTheme.typography.labelSmall, color = color)
-        Canvas(modifier = Modifier.size(width = 43.dp, height = 14.dp)) {
-            val dotD = 8.dp.toPx()
-            val gap = 8.dp.toPx()
-            val cx0 = (size.width - (3 * dotD + 2 * gap)) / 2f + dotD / 2f
-            val ph = phase()
-            for (i in 0 until 3) {
-                val local = ((ph + i / 3f) % 1f + 1f) % 1f
-                val hop = 0.5f - 0.5f * kotlin.math.cos(2f * Math.PI.toFloat() * local)
-                drawCircle(
-                    color = color,
-                    radius = dotD / 2f,
-                    center = Offset(cx0 + i * (dotD + gap), size.height / 2f - 4.dp.toPx() * hop),
-                )
-            }
         }
     }
 }
