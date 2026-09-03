@@ -873,5 +873,17 @@ UNPROCESSED（S18 已交付三档设置，若 HAL 支持则绕开 codec AGC，�
 NLMS 保留（削波缓解后线性区贡献转正+发散守卫兜底）；S22 影子维持观测位。</p>
 </div>
 
+<div class="entry bug">
+<span class="tag">Bug 修复</span><span class="meta">2026-09-03 ｜ 全屏页 ｜ 思考三点指示器冻结</span>
+<p><b>现象</b>：板子全屏语音页 PROCESSING 态「小朵思考中…」上方三点不动。<b>根因</b>：
+ThinkingDots 用的 rememberInfiniteTransition 重组式动画（三个错相 delayMillis 的
+animateFloat）在弱机+PROCESSING 期音频重载（ASR+LLM+NLMS+双 KWS）下冻结——与聆听
+声波 24755b9 同病史（用户真机反馈卡顿），声波已改「帧时钟+draw 阶段读状态」治愈，
+三点未同治。<b>修复</b>：同款模式重写——withFrameNanos 时钟 + Canvas draw 阶段升余弦
+跳动脉冲（周期 1.5s 错相 1/3，观感节奏同旧版 500ms+160ms 错相），每帧仅重绘零重组。
+<b>关联</b>：ChatScreen.TypingDots 同为 rememberInfiniteTransition 家族但未收到冻结报告
+（聊天页无音频重载场景），暂不动，留观察。</p>
+</div>
+
 </body>
 </html>

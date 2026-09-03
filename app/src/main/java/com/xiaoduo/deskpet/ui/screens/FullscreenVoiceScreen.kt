@@ -412,35 +412,30 @@ private fun ListeningWaveform(rms: () -> Float, color: Color) {
     }
 }
 
-/** S14-2 思考指示器：三点错相跳动（••• 行业通用符号，豆包/通义同款）。 */
+/** S14-2 思考指示器：三点错相跳动（••• 行业通用符号，豆包/通义同款）。
+ *  2026-09-03 冻结修复：改 24755b9 聆听声波同款「帧时钟 + draw 阶段读状态」——
+ *  旧实现 rememberInfiniteTransition 重组式动画在板子（弱机+PROCESSING 期音频重载）
+ *  上冻结不动（声波同病史，24755b9 已证同方治愈：Canvas 每帧仅重绘零重组）。 */
 @Composable
 private fun ThinkingDots() {
-    val transition = rememberInfiniteTransition(label = "thinkingDots")
-    Row(
-        modifier = Modifier.height(INDICATOR_H_DP.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        repeat(3) { i ->
-            val dy by transition.animateFloat(
-                initialValue = 0f,
-                targetValue = -7f,
-                animationSpec = infiniteRepeatable(
-                    animation = tween(
-                        durationMillis = 500,
-                        delayMillis = i * 160,
-                        easing = FastOutSlowInEasing,
-                    ),
-                    repeatMode = RepeatMode.Reverse,
-                ),
-                label = "dot$i",
-            )
-            Box(
-                modifier = Modifier
-                    .size(9.dp)
-                    .offset(y = dy.dp)
-                    .background(DotColor, CircleShape),
-            )
+    val timeMs = remember { mutableLongStateOf(0L) }
+    LaunchedEffect(Unit) {
+        while (true) {
+            withFrameNanos { now -> timeMs.longValue = now / 1_000_000 }
+        }
+    }
+    Canvas(modifier = Modifier.size(width = 43.dp, height = INDICATOR_H_DP.dp)) {
+        val t = timeMs.longValue / 1000f // draw 阶段读状态：仅重绘，不重组
+        val dotD = 9.dp.toPx()
+        val gap = 8.dp.toPx()
+        val lift = 7.dp.toPx()
+        val cx0 = (size.width - (3 * dotD + 2 * gap)) / 2f + dotD / 2f
+        for (i in 0 until 3) {
+            // 升余弦跳动脉冲：周期 1.5s，三点错相 1/3（=500ms 遗留节奏同观感）
+            val phase = ((t / 1500f) + i / 3f) % 1f
+            val hop = 0.5f - 0.5f * kotlin.math.cos(2f * Math.PI.toFloat() * phase)
+            val cy = size.height / 2f - lift * hop
+            drawCircle(color = DotColor, radius = dotD / 2f, center = Offset(cx0 + i * (dotD + gap), cy))
         }
     }
 }
