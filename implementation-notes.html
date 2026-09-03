@@ -926,5 +926,17 @@ pm compile 全模式（speed/everything/bg-dexopt-job）返回 Success 但状态
 「用户看一眼」的观感数据必须配日志时间戳才能区分真冻/假冻。</p>
 </div>
 
+<div class="entry open-question">
+<span class="tag">未决问题</span><span class="meta">2026-09-03 深夜 ｜ 渲染 ｜ S25e 待做：短窗读感理论被证伪，主攻「无状态写入=管线休眠」假设</span>
+<p><b>20:54 两轮思考窗（3.4s/2.7s）零编译零跳帧但用户目视未跳</b>——S25d 终案的短窗读感
+部分被证伪，仍有真实冻结机制。<b>S25e 主攻假设</b>：诊断版会动的行 2=裸 Choreographer
+回调<b>每帧写 Compose 状态</b>（bTime）→快照应用→画布失效→traversal 持续流动→管线活；
+S25c/d 的 keeper 只重挂回调不写状态→无 traversal 需求→OEM Choreographer 动画回调链
+自断。<b>方案</b>（把已验证会动的机制原样搬入）：删 withFrameNanos，裸 Choreographer 回调
+直写 timeMs（Canvas draw 读它驱动动画）+400ms 心跳同样写状态（Canvas 读之保底）——
+即诊断版行 2+行 3 的组合，两处都有实证。若 S25e 仍冻：下一步重装四探针版做生产态
+对照，唯一剩余差异=看门狗日志/行 4 存在性，逐项消元。</p>
+</div>
+
 </body>
 </html>
