@@ -449,8 +449,10 @@ private fun ThinkingDots() {
         val lift = 7.dp.toPx()
         val cx0 = (size.width - (3 * dotD + 2 * gap)) / 2f + dotD / 2f
         for (i in 0 until 3) {
-            // 升余弦跳动脉冲：周期 1.5s，三点错相 1/3（=500ms 遗留节奏同观感）
-            val phase = ((t / 1500f) + i / 3f) % 1f
+            // 升余弦跳动脉冲：周期 0.85s（思考窗物理下限 ~2.5s=ASR+LLM 首 token，流式首句
+            // 即切 SPEAKING——1.5s 周期在 2.5s 窗内仅一轮半，视觉读感「跳一下就停」；
+            // 0.85s≈3 完整周期，短窗也明显在跳；三点错相 1/3）
+            val phase = ((t / 850f) + i / 3f) % 1f
             val hop = 0.5f - 0.5f * kotlin.math.cos(2f * Math.PI.toFloat() * phase)
             val cy = size.height / 2f - lift * hop
             drawCircle(color = DotColor, radius = dotD / 2f, center = Offset(cx0 + i * (dotD + gap), cy))

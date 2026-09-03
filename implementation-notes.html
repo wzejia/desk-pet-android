@@ -911,5 +911,20 @@ known-unknown</b>：重组路径为何单订阅者冻结未深挖（Compose 1.6.
 交互），双 keeper 为实证组合非机理结论；若未来其他重组动画冻结同法治之。</p>
 </div>
 
+<div class="entry decision">
+<span class="tag">设计决策</span><span class="meta">2026-09-03 ｜ 渲染 ｜ S25d 三点冻结终案：JIT 风暴（冻结本体）+ 短思考窗视觉读感（假冻结）</span>
+<p><b>终案</b>（多轮板子日志闭环）：三点「不动」由两个独立现象叠加——①<b>真冻结</b>=JIT 编译
+风暴（装机/进新页面后首轮：FullscreenVoiceScreen 5.7MB 级编译、25s 内重复编译，
+Skipped 34~301 帧与编译时刻严丝合缝；进程热身后（同会话第 2+ 轮）零编译零跳帧，帧管线
+健康）；②<b>假冻结</b>=思考窗物理下限 ~2.5s（ASR+LLM 首 token，流式首句即切 SPEAKING，
+与问题复杂度无关）x 1.5s 动画周期=一轮半，视觉读感「跳一下就停」。<b>修复</b>：动画周期
+1500->850ms（2.5s 窗≈3 完整周期）。<b>S25c 双 keeper 保留</b>（无害保险）；四探针实验数据
+仍有效（帧钟/Choreographer/draw 阶段在健康窗全部实证在动）。<b>死路记录</b>：本 ROM 的
+pm compile 全模式（speed/everything/bg-dexopt-job）返回 Success 但状态恒 quicken——AOT
+部署通道被 OEM 封死；冷启动白屏（301 帧 JIT）无部署级解法，只能 Baseline Profile
+（挂账）或接受首次卡顿。<b>教训</b>： OEM ROM 的 Success ≠ 生效，dumpsys 状态才是真相；
+「用户看一眼」的观感数据必须配日志时间戳才能区分真冻/假冻。</p>
+</div>
+
 </body>
 </html>

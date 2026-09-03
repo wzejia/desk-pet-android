@@ -378,6 +378,9 @@
 
 - [x] S25-1：ThinkingDots 改帧时钟+draw 阶段读状态（withFrameNanos + Canvas 升余弦
   跳动脉冲，零重组）；496 测绿；板子已装。ChatScreen.TypingDots 同家族未收到报告不动（观察）
+- [x] S25d 终案：真冻结=JIT 风暴（进程热身后消失，日志实证零编译零跳帧）+假冻结=
+  思考窗物理下限 2.5s x 1.5s 周期视觉读感；修复=周期 850ms。AOT 死路记录（ROM 三模式
+  假 Success 恒 quicken）。Baseline Profile 挂账（冷启动 301 帧白屏唯一解）
 - [x] S25c 定案（四探针实验）：行1帧钟/行2裸Choreo/行3计时器全动、行4旧版（重组依赖）
   冻——死的是重组驱动路径非帧管线；且诊断版并存裸 Choreographer 时同机制动画在动
   （S25 单独冻）→ OEM Choreographer 单订阅者重挂疑缺口。定案版=draw 阶段动画+双
