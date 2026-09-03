@@ -80,6 +80,10 @@ class KwsCore(
 
     private val decodeThread = Thread({ decodeLoop() }, "kws-decode").apply {
         isDaemon = true
+        // S25b（2026-09-03 板子白屏/动画冻结根因）：解码线程默认优先级与 UI 主线程同级，
+        // 4xA55 板子上与密集架轮询/JIT/GC 争抢致 Choreographer 饿死（Skipped 301 帧）。
+        // 队列驱动+100ms 节奏，晚几毫秒无害；主+影子双引擎同降。
+        priority = Thread.MIN_PRIORITY
         start()
     }
 

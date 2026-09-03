@@ -155,7 +155,11 @@ class VoicePlayer {
                 }
                 Thread.sleep(10)
             }
-        }, "ref-pacer").apply { isDaemon = true; start() }
+        }, "ref-pacer").apply {
+            isDaemon = true
+            priority = Thread.MIN_PRIORITY // S25b：音频后台线程不得与 UI 主线程同级抢 CPU（同 kws-decode）
+            start()
+        }
     }
 
     /** 按已播帧数从「已写未播」队列放出 PCM 给消回声器；欠账（写滞后于播）不补零。 */

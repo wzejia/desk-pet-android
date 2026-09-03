@@ -378,6 +378,10 @@
 
 - [x] S25-1：ThinkingDots 改帧时钟+draw 阶段读状态（withFrameNanos + Canvas 升余弦
   跳动脉冲，零重组）；496 测绿；板子已装。ChatScreen.TypingDots 同家族未收到报告不动（观察）
+- [x] S25b 根因补枪（板子实测 S25 后三点仍冻结+白屏）：主线程 CPU 饿死（Skipped 301 帧
+  实证，新旧动画 API 同冻=帧时钟断供非写法问题）——kws-decode×2 + ref-pacer 降
+  MIN_PRIORITY（队列驱动节奏无害）；496 测绿板子已装。冷启动 5s JIT 白屏彻底治=
+  Baseline Profile 挂账；密集架 NPE/GuardService 为厂商侧（时间线存证）
 
 ## S24 小朵播报音量（App 内，2026-09-02 立项收口，三轮板子数据第一性原理定位）
 

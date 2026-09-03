@@ -885,5 +885,17 @@ animateFloat）在弱机+PROCESSING 期音频重载（ASR+LLM+NLMS+双 KWS）下
 （聊天页无音频重载场景），暂不动，留观察。</p>
 </div>
 
+<div class="entry diagnosis">
+<span class="tag">根因定位</span><span class="meta">2026-09-03 ｜ 渲染 ｜ 小朵白屏+思考三点冻结：主线程 CPU 饿死（非动画/非崩溃）</span>
+<p><b>现象</b>：板子冷启动白屏数秒 + 思考三点「跳上去后不动」（新旧两版动画 API 表现一致）。<b>证据链</b>：
+Choreographer Skipped 301 帧（=5s 主线程阻塞=白屏）+64 帧；进程存活无 ANR；Java 堆 17MB
+健康；libEGL disconnect failed 为导航栏切换的表面重建伴生非致命。<b>根因</b>：4xA55 板上
+kws-decode×2 + ref-pacer 全默认优先级与 UI 主线程同级，思考态叠加 ASR/LLM/JIT/GC +
+密集架每秒硬件轮询 + RKDENOISE 刷屏——主线程被挤到帧时钟断供。<b>修复（S25b）</b>：
+音频后台线程降 MIN_PRIORITY（队列驱动 100ms 节奏，晚几毫秒无害）。<b>连带</b>：白屏两
+段构成=冷启动 JIT+首组合 5s（优先级修复应有改善；彻底治可上 Baseline Profile，挂账）；
+密集架 App 自身 NPE 崩溃与其 GuardService 看护行为为厂商侧独立问题（时间线已存证）。</p>
+</div>
+
 </body>
 </html>
