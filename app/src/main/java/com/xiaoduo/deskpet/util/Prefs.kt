@@ -195,4 +195,16 @@ object Prefs {
     fun setTtsVolume(context: Context, volume: Float) {
         sp(context).edit().putFloat(KEY_TTS_VOLUME, volume.coerceIn(0.1f, 1f)).apply()
     }
+
+    /** S26：设备技能地址（整理台+净化柜一体机）。空串=禁用设备技能。 */
+    const val KEY_DEVICE_BASE_URL = PrefContract.KEY_DEVICE_BASE_URL
+
+    const val DEFAULT_DEVICE_BASE_URL = "http://10.0.18.47:8080"
+
+    fun deviceBaseUrl(context: Context): String =
+        sp(context).getString(KEY_DEVICE_BASE_URL, DEFAULT_DEVICE_BASE_URL).orEmpty()
+
+    fun setDeviceBaseUrl(context: Context, url: String) {
+        sp(context).edit().putString(KEY_DEVICE_BASE_URL, url.trim()).apply()
+    }
 }

@@ -938,5 +938,17 @@ S25c/d 的 keeper 只重挂回调不写状态→无 traversal 需求→OEM Chore
 对照，唯一剩余差异=看门狗日志/行 4 存在性，逐项消元。</p>
 </div>
 
+<div class="entry decision">
+<span class="tag">设计决策</span><span class="meta">2026-09-04 ｜ 设备集成 ｜ S26 整理台/净化柜：本地意图 B 路线</span>
+<p><b>路线拍板</b>（用户）：A 平台 MCP（需平台侧部署能力）vs B App 内本地意图 vs C 云端
+function calling——选 B（最快落地、全仓可控、不依赖平台/LLM；设备控制模块为 A/C 复用地基）。
+<b>设计底线</b>：意图匹配须显式设备名词（「打开1号密集架」不劫持——那是平台 MCP 的事）；
+<b>命令语义遵循实测文档</b>（开机=模式接口、runFlag=1 无效、回读 RunFlag 验证、NO_PROXY）。
+<b>设备轮=工具轮</b>：设备自带语音播报（playFlag）→ 复用 S20 静音+S21 重唤醒语义（置
+turnSawToolCall）——三轮架构红利兑现。<b>接线</b>：ASR 后、LLM 前拦截；delta 处理抽局部
+函数，LLM 流式与设备结果同路（上屏/气泡/分句/TTS 一套代码）。<b>回读延时</b>2.5s
+（文档 3-5s 与语音体感折中，sleeper 注入可测）。</p>
+</div>
+
 </body>
 </html>

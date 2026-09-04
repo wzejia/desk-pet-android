@@ -1,5 +1,7 @@
 package com.xiaoduo.deskpet.voice
 
+import com.xiaoduo.deskpet.device.DeviceClient
+import com.xiaoduo.deskpet.device.DeviceIntentMatcher
 import android.content.Context
 import com.xiaoduo.deskpet.PetOverlayService
 import com.xiaoduo.deskpet.agui.AguiClientFactory
@@ -119,6 +121,14 @@ object VoiceClientFactory {
                 echoCancelProvider = { Prefs.echoCancelEnabled(app) },
                 // S24：App 内播报音量（每轮现读，滑杆即时生效）
                 ttsVolumeProvider = { Prefs.ttsVolume(app) },
+                // S26 设备技能（整理台/净化柜本地意图）：地址空=禁用；OkHttp 单例共享
+                // （NO_PROXY 局域网直连），每轮现读地址（改设置即时生效）
+                deviceSkillMatcher = if (Prefs.deviceBaseUrl(app).isEmpty()) null
+                else { text -> DeviceIntentMatcher.match(text) },
+                deviceSkillExecutor = if (Prefs.deviceBaseUrl(app).isEmpty()) null
+                else { cmd ->
+                    DeviceClient(http = deviceHttp, baseUrl = Prefs.deviceBaseUrl(app)).execute(cmd)
+                },
             ).also { session = it }
         }
         // S9-3 冷路径接线：装配完成后触发应答音预取（保存即合成的「启动补漏」半边）。
@@ -166,7 +176,10 @@ object VoiceClientFactory {
             bytes[8] == 'W'.code.toByte() && bytes[9] == 'A'.code.toByte() &&
             bytes[10] == 'V'.code.toByte() && bytes[11] == 'E'.code.toByte()
 
-    private const val TAG = "VoiceClientFactory"
+    /** S26 设备技能共享连接（NO_PROXY 局域网直连）。 */
+    private val deviceHttp by lazy { DeviceClient.defaultHttp() }
+
+private const val TAG = "VoiceClientFactory"
     private const val WOZAI_ASSET = "wozai.wav"
     private const val RIFF_HEADER_BYTES = 44
 }

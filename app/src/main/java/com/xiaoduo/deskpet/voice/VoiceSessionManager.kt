@@ -3,6 +3,8 @@ package com.xiaoduo.deskpet.voice
 import android.content.Context
 import com.xiaoduo.deskpet.PetOverlayService
 import com.xiaoduo.deskpet.agui.AguiClient
+import com.xiaoduo.deskpet.device.DeviceClient
+import com.xiaoduo.deskpet.device.DeviceIntentMatcher
 import com.xiaoduo.deskpet.cloud.CloudClientFactory
 import com.xiaoduo.deskpet.cloud.Message
 import com.xiaoduo.deskpet.cloud.OpenAIAsrClient
@@ -65,6 +67,11 @@ class VoiceSessionManager(
     private val echoCancelProvider: () -> Boolean = { true },
     // S24：App 内播报音量（治板子满格致麦克风削波；每轮现读，设置页滑杆即时生效）
     private val ttsVolumeProvider: () -> Float = { 1f },
+    // S26 设备技能（整理台/净化柜本地意图）：ASR 后先匹配，命中直连设备跳过 LLM。
+    // null=禁用（默认；工厂按设置页地址装配）。设备自带播报（playFlag）→ 设备轮按
+    // 工具轮待遇（turnSawToolCall 置位，S20 静音/S21 重唤醒语义自动套用）。
+    private val deviceSkillMatcher: ((String) -> DeviceIntentMatcher.Command?)? = null,
+    private val deviceSkillExecutor: (suspend (DeviceIntentMatcher.Command) -> DeviceClient.SkillResult)? = null,
 ) {
 
     /** ASR 模式分支：云端按配置厂商分发（pcm 包 WAV），平台走 AsrClient。 */
@@ -650,6 +657,20 @@ class VoiceSessionManager(
             return
         }
 
+        // S26-3 设备技能：本地意图命中 → 直连设备（跳过 LLM），结果走同一分句/TTS 管线。
+        // 设备自带语音播报（playFlag=true）→ 置工具轮标记，S20 静音/S21 重唤醒自动适用。
+        var deviceResult: DeviceClient.SkillResult? = null
+        val deviceCmd = deviceSkillMatcher?.invoke(stripped)
+        val executor = deviceSkillExecutor
+        if (deviceCmd != null && executor != null) {
+            logger("device skill hit: $deviceCmd")
+            turnSawToolCall.set(true)
+            status("正在控制设备…")
+            deviceResult = runCatching { executor.invoke(deviceCmd) }
+                .onFailure { logger("device skill exception: ${it.message}") }
+                .getOrElse { DeviceClient.SkillResult.Fail("设备控制异常，请重试") }
+        }
+
         // 异常兜底：user 已上屏后，任何非取消异常逃逸（bubble 层 RuntimeException / chat 内残余
         // 非 IOException 等）都视同失败轮——补发 onAssistantError 让 VM 标 error 并复位守卫窗口，
         // 防终态回调被跳过导致 voiceActive 永久悬挂。terminalFired CAS 防正常终态后再异常双触发。
@@ -663,23 +684,16 @@ class VoiceSessionManager(
             // S8-5：气泡文字改 delta 流式直出（撤句级 PCM 时序 reveal）。
             // bubbleStarted 记首轮 show 认领 round 令牌（OverlayBubbleSink round 机制），后续 append 续打。
             var bubbleStarted = false
-            val chat = voiceChat(stripped) { delta ->
-                // barge-in 迟到 delta 防线：封轮（被打断）后残跑管线的 delta 全丢——
-                // 否则 VM 侧 done 后又收到 delta 会再造占位 assistant，幽灵消息且永无终态。
-                // S8-5 回归守卫：此入口统一拦截 transcriptSink 与 bubble 两路同源 delta，
-                // cancel 后迟到 delta 不再上屏/出泡（对等屏蔽闭环——删此 → 残文本继续上屏）
-                if (turn.sealed) return@voiceChat
-                transcriptSink?.onAssistantDelta(delta) // App 聊天页逐 delta 实时上屏（原文，清洗归适配侧）
-                // S8-5 回归守卫：sink 回调可阻塞，cancel 可在入口 sealed 检查与此处之间落地——
-                // bubble 操作前必须 double-check，否则 hide 后被迟到 show/append 顶出幽灵气泡
-                // （删此 → BargeInTest.cancelDuringSinkCallbackDoesNotGhostBubble → 红）
-                if (turn.sealed) return@voiceChat
-                // S8-5：气泡直接消费 delta 流式上屏（与 App 聊天页同节奏），不再等句级 TTS 时序
+            // S26-3：delta 处理抽局部函数——LLM 流式与设备技能结果共用同一条上屏/分句/TTS 路
+            fun handleDelta(delta: String) {
+                if (turn.sealed) return
+                transcriptSink?.onAssistantDelta(delta)
+                if (turn.sealed) return
                 if (bubbleStarted) {
                     bubble.append(delta)
                 } else {
-                    bubble.show(delta) // 首帧认领本轮 bubble round 令牌（后续 append 带同 round）
-                    bubbleHidePolicy.onBubbleShown() // 本轮弹过气泡，回 IDLE 时延时收
+                    bubble.show(delta)
+                    bubbleHidePolicy.onBubbleShown()
                     bubbleStarted = true
                 }
                 for (c in delta) {
@@ -687,6 +701,17 @@ class VoiceSessionManager(
                         runBlocking { sentences.send(s) }
                     }
                 }
+            }
+            val deviceSpeech = when (val dr = deviceResult) {
+                is DeviceClient.SkillResult.Ok -> dr.speech
+                is DeviceClient.SkillResult.Fail -> dr.speech
+                null -> null
+            }
+            val chat: AguiClient.ChatResult = if (deviceSpeech != null) {
+                handleDelta(deviceSpeech)
+                AguiClient.ChatResult.Success(deviceSpeech, firstTokenLatencyMs = null, attempts = 1)
+            } else voiceChat(stripped) { delta ->
+                handleDelta(delta)
             }
             splitter.flush()?.let { s -> sentences.send(s) } // 残留收尾
             sentences.close()

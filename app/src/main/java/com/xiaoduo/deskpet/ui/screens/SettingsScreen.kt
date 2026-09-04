@@ -237,6 +237,27 @@ fun SettingsScreen(onBack: () -> Unit, onOpenPermissions: () -> Unit) {
                 Prefs.setEchoCancelEnabled(context, on)
                 PetLogger.i("Settings", "echo_cancel -> $on")
             }
+            // S26 设备技能：整理台+净化柜地址（空=禁用语音控制）
+            var deviceUrl by remember { mutableStateOf(Prefs.deviceBaseUrl(context)) }
+            Column(Modifier.fillMaxWidth()) {
+                Text("设备控制（整理台/净化柜）", style = MaterialTheme.typography.bodyLarge)
+                Text(
+                    "语音说「打开整理台」「净化柜强力净化」「整理台风速二档」即直连控制；清空地址可禁用",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                OutlinedTextField(
+                    value = deviceUrl,
+                    onValueChange = {
+                        deviceUrl = it
+                        Prefs.setDeviceBaseUrl(context, it)
+                    },
+                    singleLine = true,
+                    label = { Text("设备地址") },
+                    placeholder = { Text("http://10.0.18.47:8080") },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
             var ttsVol by remember { mutableStateOf(Prefs.ttsVolume(context)) }
             Row(
                 modifier = Modifier
