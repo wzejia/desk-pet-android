@@ -1017,5 +1017,17 @@ PetStatusBar+petStateFor 删除（PetState/PetFrameTable/Mic/statusBarsPadding i
 全屏键进 S14 页/深浅色像素断言（top bg 255 vs 0）。</p>
 </div>
 
+<div class="entry bug">
+<span class="tag">坑</span><span class="meta">2026-09-08 ｜ Compose Scaffold ｜ S27 bottomBar 多组件重叠——slot 不是竖排容器</span>
+<p><b>现象</b>（用户实测报出）：导航行叠在输入框区域上。Scaffold 的 <code>bottomBar</code> slot
+收多个 @Composable 时<strong>不是 Column 竖排</strong>——Scaffold 内部把所有 bottomBar
+placeables 各自对齐 bottomCenter，两 bar 重叠绘制；dump 三键 y=2031（应 2248）。首版验收漏检原因：
+只 dump 了三键落位坐标（绝对位置合理），没对照 InputBar bounds 验证「不重叠+顺序」。<b>修复</b>：
+bottomBar 内显式 Column { InputBar; BottomNavRow }。修后三键 y=2248-2301 贴底（底缘=navigationBarsPadding
+上沿，手势条区下方留系统保留区，ChatGPT 同款规范）。<b>教训</b>：Scaffold 的 topBar/bottomBar
+slot 均为单容器语义，多组件必须自己包 Column/Row；布局验收必须拿相邻元素的<b>相对</b> bounds，
+不能只看绝对坐标「看起来合理」。</p>
+</div>
+
 </body>
 </html>

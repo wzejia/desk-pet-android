@@ -179,6 +179,10 @@ fun ChatScreen(
             // S27：顶栏整体移除（无 topBar）——Scaffold contentWindowInsets 默认含状态栏，
             // 消息流自动垫到状态栏下；宠物头像与相位文案不迁移，直接退役（S27 拍板）。
             bottomBar = {
+                // S27 修复：bottomBar slot 内多组件会被 Scaffold 全部对齐 bottomCenter
+                // （重叠而非竖排），必须显式 Column 竖排——输入栏在上、导航行贴最底
+                // （navigationBarsPadding 由 AppNavHost 外层 Column 统一垫）。
+                Column {
                 // S7-f：text 上提 ChatScreen 级 rememberSaveable（barge-in 首字符打断在此，
                 // 不上 VM）；files/keyStopActive 驱动 InputBar chips 与多功能键真值表
                 // （keyStopActive=voiceActive∪VSM非IDLE，晚建 VM 不错过在飞语音轮）
@@ -206,28 +210,28 @@ fun ChatScreen(
                         }
                     }
                 }
-                InputBar(
-                    busy = phase == ChatViewModel.Phase.SENDING ||
-                        phase == ChatViewModel.Phase.STREAMING,
-                    voiceActive = voiceActive,
-                    files = files,
-                    text = text,
-                    onTextChange = {
-                        // #7 阶段1 barge-in：空→非空首字符即打断当前轮输出（音频+文字全停）
-                        if (text.isEmpty() && it.isNotEmpty()) vm.cancelCurrentTurn()
-                        text = it
-                    },
-                    onSend = { content ->
-                        vm.send(content)
-                        text = ""
-                    },
-                    onStopTurn = vm::cancelCurrentTurn, // 多功能键停止档（S7-e 同源）
-                    onPickFile = { pickFile.launch("*/*") },
-                    onRemoveFile = vm::removeFile,
-                    onVoiceStart = { startVoiceHold(context) },
-                    onVoiceEnd = { stopVoiceHold(context) },
-                    onVoiceCancel = { cancelVoiceHold(context) },
-                )
+                    InputBar(
+                        busy = phase == ChatViewModel.Phase.SENDING ||
+                            phase == ChatViewModel.Phase.STREAMING,
+                        voiceActive = voiceActive,
+                        files = files,
+                        text = text,
+                        onTextChange = {
+                            // #7 阶段1 barge-in：空→非空首字符即打断当前轮输出（音频+文字全停）
+                            if (text.isEmpty() && it.isNotEmpty()) vm.cancelCurrentTurn()
+                            text = it
+                        },
+                        onSend = { content ->
+                            vm.send(content)
+                            text = ""
+                        },
+                        onStopTurn = vm::cancelCurrentTurn, // 多功能键停止档（S7-e 同源）
+                        onPickFile = { pickFile.launch("*/*") },
+                        onRemoveFile = vm::removeFile,
+                        onVoiceStart = { startVoiceHold(context) },
+                        onVoiceEnd = { stopVoiceHold(context) },
+                        onVoiceCancel = { cancelVoiceHold(context) },
+                    )
                 // S27 底部导航行贴底：汉堡（左）｜密集架键（正中）｜全屏语音键（右）。
                 // 两侧 weight(1f) 容器实现中键真居中；三键均 48dp 热区 + 36dp 圆形容器
                 // （样式对齐原顶栏钮）。
@@ -235,6 +239,7 @@ fun ChatScreen(
                     onOpenDrawer = { scope.launch { drawerState.open() } },
                     onOpenFullscreenVoice = onOpenFullscreenVoice,
                 )
+                }
             },
         ) { padding ->
             Box(
