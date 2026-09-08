@@ -20,6 +20,7 @@ import com.xiaoduo.deskpet.pet.EdgeDock
 import com.xiaoduo.deskpet.pet.OverlayClamp
 import com.xiaoduo.deskpet.pet.PetState
 import com.xiaoduo.deskpet.ui.PetView
+import com.xiaoduo.deskpet.util.AppLauncher
 import com.xiaoduo.deskpet.ui.overlay.BubbleOwner
 import com.xiaoduo.deskpet.ui.overlay.BubbleOwnership
 import com.xiaoduo.deskpet.ui.overlay.BubbleTextStrip
@@ -407,6 +408,10 @@ class PetOverlayService : Service() {
                             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                     )
                 }.onFailure { PetLogger.e(TAG, "menu open app failed", it) }
+            },
+            onOpenDenseShelf = {
+                val ok = AppLauncher.startWithToast(this)
+                PetLogger.i(TAG, "menu: open dense shelf app, ok=$ok")
             },
             onToggleVoice = {
                 val newState = !Prefs.voiceEnabled(this)

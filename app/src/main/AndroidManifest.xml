@@ -11,6 +11,16 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
+    <!-- S27 包可见性（targetSdk 30+）：用 LAUNCHER intent 通配声明——可见所有有桌面
+         入口的包，getLaunchIntentForPackage 才能拿到密集架入口；目标包实证改名后
+         只改 AppLauncher.TARGET_PACKAGE，manifest 不再动。 -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.LAUNCHER" />
+        </intent>
+    </queries>
+
     <application
         android:name=".App"
         android:allowBackup="false"

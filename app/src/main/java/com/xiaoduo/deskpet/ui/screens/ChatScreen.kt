@@ -28,7 +28,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
@@ -39,7 +38,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Menu
-import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.Icon
@@ -80,16 +78,18 @@ import com.xiaoduo.deskpet.chat.ChatMessage
 import com.xiaoduo.deskpet.chat.ChatViewModel
 import com.xiaoduo.deskpet.ui.components.MarkdownContent
 import com.xiaoduo.deskpet.chat.SuggestedQuestions
-import com.xiaoduo.deskpet.pet.PetFrameTable
-import com.xiaoduo.deskpet.pet.PetState
 import com.xiaoduo.deskpet.ui.PetView
+import com.xiaoduo.deskpet.ui.icons.DenseShelfIcon
+import com.xiaoduo.deskpet.ui.icons.FullscreenVoiceIcon
 import com.xiaoduo.deskpet.ui.theme.XiaoduoDimens
+import com.xiaoduo.deskpet.util.AppLauncher
 import com.xiaoduo.deskpet.util.PetLogger
 import com.xiaoduo.deskpet.voice.VoiceClientFactory
 
 /**
- * Chat 主页（S2 完整版 + 真边栏导航）：ModalNavigationDrawer → 顶部小朵状态条（S7-b 瘦身：
- * 头像 + 相位状态文案单行）→ 消息流 LazyColumn → 底部输入条。
+ * Chat 主页（S27 底部导航改版）：ModalNavigationDrawer → 消息流 LazyColumn（顶到系统
+ * 状态栏下，无顶栏——S27 拍板：宠物头像/相位文案退役）→ 底部输入条 + 导航行贴底
+ * （三段式：汉堡｜密集架键居中｜全屏语音键，S27-1c v4 拍板全屏四角图标）。
  * 抽屉内容见 [SessionDrawerContent]（收窄露 scrim：搜索/新建/会话列表/长按操作菜单 +
  * 设置入口）。vm 必须由 AppNavHost 显式传入 Activity 级共享实例。
  *
@@ -176,13 +176,8 @@ fun ChatScreen(
         },
     ) {
         Scaffold(
-            topBar = {
-                PetStatusBar(
-                    phase = phase,
-                    onOpenDrawer = { scope.launch { drawerState.open() } },
-                    onOpenFullscreenVoice = onOpenFullscreenVoice,
-                )
-            },
+            // S27：顶栏整体移除（无 topBar）——Scaffold contentWindowInsets 默认含状态栏，
+            // 消息流自动垫到状态栏下；宠物头像与相位文案不迁移，直接退役（S27 拍板）。
             bottomBar = {
                 // S7-f：text 上提 ChatScreen 级 rememberSaveable（barge-in 首字符打断在此，
                 // 不上 VM）；files/keyStopActive 驱动 InputBar chips 与多功能键真值表
@@ -233,6 +228,13 @@ fun ChatScreen(
                     onVoiceEnd = { stopVoiceHold(context) },
                     onVoiceCancel = { cancelVoiceHold(context) },
                 )
+                // S27 底部导航行贴底：汉堡（左）｜密集架键（正中）｜全屏语音键（右）。
+                // 两侧 weight(1f) 容器实现中键真居中；三键均 48dp 热区 + 36dp 圆形容器
+                // （样式对齐原顶栏钮）。
+                BottomNavRow(
+                    onOpenDrawer = { scope.launch { drawerState.open() } },
+                    onOpenFullscreenVoice = onOpenFullscreenVoice,
+                )
             },
         ) { padding ->
             Box(
@@ -254,43 +256,50 @@ fun ChatScreen(
     }
 }
 
-// ---------------- 顶部状态条 ----------------
+
+// ---------------- 底部导航行（S27） ----------------
 
 /**
- * 顶部状态条（S7-b 瘦身，~48dp = hamburger IconButton 48dp 热区撑高，去掉额外 vertical
- * padding）：hamburger + 小尺寸 PetView（相位驱动，40→32dp）+ 相位状态文案
- * （待命/思考中…/回复中…/出错可重发）。去掉「小朵」标题文字（头像已代表身份）与底部
- * 分割线——参照物（ChatGPT/小布）顶栏均无分割线，消息流顶部淡出遮罩已承担层次分隔。
- * Row 末尾为 S7-d 全屏语音模式 mic 入口（48dp 热区，样式对齐 hamburger 圆形容器）。
- * statusBarsPadding 自垫：NavHost 外层不再统一垫状态栏（抽屉 sheet 需顶到屏幕顶缘，
- * ChatGPT 形态），内容页各自消化安全区。
+ * 底部导航行（贴系统手势条，输入栏在上）：汉堡菜单（左）｜密集架键（正中）｜全屏语音键（右）。
+ * 全屏键用全屏四角图标（v4 拍板），与输入栏「按住说话」麦克风图标区分——
+ * 按住说话=语音转文字不进页，此键=进入 S14 全屏语音对话页。
  */
 @Composable
-private fun PetStatusBar(
-    phase: ChatViewModel.Phase,
+private fun BottomNavRow(
     onOpenDrawer: () -> Unit,
     onOpenFullscreenVoice: () -> Unit,
 ) {
-    var petView by remember { mutableStateOf<PetView?>(null) }
-    // 相位 → 精灵状态：petView 同为 key——视图 attach 晚于相位变化时补齐漏应用（相位竞争返工）
-    LaunchedEffect(phase, petView) {
-        petView?.setState(petStateFor(phase))
-    }
-    Surface(
-        color = MaterialTheme.colorScheme.surface,
-        modifier = Modifier.statusBarsPadding(),
-    ) {
+    val context = LocalContext.current
+    Surface(color = MaterialTheme.colorScheme.surface) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                // S7-b：不再加 vertical padding——IconButton 自带 48dp 最小热区即撑出
-                // ~48dp 栏高（m3 minimumInteractiveComponentSize），再垫 SpaceS 会到 ~64dp
                 .padding(horizontal = XiaoduoDimens.SpaceM),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            // 圆形浅底容器内图标（参照 ChatGPT 顶栏左钮），与 32dp 宠物头像视觉重量平衡；
-            // 保留 IconButton 外层 48dp 热区
-            IconButton(onClick = onOpenDrawer) {
+            Box(modifier = Modifier.weight(1f)) {
+                IconButton(onClick = onOpenDrawer) {
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .background(MaterialTheme.colorScheme.surfaceVariant, CircleShape),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(
+                            Icons.Filled.Menu,
+                            contentDescription = "打开菜单",
+                            modifier = Modifier.size(20.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+            }
+            IconButton(
+                onClick = {
+                    val ok = AppLauncher.startWithToast(context)
+                    PetLogger.i("ChatScreen", "nav row: open dense shelf app, ok=$ok")
+                },
+            ) {
                 Box(
                     modifier = Modifier
                         .size(36.dp)
@@ -298,46 +307,28 @@ private fun PetStatusBar(
                     contentAlignment = Alignment.Center,
                 ) {
                     Icon(
-                        Icons.Filled.Menu,
-                        contentDescription = "打开菜单",
+                        DenseShelfIcon,
+                        contentDescription = "打开密集架",
                         modifier = Modifier.size(20.dp),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
-            AndroidView(
-                factory = { context ->
-                    // S13：点击挥手取消（用户 2026-08-24 拍板），头像仅作相位展示
-                    PetView(context).also { petView = it }
-                },
-                modifier = Modifier.size(32.dp),
-            )
-            Text(
-                when (phase) {
-                    ChatViewModel.Phase.IDLE -> "待命"
-                    ChatViewModel.Phase.SENDING -> "思考中…"
-                    ChatViewModel.Phase.STREAMING -> "回复中…"
-                    ChatViewModel.Phase.ERROR -> "出错了，可点重发"
-                },
-                modifier = Modifier.padding(start = XiaoduoDimens.SpaceS),
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Spacer(modifier = Modifier.weight(1f))
-            // S7-d：全屏语音模式入口（右上角 48dp 热区，样式对齐 hamburger 圆形容器）
-            IconButton(onClick = onOpenFullscreenVoice) {
-                Box(
-                    modifier = Modifier
-                        .size(36.dp)
-                        .background(MaterialTheme.colorScheme.surfaceVariant, CircleShape),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Icon(
-                        Icons.Filled.Mic,
-                        contentDescription = "全屏语音模式",
-                        modifier = Modifier.size(20.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
+            Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.CenterEnd) {
+                IconButton(onClick = onOpenFullscreenVoice) {
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .background(MaterialTheme.colorScheme.surfaceVariant, CircleShape),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(
+                            FullscreenVoiceIcon,
+                            contentDescription = "全屏语音模式",
+                            modifier = Modifier.size(18.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
                 }
             }
         }
@@ -345,14 +336,6 @@ private fun PetStatusBar(
 }
 
 // ---------------- 空态 ----------------
-
-/** 相位 → 精灵状态映射（状态条与挥手回调共用，single source）。 */
-private fun petStateFor(phase: ChatViewModel.Phase): PetState = when (phase) {
-    ChatViewModel.Phase.IDLE -> PetFrameTable.IDLE
-    ChatViewModel.Phase.SENDING -> PetFrameTable.REVIEW
-    ChatViewModel.Phase.STREAMING -> PetFrameTable.TALKING
-    ChatViewModel.Phase.ERROR -> PetFrameTable.FAILED
-}
 
 /**
  * 空态（对齐小布助手形态，用户拍板本期做）：大号宠物（96dp，帧 192×208 等比 96×104，

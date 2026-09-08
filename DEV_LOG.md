@@ -1,3 +1,19 @@
+## 2026-09-08（S27 底部导航栏改版：实现+模拟器收口）
+
+- **需求链**：用户提出顶栏放到底部+底部加跳转 APP 键 → 原型 v1-v4 四轮沟通全项拍板
+  （导航行贴底三段式/宠物+相位文案退役/APP 键纯图标居中/全屏四角键/悬浮窗菜单第 2 位
+  纯文字「打开密集架」）。
+- **TDD**：AppLauncher.decide 决策纯函数 6 测先行（兜底顺序：LAUNCHER 入口→显式组件
+  fallback→FAIL）→ Android 壳 start()/startWithToast()。514->520 测绿。
+- **坑与解**：①targetSdk 30+ 包可见性——用 LAUNCHER intent 通配 queries 声明，
+  包名实证后只改常量不动 manifest；②M3 Scaffold 无 topBar 时 contentWindowInsets
+  自动垫状态栏，不手写 statusBarsPadding；③const val 不允许可空（fallback 字段改 val）；
+  ④icons-core 无 Grid/Fullscreen，手绘 2 个 ImageVector 替代引入 extended 大依赖。
+- **模拟器验收**：三键落位（中键 540/1080 真居中）/占位包名 toast 兜底（ok=false+OCR）
+  /临时常量指 settings 两入口真跳（前台变 Settings+ok=true）/汉堡新位开抽屉/全屏键进
+  S14 页/深浅色像素断言（top bg 255 vs 0）。
+- **遗留**：密集架包名待板子实证改 AppLauncher.TARGET_PACKAGE + 板子现场复核。
+
 # DEV_LOG.md — 小朵 Android 开发日志
 
 

@@ -22,6 +22,8 @@ import android.widget.TextView
  * 2026-08-13：新增「打断」--悬浮窗侧 barge-in 入口（停 TTS/「我在」/聆听/管线）。
  * 门控 [canInterrupt]=VSM 非 IDLE（快照语义，与「查看最近一轮」同范式）；IDLE 期置灰不可点。
  * S10：popup 横向钳位屏内--贴边态锚点半出屏时菜单不裁出屏（与纵向翻转同范式）。
+ * S27：新增「打开密集架」--第 2 位（紧跟「打开 App」跳转类聚拢），纯文字行与既有行同构；
+ * 与聊天页导航行密集架键共用 AppLauncher（v4 拍板：无图标）。
  */
 object OverlayMenu {
 
@@ -31,6 +33,7 @@ object OverlayMenu {
         anchor: View,
         voiceEnabled: Boolean,
         onOpenApp: () -> Unit,
+        onOpenDenseShelf: () -> Unit,
         onToggleVoice: () -> Boolean, // 返回切换后的新状态
         onHideOverlay: () -> Unit,
         canViewLastRound: Boolean,
@@ -87,6 +90,14 @@ object OverlayMenu {
 
         row("打开 App").also {
             it.setOnClickListener { popup.dismiss(); onOpenApp() }
+            menu.addView(it)
+        }
+        menu.addView(divider())
+
+        // S27「打开密集架」：跳密集架控制应用（与聊天页导航行中键共用 AppLauncher），
+        // 第 2 位（跳转类聚拢）；纯文字行（v4 拍板无图标），失败 toast 由 AppLauncher 兜底。
+        row("打开密集架").also {
+            it.setOnClickListener { popup.dismiss(); onOpenDenseShelf() }
             menu.addView(it)
         }
         menu.addView(divider())

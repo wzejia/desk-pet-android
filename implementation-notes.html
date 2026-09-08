@@ -998,5 +998,24 @@ turnSawToolCall）——三轮架构红利兑现。<b>接线</b>：ASR 后、LLM
 全部决策点收敛，下一步 S27-2 TDD。</p>
 </div>
 
+<div class="entry decision">
+<span class="tag">设计决策</span><span class="meta">2026-09-08 ｜ 聊天页布局+悬浮窗 ｜ S27-2 实现：跳转路由/包可见性/无顶栏状态栏垫法</span>
+<p><b>AppLauncher 决策纯函数 TDD</b>：decide(launcherActivity, fallbackActivity) 纯 Kotlin 锁定
+兜底顺序（LAUNCHER 入口→显式组件 fallback→FAIL），Android 壳 start()/startWithToast() 薄封装
+（NEW_TASK 必带，runCatching 兜底）；6 测先行（红→绿）。<b>包可见性选 LAUNCHER intent 通配</b>：
+&lt;queries&gt;&lt;intent&gt;MAIN+LAUNCHER&lt;/intent&gt;&lt;/queries&gt; 声明「所有有桌面入口的包」可见——
+比逐包 &lt;package&gt; 声明优：密集架包名实证后只改 TARGET_PACKAGE 常量，manifest 永不再动；
+模拟器实证 settings 可见可跳。<b>无 topBar 的状态栏垫法</b>：直接删 topBar 参数，M3 Scaffold
+contentWindowInsets 默认含 systemBars → 内容自动垫状态栏，不手写 statusBarsPadding；
+PetStatusBar+petStateFor 删除（PetState/PetFrameTable/Mic/statusBarsPadding imports 随清），
+宠物头像/相位文案退役（拍板）。<b>手绘 2 ImageVector</b>（DenseShelfIcon 田字格/FullscreenVoiceIcon
+四角，stroke 风格）替代引入 icons-extended 大依赖。<b>const val 不允许可空</b>：FALLBACK_ACTIVITY_CLASS
+改 val（编译器拦截一次）。<b>跳转目标验证法</b>：临时把常量指 com.android.settings 验真跳
+（前台变 Settings+ok=true），验完还原占位 com.ys.denseshelf——交付态=板子无密集架时 toast，
+有则跳。悬浮窗入口 onOpenDenseShelf 参数 + PetOverlayService 注入，与导航行共用 startWithToast。
+<b>模拟器验收全绿</b>：三键落位（中键真居中 540/1080）/toast 路径/两入口真跳/汉堡新位开抽屉/
+全屏键进 S14 页/深浅色像素断言（top bg 255 vs 0）。</p>
+</div>
+
 </body>
 </html>
