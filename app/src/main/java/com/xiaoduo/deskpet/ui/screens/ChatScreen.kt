@@ -67,6 +67,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.AnnotatedString
@@ -275,6 +276,11 @@ private fun BottomNavRow(
     onOpenFullscreenVoice: () -> Unit,
 ) {
     val context = LocalContext.current
+    // S31：键尺寸按屏宽 10% 比例（min 56 / max 96dp 钳制）——板子 160dpi（dp=px）大屏上
+    // 固定 dp 视觉过小（36dp=36px 仅占屏宽 3.3%，用户反馈太小）；手机 420dpi 屏宽 ~411dp
+    // 时 10%≈41dp 同样被 min 56 托底，双端观感一致。
+    val keySize = (LocalConfiguration.current.screenWidthDp * 0.10f).coerceIn(56f, 96f).dp
+    val iconSize = keySize * 0.44f
     Surface(color = MaterialTheme.colorScheme.surface) {
         Row(
             modifier = Modifier
@@ -286,14 +292,14 @@ private fun BottomNavRow(
                 IconButton(onClick = onOpenDrawer) {
                     Box(
                         modifier = Modifier
-                            .size(36.dp)
+                            .size(keySize)
                             .background(MaterialTheme.colorScheme.surfaceVariant, CircleShape),
                         contentAlignment = Alignment.Center,
                     ) {
                         Icon(
                             Icons.Filled.Menu,
                             contentDescription = "打开菜单",
-                            modifier = Modifier.size(20.dp),
+                            modifier = Modifier.size(iconSize),
                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
@@ -307,14 +313,14 @@ private fun BottomNavRow(
             ) {
                 Box(
                     modifier = Modifier
-                        .size(36.dp)
+                        .size(keySize)
                         .background(MaterialTheme.colorScheme.surfaceVariant, CircleShape),
                     contentAlignment = Alignment.Center,
                 ) {
                     Icon(
                         DenseShelfIcon,
                         contentDescription = "打开密集架",
-                        modifier = Modifier.size(20.dp),
+                        modifier = Modifier.size(iconSize),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
@@ -323,14 +329,14 @@ private fun BottomNavRow(
                 IconButton(onClick = onOpenFullscreenVoice) {
                     Box(
                         modifier = Modifier
-                            .size(36.dp)
+                            .size(keySize)
                             .background(MaterialTheme.colorScheme.surfaceVariant, CircleShape),
                         contentAlignment = Alignment.Center,
                     ) {
                         Icon(
                             FullscreenVoiceIcon,
                             contentDescription = "全屏语音模式",
-                            modifier = Modifier.size(18.dp),
+                            modifier = Modifier.size(iconSize),
                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }

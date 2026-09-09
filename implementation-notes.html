@@ -1109,5 +1109,17 @@ NSC 白名单（与踩坑 #39 同族：NSC 是精确白名单制）；兜底 cat
 （input text ASCII 限制）。</p>
 </div>
 
+<div class="entry decision">
+<span class="tag">设计决策</span><span class="meta">2026-09-09 ｜ 聊天页布局 ｜ S31 导航行键尺寸按屏宽比例（板子 160dpi 用户反馈太小）</span>
+<p><b>事实</b>：板子 1080×1920 @160dpi——dp=px，S27 的 36dp 圆钮在板上=36px，仅占屏宽 3.3%
+（手机 420dpi 同 dp 视觉 2.6 倍）——固定 dp 对 1x 密度大屏天然失效。<b>修复</b>：键尺寸改按屏宽
+比例 10%，min 56 / max 96dp 钳制（keySize=(screenWidthDp×0.10).coerceIn(56,96)，icon=keySize×0.44）。
+板子 1080dp 宽→96dp 圆+42px 图标（原 36/20px 的 2.7/2.1 倍）；手机 411dp 宽→56dp 托底观感一致。
+<b>排障插注</b>：①板子屏带 FLAG_SECURE，screencap 全白——验证只能走 uiautomator dump（板子上
+Compose 节点报 0 bounds 的兼容怪癖，模拟器正常）/像素扫描；②GuardService（com.ys.ys_receiver）
+force-stop 后仍会自动重启抢前台，无 root 无法 pm disable（Shell cannot change component state），
+验证动作须在其重启窗口内完成。<b>验收</b>：板子视觉待用户确认（96dp 档不够可上调 max）。</p>
+</div>
+
 </body>
 </html>
