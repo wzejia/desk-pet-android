@@ -455,7 +455,12 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
         _phase.value = Phase.SENDING
         viewModelScope.launch(Dispatchers.IO) {
             val result = runCatching {
-                DeviceClient(http = deviceHttp, baseUrl = Prefs.deviceBaseUrl(getApplication())).execute(cmd)
+                DeviceClient(
+                    http = deviceHttp,
+                    baseUrl = Prefs.deviceBaseUrl(getApplication()),
+                    // 异常原因必须进日志（S30 排查痛：未传 logger 时 CLEARTEXT 拦截被吞）
+                    logger = { msg -> PetLogger.w(TAG, "device skill: $msg") },
+                ).execute(cmd)
             }.getOrElse { DeviceClient.SkillResult.Fail("设备控制异常，请重试") }
             val speech = result.speech
             PetLogger.i(TAG, "device turn done: cmd=$cmd speech=$speech")

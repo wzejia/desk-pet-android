@@ -9,5 +9,7 @@
         <domain includeSubdomains="false">10.0.18.166</domain>
         <domain includeSubdomains="false">10.0.18.97</domain>
         <domain includeSubdomains="false">10.0.18.24</domain>
+        <!-- S26 设备技能：整理台/净化柜一体机直连 HTTP（设置页可配，改地址需同步此处） -->
+        <domain includeSubdomains="false">10.0.18.47</domain>
     </domain-config>
 </network-security-config>

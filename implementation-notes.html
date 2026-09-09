@@ -1093,5 +1093,21 @@ assistant 终态 markDone 上屏，不播报——文字轮无 TTS 与用户预�
 端到端（模拟器 input text 仅 ASCII）留板子现场，与 S26-5 真机验收一并。</p>
 </div>
 
+<div class="entry bug">
+<span class="tag">坑</span><span class="meta">2026-09-09 ｜ 网络安全配置 ｜ S30 板子文字设备控制「设备连接失败」根因与修复</span>
+<p><b>现象</b>（板子实测）：文字「打开整理台」播报「设备连接失败」，但板子 ping 设备 0% 丢包。
+<b>排查</b>：板子 shell 无 curl；用 <code>nc -w 3 10.0.18.47 8080</code> 打 /getZLTData 返回 HTTP 200
+——网络层与设备 API 全通，拦截必在 App 层。<b>根因</b>：<code>network_security_config.xml</code>
+cleartext 白名单只有 166/97/24 三台（平台/ASR/TTS），<b>无设备 10.0.18.47</b>——Android 9+ 对
+白名单外主机的明文 HTTP 由 NSC 直接拒绝（CLEARTEXT communication not permitted），OkHttp 抛异常
+被 DeviceClient catch 统一播报「设备连接失败」。坑一直未暴露因 S26 语音设备控制在板子从未实测
+（S26-5 长期待回收）。<b>修复</b>：①NSC 白名单加 10.0.18.47（注释：改设备地址需同步此处——
+NSC domain 不支持 CIDR，IP 只能精确列举）；②ChatViewModel 构造 DeviceClient 补传 logger
+（此前异常原因被默认空 logger 吞掉，排查只能靠猜）。<b>教训</b>：新增内网 HTTP 端点必须同步
+NSC 白名单（与踩坑 #39 同族：NSC 是精确白名单制）；兜底 catch 播报必须带 logger 可观测。
+<b>验证</b>：nc 直连 200 + 530 测绿 + 修复包装板；App 内复验待用户板子手打中文话术
+（input text ASCII 限制）。</p>
+</div>
+
 </body>
 </html>
