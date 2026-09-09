@@ -1078,5 +1078,20 @@ self-heal 拉服务 → AutoCalib written n=49 gate=0.003（模拟器静音钳 M
 验证，绕开 UI 自动化；③DocumentsUI 残留顶栈挡 UI，force-stop 清场。</p>
 </div>
 
+<div class="entry decision">
+<span class="tag">设计决策</span><span class="meta">2026-09-09 ｜ 设备技能 ｜ S30 文字输入设备控制补齐（检查发现缺口→当场补齐）</span>
+<p><b>检查结论</b>（用户问「是否支持语音和文字输入控制」）：整理台功能已整合（S26）；
+语音控制 ✓（VSM ASR 后拦截）；<b>文字控制 ✗</b>——ChatViewModel.send 直达 LLM 不过 VSM
+拦截点，属接线覆盖不全（matcher 是纯函数本可两路共用）。<b>补齐</b>：DeviceTurnRules.gate
+（纯函数：地址空=禁用→null；委托 DeviceIntentMatcher.match）+ ChatViewModel 分流
+（send 守卫后 deviceIntentOrNull 命中→runDeviceTurn：IO 线程直连执行→speech 作为
+assistant 终态 markDone 上屏，不播报——文字轮无 TTS 与用户预期一致；失败降级 Fail
+播报不标 ERROR 轮——设备不可达是常态）。<b>DeviceClient.SkillResult</b> sealed interface
+补 <code>val speech</code> 公共属性（原 VSM 用 when 解构，加属性向后兼容）。
+<b>验证</b>：DeviceTurnRulesTest 4 测（中文命中/空地址禁用/普通提问零劫持/ASCII null）
++ 模拟器实测 ASCII hello 走 CloudLLM 正常（零回归）+ 526→530 测绿。<b>未决</b>：中文话术
+端到端（模拟器 input text 仅 ASCII）留板子现场，与 S26-5 真机验收一并。</p>
+</div>
+
 </body>
 </html>

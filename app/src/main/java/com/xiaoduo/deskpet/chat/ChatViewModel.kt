@@ -8,10 +8,15 @@ import com.xiaoduo.deskpet.agui.AguiClient
 import com.xiaoduo.deskpet.agui.AguiClientFactory
 import com.xiaoduo.deskpet.agui.FileMeta
 import com.xiaoduo.deskpet.agui.UploadStatus
+import com.xiaoduo.deskpet.chat.ChatSession
+import com.xiaoduo.deskpet.device.DeviceClient
+import com.xiaoduo.deskpet.device.DeviceIntentMatcher
 import com.xiaoduo.deskpet.cloud.CloudClientFactory
 import com.xiaoduo.deskpet.cloud.OpenAIChatClient
 import com.xiaoduo.deskpet.cloud.TextChatRouter
 import com.xiaoduo.deskpet.net.NetConfig
+import com.xiaoduo.deskpet.util.Prefs
+import kotlinx.coroutines.withContext
 import com.xiaoduo.deskpet.ui.overlay.BubbleOwner
 import com.xiaoduo.deskpet.util.PetLogger
 import com.xiaoduo.deskpet.voice.VoiceClientFactory
@@ -59,6 +64,9 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
 
     /** 云端 LLM 客户端（每轮现取配置：设置页改完下一轮即生效——jadx 取证的原始形态）。 */
     private fun cloudClient(): OpenAIChatClient = CloudClientFactory.chat(getApplication())
+
+    /** S30 文字设备控制：共享 OkHttp（与语音轮同源），设备地址每轮现读即时生效。 */
+    private val deviceHttp by lazy { DeviceClient.defaultHttp() }
 
     /**
      * 文字轮 LLM 路由（08-14 云端分支，事故后按 jadx 寄存器级伪码复原，语义见 [TextChatRouter]）：
@@ -413,6 +421,14 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
         // 列表展示文本保持纯用户输入（文件以 chips 形态在输入区呈现）；
         // localId 快照随轮走，成功时只清本轮挂载项（P2-② 不连坐）
         val attached = FileListRules.attachedDone(_files.value)
+        // S30 文字设备控制：意图命中 → 直连设备（零 LLM），结果作为 assistant 消息收尾。
+        // 与语音轮同一匹配器（S26 保守匹配：须含设备名词，普通提问零刼持）；设备地址空=禁用。
+        // 文字轮只上屏不播报（聊天页文字轮无 TTS，与用户预期一致）。
+        val deviceCmd = deviceIntentOrNull(trimmed)
+        if (deviceCmd != null) {
+            runDeviceTurn(session, deviceCmd, assistant.id)
+            return
+        }
         runChat(
             session,
             trimmed,
@@ -421,6 +437,34 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
             fileRefs = attached.map { it.fileId to it.fileName },
             attachedLocalIds = attached.map { it.localId }.toSet(),
         )
+    }
+
+    /** 设备地址已配置时返回文字输入的设备意图（否则 null → 走 LLM 常规轮）。 */
+    private fun deviceIntentOrNull(text: String): DeviceIntentMatcher.Command? =
+        DeviceTurnRules.gate(Prefs.deviceBaseUrl(getApplication()), text)
+
+    /**
+     * 文字设备轮：直连执行（IO 线程）→ 结果 speech 作为 assistant 终态（DONE）上屏。
+     * 失败降级为 Fail 播报（语音轮同款），不抛异常不标 ERROR 轮——设备不可达是常态而非崩溃。
+     */
+    private fun runDeviceTurn(
+        session: ChatSession,
+        cmd: DeviceIntentMatcher.Command,
+        assistantId: String,
+    ) {
+        _phase.value = Phase.SENDING
+        viewModelScope.launch(Dispatchers.IO) {
+            val result = runCatching {
+                DeviceClient(http = deviceHttp, baseUrl = Prefs.deviceBaseUrl(getApplication())).execute(cmd)
+            }.getOrElse { DeviceClient.SkillResult.Fail("设备控制异常，请重试") }
+            val speech = result.speech
+            PetLogger.i(TAG, "device turn done: cmd=$cmd speech=$speech")
+            withContext(Dispatchers.Main) {
+                _messages.value = turns.markDone(_messages.value, assistantId, speech)
+                persist(session)
+                _phase.value = Phase.IDLE
+            }
+        }
     }
 
     /** 失败重发：复用同一 wire messageId（踩坑 #25），assistant 消息清空重跑。 */

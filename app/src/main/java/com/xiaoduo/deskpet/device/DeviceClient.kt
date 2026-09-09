@@ -28,8 +28,9 @@ class DeviceClient(
 ) {
 
     sealed interface SkillResult {
-        data class Ok(val speech: String) : SkillResult
-        data class Fail(val speech: String) : SkillResult
+        val speech: String
+        data class Ok(override val speech: String) : SkillResult
+        data class Fail(override val speech: String) : SkillResult
     }
 
     fun execute(cmd: DeviceIntentMatcher.Command): SkillResult {
