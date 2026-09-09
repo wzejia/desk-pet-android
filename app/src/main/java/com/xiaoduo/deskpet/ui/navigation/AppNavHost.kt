@@ -51,7 +51,9 @@ fun AppNavHost() {
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
-                        .navigationBarsPadding()
+                        // S31：navigationBarsPadding 移除——导航行自垫 24dp 底距（均匀间距方案，
+                        // 原系统 inset 垫高 ~64px 不可控且不一致）；imePadding 保留（键盘抬升）。
+                        // 抽屉 sheet 自带 insets 兑底，其余三页在各自 Scaffold 内不受影响。
                         .imePadding(),
                 ) {
                     ChatScreen(

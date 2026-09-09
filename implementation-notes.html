@@ -1133,5 +1133,17 @@ uiautomator 对 Compose 节点报 0 bounds（板子兼容怪癖）——像素�
 漂移需放宽阈值）。<b>待用户目视验收</b>：96dp 键+48dp 顶距档位是否达标，不够上调 max/顶距。</p>
 </div>
 
+<div class="entry decision">
+<span class="tag">设计决策</span><span class="meta">2026-09-09 ｜ 聊天页布局 ｜ S31 终版：导航行上下间距对称 24px（用户拍板）</span>
+<p><b>用户拍板</b>：间距=当前输入框间距(64px)的一半=24px（板子 1x 密度 px=dp），上下一致。
+<b>实现</b>：①AppNavHost chat 分支 Column 移除 <code>navigationBarsPadding</code>（系统手势条
+垫高 ~64px 是「贴底+不可控」根源；移除仅影响 chat 页——其它三页在各自 Scaffold 内，抽屉
+sheet 自带 insets 兜底）；②BottomNavRow <code>padding(top=8dp, bottom=24dp)</code>：顶距=
+输入框自带 16dp 底 padding + 8dp = 24px，底距=24px，双段对称；③原 kiosk 48dp 顶距补偿删除
+（64px 顶距来源）。<b>验证受限说明</b>：板子 FLAG_SECURE 屏 screencap 间歇全白 +
+uiautomator 对 Compose 节点报 0/失真 bounds——板子上像素级验证不可行；对称性由 Compose
+声明式布局保证（数学恒等 16+8=24=24），模拟器装包目测无错乱；最终观感用户目视验收。</p>
+</div>
+
 </body>
 </html>

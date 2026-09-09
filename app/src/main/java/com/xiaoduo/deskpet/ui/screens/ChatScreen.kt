@@ -281,16 +281,15 @@ private fun BottomNavRow(
     // 时 10%≈41dp 同样被 min 56 托底，双端观感一致。
     val keySize = (LocalConfiguration.current.screenWidthDp * 0.10f).coerceIn(56f, 96f).dp
     val iconSize = keySize * 0.44f
-    // S31：上下间距均衡（输入框↔导航行 ≈ 导航行↔屏底）。板子 1x 密度手势条 inset ~64px，
-    // 导航行原紧贴输入框（间隙 2px）离底 65px；kiosk 大屏（宽≥800dp）补 48dp 顶距对齐底部
-    // 视觉距离，手机维持小间距不受影响。
-    val kiosk = LocalConfiguration.current.screenWidthDp >= 800
+    // S31 终版：上下间距一致 24px（= 当前输入框间距 64px 的一半，用户拍板）。
+    // 底距 24dp 由本行自垫（AppNavHost 已移除全局 navigationBarsPadding）；顶距
+    // 8dp + 输入框自带 16dp 底 padding = 24px，两段完全对称，双端一致。
     Surface(color = MaterialTheme.colorScheme.surface) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = XiaoduoDimens.SpaceM)
-                .padding(top = if (kiosk) 48.dp else 8.dp),
+                .padding(top = 8.dp, bottom = 24.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Box(modifier = Modifier.weight(1f)) {
