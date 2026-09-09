@@ -15,10 +15,10 @@ import android.content.pm.PackageManager
 object AppLauncher {
 
     /**
-     * 密集架主应用包名——当前为占位，待板子 `pm list packages` 实证后改
-     * （旁证：看护服务为 com.ys.ys_receiver，主应用包名应相邻）。
+     * 密集架主应用包名（S31 板子实证）：看护服务与主应用同包，含 LAUNCHER 入口
+     * com.sdcard.ui.StartActivity（kiosk 桌面即它）。
      */
-    const val TARGET_PACKAGE = "com.ys.denseshelf"
+    const val TARGET_PACKAGE = "com.ys.ys_receiver"
 
     /** 无标准 LAUNCHER 入口时的显式组件兜底（kiosk 应用可能没桌面入口）；null=未配置。 */
     val FALLBACK_ACTIVITY_CLASS: String? = null

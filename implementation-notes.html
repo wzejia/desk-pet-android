@@ -1121,5 +1121,17 @@ force-stop 后仍会自动重启抢前台，无 root 无法 pm disable（Shell c
 验证动作须在其重启窗口内完成。<b>验收</b>：板子视觉待用户确认（96dp 档不够可上调 max）。</p>
 </div>
 
+<div class="entry decision">
+<span class="tag">设计决策</span><span class="meta">2026-09-09 ｜ 设备跳转+导航行间距 ｜ S31 续：密集架包名实证 + 垂直间距补偿</span>
+<p><b>包名实证</b>（板子 pm list packages -3）：第三方仅 com.ys.checknet / com.ys.ys_receiver /
+com.ys.screensaver——<b>看护服务与智能密集架主应用同包 com.ys.ys_receiver</b>（含 LAUNCHER 入口
+com.sdcard.ui.StartActivity，kiosk 桌面即它）。TARGET_PACKAGE 占位→实证值。<b>间距</b>：像素实测
+导航行紧贴输入框（间隙 ~2px）离屏底 ~65px（板子 1x 密度手势条 inset 大）——用户要求上下对称。
+补偿：kiosk 大屏（screenWidthDp≥800）导航行顶距 48dp（16 输入框 pad+48=64px ≈ 底部 64px），
+手机维持 8dp 小间距不受影响。<b>观测</b>：板子 FLAG_SECURE 屏 screencap 全白（验证受限）+
+uiautomator 对 Compose 节点报 0 bounds（板子兼容怪癖）——像素分段扫描仍可量化（局部渲染灰值
+漂移需放宽阈值）。<b>待用户目视验收</b>：96dp 键+48dp 顶距档位是否达标，不够上调 max/顶距。</p>
+</div>
+
 </body>
 </html>
