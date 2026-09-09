@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
@@ -170,8 +171,13 @@ fun InputBar(
     }
 }
 
-/** 语音/文字两态统一行高（盲测 R3 收容器纵向空洞）：切换不跳变=两态同高。 */
-private const val INPUT_ROW_HEIGHT_DP = 48
+/**
+ * 语音/文字两态统一行高（切换不跳变=两态同高，盲测 R3 拍板本质）。
+ * S27 期由 48 调 56：48 需精确 height(tight) 才能压住 M3 TextField 内部
+ * defaultMinSize(56)，代价是多行文本视口只剩 ~1.4 行（显示不全 bug，用户报告）。
+ * 56=M3 单行自然高：两态同高保持 + 多行按内容撑到 maxLines 上限全可见。
+ */
+private const val INPUT_ROW_HEIGHT_DP = 56
 
 /** 多功能键防抖窗口（守卫四问④）：SEND 连点第二击落 STOP 分支误取消刚发的轮。 */
 private const val TAP_DEBOUNCE_MS = 400L
@@ -201,9 +207,9 @@ private fun InputArea(
         TextField(
             value = text,
             onValueChange = onTextChange,
-            // 盲测 R3：固定 48dp 与语音态同高（切换不跳变=两态同高）；M3 TextField 内部
-            // defaultMinSize 56dp 顶不住外部精确约束，多行输入在 48dp 内滚动（不再撑高容器）
-            modifier = Modifier.fillMaxWidth().height(INPUT_ROW_HEIGHT_DP.dp),
+            // S27 修复显示不全 bug（终解，见常量注释）：min=56 与内部 defaultMinSize(56)
+            // 一致——单行与语音态同高（不跳变），多行按内容撑到 maxLines 上限全可见。
+            modifier = Modifier.fillMaxWidth().heightIn(min = INPUT_ROW_HEIGHT_DP.dp),
             maxLines = 4,
             placeholder = {
                 Text(

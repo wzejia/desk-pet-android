@@ -1029,5 +1029,21 @@ slot 均为单容器语义，多组件必须自己包 Column/Row；布局验收�
 不能只看绝对坐标「看起来合理」。</p>
 </div>
 
+<div class="entry bug">
+<span class="tag">坑</span><span class="meta">2026-09-09 ｜ Compose M3 TextField ｜ S27 期顺修：输入框多行文字显示不全（用户报告）</span>
+<p><b>现象</b>（模拟器复现实锤）：输入 4 行文字只显示 1 行完整+1 行拦腰裁切，EditText 恒
+126px(48dp)。<b>根因链</b>：R3 盲测拍板「两态同高 48dp 防跳变」→ 实现用
+<code>Modifier.height(48.dp)</code> <b>精确(tight)高度</b>压住了 M3 TextField 内部
+<code>defaultMinSize(minHeight=56dp)</code>，文本视口只剩 ~1.4 行，与 maxLines=4 直接矛盾。
+<b>第一性修正尝试（失败）</b>：height→heightIn(min=48)——实测空态仍 147px(56dp)：
+<code>defaultMinSize</code> 真实语义是「非 tight 约束时取 max(外部min, 56dp)」，min=48 被内部
+56 顶掉（当时对 defaultMinSize 语义的理解有误，靠回归 dump 抓回）。<b>终解</b>：两态统一 56dp
+（M3 单行自然高）——R3 拍板本质是「同高不跳变」，48 只是当时实现数字；INPUT_ROW_HEIGHT_DP
+48→56，TextField heightIn(min=56)，VoiceHoldArea 同常量随动。<b>验证</b>：空态 147px(56dp)
+两态同高 ✓ / 4 行撑高 280px(107dp) 全可见无裁切 ✓ / 520 测绿。<b>教训</b>：①「同高」类拍板
+要用自然高对齐而不是精确高硬压框架内建 minSize——对抗 defaultMinSize 必败；②修复必须连
+「空态回归」一起验，第一次 heightIn 方案就靠空态 56dp 才暴露语义理解错误。</p>
+</div>
+
 </body>
 </html>
