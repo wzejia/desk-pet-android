@@ -15,10 +15,12 @@ import android.content.pm.PackageManager
 object AppLauncher {
 
     /**
-     * 密集架主应用包名（S31 板子实证）：看护服务与主应用同包，含 LAUNCHER 入口
-     * com.sdcard.ui.StartActivity（kiosk 桌面即它）。
+     * 密集架主应用包名（S31 板子实证）：真 UI 主应用为 com.yinduo.compactShelf
+     * （有标准 LAUNCHER 入口 .view.main.MainActivity，monkey 实证可启动）；
+     * com.ys.ys_receiver 是 system uid 看护壳（StartActivity 无 LAUNCHER category，
+     * getLaunchIntentForPackage 拿不到且壳会自毁）——勿用。
      */
-    const val TARGET_PACKAGE = "com.ys.ys_receiver"
+    const val TARGET_PACKAGE = "com.yinduo.compactShelf"
 
     /** 无标准 LAUNCHER 入口时的显式组件兜底（kiosk 应用可能没桌面入口）；null=未配置。 */
     val FALLBACK_ACTIVITY_CLASS: String? = null

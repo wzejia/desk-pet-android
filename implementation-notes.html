@@ -1145,5 +1145,21 @@ uiautomator 对 Compose 节点报 0/失真 bounds——板子上像素级验证�
 声明式布局保证（数学恒等 16+8=24=24），模拟器装包目测无错乱；最终观感用户目视验收。</p>
 </div>
 
+<div class="entry bug">
+<span class="tag">坑</span><span class="meta">2026-09-09 ｜ 板子拓扑 ｜ S31 终：密集架「壳陷阱」——真主应用是 yinduo 包（跳转 FAIL 根因+已修复）</span>
+<p><b>现象</b>：跳转密集架无反应/失败。<b>排查链</b>：①monkey LAUNCHER 报 No activities——
+com.ys.ys_receiver 的 StartActivity filter <b>无 LAUNCHER category</b>（getLaunchIntentForPackage
+恒 null）；②am start 显式启动后 StartActivity <b>paused+visible=false 自毁</b>（translucent 过渡
+壳，缺 GuardService 触发条件不落地）；③<code>dumpsys activity top</code> 揪出真主应用
+<b>com.yinduo.compactShelf/.view.main.MainActivity</b>（常驻进程，有标准 LAUNCHER 入口）。
+<b>拓扑真相</b>：com.ys.ys_receiver = system uid(1000) 看护壳；真密集架 UI = yinduo 包；
+板子桌面 = com.softwinner.launcher（都不是彼此）。<b>修复</b>：TARGET_PACKAGE →
+com.yinduo.compactShelf；monkey 实证其 LAUNCHER 可启动 → getLaunchIntentForPackage 路径可用。
+<b>端到端复验</b>：tap 导航行中键 → 前台切 compactShelf/.view.main.MainActivity + 日志
+ok=true。<b>教训</b>：①kiosk 设备的「看护壳」与「真主应用」常不同包（system uid 壳+用户 uid
+UI），跳转目标须 <code>dumpsys activity top</code> 找真 UI 包而非凭包名猜测；②板子验证点击前
+必须确认前台=目标 App（GuardService 20-60s 周期抢前台会把点击吞到别的界面）。</p>
+</div>
+
 </body>
 </html>
