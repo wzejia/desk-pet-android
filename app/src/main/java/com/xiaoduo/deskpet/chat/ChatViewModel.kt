@@ -130,6 +130,9 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
             PetLogger.i(TAG, "session restored: ${_sessions.value.size} sessions, ${_messages.value.size} messages")
         }
         attachVoiceTranscript()
+        // S31 双击打断修复：把统一门控版 cancelCurrentTurn 挂到悬浮窗静态桥
+        // （文字轮播报期 vsm.state=IDLE，悬浮窗直调 vsm.cancelCurrentTurn 是 no-op）
+        PetOverlayService.chatInterrupt = { cancelCurrentTurn() }
     }
 
     /**

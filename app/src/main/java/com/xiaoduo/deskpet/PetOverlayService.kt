@@ -396,7 +396,7 @@ class PetOverlayService : Service() {
                         lastTapUpAt = if (doubleTap) 0L else now
                         if (doubleTap) {
                             PetLogger.i(TAG, "overlay pet double tap -> cancelCurrentTurn")
-                            runCatching { VoiceClientFactory.session(this@PetOverlayService).cancelCurrentTurn() }
+                            requestInterrupt(this@PetOverlayService)
                             dragging = false
                             return@setOnTouchListener true
                         }
@@ -462,8 +462,7 @@ class PetOverlayService : Service() {
             canInterrupt = VoiceClientFactory.session(this).state != VoiceStateRouter.State.IDLE,
             onInterrupt = {
                 PetLogger.i(TAG, "menu: interrupt current turn")
-                runCatching { VoiceClientFactory.session(this).cancelCurrentTurn() }
-                    .onFailure { PetLogger.e(TAG, "menu interrupt failed", it) }
+                requestInterrupt(this)
             },
         )
     }
@@ -637,6 +636,27 @@ class PetOverlayService : Service() {
 
     companion object {
         private const val TAG = "PetOverlay"
+
+        /**
+         * S31 双击打断修复：文字轮不在 VSM 管辖（文字轮播报期 vsm.state=IDLE，
+         * vsm.cancelCurrentTurn 内部 no-op——板子/模拟器实测双击无效根因）。
+         * ChatViewModel init 时把统一门控版 cancelCurrentTurn 挂到本桥；悬浮窗双击与
+         * 长按菜单「打断」优先走桥，无桥（VM 未建）回退 VSM（历史行为，仅语音轮）。
+         */
+        @Volatile
+        var chatInterrupt: (() -> Unit)? = null
+
+        /** 悬浮窗侧统一打断入口：双击与长按菜单共用。 */
+        fun requestInterrupt(context: android.content.Context) {
+            val bridge = chatInterrupt
+            if (bridge != null) {
+                PetLogger.i(TAG, "overlay interrupt -> chat bridge (voice/text unified gate)")
+                runCatching { bridge() }
+            } else {
+                PetLogger.i(TAG, "overlay interrupt -> vsm fallback (chat bridge absent)")
+                runCatching { VoiceClientFactory.session(context).cancelCurrentTurn() }
+            }
+        }
         private const val EDGE_MARGIN_DP = 48
         private const val BUBBLE_GAP_DP = 4
         private const val SLIDE_DURATION_MS = 200L // S10 贴边滑入/滑出时长

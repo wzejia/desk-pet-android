@@ -1201,5 +1201,23 @@ tap -&gt; cancelCurrentTurn（UP 间隔 215ms）✓ ③真拖拽 450px → drag 
 <b>板子手势测试前必须先 dumpsys window 取窗口实时位置</b>，不能沿用历史坐标。</p>
 </div>
 
+<div class="entry bug">
+<span class="tag">坑</span><span class="meta">2026-09-09 ｜ 打断链路 ｜ S31 双击三次修复——调错门：文字轮不在 VSM 管辖</span>
+<p><b>现象</b>：TapGesture 修复后用户模拟器实测（鼠标双击）仍无效。<b>日志铁证</b>：双击判定
+8 次全触发（<code>double tap -&gt; cancelCurrentTurn</code>），但现场是<b>文字轮</b>
+（chat send → CloudLLM 流式 → 气泡上屏）——悬浮窗调的
+<code>VoiceClientFactory.session().cancelCurrentTurn()</code> 是 VSM 通道，文字轮播报期
+vsm.state=IDLE → VSM 内部 no-op（日志零反应），回复继续跑完；用户随后打字才走了
+ChatViewModel 的 <code>barge-in: cancel text turn</code>（那条链才有文字轮分支）。
+<b>架构事实</b>：语音轮归 VSM（SPEAKING→停播放器/管线→回 IDLE，双击本有效）；文字轮归
+ChatViewModel（turnEpoch++ / chatJob.cancel / markCancelledDone / 停播）。双击注释声称
+「与长按菜单同通道」——实际两入口都只接了 VSM。<b>修复</b>：PetOverlayService companion
+加静态桥 <code>chatInterrupt</code> + <code>requestInterrupt(context)</code>（与既有
+PetOverlayService.instance 反向引用模式对称）；ChatViewModel init 挂统一门控版
+cancelCurrentTurn；双击与长按菜单改走桥，无桥回退 VSM（VM 未建边缘）。<b>教训</b>：
+「调用返回无异常」≠「打断生效」——no-op 静默路径要有日志；验证打断必须用与用户相同的
+轮次类型（语音轮 vs 文字轮）。</p>
+</div>
+
 </body>
 </html>
