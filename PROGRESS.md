@@ -1,12 +1,16 @@
 # 小朵 Android M1 进度
 
-## 状态：S31 导航行键+密集架跳转+双击打断 ✅ 板子现场收口（2026-09-09）
+## 状态：S31 导航行键+密集架跳转+双击打断 ✅ 全收口（2026-09-09，用户板子/模拟器双测确认）
 
 - 密集架跳转：真主应用 com.yinduo.compactShelf（ys_receiver=system uid 看护壳陷阱），
   端到端 ok=true；跳转目标设置页可自定义（KEY_JUMP_PACKAGE，空=默认密集架）
 - 双击打断两轮修复：窗口 400ms + TapGesture 净位移≤32px 视为点按（1x 密度
   touchSlop=1.7mm 陷阱：真人按压漂移必超致 tap 被吞），板子三组复验全过
-- 24px 上下间距对称用户验收 ✓；538 测绿；提交 7610d0d
+- 24px 上下间距对称用户验收 ✓；双击打断用户实测恢复（文字轮+语音轮统一门控桥）
+- 三坑沉淀 docs/solutions/：ui-bugs/low-density-touchslop-drift-swallows-tap、
+  logic-errors/overlay-interrupt-wrong-facade-vsm-vs-chatviewmodel、
+  workflow-issues/kiosk-guard-shell-vs-real-app-package
+- 538 测绿；提交 7610d0d/c94cac7 + 收口 4 文档
 
 ## 状态：S30 文字输入设备控制 ✅ 代码收口（2026-09-09，中文端到端留板子）
 

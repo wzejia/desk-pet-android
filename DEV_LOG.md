@@ -1,3 +1,25 @@
+## 2026-09-09（S28/S29/S30/S31 四票据：板子现场收口日）
+
+- **S28 双击打断**：手势判定模拟器验证通过后，板子/模拟器真人双击连续两次失败——
+  三轮根因递进：①双击窗口 300→400ms（真人 UP-UP 偏紧）；②TapGesture 净位移≤32px
+  视为点按（板子 density=160，touchSlop=12px≈1.7mm，真人按压漂移必超→误置 dragging
+  →tap 被吞；注入 tap 零 MOVE 掩盖缺陷）；③打断改走 ChatViewModel 统一门控静态桥
+  （文字轮不在 VSM 管辖，vsm.cancelCurrentTurn 静默 no-op——日志 8 次触发零效果实锤）。
+  用户板子/模拟器双测恢复确认。
+- **S29 环境音首次自动校准**：AmbientCalibrator stableEnough 6 测；板子端到端实证
+  （written n=49 gate=0.05）。
+- **S30 文字输入设备控制**：DeviceTurnRules.gate 4 测；用户中文话术实测通过
+  （「整理台什么状态」等）。
+- **S31 收尾三连**：①密集架跳转 FAIL 根因=壳陷阱（真主应用 com.yinduo.compactShelf，
+  ys_receiver 是 system uid 看护壳）——dumpsys activity top 揪出真包，端到端 ok=true；
+  ②跳转目标设置页可配（KEY_JUMP_PACKAGE，空=默认密集架）；③导航行键 10% 屏宽+
+  24px 对称间距用户验收。
+- **沉淀**：三 learning 入 docs/solutions/（ui-bugs 低密度 touchSlop 漂移吞 tap /
+  logic-errors 打断调错门 VSM vs ChatViewModel / workflow-issues kiosk 看护壳陷阱）。
+- **坑**：板子手势测试前必须 dumpsys window 取窗口实时位置（用户拖过宠物，历史坐标
+  测点错位白跑两轮）；并行 input tap 模拟快速手势（设备端 & 两进程，UP 间隔可压 23ms）。
+- 测试基线 514→**538**（skipped=0）；提交 6b23a2a…c94cac7。
+
 ## 2026-09-08（S27 底部导航栏改版：实现+模拟器收口）
 
 - **需求链**：用户提出顶栏放到底部+底部加跳转 APP 键 → 原型 v1-v4 四轮沟通全项拍板
