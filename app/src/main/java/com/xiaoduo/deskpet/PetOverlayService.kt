@@ -28,6 +28,7 @@ import com.xiaoduo.deskpet.ui.overlay.BubbleView
 import com.xiaoduo.deskpet.ui.overlay.OverlayMenu
 import com.xiaoduo.deskpet.util.PetLogger
 import com.xiaoduo.deskpet.util.Prefs
+import com.xiaoduo.deskpet.util.TapGesture
 import com.xiaoduo.deskpet.voice.VoiceClientFactory
 import com.xiaoduo.deskpet.voice.VoiceStateRouter
 import kotlin.math.abs
@@ -364,7 +365,13 @@ class PetOverlayService : Service() {
                 }
                 MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
                     handler.removeCallbacks(longPressRunnable)
-                    if (dragging) {
+                    // S31 真人按压漂移修复：UP 净位移 ≤TapGesture.MAX_DRIFT_PX（32px）视为点
+                    // 按——即使漂移超 touchSlop(12px) 误置 dragging（板子 1x 密度 12px≈1.7mm，
+                    // 手指自然漂移必超，旧逻辑 tap 永被吞、双击永不成立）也按 tap 处理；
+                    // >32px 才是真拖拽。与 TapGestureTest 锁定同源。
+                    val isTapGesture = ev.action == MotionEvent.ACTION_UP && !longPressFired &&
+                        TapGesture.isTap(ev.rawX - downRawX, ev.rawY - downRawY)
+                    if (dragging && !isTapGesture) {
                         val dm = resources.displayMetrics
                         val (cx, cy) = OverlayClamp.clamp(
                             interactionLp.x, interactionLp.y, petW, petH,
@@ -380,7 +387,8 @@ class PetOverlayService : Service() {
                             Prefs.setOverlayPosition(this, cx, cy)
                             PetLogger.d(TAG, "drag end at ($cx,$cy), position persisted")
                         }
-                    } else if (ev.action == MotionEvent.ACTION_UP && !longPressFired) {
+                    } else if (isTapGesture) {
+                        if (dragging) moveTo(startX, startY) // 撤销假拖拽期间的窗口微动，回原位
                         // S28 双击=打断输出（cancelCurrentTurn：停 TTS/流式，与长按菜单「打断」
                         // 同通道；IDLE 时 VSM 内部 no-op 无害）。双击优先于单击动作。
                         val now = android.os.SystemClock.uptimeMillis()

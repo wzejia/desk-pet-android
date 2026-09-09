@@ -1185,5 +1185,21 @@ SettingsScreen 设备地址下新增「跳转 APP 包名」输入框（设备地
 系统不强制小写，monkey 实证可启动）；新增 effectiveTarget 回退/覆盖 2 测。530→532 测绿。</p>
 </div>
 
+<div class="entry bug">
+<span class="tag">坑</span><span class="meta">2026-09-09 ｜ 悬浮窗手势 ｜ S31 双击二次修复——真人按压漂移吞 tap（1x 密度 touchSlop 陷阱）</span>
+<p><b>现象</b>：400ms 窗口版用户仍报双击失败。<b>第一性排查</b>：并行注入（零漂移、23ms）
+能触发而真人不能 → 差异在事件序列。板子 <code>wm density=160</code>（1x，dp=px）→
+touchSlop=12px≈物理 1.7mm——真人按压触点自然漂移 2-3mm <b>必超</b> slop → dragging 置位
+→ UP 走拖拽分支 <code>else if</code> 跳过 tap 记录 → 双击永不成立。<b>修前基线复现</b>
+（板子实测）：35px 漂移 swipe → drag start + drag end 落盘，tap 被吞。模拟器通过原因：
+注入 tap 无 MOVE 事件恒 dragging=false——<b>验证环境掩盖缺陷</b>。<b>修复</b>：tap 判定与
+拖拽解耦——新纯对象 TapGesture.isTap（UP 净位移 ≤32px≈5mm 即点按，即使 dragging 已置位
+也按 tap 处理并 moveTo(startX,startY) 回弹微动不落盘）；>32px 才真拖拽。<b>板子三组复验</b>：
+①漂移单按 21px → drag start 后仍走 clicked（修前被吞）✓ ②漂移双击并行注入 → double
+tap -&gt; cancelCurrentTurn（UP 间隔 215ms）✓ ③真拖拽 450px → drag start+落盘正常 ✓。
+<b>排查插曲</b>：测试期窗口位置被拖移过（用户实测拖过宠物），tap 打空零日志——
+<b>板子手势测试前必须先 dumpsys window 取窗口实时位置</b>，不能沿用历史坐标。</p>
+</div>
+
 </body>
 </html>
