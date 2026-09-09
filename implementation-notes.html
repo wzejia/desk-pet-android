@@ -1045,5 +1045,21 @@ slot 均为单容器语义，多组件必须自己包 Column/Row；布局验收�
 「空态回归」一起验，第一次 heightIn 方案就靠空态 56dp 才暴露语义理解错误。</p>
 </div>
 
+<div class="entry decision">
+<span class="tag">设计决策</span><span class="meta">2026-09-09 ｜ 手势交互 ｜ S28 双击打断：悬浮窗+全屏页宠物</span>
+<p><b>可行性底盘</b>（侦查实证）：悬浮窗非贴边态单击本就是 no-op（S13 拍板挥手已取消）、
+全屏页宠物原无任何手势——双击零冲突；打断通道两处现成（悬浮窗菜单「打断」与全屏抽屉
+interrupt 均已走 cancelCurrentTurn）。<b>悬浮窗实现</b>：View 端手势机自加双击判定
+（ACTION_UP 且非拖拽非长按时 now-lastTapUpAt&lt;=DoubleTapTimeout(300ms)，判定后清零防三击
+误触发两轮）；双击优先于单击动作（贴边态第一击已滑出、第二击打断，边缘场景自然）。
+<b>全屏页实现</b>：detectTapGestures(onDoubleTap)+chatVm.cancelCurrentTurn。<b>踩坑</b>：
+pointerInput 挂 AndroidView 同节点收不到事件（interop 事件先派发内部 View 树）——
+对照实验（onPress/onTap 日志）定位后改<b>纯 Compose Box 包裹 AndroidView、pointerInput 挂 Box</b>
+（hit test 先于 interop 派发）即通。<b>验证</b>：两入口日志实锤
+（PetOverlay/FullscreenVoice: *double tap -&gt; cancelCurrentTurn）；IDLE 态调用 VSM 内部
+no-op 无害；调试用 onPress/onTap 日志已清理；520 测绿。<b>未决</b>：真机手指双击体验
+（adb 管道间隔抖动大，4 连击才稳触发；真指 100-250ms 稳定区间判定无虞）留板子现场。</p>
+</div>
+
 </body>
 </html>

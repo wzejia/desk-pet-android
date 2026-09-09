@@ -12,6 +12,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -232,14 +233,27 @@ fun FullscreenVoiceScreen(
         }
 
         // 中央宠物（S14-2：中心自 Column 居中上移至屏高 42%，给状态区让出下 1/4）
-        AndroidView(
-            factory = { ctx -> PetView(ctx).also { petView = it } },
+        // S28：双击=打断输出。pointerInput 必须挂在纯 Compose Box 而非 AndroidView 上——
+        // interop 事件先派发给内部 View 树，同节点 pointerInput 收不到后续（实测踩坑）；
+        // Box 层 hit test 先于 interop 派发，双击稳定可达（PetView 不消费触摸，无冲突）。
+        Box(
             modifier = Modifier
                 .align(Alignment.TopCenter)
                 .padding(top = anchors.petTopDp.dp)
                 .width(anchors.petWidthDp.dp)
-                .height(anchors.petHeightDp.dp),
-        )
+                .height(anchors.petHeightDp.dp)
+                .pointerInput(Unit) {
+                    detectTapGestures(onDoubleTap = {
+                        PetLogger.i(TAG, "pet double tap -> cancelCurrentTurn")
+                        chatVm.cancelCurrentTurn()
+                    })
+                },
+        ) {
+            AndroidView(
+                factory = { ctx -> PetView(ctx).also { petView = it } },
+                modifier = Modifier.fillMaxSize(),
+            )
+        }
 
         // 转写区（字幕开时）：S14-2 随迁至状态区上方（原贴底）；transcriptBaseline 语义不变——
         // 只渲染进入后新增的 assistant，防进全屏瞬间亮出上一轮旧回复

@@ -1,5 +1,11 @@
 # 小朵 Android M1 进度
 
+## 状态：S28 双击打断输出 ✅ 代码+模拟器收口（2026-09-09，板子现场待回收）
+
+- 悬浮窗宠物 + 全屏页宠物**双击=打断输出**（cancelCurrentTurn，与菜单「打断」同通道，IDLE 安全 no-op）。
+  悬浮窗 View 手势机自加双击判定；全屏页 detectTapGestures（坑：pointerInput 挂 AndroidView 同节点
+  收不到 interop 事件，改纯 Compose Box 包裹解决）。520 测绿，两入口模拟器日志实锤。
+
 ## 状态：S27 底部导航栏改版 ✅ 代码+模拟器收口（2026-09-08，板子包名实证待回收）
 
 - **交付**：顶栏 PetStatusBar 移除（宠物头像/相位文案退役，消息流顶到状态栏下）；
