@@ -45,18 +45,32 @@ class AppLauncherTest {
     }
 
     @Test
-    fun `target package constant is a plausible android package id`() {
-        // Android 包名约定：点分段、段首字母/数字、全小写——写错会导致 queries/启动静默失效
-        val p = AppLauncher.TARGET_PACKAGE
+    fun `default target package is a plausible android package id`() {
+        // Android 包名：点分段合法即可（Java 规范建议小写，但厂商包名可能含大写，如
+        // compactShelf——系统/启动器不强制小写，monkey 实证可启动）；
+        // 写错会导致 queries/启动静默失效
+        val p = AppLauncher.DEFAULT_TARGET_PACKAGE
         assertTrue("package must be non-blank", p.isNotBlank())
         assertTrue(
             "package must match android id convention: $p",
-            p.matches(Regex("^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$")),
+            p.matches(Regex("^[A-Za-z][A-Za-z0-9_]*(\\.[A-Za-z][A-Za-z0-9_]*)+$")),
         )
     }
 
     @Test
     fun `failure toast message is non-blank`() {
         assertTrue(AppLauncher.FAILURE_TOAST.isNotBlank())
+    }
+
+    @Test
+    fun `effective target falls back to default when sp empty or blank`() {
+        assertEquals(AppLauncher.DEFAULT_TARGET_PACKAGE, AppLauncher.effectiveTarget(""))
+        assertEquals(AppLauncher.DEFAULT_TARGET_PACKAGE, AppLauncher.effectiveTarget("   "))
+    }
+
+    @Test
+    fun `effective target uses sp override when present`() {
+        assertEquals("com.example.app", AppLauncher.effectiveTarget("com.example.app"))
+        assertEquals("com.example.app", AppLauncher.effectiveTarget("  com.example.app  "))
     }
 }

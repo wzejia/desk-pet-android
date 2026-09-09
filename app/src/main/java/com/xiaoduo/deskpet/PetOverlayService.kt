@@ -325,9 +325,10 @@ class PetOverlayService : Service() {
         var dragging = false
         var longPressFired = false
         // S28 双击打断：非贴边态单击本就是 no-op（S13），双击零冲突；贴边态第一击已滑出、
-        // 第二击打断（边缘场景行为自然）。窗口用系统 DoubleTapTimeout(300ms)；判定后清零
-        // 防三击误触发两轮。
+        // 第二击打断（边缘场景行为自然）。窗口 400ms——系统 DoubleTapTimeout(300ms) 对真人
+        // 双击 UP-UP 间隔偏紧（S31 板子实测无效根因）；判定后清零防三击误触发两轮。
         var lastTapUpAt = 0L
+        val doubleTapWindowMs = 400L
 
         val longPressRunnable = Runnable {
             if (!dragging) {
@@ -383,7 +384,7 @@ class PetOverlayService : Service() {
                         // S28 双击=打断输出（cancelCurrentTurn：停 TTS/流式，与长按菜单「打断」
                         // 同通道；IDLE 时 VSM 内部 no-op 无害）。双击优先于单击动作。
                         val now = android.os.SystemClock.uptimeMillis()
-                        val doubleTap = now - lastTapUpAt <= ViewConfiguration.getDoubleTapTimeout()
+                        val doubleTap = now - lastTapUpAt <= doubleTapWindowMs
                         lastTapUpAt = if (doubleTap) 0L else now
                         if (doubleTap) {
                             PetLogger.i(TAG, "overlay pet double tap -> cancelCurrentTurn")

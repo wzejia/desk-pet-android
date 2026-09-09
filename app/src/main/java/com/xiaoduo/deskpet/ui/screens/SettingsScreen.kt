@@ -64,6 +64,7 @@ import com.xiaoduo.deskpet.agui.AguiClientFactory
 import com.xiaoduo.deskpet.net.NetConfig
 import com.xiaoduo.deskpet.ui.theme.XiaoduoDimens
 import com.xiaoduo.deskpet.util.PetLogger
+import com.xiaoduo.deskpet.util.AppLauncher
 import com.xiaoduo.deskpet.util.Prefs
 import com.xiaoduo.deskpet.voice.AudioCapture
 import com.xiaoduo.deskpet.voice.EnergyGate
@@ -256,6 +257,19 @@ fun SettingsScreen(onBack: () -> Unit, onOpenPermissions: () -> Unit) {
                     singleLine = true,
                     label = { Text("设备地址") },
                     placeholder = { Text("http://10.0.18.47:8080") },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                // S31：跳转 APP 目标可自定义（导航行中键/悬浮窗菜单共用；空=默认密集架包）
+                var jumpPkg by remember { mutableStateOf(Prefs.jumpTargetPackage(context)) }
+                OutlinedTextField(
+                    value = jumpPkg,
+                    onValueChange = {
+                        jumpPkg = it
+                        Prefs.setJumpTargetPackage(context, it)
+                    },
+                    singleLine = true,
+                    label = { Text("跳转 APP 包名") },
+                    placeholder = { Text(AppLauncher.DEFAULT_TARGET_PACKAGE) },
                     modifier = Modifier.fillMaxWidth(),
                 )
             }

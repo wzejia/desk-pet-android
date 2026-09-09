@@ -55,6 +55,9 @@ object PrefContract {
     const val KEY_MIC_SOURCE_MODE = "mic_source_mode"     // Int：0=通话 1=识别 2=原始
     // ---- S29 新增键（首次自动校准标记）----
     const val KEY_AUTO_CALIB_DONE = "kws_auto_calib_done" // Boolean, true=已校准过（自动或手动），不再自动校
+    // ---- S31 新增键（跳转 APP 目标可配置）----
+    const val KEY_JUMP_PACKAGE = "jump_target_package"    // String，跳转目标包名，空=默认密集架
+    const val DEFAULT_JUMP_PACKAGE = "com.yinduo.compactShelf"
     const val DEFAULT_AUTO_CALIB_DONE = false
 
     // ---- S20 MCP 调用结果播报开关 ----

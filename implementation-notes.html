@@ -1161,5 +1161,29 @@ UI），跳转目标须 <code>dumpsys activity top</code> 找真 UI 包而非凭
 必须确认前台=目标 App（GuardService 20-60s 周期抢前台会把点击吞到别的界面）。</p>
 </div>
 
+<div class="entry bug">
+<span class="tag">坑</span><span class="meta">2026-09-09 ｜ 悬浮窗手势 ｜ S31 双击打断板子实测无效——窗口 300ms 偏紧，放宽 400ms</span>
+<p><b>现象</b>（用户板子实测）：悬浮窗双击无法打断。<b>排查</b>：板子注入点击全部命中
+（clicked no-op 日志）但双击判定零触发——adb 管道两条 input tap 间隔 ~2s（rk3568 弱 CPU
+input 进程启动慢）远超 300ms 窗口，模拟器验证时间隔 &lt;300ms 故模拟器通过、板子失败——
+<b>验证环境性能差掩盖了真人可用性争议</b>。真人双击 UP-UP 常见 150-400ms，系统默认
+DoubleTapTimeout(300ms) 对 kiosk 场景偏紧。<b>修复</b>：双击窗口放宽 400ms（常量
+doubleTapWindowMs）。<b>复验</b>：板子并行注入双击（<code>input tap A &amp; input tap A &amp; wait</code>
+两进程并行，UP 间隔 23ms）→ <code>overlay pet double tap -&gt; cancelCurrentTurn</code> 触发 ✓。
+<b>技巧</b>：adb 管道慢设备上模拟快速手势用「设备端 &amp; 并行注入」，可压到 20-50ms。</p>
+</div>
+
+<div class="entry decision">
+<span class="tag">设计决策</span><span class="meta">2026-09-09 ｜ 设备跳转 ｜ S31 跳转目标自定义（设置页可配）+ 测试随改</span>
+<p><b>需求</b>（用户）：跳转 APP 支持自定义。<b>实现</b>：PrefContract 加
+KEY_JUMP_PACKAGE（空=默认 com.yinduo.compactShelf）；AppLauncher 改造——TARGET_PACKAGE
+常量→DEFAULT_TARGET_PACKAGE + effectiveTarget(spValue) 纯函数回退（空/白=默认）+
+targetPackage(context)（SP 覆盖优先）；FAILURE_TOAST 通用化「未找到目标应用」；
+SettingsScreen 设备地址下新增「跳转 APP 包名」输入框（设备地址同款模式，onValueChange
+即写 SP 下轮生效）。NSC queries 已是 LAUNCHER 通配——任意包名无需改 manifest。
+<b>测试</b>：包名格式断言放宽（正则强制小写→允许大小写——compactShelf 厂商名含大写，
+系统不强制小写，monkey 实证可启动）；新增 effectiveTarget 回退/覆盖 2 测。530→532 测绿。</p>
+</div>
+
 </body>
 </html>

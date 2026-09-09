@@ -122,6 +122,7 @@ object Prefs {
     // ---- S18 VAD 说话阈值（环境校准联动；rk3568 噪声底骑线致判停失效而立） ----
     const val KEY_VAD_SPEECH_LEVEL = PrefContract.KEY_VAD_SPEECH_LEVEL
     const val KEY_AUTO_CALIB_DONE = PrefContract.KEY_AUTO_CALIB_DONE
+    const val KEY_JUMP_PACKAGE = PrefContract.KEY_JUMP_PACKAGE
     const val DEFAULT_VAD_SPEECH_LEVEL = 0.05
 
     fun vadSpeechLevel(context: Context): Double =
@@ -139,6 +140,14 @@ object Prefs {
 
     fun setAutoCalibDone(context: Context, done: Boolean) {
         sp(context).edit().putBoolean(KEY_AUTO_CALIB_DONE, done).apply()
+    }
+
+    /** S31：跳转 APP 目标包名（空 = 用默认密集架包）。 */
+    fun jumpTargetPackage(context: Context): String =
+        sp(context).getString(KEY_JUMP_PACKAGE, "") ?: ""
+
+    fun setJumpTargetPackage(context: Context, pkg: String) {
+        sp(context).edit().putString(KEY_JUMP_PACKAGE, pkg.trim()).apply()
     }
 
     /** S18：采麦源模式。0=VOICE_COMMUNICATION（手机默认，硬件 AEC）/ 1=VOICE_RECOGNITION
