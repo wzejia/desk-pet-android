@@ -121,6 +121,7 @@ object Prefs {
 
     // ---- S18 VAD 说话阈值（环境校准联动；rk3568 噪声底骑线致判停失效而立） ----
     const val KEY_VAD_SPEECH_LEVEL = PrefContract.KEY_VAD_SPEECH_LEVEL
+    const val KEY_AUTO_CALIB_DONE = PrefContract.KEY_AUTO_CALIB_DONE
     const val DEFAULT_VAD_SPEECH_LEVEL = 0.05
 
     fun vadSpeechLevel(context: Context): Double =
@@ -131,6 +132,13 @@ object Prefs {
         sp(context).edit()
             .putFloat(KEY_VAD_SPEECH_LEVEL, level.toFloat())
             .apply()
+    }
+
+    /** S29：首次自动校准标记（自动或手动写入过即 true，自动校准不再触发）。 */
+    fun autoCalibDone(context: Context): Boolean = sp(context).getBoolean(KEY_AUTO_CALIB_DONE, false)
+
+    fun setAutoCalibDone(context: Context, done: Boolean) {
+        sp(context).edit().putBoolean(KEY_AUTO_CALIB_DONE, done).apply()
     }
 
     /** S18：采麦源模式。0=VOICE_COMMUNICATION（手机默认，硬件 AEC）/ 1=VOICE_RECOGNITION

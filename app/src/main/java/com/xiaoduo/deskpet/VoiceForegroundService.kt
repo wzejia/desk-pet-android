@@ -20,6 +20,7 @@ import com.xiaoduo.deskpet.voice.KwsEngine
 import com.xiaoduo.deskpet.voice.KwsDefaults
 import com.xiaoduo.deskpet.voice.VoiceStateRouter
 import com.xiaoduo.deskpet.voice.OnceGate
+import com.xiaoduo.deskpet.voice.AmbientCalibrator
 import com.xiaoduo.deskpet.voice.VoiceClientFactory
 
 /**
@@ -166,6 +167,18 @@ class VoiceForegroundService : Service() {
                 session.startIdleCapture()
             }
             PetLogger.i(TAG, "always-on KWS started (shadow=${shadow != null}), gate=${Prefs.kwsGate(this)}")
+            // S29 首次自动校准：采麦流已起（复用分支，单流纪律），静默采 5 秒写阈值；
+            // 未授权/环境不稳时跳过不标记，下次服务启动重试；失败绝不阻断 KWS。
+            if (!Prefs.autoCalibDone(this)) {
+                try {
+                    val written = kotlinx.coroutines.runBlocking {
+                        AmbientCalibrator.autoCalibrateIfFirstTime(this@VoiceForegroundService)
+                    }
+                    PetLogger.i(TAG, "auto calibration: ${if (written) "written" else "skipped"}")
+                } catch (t: Throwable) {
+                    PetLogger.e(TAG, "auto calibration failed: ${t.message}")
+                }
+            }
         }, "kws-init").start()
     }
 

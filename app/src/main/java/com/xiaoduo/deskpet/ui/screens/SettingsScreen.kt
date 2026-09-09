@@ -67,6 +67,7 @@ import com.xiaoduo.deskpet.util.PetLogger
 import com.xiaoduo.deskpet.util.Prefs
 import com.xiaoduo.deskpet.voice.AudioCapture
 import com.xiaoduo.deskpet.voice.EnergyGate
+import com.xiaoduo.deskpet.voice.AmbientCalibrator
 import com.xiaoduo.deskpet.voice.VoiceClientFactory
 import com.xiaoduo.deskpet.voice.WakeAckPrefetcher
 import kotlinx.coroutines.CoroutineScope
@@ -974,6 +975,7 @@ private fun KwsCalibration(context: Context, onGateWritten: (Float) -> Unit) {
             Button(onClick = {
                 Prefs.setKwsGate(context, s)
                 Prefs.setVadSpeechLevel(context, suggestedVad)
+                Prefs.setAutoCalibDone(context, true) // S29：手动干预后自动校准永久让位
                 val written = Prefs.kwsGate(context)
                 val vadWritten = Prefs.vadSpeechLevel(context)
                 onGateWritten(written)
@@ -990,39 +992,8 @@ private fun KwsCalibration(context: Context, onGateWritten: (Float) -> Unit) {
 
 private const val CALIBRATION_SECONDS = 5
 
-private suspend fun collectAmbientRms(context: Context, seconds: Int): List<Float> {
-    val session = VoiceClientFactory.session(context)
-    val out = mutableListOf<Float>()
-    if (session.captureRunning) {
-        // KWS 常开中：复用同一条采麦流（知识包 §3.5 单流纪律）
-        collectRmsFor(seconds, session.captureBlocks, out)
-    } else {
-        val capture = AudioCapture(sourceMode = Prefs.micSourceMode(context))
-        val ioScope = CoroutineScope(Dispatchers.IO)
-        try {
-            capture.start(ioScope)
-            collectRmsFor(seconds, capture.blocks, out)
-        } finally {
-            capture.stop()
-            ioScope.cancel()
-        }
-    }
-    return out
-}
-
-private suspend fun collectRmsFor(
-    seconds: Int,
-    blocks: kotlinx.coroutines.flow.SharedFlow<ByteArray>,
-    out: MutableList<Float>,
-) {
-    try {
-        withTimeout(seconds * 1000L) {
-            blocks.collect { block -> out.add(EnergyGate.rmsOf(block)) }
-        }
-    } catch (te: TimeoutCancellationException) {
-        // 采满时长正常收尾
-    }
-}
+private suspend fun collectAmbientRms(context: Context, seconds: Int): List<Float> =
+    AmbientCalibrator.collectAmbient(context, seconds)
 
 private fun versionName(context: Context): String =    runCatching {
         context.packageManager.getPackageInfo(context.packageName, 0).versionName

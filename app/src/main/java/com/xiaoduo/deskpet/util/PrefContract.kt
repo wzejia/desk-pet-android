@@ -53,6 +53,9 @@ object PrefContract {
 
     const val KEY_MIC_RAW_SOURCE = "mic_raw_source"       // Boolean（S18 旧键，迁移源）
     const val KEY_MIC_SOURCE_MODE = "mic_source_mode"     // Int：0=通话 1=识别 2=原始
+    // ---- S29 新增键（首次自动校准标记）----
+    const val KEY_AUTO_CALIB_DONE = "kws_auto_calib_done" // Boolean, true=已校准过（自动或手动），不再自动校
+    const val DEFAULT_AUTO_CALIB_DONE = false
 
     // ---- S20 MCP 调用结果播报开关 ----
     const val KEY_SPEAK_MCP_RESULT = "speak_mcp_result"   // Boolean，默认 true

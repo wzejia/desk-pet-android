@@ -1061,5 +1061,22 @@ no-op 无害；调试用 onPress/onTap 日志已清理；520 测绿。<b>未决<
 （adb 管道间隔抖动大，4 连击才稳触发；真指 100-250ms 稳定区间判定无虞）留板子现场。</p>
 </div>
 
+<div class="entry decision">
+<span class="tag">设计决策</span><span class="meta">2026-09-09 ｜ 语音校准 ｜ S29 环境音自动校准（仅首次，用户拍板 A 方案）</span>
+<p><b>背景</b>（用户问）：校准是否每次进 APP 都要配？——<b>事实链澄清</b>：校准值 SP 持久化 +
+消费端 provider 现读（KWS 门/VAD 判停每块现读），一次校准跨重启永久生效，无需重复配置；
+真实痛点是板子首次装机默认阈值不贴噪声底+无人手动校。<b>拍板</b>：A 仅首次自动校准
+（B 每次启动重校被否——启动期人声污染风险，靠 stableEnough 兜底不如不触发）。
+<b>实现</b>：AmbientCalibrator（纯函数 stableEnough：count&gt;0 && median&gt;0 && p95≤median×4，
+6 测；collectAmbient 自 SettingsScreen 上提公共；autoCalibrateIfFirstTime 未校准→采集→判稳→
+写 gate/vad/标记）；触发点 VoiceForegroundService.startKwsIfNeeded 尾（kws-init worker 线程
+runBlocking，采麦流已起走复用分支=单流纪律；失败不标记下次重试、绝不阻断 KWS）；手动校准
+成功写 autoCalibDone=true 让位。<b>模拟器端到端实证</b>：run-as 种子 SP（kws_enabled=true）→
+self-heal 拉服务 → AutoCalib written n=49 gate=0.003（模拟器静音钳 MIN_GATE 合理）→ 重启
+不重复触发且 KWS 用校准值（跨重启生效实证）。<b>踩坑</b>：①Prefs 插入位置插进函数体（括号
+错配，编译抓回）；②模拟器 uiautomator 资源紧张持续 Killed——改 run-as 写 SP+self-heal 链路
+验证，绕开 UI 自动化；③DocumentsUI 残留顶栈挡 UI，force-stop 清场。</p>
+</div>
+
 </body>
 </html>
