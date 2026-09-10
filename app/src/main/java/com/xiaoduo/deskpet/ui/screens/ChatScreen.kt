@@ -1,5 +1,9 @@
 package com.xiaoduo.deskpet.ui.screens
 
+import android.provider.Settings
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.navigationBars
+import com.xiaoduo.deskpet.util.NavInsetPolicy
 import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
@@ -19,6 +23,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
@@ -282,12 +287,33 @@ private fun BottomNavRow(
     val keySize = (LocalConfiguration.current.screenWidthDp * 0.10f).coerceIn(56f, 96f).dp
     val iconSize = keySize * 0.44f
     // S31 终版：上下间距一致 24px（= 当前输入框间距 64px 的一半，用户拍板）。
-    // 底距 24dp 由本行自垫（AppNavHost 已移除全局 navigationBarsPadding）；顶距
-    // 8dp + 输入框自带 16dp 底 padding = 24px，两段完全对称，双端一致。
+    // 底距 24dp 由本行自垫；顶距 8dp + 输入框自带 16dp 底 padding = 24px，两段完全
+    // 对称，双端一致。
+    // S31 板子遮挡修复：10.0.18.47（rk/softwinner ROM）insets 派发断裂——窗口
+    // edge-to-edge 但 WindowInsets.navigationBars 报 0，navigationBarsPadding 失效，
+    // 三键栏（56px）盖住导航行下 1/3。改用 NavInsetPolicy：max(派发值， 三键
+    // navigation_mode=0 时的 framework 资源高度兑底)；手势模式不兑底防误垫。
+    val density = LocalDensity.current
+    val dispatchedNavInset = WindowInsets.navigationBars.getBottom(density)
+    val navMode = remember {
+        runCatching {
+            Settings.Secure.getInt(context.contentResolver, "navigation_mode", 0)
+        }.getOrDefault(0)
+    }
+    val resourceBarHeight = remember {
+        runCatching {
+            val res = android.content.res.Resources.getSystem()
+            res.getDimensionPixelSize(res.getIdentifier("navigation_bar_height", "dimen", "android"))
+        }.getOrDefault(0)
+    }
+    val navInsetDp = with(density) {
+        NavInsetPolicy.effectiveBottomInset(dispatchedNavInset, navMode, resourceBarHeight).toDp()
+    }
     Surface(color = MaterialTheme.colorScheme.surface) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
+                .padding(bottom = navInsetDp)
                 .padding(horizontal = XiaoduoDimens.SpaceM)
                 .padding(top = 8.dp, bottom = 24.dp),
             verticalAlignment = Alignment.CenterVertically,

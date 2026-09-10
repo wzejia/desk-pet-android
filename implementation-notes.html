@@ -1219,5 +1219,23 @@ cancelCurrentTurn；双击与长按菜单改走桥，无桥回退 VSM（VM 未�
 轮次类型（语音轮 vs 文字轮）。</p>
 </div>
 
+<div class="entry bug">
+<span class="tag">坑</span><span class="meta">2026-09-10 ｜ 设备 10.0.18.47 ｜ S31 追加：rk ROM insets 派发断裂——navigationBarsPadding 失效，导航行被三键栏盖下 1/3</span>
+<p><b>现象</b>（用户新设备 10.0.18.47 实测）：应用内底部导航行被系统导航栏遮挡。
+<b>第一性证据链</b>：①<code>wm density=160</code>、竖坐标系 1080x1920（面板旋转）；
+②<code>navigation_mode=0</code> 三键、NavigationBar0 frame y[1864,1920]（56px）；
+③MainActivity <code>mFrame=[0,0][1080,1920]</code> 全屏延伸（enableEdgeToEdge 生效）+
+<code>mGivenContentInsets=[0,0][0,0]</code>；④像素扫描：密集架图标实测渲染 y≈1858
+（=无垫布局位，与 uiautomator desc 吻合）→ <b>WindowInsets.navigationBars 派发 0</b>，
+navigationBarsPadding 失效，图标下半+圆钮下 42px 被系统栏盖。<b>修复</b>：NavInsetPolicy
+纯函数——有效 inset = max(派发值， 三键兜底值)；兜底仅 navigation_mode=0（Settings.Secure，
+不依赖派发链）时读 framework navigation_bar_height 资源；手势模式不兜底防误垫空白。
+ChatScreen BottomNavRow 接线。5 测；装机复验三键上移 56px（y[1796,1836]，净空 28px）+
+像素复核旧遮挡区图标清零。<b>教训</b>：①ROM insets 派发断裂（edge-to-edge 但 inset=0）
+是 rk/softwinner 实机独有——模拟器/正常设备无法暴露；②裁判断裂要看三件套：窗口 frame
+（是否延伸）+ givenContentInsets（是否声明消费）+ 实际渲染位置（像素）；③兜底判据用
+navigation_mode Settings 而非 insets 本身——断了的东西不能作为自己的开关。</p>
+</div>
+
 </body>
 </html>
