@@ -1250,5 +1250,26 @@ APK 模拟器三点依旧可见——排除代码回归，锁定机型差异。<
 比例+锥制处理。</p>
 </div>
 
+<div class="entry deviation">
+<span class="tag">有意偏差</span><span class="meta">2026-09-11 ｜ 设备 10.0.18.47 ｜ S32 诊断期动板：SP 采麦源切换 + audioserver/整机重启 + USB 软移除</span>
+<p><b>内容</b>：诊断采麦零馈入过程中对 18.47 板做了四个可逆动作——①<code>mic_source_mode 0→2</code>
+（SP sed 直写，原值 0；设置页三档合法配置项，保留 UNPROCESSED）；②killall audioserver ×2
+（init 自动拉起，无持久副作用）；③<code>echo 1 > /sys/bus/usb/devices/1-1.5/remove</code> 软移除
+USB 声卡（等价物理拔出；整机重启后已重新枚举回 card0，现场硬件原状恢复）；④整机 reboot ×1。
+<b>理由</b>：语音全断状态下的逐层切分实验，每步均有回滚点，详见 v23 README 第五节。
+<b>结果</b>：坐实根因为 ROM 层（USB audio HAL fd 泄漏 + 板载 input 未登记 policy），App 层无解。
+14.18 主力板全程零写入零影响。</p>
+</div>
+
+<div class="entry finding">
+<span class="tag">未决问题</span><span class="meta">2026-09-11 ｜ 设备 10.0.18.47 ｜ S32：板子语音链路断因 ROM 缺陷，需用户决策三条路</span>
+<p><b>发现</b>：整理台网关板语音从 S26 起「现场验收待回收」实为<b>从未能工作</b>——USB 声卡
+（10:39 热插）插着则 HAL fd 泄漏自锁、拔了则 policy 无 input 设备，两头堵死。App 层唯一能
+<code>capture start</code> 成功的源是 UNPROCESSED（已保留）。<b>待决策</b>：①固件问题反馈设备
+供应商（或换 ROM）；②现场物理重插 USB 麦/换口/换声卡型号的存活窗口试验；③App 层防御票
+S32（零馈入自检告警）何时做。诊断期间意外收获：11:50:33 UNPROCESSED 校准歪打正着写入
+<code>gate=0.003/vad=0.05/done=true</code>（全钳位下限，保守无害，保留）。</p>
+</div>
+
 </body>
 </html>

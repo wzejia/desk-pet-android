@@ -1,5 +1,22 @@
 # 小朵 Android M1 进度
 
+## 状态：S32 采麦零馈入诊断 ✅ 收口（2026-09-11，18.47 板语音全断因 ROM 缺陷，App 层无解）
+
+- 语音链路优化开工侦察发现：整理台网关板 10.0.18.47 采麦零馈入（AutoCalib n=0 /
+  dead IAudioRecord 风暴 / kws stats 零落行），改道先行诊断。**根因链五步切分坐实 ROM 层**：
+  ①rk USB audio HAL fd 泄漏（构造期 probe open 不 close → EBUSY 自锁死循环）；
+  ②板载 rk809 capture 未登记 audio policy（拔 USB 后 `could not find device for source 9/1`）
+  ——两头堵死，USB 插着死、拔了也死。
+- 旁证：USB 声卡 09-11 10:39 热插后全死；该板语音自 S26 起从未验收过=从未能工作；
+  14.18（rk3568_r）同 APK 39h 健康（fed=1.4M hits=39）排除 App 回归。
+- 板子动作全部可逆留痕（notes 偏差条目）：mic_source_mode 0→2（保留 UNPROCESSED，唯一能
+  capture start 成功的源）；UNPROCESSED 校准歪打正着写入 gate=0.003/vad=0.05/done=true
+  （钳位下限，保守无害）。14.18 主力板零写入零影响。
+- 证据 `docs/verification/v23-s32-mic-zero-feed/README.md`；learning 新类目
+  `docs/solutions/hardware-environment/`；App 层防御票 S32 入 CONSTRUCTION.md。
+- **待用户决策**：①固件问题报设备供应商/换 ROM；②现场物理重插 USB 麦/换口/换声卡试验；
+  ③S32 防御票（零馈入自检告警）时机。语音优化主线（唤醒率+打断率）转 14.18 继续，不受阻。
+
 ## 状态：S31 导航行键+密集架跳转+双击打断 ✅ 全收口（2026-09-09，用户板子/模拟器双测确认）
 
 - 密集架跳转：真主应用 com.yinduo.compactShelf（ys_receiver=system uid 看护壳陷阱），

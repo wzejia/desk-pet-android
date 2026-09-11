@@ -1,3 +1,22 @@
+## 2026-09-11（S32 采麦零馈入诊断日：语音优化开工侦察 → 提前改道）
+
+- **背景**：handoff 指定焦点=语音链路优化（唤醒率+打断率）。无侵入侦察发现整理台网关板
+  10.0.18.47 采麦零馈入（vad maxLevel=0.0000 / AutoCalib n=0 / kws stats 零落行），
+  改道先行诊断。
+- **根因链（五步切分，证据 v23）**：tinycap 逐卡验硬件（板载/USB 麦都活）→ dead IAudioRecord
+  风暴定位框架层 → lsof 抓到 USB audio HAL 自持 pcm fd → kill HAL 新进程启动即再持（构造期
+  泄漏铁证）→ 拔 USB 后 `could not find device for source 9/1`（板载 input 未登记 policy）。
+  **两头堵死：USB 插着=HAL 自锁，拔了=无 input 设备。ROM 层缺陷，App 无解。**
+- **旁证**：USB 声卡 10:39 热插（/dev/snd mtime）后全死；该板语音自 S26 起从未现场验收过
+  = 从未能工作。14.18 主力板（rk3568_r）同 APK 39h 健康排除 App 回归。
+- **板子动作（全部可逆，见 notes 偏差条目）**：mic_source_mode 0→2（保留 UNPROCESSED）、
+  audioserver ×2、USB 软移除、整机重启。UNPROCESSED 是唯一能 capture start 成功的源；
+  11:50:33 校准歪打正着写入 gate=0.003/vad=0.05/done=true（钳位下限，保守无害）。
+- **产物**：v23 验证 README + solutions/hardware-environment/ 新类目首篇 + CONSTRUCTION.md
+  S32 票（零馈入自检告警）+ 本日志 + PROGRESS 顶部状态。
+- **待用户决策**：固件报供应商 / 现场物理重插 USB 试验 / S32 防御票时机。
+  语音优化主线（唤醒率+打断率）转 14.18 主力板继续，不受阻。
+
 ## 2026-09-09（S28/S29/S30/S31 四票据：板子现场收口日）
 
 - **S28 双击打断**：手势判定模拟器验证通过后，板子/模拟器真人双击连续两次失败——
