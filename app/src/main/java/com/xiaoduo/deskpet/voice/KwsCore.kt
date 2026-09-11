@@ -39,6 +39,8 @@ class KwsCore(
     private val now: () -> Long = System::currentTimeMillis,
     private val statsIntervalMs: Long = STATS_INTERVAL_MS,
     private val hangoverBlocks: Int = KwsDefaults.GATE_HANGOVER_BLOCKS,
+    /** 解码线程 Java 优先级：主引擎默认 [DEFAULT_DECODE_THREAD_PRIORITY]，影子传 MIN。 */
+    private val decodeThreadPriority: Int = DEFAULT_DECODE_THREAD_PRIORITY,
 ) {
 
     /** sherpa-onnx 原生边界（Android 绑定层，JVM 不可载；逻辑全部下沉本类）。 */
@@ -79,13 +81,19 @@ class KwsCore(
     private var lastStatsAt = startedAt
 
     private val decodeThread = Thread({ decodeLoop() }, "kws-decode").apply {
+        // S35（2026-09-11 取证）：旧值 MIN_PRIORITY（S25b 白屏修复）在 rk3568 对话期被
+        // 饿到解码 7.5 块/s < 喂 10 块/s，队列（64 封顶丢最旧）恒满 → 音频时间轴撕裂
+        // （实测 diff +940/+283 块）→ 唤醒词喂进去是碎片必漏（IDLE 连喊 2 次不中的现行）。
+        // 主引擎提档 6（高于普通 5、低于 UI nice -4）：争抢时保解码吞吐，UI 仍高它 2-3 档
+        // （S25b 白屏回归锚：装机后 Choreographer 复测）；影子观测通道保持 MIN 不争抢。
+        priority = decodeThreadPriority
+        // S25b：队列驱动+100ms 节奏，晚几毫秒无害；主+影子双引擎同降。
         isDaemon = true
-        // S25b（2026-09-03 板子白屏/动画冻结根因）：解码线程默认优先级与 UI 主线程同级，
-        // 4xA55 板子上与密集架轮询/JIT/GC 争抢致 Choreographer 饿死（Skipped 301 帧）。
-        // 队列驱动+100ms 节奏，晚几毫秒无害；主+影子双引擎同降。
-        priority = Thread.MIN_PRIORITY
         start()
     }
+
+    /** 测试缝：解码线程优先级回归断言用（S35 变异锚）。 */
+    internal val decodeThreadForTest: Thread get() = decodeThread
 
     /**
      * 麦块入口（采麦回调线程，100ms/3200B）：能量门控（挂起窗+gap-reset）→ Int16→float32 → 入队。
@@ -221,5 +229,13 @@ class KwsCore(
 
         /** 检出率统计日志间隔（有音频活动时按块检查）。 */
         internal const val STATS_INTERVAL_MS = 60_000L
+
+        /**
+         * S35 主引擎解码线程提档值（Java 6）：MIN(1)=S25b 旧档实测被饿撕裂；
+         * NORM(5)=S25b 前旧态白屏风险；6 落在两者之间（ART nice ≈ -1，UI 主线程 -4），
+         * 取值依据：取证 diff 曲线（空闲 diff≈0/对话期暴涨）+ 装机双验收（diff 恢复 +
+         * Choreographer 不回归）。
+         */
+        internal const val DEFAULT_DECODE_THREAD_PRIORITY = 6
     }
 }

@@ -32,6 +32,8 @@ class KwsEngine(
     logger: (String) -> Unit = { msg -> PetLogger.i(TAG, msg) },
     modelDir: String = MODEL_DIR,
     keywordsThreshold: Float = KwsDefaults.KEYWORDS_THRESHOLD,
+    /** S35：解码线程 Java 优先级，默认主引擎提档；影子通道显式传 MIN（观测不争抢）。 */
+    decodeThreadPriority: Int = KwsCore.DEFAULT_DECODE_THREAD_PRIORITY,
 ) {
 
     private val spotter = KeywordSpotter(assetManager, buildConfig(modelDir, keywordsThreshold))
@@ -44,6 +46,7 @@ class KwsEngine(
         logger = logger,
         sampleRate = SAMPLE_RATE,
         queueCapacity = QUEUE_CAPACITY,
+        decodeThreadPriority = decodeThreadPriority,
     )
 
     /** 麦块入口（采麦回调线程，100ms/3200B），语义见 [KwsCore.feed]。 */

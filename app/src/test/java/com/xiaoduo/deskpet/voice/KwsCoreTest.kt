@@ -120,6 +120,39 @@ class KwsCoreTest {
     }
 
     @Test
+    fun `decode thread priority is configurable - main elevated shadow stays min`() {
+        // S35（2026-09-11 取证）：MIN_PRIORITY 在 rk3568 对话期被饿到 7.5 块/s（喂 10），
+        // 队列恒满丢最旧 → 时间轴撕裂 → 唤醒必漏（diff 实测 +940/+283 块）。
+        // 主引擎默认 6（高于普通 5、低于 UI nice -4）：争抢时保解码吞吐，UI 不被饿
+        // （S25b 白屏回归锚：装机后 Choreographer 复测）。影子仍 MIN。
+        // 变异锚：删 decodeThread 的 priority 赋值 → 默认 6 断言红。
+        val logs = CopyOnWriteArrayList<String>()
+        val coreMain = newCore(FakeNative(), logs)
+        assertEquals(
+            "主引擎解码线程默认应为提档优先级 6",
+            6,
+            coreMain.decodeThreadForTest.priority,
+        )
+        coreMain.release()
+
+        val coreShadow = KwsCore(
+            native = FakeNative(),
+            gateProvider = { 0.015f },
+            onKeyword = {},
+            logger = {},
+            sampleRate = 16_000,
+            queueCapacity = 64,
+            decodeThreadPriority = Thread.MIN_PRIORITY,
+        )
+        assertEquals(
+            "影子引擎保持 S25b MIN 档（观测通道不与主链争抢）",
+            Thread.MIN_PRIORITY,
+            coreShadow.decodeThreadForTest.priority,
+        )
+        coreShadow.release()
+    }
+
+    @Test
     fun `release frees native only after in-flight decode returns`() {
         // 回归守卫：release 的 join（删此 → free 抢在 decode-exit 前 → 本测试红）
         val native = FakeNative()

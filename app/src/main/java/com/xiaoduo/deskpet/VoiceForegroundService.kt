@@ -140,6 +140,9 @@ class VoiceForegroundService : Service() {
                     },
                     logger = { msg -> PetLogger.i("KwsShadow", msg) },
                     keywordsThreshold = KwsDefaults.SHADOW_KEYWORDS_THRESHOLD,
+                    // S35：影子观测通道保持 S25b MIN 档——主引擎提档后影子不跟进，
+                    // 观测通道不与主链争抢（S34 教训：双引擎同权重 = 板子打满）。
+                    decodeThreadPriority = Thread.MIN_PRIORITY,
                 )
             } catch (t: Throwable) {
                 PetLogger.e(TAG, "shadow KwsEngine init failed (non-fatal): ${t.message}")
