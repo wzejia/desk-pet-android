@@ -11,6 +11,10 @@
   logic-errors/overlay-interrupt-wrong-facade-vsm-vs-chatviewmodel、
   workflow-issues/kiosk-guard-shell-vs-real-app-package
 - 538 测绿；提交 7610d0d/c94cac7 + 收口 4 文档
+- **S31 追加（10.0.18.47 设备）**：①rk ROM insets 派发断裂——导航行被三键栏盖下 1/3，
+  NavInsetPolicy 三键资源兜底（max(派发,资源)）复验净空 28px；②思考三点板子不可见
+  （160dpi 6dp=6px）→ 点径屏宽 1.5% 钳制，用户实测恢复。543 测绿；
+  提交 71e0927/cf0253d；learning×4 入 docs/solutions/
 
 ## 状态：S30 文字输入设备控制 ✅ 代码收口（2026-09-09，中文端到端留板子）
 
