@@ -589,6 +589,12 @@ private fun MessageRow(msg: ChatMessage, onResend: (String) -> Unit) {    if (ms
 /** 生成中等候态三点指示（sending 状态反馈）：三圆点错相呼吸，首 token 后随状态切 STREAMING 自然消失。 */
 @Composable
 private fun TypingDots() {
+    // S31 板子不可见修复：点径原写死 6dp——160dpi 板子（10.0.18.47）dp=px，6dp=6px 仅占
+    // 屏宽 0.55%，肉眼难辨（同一 APK 模拟器 420dpi=15.75px 可见，机型密度差异）；与导航行
+    // 键尺寸同款自适应：点径按屏宽 1.5%，锥制 [6,18]dp——手机/模拟器 ~411dp 宽算出 6.2dp
+    // ≈原样零回归，板子 1080dp 宽得 16dp 清晰可见。
+    val dotSize = (LocalConfiguration.current.screenWidthDp * 0.015f).coerceIn(6f, 18f).dp
+    val gap = (dotSize.value * 0.6f).dp
     // 单一周期进度 0→1（线性，Restart），各点用相位偏移派生 alpha → 经典打字指示器波纹
     val transition = rememberInfiniteTransition(label = "typing-dots")
     val progress by transition.animateFloat(
@@ -597,14 +603,14 @@ private fun TypingDots() {
         animationSpec = infiniteRepeatable(tween(900, easing = LinearEasing), RepeatMode.Restart),
         label = "progress",
     )
-    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+    Row(horizontalArrangement = Arrangement.spacedBy(gap)) {
         for (i in 0 until 3) {
             // 相位错开 1/3 周期；三角波映射到 0.3..1 区间，三点轮流亮灭
             val phase = (progress + i / 3f) % 1f
             val wave = if (phase < 0.5f) phase * 2f else (1f - phase) * 2f
             Box(
                 modifier = Modifier
-                    .size(6.dp)
+                    .size(dotSize)
                     .alpha(0.3f + 0.7f * wave)
                     .background(MaterialTheme.colorScheme.onSurfaceVariant, CircleShape),
             )
