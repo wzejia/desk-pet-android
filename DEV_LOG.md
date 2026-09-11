@@ -1,3 +1,14 @@
+## 2026-09-11 下午（S33 聆听盲区修复：TDD 当日收口 + 14.18 双变量实况）
+
+- **S33 修复**（上午立票当日清）：①routeBlock VAD 分支旁路喂 kwsSink；②startListening
+  开 LISTENING 口（仅唤醒路径 cancelCurrentTurn→播我在→重新聆听）。TDD：4 测先行
+  （旁路喂流/重唤醒链/按住 no-op 锁定/SPEAKING 单投防双投）+ 变异锚（删旁路→红/
+  恢复早退→红）。543→547 绿；装机 14.18（KWS started gate=0.015 ✓）。
+- **14.18 实况**：gate=0.015 生效 4.3h hits=98（对比 41h/39 @gate=0.05）——命中量
+  大增；用户自切 UNPROCESSED（mic_source_mode=2）双变量生效，A/B 归因污染记 notes。
+- **语音状态机图**：archify 产出 docs/diagrams/voice-lifecycle.html（四态+打断通路+
+  S33 盲区+三张参数卡；showcase 质检 9 项全过，四视口零溢出，b2654e4）。
+
 ## 2026-09-11（S32 采麦零馈入诊断日：语音优化开工侦察 → 提前改道）
 
 - **背景**：handoff 指定焦点=语音链路优化（唤醒率+打断率）。无侵入侦察发现整理台网关板

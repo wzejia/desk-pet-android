@@ -1284,5 +1284,15 @@ S32（零馈入自检告警）何时做。诊断期间意外收获：11:50:33 UN
 0.2-0.8s+wozai 0.54s，若 gate 改后漏检显著降再评估延迟优化。</p>
 </div>
 
+<div class="entry decision">
+<span class="tag">设计决策</span><span class="meta">2026-09-11 ｜ S33 聆听盲区修复：重唤醒语义=打断接续同构，按住路径最小侵入保持 no-op</span>
+<p><b>改动两处</b>：①routeBlock 的 VAD 分支旁路喂 kwsSink（主投 VAD 判停不变；走 NLMS 消「我在」尾回声，零参考直通安全）；②startListening 开 LISTENING 口——仅唤醒路径（playWakeAck=true，KWS 命中回调）先 cancelCurrentTurn（既有 LISTENING 分支：vad.stop+backToIdle，已收集音频丢弃）再重播「我在」→重新聆听，与 S12 打断接续同构。<b>拍板理由</b>：聆听期再喊的意图（a.以为没听到要确认 b.想重说）都指向「反馈+重置」；按住路径（playWakeAck=false）保持 no-op——VAD 已在采音，最小侵入防误伤。测试 4 条（旁路/重唤醒链/按住锁定/SPEAKING 单投防双投）+ 变异锚齐。547 绿（543+4）。</p>
+</div>
+
+<div class="entry finding">
+<span class="tag">未决问题</span><span class="meta">2026-09-11 ｜ 设备 14.18 ｜ gate A/B 归因被污染：用户自切 UNPROCESSED，双变量同时生效</span>
+<p><b>发现</b>：18:39 重装后发现 14.18 SP <code>mic_source_mode=2</code>（用户在设置页自切 UNPROCESSED，14:06 读时无此键）——gate 0.015 与采麦源两变量 14:18 起同时生效，原定单变量 A/B 归因失效。<b>旁证数据</b>：gate=0.015 时代 4.3h hits=98（对比 gate=0.05 的 41h hits=39），命中量大增且用户未报乱应答；capture start source=9 ✓ 采麦健康（fed 全速 gated 2%）。<b>待确认</b>：①98 次中有无乱应答/误触发（成分待用户回忆）；②低门+UNPROCESSED 组合的漏检率需新一轮受控喊话（顺带完成 S18 UNPROCESSED 板子终验）。另：18:39 一条 FATAL 为密集架主应用 com.yinduo.compactShelf 自身 NPE，与小朵无关。</p>
+</div>
+
 </body>
 </html>

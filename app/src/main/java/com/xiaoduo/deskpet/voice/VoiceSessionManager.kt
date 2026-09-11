@@ -313,6 +313,14 @@ class VoiceSessionManager(
         if (state == VoiceStateRouter.State.SPEAKING || state == VoiceStateRouter.State.PROCESSING) {
             cancelCurrentTurn()
         }
+        // S33 聆听盲区：LISTENING 期唤醒路径（playWakeAck=true，KWS 命中回调）= 重唤醒：
+        // 终止当前聆听轮（cancelCurrentTurn 的 LISTENING 分支：vad.stop+backToIdle，
+        // 已收集音频丢弃）→ 重播「我在」→ 重新聆听，与 S12 打断接续同构。此前非 IDLE
+        // 早退 → 聆听期再喊 100% 必漏（14.18 受控测试实锤）。按住路径（playWakeAck=
+        // false）保持 no-op：VAD 已在采音，最小侵入（VoiceSessionManagerS33BlindSpotTest 锁）。
+        else if (state == VoiceStateRouter.State.LISTENING && playWakeAck) {
+            cancelCurrentTurn()
+        }
         if (state != VoiceStateRouter.State.IDLE) return
         ensureCollectLoop()
         kwsPaused = true // 半双工第二层：对话期 IDLE 分支暂停 KWS
@@ -492,6 +500,9 @@ class VoiceSessionManager(
     /** 测试缝：采麦消费循环是否活着（孤儿空采回归断言用）。 */
     internal val collectLoopActive: Boolean get() = collectJob?.isActive == true
 
+    /** 测试缝：S33 盲区旁路单测直接驱动麦块分发（体例同 onUtterance internal）。 */
+    internal fun routeBlockForTest(block: ByteArray) = routeBlock(block)
+
     /** S18 声学诊断：聆听期已消费块数（每 10 块打一行电平轨迹）。 */
     @Volatile
     private var vadDiagTicks = 0
@@ -547,6 +558,14 @@ class VoiceSessionManager(
             }
             VoiceStateRouter.Sink.DROP -> Unit // IDLE+kwsPaused 丢弃（对话期回 IDLE 不即解 KWS）
             VoiceStateRouter.Sink.VAD -> {
+                // S33 盲区修复：聆听期唤醒词可达——块主投 VAD 判停之外旁路喂 KWS
+                // （此前单投 VAD，再喊唤醒词 100% 必漏）。走 NLMS 消「我在」尾回声
+                // （零参考直通安全，与 KWS 分支同处理）；命中回调 startListening 走
+                // 重唤醒分支。kwsSink 为空（服务未挂）时零开销跳过。
+                if (kwsSink != null) {
+                    val out = if (echoCancelProvider()) echoCanceller.processBlock(block) else block
+                    kwsSink?.invoke(out)
+                }
                 // S18 声学诊断：聆听期电平轨迹（每 10 块=1s 一行；量化 rk3568 AGC 释放曲线）
                 vadDiagTicks++
                 if (vadDiagTicks % 10 == 0) {
