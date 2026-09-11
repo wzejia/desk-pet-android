@@ -1,0 +1,178 @@
+{
+  "schema_version": 1,
+  "diagram_type": "lifecycle",
+  "meta": {
+    "title": "小朵语音链路：唤醒与打断状态机",
+    "locale": "zh-CN",
+    "quality_profile": "showcase",
+    "viewBox": [
+      1080,
+      566
+    ],
+    "views": [
+      {
+        "id": "main-flow",
+        "label": "一轮对话",
+        "focus": [
+          "idle",
+          "speaking",
+          "listening",
+          "processing"
+        ],
+        "note": "待唤醒 → 播我在 → 聆听 → 处理 → 播报回复的主环"
+      },
+      {
+        "id": "interrupt-view",
+        "label": "打断与盲区",
+        "focus": [
+          "speaking",
+          "processing",
+          "s33-blind"
+        ],
+        "note": "KWS 打断链与聆听期盲区"
+      }
+    ]
+  },
+  "lanes": [
+    {
+      "id": "main",
+      "label": "对话轮状态机"
+    },
+    {
+      "id": "interrupt",
+      "label": "打断通路"
+    },
+    {
+      "id": "defect",
+      "label": "已知缺陷"
+    }
+  ],
+  "states": [
+    {
+      "id": "idle",
+      "type": "start",
+      "label": "IDLE",
+      "sublabel": "待唤醒",
+      "lane": "main",
+      "col": 0,
+      "step": "01",
+      "tag": "KWS 常开"
+    },
+    {
+      "id": "speaking",
+      "type": "active",
+      "label": "SPEAKING",
+      "sublabel": "播「我在」",
+      "lane": "main",
+      "col": 1,
+      "step": "02",
+      "tag": "0.54s"
+    },
+    {
+      "id": "listening",
+      "type": "waiting",
+      "label": "LISTENING",
+      "sublabel": "聆听指令",
+      "lane": "main",
+      "col": 2,
+      "step": "03",
+      "tag": "VAD"
+    },
+    {
+      "id": "processing",
+      "type": "active",
+      "label": "PROCESSING",
+      "sublabel": "ASR+LLM",
+      "lane": "main",
+      "col": 3,
+      "step": "04",
+      "tag": "生成中"
+    },
+    {
+      "id": "s33-blind",
+      "type": "failure",
+      "label": "聆听盲区",
+      "sublabel": "再喊必漏",
+      "lane": "interrupt",
+      "col": 0,
+      "tag": "S33 待修"
+    }
+  ],
+  "transitions": [
+    {
+      "id": "wake-hit",
+      "from": "idle",
+      "to": "speaking",
+      "label": "KWS 命中小朵小朵",
+      "labelDy": 58,
+      "note": "thr≥0.3 · RMS≥gate"
+    },
+    {
+      "id": "ack-done",
+      "from": "speaking",
+      "to": "listening",
+      "label": "「我在」播完→聆听",
+      "labelDy": 58
+    },
+    {
+      "id": "barge-voice",
+      "from": "speaking",
+      "to": "listening",
+      "label": "播报中喊=打断",
+      "labelDy": 95,
+      "variant": "emphasis",
+      "labelDx": -40
+    },
+    {
+      "id": "vad-stop",
+      "from": "listening",
+      "to": "processing",
+      "label": "VAD 判停 静音400ms",
+      "labelDy": 58,
+      "note": "电平≥0.0875"
+    },
+    {
+      "id": "reply-tts",
+      "from": "processing",
+      "to": "speaking",
+      "label": "回复就绪→TTS 播报",
+      "route": "top-channel",
+      "variant": "emphasis"
+    },
+    {
+      "id": "blind-entry",
+      "from": "listening",
+      "to": "s33-blind",
+      "label": "再喊必漏(S33)",
+      "route": "drop",
+      "variant": "security",
+      "labelDy": 30
+    }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "唤醒：gate+阈值（gate 管 IDLE/SPEAKING/PROCESSING 三态）",
+      "items": [
+        "kws_energy_gate=0.015（09-11 由校准顶格 0.05 回调，救弱起音节）",
+        "keywords_threshold=0.3，影子 0.15 零误触；校准=clamp(p95×2.5, 0.003, 0.05)"
+      ]
+    },
+    {
+      "dot": "cyan",
+      "title": "聆听：vad_speech_level 只管 LISTENING 判停",
+      "items": [
+        "0.0875=clamp(p95×1.6, 0.05, 0.15)，说话电平达不到即判静音",
+        "静音 400ms 判停；30s 超时；空 ASR 续听≤2 次回 IDLE"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "打断与回声",
+      "items": [
+        "播报/处理中喊小朵小朵=打断接续；双击/菜单走 cancelCurrentTurn 统一门控",
+        "NLMS 回声消除默认开；播报音量 45% 防 ADC 削波（板子 54.9% 待回调）"
+      ]
+    }
+  ]
+}
