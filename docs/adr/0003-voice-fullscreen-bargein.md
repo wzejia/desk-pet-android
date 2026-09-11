@@ -38,3 +38,8 @@
   唤醒「我在」预录音频 + `VoiceSessionManager` 插入确认步骤；键盘打断（cancel+停输出）。
 - **待办**：AEC spike（`/prototype` 真机验 speaking 时 KWS+AEC），决定唤醒词打断去留。
 - 全屏与悬浮窗模式**互斥**（进全屏隐悬浮窗），KWS **共享**不重复。
+
+> **注记（2026-09-11）**：本文「listening 对齐半双工 speaking 丢麦块」的决策背景已被后续
+> 演进取代：S12 起 speaking/processing 恒进 KWS（唤醒词打断转正）；S33 起 listening 主投
+> VAD+旁路 KWS（聆听期重唤醒）。麦块路由现口径见 `voice/VoiceStateRouter.kt` 与
+> 对账表 2026-09-11 勘误；本文其余决策（预录「我在」、不赌 AEC 的防线设计）仍然有效。

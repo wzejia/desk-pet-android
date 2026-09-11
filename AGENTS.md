@@ -45,8 +45,18 @@ M1（悬浮桌宠本体）与「助手化」大切片（S0-S8）均已收口；�
 
 ## 基线（不可退）
 
-- 单测基线 **514 个**，skipped=0；新增只增不减；验证 `./gradlew.bat testDebugUnitTest --rerun-tasks`
+- 单测基线 **547 个**，skipped=0；新增只增不减；验证 `./gradlew.bat testDebugUnitTest --rerun-tasks`
 - `assembleDebug` 绿；spritesheet.webp MD5 `53c81ce652518f7fc7bf70554f363f54`；pet_states.json SHA256 `60b45124…4366`（S13 起 Android 行为有意偏离桌面镜像，见 implementation-notes 2026-08-24）
+
+## 当前状态（2026-09-11）
+
+- **语音链路调参 + S33/S34**：14.18 板 gate 0.05（校准顶格吞字）→回调 0.015 + 用户自切
+  UNPROCESSED 采麦源（双变量生效，hits 39/41h→98/4.3h）；**S33 聆听盲区修复**收口
+  （LISTENING 旁路喂 KWS + startListening 重唤醒开口，547 绿装机，用户确认成功）；
+  **S34 影子全时段喂流⭕回退转 BLOCKED**（rk3568 双引擎吞吐上限 ≈10 块/s 实测，
+  CPU 202% 主引擎撕裂 56%，重开条件见 BLOCKED）；18.47 板语音全断=ROM 缺陷
+  （USB audio HAL fd 泄漏+板载 input 未登记 policy），转待供应商（v23 证据链）。
+  语音状态机图 docs/diagrams/voice-lifecycle.html。
 
 ## 当前状态（2026-08-31）
 

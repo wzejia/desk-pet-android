@@ -49,6 +49,7 @@
 | 用法 | accept_waveform → is_ready/decode/get_result → 命中 reset | 同 | ✅ |
 
 > **Corrigendum（2026-08-19）**：keywords_threshold 修订 **0.5 → 0.3**（2026-08-10 真机验证值，IDLE 态 10/10；08-18 仓库事故曾因无测试锚静默回退 0.5 致漏检回归）。锚：`voice/KwsDefaults.kt` + `KwsDefaultsTest`。本表为 07-28 历史快照，其余行不动。
+> **Corrigendum（2026-09-11）**：①麦块路由 Android 侧两轮演进（桌面快照仍为旧口径）：S12 起 speaking/processing **恒进 KWS**（唤醒词打断）；S33 起 listening **主投 VAD+旁路 KWS**（聆听期重唤醒，修复盲区必漏）。②gate 0.015 语义不变，但 14.18 板校准曾顶格 0.05（p95×2.5 钼 MAX）吞弱音节致漏检，已回调默认；公式与钼位见 `EnergyGate`。③新增影子观测通道（S22：0.15，仅播报/处理期）；S34 全时段喂流实测 rk3568 双引擎吞吐红线（CPU 202%/主引擎撕裂 56%）已回退转 BLOCKED。
 
 ### 状态机与半双工（sidecar.py，§3.5）
 

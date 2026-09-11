@@ -245,20 +245,30 @@
 
 ### 接手指引（下会话开场必读）
 
-1. **大盘**：S0-S17 收口 + S18-S20 部分收口。基线 **514 单测全绿 skipped=0**（`./gradlew.bat testDebugUnitTest --rerun-tasks` 复跑）。
-2. **剩余事项**：
-   - **观察票：AEC 偶发失效态**（S12 遗留，见上）——用户报「喊打断没反应」时，拉该时段
-     `kws stats` 看 fed/gated 形态（回声持续过门=AEC 失效窗）；频发再评估 S12-2 状态感知门控。
-   - 观察票：全屏连喊唤醒视觉塌缩边缘（S12 critic F2，
-     进 LISTENING 自愈）；P3 resolver source 日志标签歧义；P3 VSM else 分支缺直接测试覆盖；
+> 【2026-09-11 更新】本段为活指引；最新逐日状态见本文件顶部 S32/S33/S34 段与 DEV_LOG。
+
+1. **大盘**：S0-S31 收口；09-11 新增：S32（18.47 ROM 缺陷诊断，待供应商）/
+   S33（聆听盲区修复 ✅ 用户确认）/ S34（影子全时段⭕硬件红线转 BLOCKED）。
+   基线 **547 单测全绿 skipped=0**（`./gradlew.bat testDebugUnitTest --rerun-tasks` 复跑）。
+2. **语音优化进行时**（当前主线）：①14.18 gate=0.015+UNPROCESSED 双变量生效，
+   hits 39/41h→98/4.3h，待用户补「没反应次数」对账；②**tts_volume 回 45%** 待操作；
+   ③打断率量化（播报中喊 10 次数命中，grep `keyword hit|barge-in`）；④主阈值 0.3→0.2
+   候选（S22 影子 0.15 零误触背书，改 KwsDefaults 需同步测试锚）。
+3. **待办/观察**：
+   - **S32 票**：采麦零馈入自检告警（纯逻辑可 TDD）；
+   - **18.47 ROM 缺陷**待设备供应商（证据 docs/verification/v23-s32-mic-zero-feed/）；
+   - **观察票：AEC 偶发失效态**（S12 遗留）——拉 `kws stats` 看 fed/gated 形态；
+   - 观察票：全屏连喊唤醒视觉塌缩边缘（S12 critic F2，进 LISTENING 自愈）；
+     P3 resolver source 日志标签歧义；P3 VSM else 分支缺直接测试覆盖；
      wozai volc/openai 资产待 key（tools/wozai/README.md）；横屏全屏布局未优化（S14 遗留 edge）。
-   - 观察票（S15 code-review 立案）：cancel 与 wozaiJob transition 微秒竞态窗内，驻留 swap job
-     可给已取消轮补挂「在听…」幽灵提示泡（守卫只看 epoch+state，cancel 不 bump epoch）；
-     30s 聆听超时自愈，识别特征=「state -> LISTENING 后无 VAD 事件」。复现再修，不盲修。
+   - 观察票（S15 立案）：cancel 与 wozaiJob transition 微秒竞态窗内幽灵「在听…」泡
+     （30s 聆听超时自愈）。复现再修，不盲修。
    - S10-1/S10-2 critic 补审欠账（配额恢复后补派）。
-3. **新增排障资产**：AudioProbe 延迟探针（设置页 debug ③ 按钮，用法见 v17 README §7）；
-  机构解法三篇（docs/solutions/：门控碎裂时间轴 / 无锚代码静默丢失 / spike 空证据佐证法）。
-4. 先读：本文件 S12/S11 段 → DEV_LOG.md 2026-08-21/20 → v17 证据 README。
+4. **新增排障资产**：AudioProbe 延迟探针（设置页 debug ③，v17 README §7）；
+   docs/solutions/（门控碎裂时间轴 / 无锚代码静默丢失 / spike 空证据佐证法 /
+   hardware-environment/ rk3568s USB HAL fd 泄漏 + 采麦零馈入五步切分）；
+   语音状态机图 docs/diagrams/voice-lifecycle.html（四态+参数+盲区一图）。
+5. 先读：本文件顶部 S32/S33/S34 段 → DEV_LOG.md 09-11 → v23 证据 README。
 5. **事故销案（2026-08-24）**：08-18 仓库清空事故与 08-24 C:\Users 隐藏事件两案同凶——
   **cliguard**（美团内部 CLI 风控组件，portal-portm.meituan.com）误伤：把 `E:\desk-pet-android`
   误判为 Claude 工作产物清理，把 `C:\Users`/`Administrator`/`.claude.json` 隐藏。证据闭环
