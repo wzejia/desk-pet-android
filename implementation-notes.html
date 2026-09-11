@@ -1294,5 +1294,16 @@ S32（零馈入自检告警）何时做。诊断期间意外收获：11:50:33 UN
 <p><b>发现</b>：18:39 重装后发现 14.18 SP <code>mic_source_mode=2</code>（用户在设置页自切 UNPROCESSED，14:06 读时无此键）——gate 0.015 与采麦源两变量 14:18 起同时生效，原定单变量 A/B 归因失效。<b>旁证数据</b>：gate=0.015 时代 4.3h hits=98（对比 gate=0.05 的 41h hits=39），命中量大增且用户未报乱应答；capture start source=9 ✓ 采麦健康（fed 全速 gated 2%）。<b>待确认</b>：①98 次中有无乱应答/误触发（成分待用户回忆）；②低门+UNPROCESSED 组合的漏检率需新一轮受控喊话（顺带完成 S18 UNPROCESSED 板子终验）。另：18:39 一条 FATAL 为密集架主应用 com.yinduo.compactShelf 自身 NPE，与小朵无关。</p>
 </div>
 
+<div class="entry finding">
+<span class="tag">权衡取舍</span><span class="meta">2026-09-11 ｜ S34 全时段影子喂流：装机 3 分钟实锤性能红线，即时回退</span>
+<p><b>假设被证伪</b>：「影子是观测通道，喂流零风险」——14.18 实测双引擎全时段解码 App CPU
+202%（双核满载），主+影子解码总吞吐上限 ≈10 块/s（恰为单引擎满速），主引擎被挤到 decoded
+4.4/s、KwsCore 队列（64 块封顶丢最旧）恒满=<b>时间轴撕裂 56%，唤醒必漏</b>。18:57 回退，
+复验 decoded/fed=1090/1092 恢复实时。<b>教训</b>：①「观测通道不打断功能」≠「观测通道无代
+价」——共享 CPU 的旁路必须过负载实测才能算零风险；②Embedded 板双引擎吞吐上限要装机实测，
+代码评审看不出；③S34 的实测数据（上限 10 块/s）本身是高价值 learning，已存 BLOCKED 供换硬
+件/模型时复用。</p>
+</div>
+
 </body>
 </html>

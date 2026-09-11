@@ -158,7 +158,11 @@ class VoiceForegroundService : Service() {
                 val session = VoiceClientFactory.session(this)
                 session.kwsSink = { block ->
                     e.feed(block)
-                    // 影子只喂播放/处理期（打断窗）：IDLE 期主引擎 0.3 已 10/10，无需观测
+                    // 影子仅播报/处理期喂流（S22 口径）。S34 曾改全时段喂流，18:52-18:55
+                    // 14.18 实测双引擎把 rk3568 打满（App CPU 202%），主+影子解码吞吐上限
+                    // ≈10 块/s（单引擎时代恰满速），主引擎被挤到 decoded 4.4/s：队列（64 块
+                    // 封顶丢最旧）恒满=时间轴撕裂 56%，唤醒必漏——即时回退。近漏检观测判
+                    // BLOCKED（需更小模型/更强硬件/离线批量），数据存证见 notes+BLOCKED。
                     val st = session.stateFlow.value
                     if (st == VoiceStateRouter.State.SPEAKING || st == VoiceStateRouter.State.PROCESSING) {
                         shadow?.feed(block)
