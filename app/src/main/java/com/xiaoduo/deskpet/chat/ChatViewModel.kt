@@ -152,6 +152,12 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
      * fail-silent 吞回复（只留孤儿 user），也防文字轮与语音轮双写者逐 delta 竞写。
      */
     private fun attachVoiceTranscript() {
+        // S37（用户拍板 2026-09-11）：语音轮平台 thread 跟随当前会话——修复「本地一个会话、
+        // 平台两个 thread 上下文互不可见」。provider 读当前会话 id（含切会话后新语音轮
+        // 归新 thread）；null（无会话极端态）回退 default，由 VSM 侧兑底。
+        VoiceClientFactory.session(getApplication()).threadKeyProvider = {
+            _currentSession.value?.id
+        }
         VoiceClientFactory.session(getApplication()).transcriptSink =
             object : VoiceSessionManager.TranscriptSink {
                 @Volatile

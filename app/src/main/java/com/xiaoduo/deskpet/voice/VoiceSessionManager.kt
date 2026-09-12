@@ -95,9 +95,15 @@ class VoiceSessionManager(
 
     private fun voiceChat(stripped: String, onDelta: (String) -> Unit): AguiClient.ChatResult {
         turnSawToolCall.set(false) // S20：每轮归零
+        // S37（用户拍板 2026-09-11）：语音轮平台 thread 跟随当前文字会话——
+        // 「语音轮与文字轮是同一会话的不同输入方式」的平台侧兑现。null/空白回退
+        // default（纯悬浮窗无会话兕底，行为同旧版）。
+        val threadKey = threadKeyProvider?.invoke()?.takeIf { it.isNotBlank() }
+            ?: AguiClient.DEFAULT_THREAD_KEY
         val ctx = appContext ?: return aguiFactory().chat(
             stripped,
             onDelta = onDelta,
+            threadKey = threadKey,
             onToolCallEvent = {
                 turnSawToolCall.set(true)
                 logger("MCP tool call seen (TOOL_CALL_START)")
@@ -106,6 +112,7 @@ class VoiceSessionManager(
         if (!NetConfig.llmIsCloud(ctx)) return aguiFactory().chat(
             stripped,
             onDelta = onDelta,
+            threadKey = threadKey,
             onToolCallEvent = {
                 turnSawToolCall.set(true)
                 logger("MCP tool call seen (TOOL_CALL_START)")
@@ -289,6 +296,15 @@ class VoiceSessionManager(
     /** P1 会话历史出口（挂点同 [kwsSink]/[statusListener] 模式；null = 不记录，行为与接入前一致）。 */
     @Volatile
     var transcriptSink: TranscriptSink? = null
+
+    /**
+     * S37（用户拍板 2026-09-11）：语音轮平台 thread 路由 key 来源——返回当前活跃会话 id，
+     * 文字/语音同 thread 上下文互通（完整语义见 [voiceChat] 注）。null/返回空白 = 回退
+     * [AguiClient.DEFAULT_THREAD_KEY]（纯悬浮窗无会话兕底）。挂点同 transcriptSink
+     * （ChatViewModel attach 时一并挂）。
+     */
+    @Volatile
+    var threadKeyProvider: (() -> String?)? = null
 
     private val vad = VadDetector(speechLevelProvider = vadSpeechLevel)
     private var collectJob: Job? = null

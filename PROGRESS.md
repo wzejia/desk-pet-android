@@ -1,5 +1,16 @@
 # 小朵 Android M1 进度
 
+## 状态：S37 语音轮 thread 跟随当前会话 ✅ 收口（2026-09-11，551 绿，板子装机）
+
+- **用户报障定位**：App 一个会话聊天但平台分两个会话缺上下文——非 bug，是 P1 拍板
+  「语音轮与文字轮同一会话的不同输入方式」只做了本地统一，平台侧语音恒 default
+  thread、文字走 session.id（SP 实况：default + 9×session thread）。
+- **修复**（本次拍板：语音跟随当前会话）：VSM 加 threadKeyProvider（null/空白回退
+  default 兜底纯悬浮窗），ChatViewModel attach 挂当前 session.id。TDD 3 测
+  （MockWebServer 断言 stream body threadId），548→**551** 绿；装机 14.18 ✓。
+- **代价（notes 存证）**：旧 default thread 语音历史不迁移（无 merge API），语音上下文
+  从当前会话重新积累；删会话=连语音记忆一起删。板子现场跨通道上下文实测待用户。
+
 ## 状态：S35 唤醒撕裂修复 ✅ 收口 + S36 削波验证/阈值观察 立票（2026-09-11，548 绿，板子装机）
 
 - **取证驱动闭环**：全天日志取证实锤四问题共根因——「对话期 kws-decode（MIN_PRIORITY）被饿
@@ -267,7 +278,8 @@
 1. **大盘**：S0-S33 收口；09-11 新增：S32（18.47 ROM 缺陷诊断，待供应商）/
    S33（聆听盲区修复 ✅ 用户确认）/ S34（影子全时段⭕硬件红线转 BLOCKED）/
    **S35（唤醒撕裂修复 ✅ 装机双验收）**/ S36（削波验证+阈值观察 ⬜ 立票）。
-   基线 **548 单测全绿 skipped=0**（`./gradlew.bat testDebugUnitTest --rerun-tasks` 复跑）。
+   基线 **551 单测全绿 skipped=0**（`./gradlew.bat testDebugUnitTest --rerun-tasks` 复跑）；
+   S37 语音 thread 跟随会话已装机——待用户实测「文字问→语音追问」上下文互通。
 2. **语音优化进行时**（当前主线）：①S35 撕裂修复已装机——优先观察真实使用中
    唤醒/打断漏检是否显著下降（diff 是实时指标：`grep "kws stats"` 看 fed-decoded，
    应恒 ≈0-64）；②tts_volume 用户已自调回 0.4563 ✓（交接文档待办销案）；
