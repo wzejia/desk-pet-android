@@ -62,14 +62,17 @@
 ### 语音链路（R6-R8，参数逐项照对账表，禁止凭记忆写）
 
 - 采麦：单条 AudioRecord 流（VOICE_COMMUNICATION 优先，硬件 AEC），协程 channel 分发；音频回调只推队列
-- VAD：level≥0.05 / 判起 3 块 / 判停 4 块【2026-08-29 提速，原 8】/ pre-roll deque 容量=6 / timeout=30s 显式传
+- VAD：level≥0.05 / 判起 3 块 / 判停 6 块=600ms【演进：8→4（08-29 提速）→6（09-11 S38 拍板，400ms 截断句中停顿频发）】/ pre-roll deque 容量=6 / timeout=30s 显式传
 - ASR：直连 10.0.18.97:9802，language 显式 "zh"，VAD 截尾防静音幻觉
 - 分句：切点 `。！？!?;` + `\n`，MIN=4 / MAX=30，逐字符喂入；text 数组每元素一句送 TTS
 - TTS：直连 9803（勿经 166 转发），多帧 WAV 剥头拼 PCM，先缓冲全帧再播；合成前白名单消毒
 - 半双工：四态分发（idle→KWS 受 pause flag 门 / listening→VAD 主投+KWS 旁路【S33 重唤醒】/
   speaking·processing→KWS 恒进【S12 唤醒打断】）+ KWS pause flag
 - KWS：sherpa-onnx-1.13.4.aar（app/libs，abiFilters arm64-v8a），模型 5 文件 assets newFromAsset；
-  keywordsThreshold=0.3 **【2026-08-19 修订】**（08-10 真机验证值 IDLE 态 10/10，原 0.5 弃用；锚 `voice/KwsDefaults.kt`）；RMS 门控默认 0.015 **可配置 + 校准入口（硬验收）**
+  keywordsThreshold=0.3 **【2026-08-19 修订】**（08-10 真机验证值 IDLE 态 10/10，原 0.5 弃用；锚 `voice/KwsDefaults.kt`；板子未独立标定，S36 观察口径：影中主不中≥5 次才降 0.2，09-12 对账 0 次）；RMS 门控默认 0.015 **可配置 + 校准入口（硬验收）**；解码线程优先级主引擎 6/影子 MIN（**S35**：MIN 被 CPU 争抢饿死→队列丢块时间轴撕裂→唤醒必漏，diff 水位实测修复前 1757→修复后 ≤4）
+- 语音 thread 路由（**S37**）：语音轮 threadKey=当前活跃会话 id（VSM.threadKeyProvider，
+  ChatViewModel 挂载；null/空白回退 default）——文字/语音同平台 thread 上下文互通，
+  完整兑现「语音轮与文字轮是同一会话的不同输入方式」拍板语义
 - reveal：`len(pcm)/2/24000` 句级均分逐字；播放阻塞写天然背压；失败降级 4.5 字/秒
   **【2026-08-05 撤销】S8-5 改流式直出**（delta 回调直接气泡上屏，不等音频），reveal 退役仅留类备查
 
@@ -86,9 +89,13 @@
 - 交互层：宠物尺寸、可触、alpha 1.0，**渲染 PetView + 承载手势集 KD15**
   （2026-07-30 职责翻转：原设计 PetView 在显示层，因 Android 12+ 强制 NOT_TOUCHABLE 窗
   alpha≤0.8 致宠物半透明而翻转，见 implementation-notes 决策条）
-- 显示层：气泡专用容器，`NOT_TOUCHABLE`（系统压至 0.8 alpha 对半透气泡无感）；
+- 显示层：气泡专用容器，`NOT_TOUCHABLE` **【S39 改为动态切换】**（show/append 时移除
+  该 flag=可触摸可滑动查看内容，hide 时还原=触摸穿透防 GONE 后窗口矩形常驻拦截；
+  可触摸期免 0.8 alpha 惩罚，视觉提升；代价：气泡可见期其区域点击不透传）；
   气泡 attach 精灵正上方（§4.2：max-height 74px / 圆角 10px /
   rgba(255,255,255,0.92) / 11px×font-scale / 打字机 40ms/字）+ X 向 clamp 到屏内
+  **【S7-c 后实值：max-height 100dp / 13sp / 白底不透明】**；S39 滚动跟随仲裁
+  BubbleScrollPolicy（拖动挂起打字机拽底/松手贴底恢复）
 - 位置持久化（clamp 纯函数可单测）+ 总开关持久化 + 杀进程恢复（吸收 U2）
 
 ## 边界条件

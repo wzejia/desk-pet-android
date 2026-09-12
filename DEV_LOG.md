@@ -1,3 +1,22 @@
+## 2026-09-11 深夜续~09-12（S37/S38/S39 三连收口 + 识别率报告 + 文档同步）
+
+- **S37 语音 thread 跟随会话**：用户报「App 一个会话平台两个会话缺上下文」——非 bug，
+  是 P1 拍板只做了本地统一，平台侧语音恒 default/文字走 session.id。修复：VSM
+  threadKeyProvider（null/空白回退兜底）+ ChatViewModel 挂当前 session.id。
+  3 测（MockWebServer 断言 stream body threadId）。坑：测试漏算 login 请求位
+  （token 缓存空必 login，请求序 asr→login→stream）。
+- **S38 静音判停 600ms**：silence_end_ticks 4→6（400ms 截断句中停顿频发，用户拍板）。
+  VadDetectorTest 5 锚同步先红后绿；对账表补注 4 演进史 8→4→6。
+- **S39 悬浮气泡滑动**：窗口 NOT_TOUCHABLE 动态切换（show 开/hide 还原，防 GONE 后
+  矩形常驻拦截）+ BubbleScrollPolicy 拖动仲裁 5 测 + ScrollingMovementMethod 接线。
+  用户长文本真机验收过。代价：气泡可见期区域点击不透传；免 0.8 alpha 惩罚。
+- **识别率报告（09-12）**：主命中 101 派发 100%、影子 12 次逐条对账疑似真漏检 0
+  （1 例=影子 23s 积压迟到回声，对应音频主引擎早已命中）、S35 后 diff ≤4（修复前
+  1757）。阈值 0.3 不动（S36 口径 0/5）。aliyun ASR Access denied 未再现。
+- **文档同步**：spec 三处漂移（VAD 判停 6 块/气泡动态触摸/语音 thread 语义+KWS 线程
+  优先级）、AGENTS 当前状态、CONCEPTS +2 词条（时间轴撕裂水位计/影子回声对账口径）、
+  solutions +1（撕裂取证法）。
+
 ## 2026-09-11 深夜（S35 唤醒撕裂修复：全天取证→根因闭环→装机双验收 + 两个假设被证伪）
 
 - **取证**：拉取 14.18 全天文件日志（8029 行，快照 .scratch/forensics-20260911/，
