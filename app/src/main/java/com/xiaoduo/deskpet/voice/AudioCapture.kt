@@ -10,8 +10,10 @@ import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
@@ -38,10 +40,14 @@ class AudioCapture(
     private val sourceMode: Int = 0,
 ) {
 
-    /** 100ms PCM 块广播流（缓冲 64 块 ≈ 6.4s，满则丢最旧——与 VAD pre-roll deque 同策，保最新音频）。 */
-    val blocks: SharedFlow<ByteArray> get() = _blocks
+    /** 100ms 采麦块 + 采集时刻（S40：producer 侧盖戳，消费停顿后仍可判块时代）。缓冲
+     *  64 块 ≈ 6.4s，满则丢最旧——与 VAD pre-roll deque 同策（保最新音频）。 */
+    val stampedBlocks: SharedFlow<StampedBlock> get() = _stamped
 
-    private val _blocks = newBlocksFlow()
+    /** 旧消费者口径（纯 PCM 字节块）：UI 声波/校准 RMS 订阅零改动。 */
+    val blocks: Flow<ByteArray> get() = _stamped.map { it.pcm }
+
+    private val _stamped = newBlocksFlow()
 
     @Volatile
     var isRunning = false
@@ -144,7 +150,8 @@ class AudioCapture(
                 read = { buf, off, len -> r.read(buf, off, len) },
                 emit = { block ->
                     probeBlock(r, block) // 未 arm 时仅一次 volatile 读，零行为变化
-                    _blocks.tryEmit(block)
+                    // S40：producer 侧盖戳（nanoTime 单调域，与 VSM 接缝水位同域）
+                    _stamped.tryEmit(StampedBlock(block, System.nanoTime()))
                 },
             )
         } finally {
@@ -212,7 +219,7 @@ class AudioCapture(
          * 消费侧 stall 恢复后立即接上「现在」，判停静音尾与 KWS 新音频不被 6.4s 陈块拖延。
          * 注意：DROP_OLDEST 下 tryEmit 恒 true，发射侧无法感知丢弃（无计数器，勿凭记忆补回）。
          */
-        internal fun newBlocksFlow(): MutableSharedFlow<ByteArray> =
+        internal fun newBlocksFlow(): MutableSharedFlow<StampedBlock> =
             MutableSharedFlow(
                 extraBufferCapacity = BLOCKS_BUFFER_CAPACITY,
                 onBufferOverflow = BufferOverflow.DROP_OLDEST,

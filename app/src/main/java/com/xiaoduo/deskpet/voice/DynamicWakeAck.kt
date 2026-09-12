@@ -24,6 +24,15 @@ class DynamicWakeAck(
     @Volatile
     private var player: VoicePlayer? = null
 
+    /** S40：「我在」播放参考监听（VSM init 注册，指向 NLMS pushReferencePcm）——
+     *  播放期参考同步入消除器，使盲区回灌块过 NLMS 能抑制应答残余回声。 */
+    @Volatile
+    private var referenceListener: ((pcm: ByteArray, sampleRate: Int) -> Unit)? = null
+
+    override fun attachReferenceListener(listener: ((pcm: ByteArray, sampleRate: Int) -> Unit)?) {
+        referenceListener = listener
+    }
+
     override fun playBlocking(isCancelled: () -> Boolean) {
         // S9-3 回归守卫：入口早退——cancel 先于开播到达时不得再 resolve/出声
         //（删此 → 取消后仍出声/仍做磁盘读 → barge-in 立停语义破 → 真机 Case E 挂）
@@ -31,6 +40,7 @@ class DynamicWakeAck(
         val pcm = resolve() ?: throw IOException("no wake-ack source")
         val p = VoicePlayer()
         p.volume = volumeProvider()
+        p.referenceListener = referenceListener // S40：回声消除参考（播放期同步推 NLMS）
         player = p
         try {
             // 注册后复查（critic P1-①，语义自 AssetWakeAck 迁移）：cancel 先于注册到达时

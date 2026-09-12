@@ -172,6 +172,11 @@ class VoiceSessionManager(
 
         /** 打断在途播放（幂等；未在播 no-op）。 */
         fun stop()
+
+        /** S40：注册播放参考监听（「我在」播放 PCM 推 NLMS 作消回声参考——回灌盲区块
+         *  过 NLMS 抑制应答残余回声；UNPROCESSED 源无硬件 AEC，参考钩子是回灌可用性
+         *  的前提）。默认空实现：测试桩/降级实现零改动。 */
+        fun attachReferenceListener(listener: ((pcm: ByteArray, sampleRate: Int) -> Unit)?) {}
     }
 
     /**
@@ -285,6 +290,37 @@ class VoiceSessionManager(
      *  无参考（IDLE/聆听）processBlock 原样直通，零行为变更。 */
     private val echoCanceller = NlmsEchoCanceller()
 
+    // S40：「我在」播放 PCM 经 WakeAck 参考钩子推 NLMS 作参考——回灌盲区块过 NLMS
+    // 抑制应答残余回声（UNPROCESSED 源无硬件 AEC，ack 回声 RMS 0.35-0.55 直灌会抬
+    // S19-1 自适应阈值吞话头，09-12 取证「介绍一下你自。」尾截案）。
+    init {
+        wakeAck?.attachReferenceListener { pcm, sampleRate ->
+            echoCanceller.pushReferencePcm(pcm, sampleRate)
+        }
+    }
+
+    // ---------------- S40 唤醒应答期盲区 ----------------
+
+    /** 盲区环形缓冲：暂存唤醒接缝时代（唤醒命中→vad.start）采麦块，接缝后回灌 VAD。 */
+    private val wakeBlindBuffer = WakeBlindWindowBuffer()
+
+    /** 接缝水位策略：逐块判去向（ack 时代→缓冲 / 接缝后首块→回灌 / 平常→直通）。 */
+    private val seamPolicy = VadSeamPolicy()
+
+    /** 回灌挂账：唤醒路径 vad.start 后置位，首个接缝后块触发回灌消费；打断清账。 */
+    @Volatile
+    private var pendingBlindBackfill = false
+
+    /** 接缝水位 = vad.start 瞬间（nanoTime，与采麦盖戳同域）：ack 时代判定基准。 */
+    @Volatile
+    private var vadSeamNs = 0L
+
+    /** 测试缝：盲区缓冲占用（S40 单测断言用）。 */
+    internal val blindBufferSizeForTest: Int get() = wakeBlindBuffer.size
+
+    /** 测试缝：回灌挂账标志（S40 单测断言用）。 */
+    internal val pendingBlindBackfillForTest: Boolean get() = pendingBlindBackfill
+
     // S23 遥测累加器：50 块窗口内进/出 RMS 均值（口径同 vad diag level，可直接对照校准分布）
     private var echoDiagIn = 0.0
     private var echoDiagOut = 0.0
@@ -364,6 +400,7 @@ class VoiceSessionManager(
      */
     private fun playAckThenListen() {
         val epoch = wozaiEpoch.incrementAndGet()
+        wakeBlindBuffer.clear() // S40：新唤醒清陈缓冲，防旧轮音频泄入新轮回灌
         _wakeAckActive.value = true
         PetOverlayService.setPetState(PetFrameTable.WAITING)
         transition(VoiceStateRouter.State.SPEAKING, "wake-ack wozai")
@@ -399,7 +436,10 @@ class VoiceSessionManager(
             // 留痕（critic P3-⑥）：双查是 check-then-act，cancel 与 transition 间有微秒窗——
             // 最坏拦不住一次已落地的 LISTENING 迁移（30s 无语音超时自愈回 IDLE），无状态泄漏
             if (isActive && state == VoiceStateRouter.State.SPEAKING) {
+                // S40：接缝水位先于 vad.start 落笔（此后捕获的块均判接缝后）+ 挂账回灌
+                vadSeamNs = System.nanoTime()
                 vad.start()
+                pendingBlindBackfill = true
                 // S15：置一次性抑制标——transition(LISTENING) 不当即显提示泡，
                 // 「我在」驻留 linger 后由 swap job 顶替（内容替换，无 hide 间隙）
                 suppressListeningHintOnce = true
@@ -421,6 +461,10 @@ class VoiceSessionManager(
      * isActive=false 直接退出）；backToIdle 最后，kwsPaused 只准经它复位。
      */
     fun cancelCurrentTurn() {
+        // S40：被打断轮的盲区缓冲/回灌挂账全清——防旧轮 ack 时代音频回灌进新轮
+        // （重唤醒/打断均经此处，单点收口）
+        pendingBlindBackfill = false
+        wakeBlindBuffer.clear()
         when (state) {
             VoiceStateRouter.State.IDLE -> Unit
             VoiceStateRouter.State.LISTENING -> {
@@ -516,8 +560,11 @@ class VoiceSessionManager(
     /** 测试缝：采麦消费循环是否活着（孤儿空采回归断言用）。 */
     internal val collectLoopActive: Boolean get() = collectJob?.isActive == true
 
-    /** 测试缝：S33 盲区旁路单测直接驱动麦块分发（体例同 onUtterance internal）。 */
-    internal fun routeBlockForTest(block: ByteArray) = routeBlock(block)
+    /** 测试缝：带当前时间戳直接驱动麦块分发（体例同 onUtterance internal）。 */
+    internal fun routeBlockForTest(block: ByteArray) = routeBlock(StampedBlock(block, System.nanoTime()))
+
+    /** 测试缝：捕获时间戳可控版本（S40 接缝/回灌断言用）。 */
+    internal fun routeBlockForTest(stamped: StampedBlock) = routeBlock(stamped)
 
     /** S18 声学诊断：聆听期已消费块数（每 10 块打一行电平轨迹）。 */
     @Volatile
@@ -536,8 +583,8 @@ class VoiceSessionManager(
         capture.stop()
     }
 
-    /** 校准/诊断用：当前采麦流块广播（无论是否在跑都可订阅；未跑则无块）。 */
-    val captureBlocks: kotlinx.coroutines.flow.SharedFlow<ByteArray> get() = capture.blocks
+    /** 校准用：当前采麦流块广播（无论是否在跑都可订阅；未跑则无块）。 */
+    val captureBlocks: kotlinx.coroutines.flow.Flow<ByteArray> get() = capture.blocks
 
     /** 校准用：采麦是否已在跑（KWS 常开期间为 true，校准复用同一条流防双开抢麦）。 */
     val captureRunning: Boolean get() = capture.isRunning
@@ -546,13 +593,17 @@ class VoiceSessionManager(
         if (collectJob?.isActive == true) return
         capture.start(scope)
         collectJob = scope.launch(Dispatchers.Default) {
-            capture.blocks.collect { block -> routeBlock(block) }
+            capture.stampedBlocks.collect { routeBlock(it) }
         }
     }
 
-    private fun routeBlock(block: ByteArray) {
+    private fun routeBlock(stamped: StampedBlock) {
+        val block = stamped.pcm
         when (router.route(state)) {
             VoiceStateRouter.Sink.KWS -> {
+                // S40：唤醒接缝时代（唤醒命中→vad.start）块进盲区缓冲——S12 KWS 实时
+                // 解码不变；存原始块，回灌时统一过 NLMS（ACK 参考已由钩子推入）。
+                if (_wakeAckActive.value) wakeBlindBuffer.add(block)
                 // S23：播放期麦块先过 NLMS 消回声再进 KWS（主+影子双引擎同受益）；
                 // 无参考/开关关=原样直通（processBlock 内部有新鲜度快路径）
                 val out = if (echoCancelProvider()) echoCanceller.processBlock(block) else block
@@ -574,6 +625,22 @@ class VoiceSessionManager(
             }
             VoiceStateRouter.Sink.DROP -> Unit // IDLE+kwsPaused 丢弃（对话期回 IDLE 不即解 KWS）
             VoiceStateRouter.Sink.VAD -> {
+                // S40 唤醒接缝：ack 时代块（捕获早于接缝水位，消费停顿后突发到达）改道
+                // 盲区缓冲不直灌 VAD——09-12 Case B 实锤直灌产出时序撕裂伪 utterance
+                // （533ms 窗口装下 1.2s 音频），且含「我在」回声抬 S19-1 阈值吞话头。
+                // FIFO 保证接缝后首块到达时 ack 时代块已全部到齐，回灌时序完整。
+                // 改道块跳过 S33 旁路与 diag（KWS 已实时解过/非实时音频不入电平轨迹）。
+                when (seamPolicy.onBlock(pendingBlindBackfill, stamped.capturedAtNs, vadSeamNs)) {
+                    VadSeamPolicy.Action.BUFFER -> {
+                        wakeBlindBuffer.add(block)
+                        return
+                    }
+                    VadSeamPolicy.Action.BACKFILL_THEN_LIVE -> {
+                        pendingBlindBackfill = false
+                        backfillBlindWindow()
+                    }
+                    VadSeamPolicy.Action.LIVE -> Unit
+                }
                 // S33 盲区修复：聆听期唤醒词可达——块主投 VAD 判停之外旁路喂 KWS
                 // （此前单投 VAD，再喊唤醒词 100% 必漏）。走 NLMS 消「我在」尾回声
                 // （零参考直通安全，与 KWS 分支同处理）；命中回调 startListening 走
@@ -588,20 +655,47 @@ class VoiceSessionManager(
                     val lvl = EnergyGate.rmsOf(block) * (32768f / 8000f)
                     logger("vad diag level=%.4f".format(lvl))
                 }
-                when (val ev = vad.feed(block)) {
-                    is VadDetector.Event.Utterance -> {
-                        logger("VAD utterance, ${ev.pcm.size} samples, maxLevel=%.4f".format(ev.maxLevel))
-                        onUtterance(ev)
-                    }
-                    is VadDetector.Event.Timeout -> {
-                        // 一值定层（坑 #19）：maxLevel≈0.0001 系统层（权限/麦），0.01-0.05 阈值问题
-                        logger("VAD listen timeout, maxLevel=%.4f".format(ev.maxLevel))
-                        transition(VoiceStateRouter.State.IDLE, "listen timeout")
-                        status("30s 未说话，回 idle（maxLevel=%.4f）".format(ev.maxLevel))
-                        kwsPaused = false
-                    }
-                    null -> Unit
-                }
+                handleVadEvent(vad.feed(block))
+            }
+        }
+    }
+
+    /** VAD 事件统一出口（活块/回灌共用）：utterance 进管线；超时回 IDLE。 */
+    private fun handleVadEvent(ev: VadDetector.Event?) {
+        when (ev) {
+            is VadDetector.Event.Utterance -> {
+                logger("VAD utterance, ${ev.pcm.size} samples, maxLevel=%.4f".format(ev.maxLevel))
+                onUtterance(ev)
+            }
+            is VadDetector.Event.Timeout -> {
+                // 一值定层（坑 #19）：maxLevel≈0.0001 系统层（权限/麦），0.01-0.05 阈值问题
+                logger("VAD listen timeout, maxLevel=%.4f".format(ev.maxLevel))
+                transition(VoiceStateRouter.State.IDLE, "listen timeout")
+                status("30s 未说话，回 idle（maxLevel=%.4f）".format(ev.maxLevel))
+                kwsPaused = false
+            }
+            null -> Unit
+        }
+    }
+
+    /**
+     * S40：回灌盲区缓冲到 VAD（接缝后首个块触发，采集序 FIFO——话头在前）。
+     * 块过 NLMS 消「我在」残余回声（参考由 WakeAck 钩子推入；停顿大时参考过期>400ms
+     * 直通——退化为带回声回灌，时序仍正确，S19-2 空 ASR 续听兑底伪轮）。回灌不喂
+     * kwsSink：KWS 分支已实时解过这些块，双喂恐同声词尾二次命中触发重唤醒环。
+     * 回灌途中 utterance 即刻进管线并中止回灌（VAD 已停机，余块放弃——本块之后
+     * 的活块继续走正常路由）。
+     */
+    private fun backfillBlindWindow() {
+        val blocks = wakeBlindBuffer.drain()
+        if (blocks.isEmpty()) return
+        logger("S40 blind-window backfill: ${blocks.size} blocks")
+        for (b in blocks) {
+            val out = if (echoCancelProvider()) echoCanceller.processBlock(b) else b
+            val ev = vad.feed(out)
+            if (ev != null) {
+                handleVadEvent(ev)
+                if (ev is VadDetector.Event.Utterance || ev is VadDetector.Event.Timeout) return
             }
         }
     }

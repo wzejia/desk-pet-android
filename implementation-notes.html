@@ -1305,6 +1305,28 @@ S32（零馈入自检告警）何时做。诊断期间意外收获：11:50:33 UN
 件/模型时复用。</p>
 </div>
 
+<div class="entry decision">
+<span class="tag">设计决策</span><span class="meta">2026-09-12 ｜ S40 ｜ 唤醒应答期盲区修复：接缝水位+盲区缓冲回灌（用户拍板 A+B）</span>
+<p><b>实现形态</b>：①AudioCapture producer 侧盖戳（StampedBlock/nanoTime 单调域，VSM 与采麦
+同域）；②VadSeamPolicy 纯逻辑三分支：LISTENING 期捕获早于接缝水位（vad.start 瞬间）的
+ack 时代块改道盲区环形缓冲（不再直灌 VAD），首个接缝后块触发回灌——<b>FIFO 保证回灌触发
+时 ack 时代块已全部到齐</b>，时序完整；③回灌经 NLMS 喂 VAD，新增 WakeAck 接口
+attachReferenceListener 钩子（默认空实现，测试桩零改动）推「我在」播放 PCM 作参考。
+<b>关键裁定</b>：a) B 部分机制从「块龄检查丢陈块」精化为「水位判代+改道缓冲」——陈旧块正是
+盲区话头的载体，盲丢会把要找回的音频一起丢掉；丢弃只保留给重复路径（改道块跳过 S33 旁路
+防 KWS 双喂二次命中重唤醒环）；b) 回灌在消费协程内懒触发而非 wozaiJob 直接喂——VadDetector
+非线程安全，单消费者纪律消除跨线程 vad.feed 竞态；c) 回灌大停顿退化安全：参考过期>400ms
+NLMS 直通=带回声回灌，时序仍对，S19-2 空 ASR 续听兑底伪轮；d) 「我在」话头残余可能进 ASR
+文本（无前缀剥除），观察项不阻塞。基线 556→<b>570</b> 绿（+14：缓冲 5/策略 4/VSM 集成 5）。
+装机 14.18 ✓（15:17 新包 KWS 重启 source=9 健康，fed=decoded diff=0）；现场喊话验收（唤醒后
+紧跟说话应检出，日志 S40 backfill 行）待用户。</p>
+</div>
+
+<div class="entry finding">
+<span class="tag">未决问题</span><span class="meta">2026-09-12 ｜ 设备 14.18 ｜ 新诊断：唤醒→「在听」前说话不检测 = 应答期盲区 + 陈旧块突发（待拍板立票）</span>
+<p><b>症状</b>：用户唤醒后紧跟说话常不被检测（6 次 30s 超时 + 句头截断若干）。<b>盲区解剖</b>：唤醒词说完→KWS 命中（~0.2s）→SPEAKING(wozai) 播「我在」（~0.7s）此段麦块按 S12 只投 KWS 不采音；<code>vad.start()</code> 全量清 buffer/preRoll 无回填——总盲区 ~0.9s，用户自然连读「小朵小朵+指令」整句/句头必落盲区。<b>加剧因素（新发现，125 序列中 99 次签名）</b>：AudioCapture.blocks=SharedFlow(64,DROP_OLDEST)，消费协程停顿后把积压的 ack 窗音频成串灌给新 VAD——数学实锤 09:46:39.664 vad.start→40.197 产出 Utterance 含 1.2s 音频但窗口仅 533ms；UNPROCESSED 源无硬件 AEC，陈块里是「我在」外放回声（RMS 0.35-0.55），S19-1 噪声攻击通道将其当抬升噪声抬高阈值 → 紧随的真声被判噪声（09:43:47「介绍一下你自。」尾字截）或用户重喊的唤醒词从陈块误捕空跳回 IDLE（09:46:39 案）。6 次超时同签名：diag 0.35-0.43（ack 回声）→3s 衰至 0.23 AGC 钉死平台→全窗无语音尖峰，maxLevel=0.72-1.0 全来自陈块回声非人声。<b>已排除</b>：S35 饿死复发（今日 diff=0）、阈值 0.3、采麦零馈入。<b>处置</b>：同日用户拍板 A+B 立票 S40 并收口（见同日设计决策条目）。证据 <code>.scratch/x0912.log</code> + <code>.scratch/analyze-wake-blindwindow.py</code>。</p>
+</div>
+
 </body>
 </html>
 <tr><td>2026-09-11</td><td>KwsCore.kt / KwsEngine.kt / VoiceForegroundService.kt</td><td>设计决策+取证驱动修复（票①）</td><td>S35 解码线程优先级提档：主引擎 MIN(1)→6，影子保持 MIN。<b>取证依据</b>：14.18 全天 diff 曲线（空闲≈0，对话期 +940/+283 块撕裂）+ 解码实测 7.5 块/s&lt;喂 10 + IDLE 连喊 2 次不中现行（19:26:11/15 影子 0.15 中、主 0.3 不中）。<b>6 的理由</b>：NORM(5)=S25b 前白屏态；6→ART nice≈-1，介于普通(0)与 UI(-4)之间——保解码吞吐且 Choreographer 不回归。<b>风险与锚</b>：S25b 白屏回归 → 装机后 Choreographer 复测 + diff 恢复双验收。变异锚：KwsCoreTest 删 priority 赋值红。</td></tr>

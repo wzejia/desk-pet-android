@@ -7,7 +7,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.cancel
-import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.withTimeout
 
 /**
@@ -82,7 +82,7 @@ object AmbientCalibrator {
 
     private suspend fun collectRmsFor(
         seconds: Int,
-        blocks: SharedFlow<ByteArray>,
+        blocks: Flow<ByteArray>,
         out: MutableList<Float>,
     ) {
         try {

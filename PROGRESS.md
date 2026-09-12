@@ -1,5 +1,22 @@
 # 小朵 Android M1 进度
 
+## 状态：S40 唤醒应答期盲区修复 ✅ 代码+单测收口（2026-09-12，570 绿，装机 14.18）
+
+- **用户报障「唤醒后在『在听』前说话没检测到」定位收口**：①唤醒→「我在」播完→vad.start
+  构成 ~0.9s 采音盲区（SPEAKING(wozai) 麦块只投 KWS + vad.start 清空无回填）；②消费停顿后
+  ack 时代陈旧块突发直灌 VAD（数学实锤：533ms 窗口产出 1.2s 音频 utterance；UNPROCESSED
+  无硬件 AEC 含「我在」回声 RMS 0.35-0.55 抬 S19-1 阈值吞话头/伪轮）。当日取证：125 唤醒
+  序列 = 6 次 30s 超时 + 99 次陈旧突发签名 + 句头截断（ASR「天天气怎么？」等）。
+- **修复（A+B，用户拍板）**：采麦块 producer 侧盖戳（StampedBlock/nanoTime）→ 接缝水位
+  策略（VadSeamPolicy 纯逻辑）：ack 时代块改道 WakeBlindWindowBuffer（3s 环形，不直灌
+  VAD），接缝后首块触发回灌（FIFO 时序完整）→ 回灌过 NLMS（新增 WakeAck 参考钩子推「我
+  在」参考）喂 VAD——盲区话头找回 + 陈块污染治理，一次闭环。
+- **代价/观察项记 notes**：回灌大停顿退化为带回声回灌（时序仍对，S19-2 兑底）；「我在」
+  话头残余可能进 ASR 文本（无前缀剥除）；改道块跳过 S33 旁路防 KWS 双喂重唤醒环。
+- 基线 556→**570** 绿 skipped=0；装机 14.18 ✓（新包 KWS source=9 健康 diff=0）。
+  **现场喊话验收待用户**：唤醒后紧跟说指令应检出（日志 `S40 blind-window backfill` 行），
+  30s 超时形态应归零。取证脚本 `.scratch/analyze-wake-blindwindow.py`。
+
 ## 状态：S39 悬浮气泡滑动查看 ✅ 收口（2026-09-11，556 绿，用户验收过）
 
 - 气泡窗口 NOT_TOUCHABLE 改动态切换（显示开触摸/hide 还原穿透）+ BubbleScrollPolicy

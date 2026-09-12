@@ -1,3 +1,25 @@
+## 2026-09-12（S40 唤醒应答期盲区修复：取证→诊断→用户拍板→当日收口）
+
+- **诊断（用户报障「唤醒后在『在听』前说话没检测到」）**：拉取 14.18 当日日志 6386 行，
+  自写分析脚本（.scratch/analyze-wake-blindwindow.py）对 125 个唤醒序列逐一定性——
+  ①盲区解剖：KWS 解码尾 ~0.2s +「我在」播放 ~0.7s 内麦块只投 KWS 不采音（S12 设计）+
+  vad.start 清空无回填 = ~0.9s 话头黑洞；②新发现「陈旧块突发」：消费停顿后 ack 时代积压块
+  突发直灌 VAD——数学实锤 Case B（533ms 窗口产出 1.2s 音频 utterance）+ 极端 diag 提前至
+  +0.01~0.05s，99/125 序列命中；③6 次 30s 超时同签名：diag 0.35-0.43（ack 回声，UNPROCESSED
+  无硬件 AEC）→ 3s 衰至 0.23 AGC 钉死平台 → 全窗无语音尖峰，maxLevel 0.72-1.0 全来自
+  陈块回声非人声；④排除 S35 饿死复发（diff=0）/阈值 0.3/采麦零馈入。
+- **修复（S40，A+B 用户拍板）**：StampedBlock producer 侧盖戳（nanoTime）→ VadSeamPolicy
+  接缝水位三分支（ack 时代块改道 WakeBlindWindowBuffer 3s 环形 / 接缝后首块触发回灌 /
+  平常直通）→ 回灌过 NLMS（新增 WakeAck.attachReferenceListener 钩子推「我在」参考）喂
+  VAD。关键裁定记 notes：陈旧块=盲区话头载体不能盲丢（B 从「丢陈块」精化为「水位判代+
+  改道缓冲」）；回灌在消费协程内懒触发（VadDetector 非线程安全，单消费者纪律）。
+- **坑**：①gradle daemon BindException——--stop 清驻留后过；②改 blocks 为 mapped Flow
+  后 AudioCapturePumpTest 直接用 newBlocksFlow 的两处断言需同步 StampedBlock 化；
+  ③S40 集成测试自算 kwsSink 计数漏算 5 个判停活块的 S33 旁路（3+6=9 非 4）——
+  断言错非实现错。
+- **结果**：570 绿 skipped=0（+14）；装机 14.18 ✓（新包 KWS source=9 diff=0）；
+  现场喊话验收待用户（唤醒后紧跟说话应检出，日志 S40 backfill 行）。
+
 ## 2026-09-11 深夜续~09-12（S37/S38/S39 三连收口 + 识别率报告 + 文档同步）
 
 - **S37 语音 thread 跟随会话**：用户报「App 一个会话平台两个会话缺上下文」——非 bug，

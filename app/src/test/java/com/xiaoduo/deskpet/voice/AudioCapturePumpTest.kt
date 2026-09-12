@@ -41,19 +41,19 @@ class AudioCapturePumpTest {
         val release = CompletableDeferred<Unit>()
         val job = launch(Dispatchers.Unconfined) {
             flow.collect { b ->
-                received.add(b[0].toInt() and 0xFF)
+                received.add(b.pcm[0].toInt() and 0xFF)
                 firstReceived.complete(Unit)
                 release.await() // 首块后装死，模拟消费侧 stall
             }
         }
 
-        assertTrue(flow.tryEmit(markerBlock(0)))
+        assertTrue(flow.tryEmit(StampedBlock(markerBlock(0), 0L)))
         firstReceived.await()
         assertEquals(listOf(0), received)
 
         // stall 期间连发 99 块：缓冲 64，DROP_OLDEST 应只留最新 64 块（36..99）
         for (i in 1..99) {
-            assertTrue("DROP_OLDEST 下 tryEmit 不得失败（i=$i）", flow.tryEmit(markerBlock(i)))
+            assertTrue("DROP_OLDEST 下 tryEmit 不得失败（i=$i）", flow.tryEmit(StampedBlock(markerBlock(i), i.toLong())))
         }
         release.complete(Unit)
         awaitUntil { received.size == 65 }
