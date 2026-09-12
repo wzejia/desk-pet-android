@@ -169,8 +169,10 @@ class PetOverlayService : Service() {
             title = INTERACTION_TITLE
         }
 
-        // 显示层：气泡专用容器，NOT_TOUCHABLE（代价：系统强制 0.8 alpha；
-        // 气泡底已提为不透明，0.8 惩罚后仍 0.8 有效不透明，文字对比足够）
+        // 显示层：气泡专用容器。S39：NOT_TOUCHABLE 改为动态切换（show/hide 时开/关，
+        // 见 [setBubbleTouchable]）——常驻可触摸会让气泡 GONE 后窗口矩形仍拦截触摸；
+        // 常驻不可触摸则气泡内容无法手动滑动查看。可触摸期间无 0.8 alpha 系统惩罚
+        // （气泡底本就不透明，有效不透明度 0.8→1.0，视觉提升）。
         displayLp = WindowManager.LayoutParams(
             bubbleWinW, bubbleWinH,
             WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
@@ -515,6 +517,7 @@ class PetOverlayService : Service() {
                         bubbleStrip = session
                         it.visibility = View.VISIBLE
                         it.typeNew(session.feed(text).text)
+                        setBubbleTouchable(true) // S39：可见期开触摸（可滑动查看）
                         PetLogger.d(TAG, "bubble show, ${text.length} chars")
                     }
                 }
@@ -539,6 +542,7 @@ class PetOverlayService : Service() {
                         if (it.visibility != View.VISIBLE) it.visibility = View.VISIBLE
                         val emit = bubbleStrip.feed(delta)
                         if (emit.reset) it.typeNew(emit.text) else it.append(emit.text)
+                        setBubbleTouchable(true) // S39：append 自动弹出路径同样开触摸
                     }
                 }
             }
@@ -581,6 +585,27 @@ class PetOverlayService : Service() {
                 it.visibility = View.GONE
             }
         }
+        setBubbleTouchable(false) // S39：隐藏即还触摸穿透（防常驻窗口矩形拦截）
+    }
+
+    /**
+     * S39：气泡窗口触摸开关（显示=开：用户可上下滑动查看内容；隐藏=关：触摸穿透回
+     * 下层，气泡 GONE 后矩形区域不留隐形拦截块）。无变化 no-op（防重复 updateViewLayout）。
+     * 代价语义：气泡可见期间其矩形区域触摸被消费（拖动=滚动；点击不透传）——
+     * TextView+movementMethod 消费 DOWN 是滚动可用的必要条件，气泡为临时内容
+     * 展示件，区域不可点可接受（用户拍板 2026-09-11）。
+     */
+    private fun setBubbleTouchable(on: Boolean) {
+        val touchable = displayLp.flags and WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE == 0
+        if (on == touchable) return
+        displayLp.flags = if (on) {
+            displayLp.flags and WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE.inv()
+        } else {
+            displayLp.flags or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
+        }
+        runCatching { wm.updateViewLayout(displayBox, displayLp) }
+            .onFailure { PetLogger.e(TAG, "bubble touch mode update failed: ${it.message}") }
+        PetLogger.d(TAG, "bubble touchable=$on")
     }
 
     // ---------------- 精灵状态服务级 API（S4 VoiceSessionManager 接线用） ----------------

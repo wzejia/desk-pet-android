@@ -1,5 +1,12 @@
 # 小朵 Android M1 进度
 
+## 状态：S39 悬浮气泡滑动查看 ✅ 收口（2026-09-11，556 绿，用户验收过）
+
+- 气泡窗口 NOT_TOUCHABLE 改动态切换（显示开触摸/hide 还原穿透）+ BubbleScrollPolicy
+  拖动仲裁（拖动挂起打字机拽底/松手贴底恢复，5 测）+ ScrollingMovementMethod 接线。
+- 代价记 notes：气泡可见期其区域点击不透传；可触摸层免 0.8 alpha 惩罚（视觉提升）。
+  用户长文本真机拖动验收确认 ✓。
+
 ## 状态：S38 静音判停 600ms ✅ 收口（2026-09-11，551 绿，板子装机）
 
 - silence_end_ticks 4→6 块（400→600ms）：用户拍板放宽——400ms 提速的代价（句中停顿
@@ -285,7 +292,7 @@
 1. **大盘**：S0-S33 收口；09-11 新增：S32（18.47 ROM 缺陷诊断，待供应商）/
    S33（聆听盲区修复 ✅ 用户确认）/ S34（影子全时段⭕硬件红线转 BLOCKED）/
    **S35（唤醒撕裂修复 ✅ 装机双验收）**/ S36（削波验证+阈值观察 ⬜ 立票）。
-   基线 **551 单测全绿 skipped=0**（`./gradlew.bat testDebugUnitTest --rerun-tasks` 复跑）；
+   基线 **556 单测全绿 skipped=0**（`./gradlew.bat testDebugUnitTest --rerun-tasks` 复跑）；
    S37 语音 thread 跟随会话已装机——待用户实测「文字问→语音追问」上下文互通。
 2. **语音优化进行时**（当前主线）：①S35 撕裂修复已装机——优先观察真实使用中
    唤醒/打断漏检是否显著下降（diff 是实时指标：`grep "kws stats"` 看 fed-decoded，

@@ -12,6 +12,7 @@ import android.text.method.ScrollingMovementMethod
 import android.text.style.BackgroundColorSpan
 import android.text.style.StyleSpan
 import android.text.style.TypefaceSpan
+import android.view.MotionEvent
 import android.widget.TextView
 
 /**
@@ -28,6 +29,9 @@ import android.widget.TextView
  * - markdown 基础集渲染（S7-c）：BubbleTextStrip 产 StyledText（BOLD/ITALIC/CODE span），
  *   本类转 SpannableString；行内代码背景取固定 0x33FFFFFF（深浅底上均可读，不引主题依赖）
  * - 打字机 40ms/字：showBubble 重置重打，appendBubble 流式续打；切片用 StyledText.prefix
+ * - S39 手动滚动：窗口可触摸后（PetOverlayService 动态切 NOT_TOUCHABLE），用户上滑可看
+ *   历史；触摸期间挂起自动拽底（否则下一 tick 立即拽回拉不动），松手贴底才恢复跟随
+ *   （仲裁在 [BubbleScrollPolicy] 纯逻辑，5 测）；拖动滚动本体由 ScrollingMovementMethod 承担
  * - 偏差备忘：§4.2 的「背景模糊」未做（overlay 窗口级 blurBehind 会糊住整个显示层
  *   背景，非气泡局部；不透明底 + 1dp 描边已达可读性目标）
  */
@@ -37,14 +41,18 @@ class BubbleView(context: Context) : TextView(context) {
     private var target: StyledText = StyledText("")
     private var shown: Int = 0
 
+    /** S39：用户拖动 vs 自动跟随仲裁。 */
+    private val scrollPolicy = BubbleScrollPolicy()
+
     private val typeTick = object : Runnable {
         override fun run() {
             if (shown >= target.text.length) return
             shown++
             text = target.prefix(shown).toSpannable()
             // setText 只 requestLayout，当帧 layout 仍是旧的；post 到下一帧 layout
-            // 刷新后再滚到底（否则末字触发换行时静止态少滚一行，停在不贴底位置）
-            post { scrollToBottom() }
+            // 刷新后再滚到底（否则末字触发换行时静止态少滚一行，停在不贴底位置）。
+            // S39：用户拖动/未贴底时不拽（scrollPolicy 仲裁），用户看完回贴底自动恢复。
+            if (scrollPolicy.shouldAutoFollow()) post { scrollToBottom() }
             handler.postDelayed(this, TYPEWRITER_MS)
         }
     }
@@ -108,6 +116,23 @@ class BubbleView(context: Context) : TextView(context) {
         val l = layout ?: return
         val y = l.getLineTop(l.lineCount) - height
         scrollTo(0, if (y > 0) y else 0)
+    }
+
+    /** S39：视口是否贴底（松手时裁决是否恢复跟随；1px 容差防浮点/取整抖动）。 */
+    private fun isAtBottom(): Boolean {
+        val l = layout ?: return true // 未布局（内容不超屏）视为贴底
+        val maxY = l.getLineTop(l.lineCount) - height
+        return scrollY >= maxY - 1
+    }
+
+    override fun onTouchEvent(event: MotionEvent): Boolean {
+        when (event.actionMasked) {
+            MotionEvent.ACTION_DOWN -> scrollPolicy.onDragStart()
+            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> scrollPolicy.onDragEnd(isAtBottom())
+        }
+        // 拖动滚动本体由 ScrollingMovementMethod 处理（movementMethod 使 View 可点击，
+        // DOWN 被消费 = 气泡区域点击不透传下层——滚动可用的必要代价，语义见窗口 flag 注）
+        return super.onTouchEvent(event)
     }
 
     companion object {
