@@ -37,9 +37,10 @@ class VadDetector(
         const val SPEECH_LEVEL = 0.05          // 归一化音量阈值 = RMS/8000
         const val RMS_REF = 8000.0
         const val SPEECH_START_TICKS = 3       // 连续超阈值判说话开始（300ms）
-        const val SILENCE_END_TICKS = 4        // 连续低于阈值判说话结束（400ms；2026-08-29
-                                              // 用户拍板端点提速，有意偏离桌面端 8 块/800ms--
-                                              // 代价：句中停顿 >400ms 会被截断，见对账表补注 3）
+        const val SILENCE_END_TICKS = 6        // 连续低于阈值判说话结束（600ms；2026-09-11
+                                              // 用户拍板放宽：400ms 截断句中停顿成多句——
+                                              // 半句进 LLM 答非所问；2026-08-29 曾从桌面端
+                                              // 8 块/800ms 提速至 4 块，现 600ms 为折中点）
         const val MIN_UTTERANCE_TICKS = 3      // 更短当噪音丢弃
         const val LISTEN_TIMEOUT_S = 30        // 生效值 30s（sidecar 显式传参；勿用类默认值 8）
         const val MAX_UTTERANCE_S = 8          // 说话超时强制结束（防增益爬升噪声永不结束）
