@@ -62,4 +62,17 @@ class VoiceStateRouterTest {
         assertEquals("", VoiceStateRouter.stripWakePrefix("小朵"))
         assertEquals("现在几点", VoiceStateRouter.stripWakePrefix("小朵小朵小朵现在几点"))
     }
+
+    @Test
+    fun `S40 我在应答回声剥除`() {
+        // 幽灵轮主锚：纯「我在。」剥后剩纯标点 → runPipeline onlyWakeWord 分支回 IDLE
+        // （删 WAKE_PREFIXES「我在」→ 本用例红，幽灵轮复现）
+        assertEquals("。", VoiceStateRouter.stripWakePrefix("我在。"))
+        // 混合形态：话头「我在，」剥除，指令主体保留
+        assertEquals("，查询档案", VoiceStateRouter.stripWakePrefix("我在，查询档案"))
+        // 叠加：唤醒词+回声同句循环剥
+        assertEquals("", VoiceStateRouter.stripWakePrefix("小朵小朵我在"))
+        // 已知代价锁定：指令恰以「我在」开头会被误剥（命令式对话极少见，拍板接受）
+        assertEquals("想", VoiceStateRouter.stripWakePrefix("我在想"))
+    }
 }
