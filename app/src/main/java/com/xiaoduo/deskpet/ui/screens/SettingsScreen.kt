@@ -65,6 +65,7 @@ import com.xiaoduo.deskpet.net.NetConfig
 import com.xiaoduo.deskpet.ui.theme.XiaoduoDimens
 import com.xiaoduo.deskpet.util.PetLogger
 import com.xiaoduo.deskpet.util.AppLauncher
+import com.xiaoduo.deskpet.util.PrefContract
 import com.xiaoduo.deskpet.util.Prefs
 import com.xiaoduo.deskpet.voice.AudioCapture
 import com.xiaoduo.deskpet.voice.EnergyGate
@@ -270,6 +271,27 @@ fun SettingsScreen(onBack: () -> Unit, onOpenPermissions: () -> Unit) {
                     singleLine = true,
                     label = { Text("跳转 APP 包名") },
                     placeholder = { Text(AppLauncher.DEFAULT_TARGET_PACKAGE) },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+            // S41 密集架动画联动：MCP 工具调用时同步触发密集架 App 动画/提示（清空=禁用）
+            var shelfUrl by remember { mutableStateOf(Prefs.shelfBaseUrl(context)) }
+            Column(Modifier.fillMaxWidth()) {
+                Text("密集架动画联动", style = MaterialTheme.typography.bodyLarge)
+                Text(
+                    "语音/文字触发密集架 MCP 工具（开架/闭架/通风/盘点/借阅等）时，同步让密集架 App 播动画与提示；同机部署保持默认，分机改密集架 IP；清空地址可禁用",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                OutlinedTextField(
+                    value = shelfUrl,
+                    onValueChange = {
+                        shelfUrl = it
+                        Prefs.setShelfBaseUrl(context, it)
+                    },
+                    singleLine = true,
+                    label = { Text("密集架同步地址") },
+                    placeholder = { Text(PrefContract.DEFAULT_SHELF_BASE_URL) },
                     modifier = Modifier.fillMaxWidth(),
                 )
             }

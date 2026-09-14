@@ -1327,6 +1327,30 @@ NLMS 直通=带回声回灌，时序仍对，S19-2 空 ASR 续听兑底伪轮；
 <p><b>症状</b>：用户唤醒后紧跟说话常不被检测（6 次 30s 超时 + 句头截断若干）。<b>盲区解剖</b>：唤醒词说完→KWS 命中（~0.2s）→SPEAKING(wozai) 播「我在」（~0.7s）此段麦块按 S12 只投 KWS 不采音；<code>vad.start()</code> 全量清 buffer/preRoll 无回填——总盲区 ~0.9s，用户自然连读「小朵小朵+指令」整句/句头必落盲区。<b>加剧因素（新发现，125 序列中 99 次签名）</b>：AudioCapture.blocks=SharedFlow(64,DROP_OLDEST)，消费协程停顿后把积压的 ack 窗音频成串灌给新 VAD——数学实锤 09:46:39.664 vad.start→40.197 产出 Utterance 含 1.2s 音频但窗口仅 533ms；UNPROCESSED 源无硬件 AEC，陈块里是「我在」外放回声（RMS 0.35-0.55），S19-1 噪声攻击通道将其当抬升噪声抬高阈值 → 紧随的真声被判噪声（09:43:47「介绍一下你自。」尾字截）或用户重喊的唤醒词从陈块误捕空跳回 IDLE（09:46:39 案）。6 次超时同签名：diag 0.35-0.43（ack 回声）→3s 衰至 0.23 AGC 钉死平台→全窗无语音尖峰，maxLevel=0.72-1.0 全来自陈块回声非人声。<b>已排除</b>：S35 饿死复发（今日 diff=0）、阈值 0.3、采麦零馈入。<b>处置</b>：同日用户拍板 A+B 立票 S40 并收口（见同日设计决策条目）。证据 <code>.scratch/x0912.log</code> + <code>.scratch/analyze-wake-blindwindow.py</code>。</p>
 </div>
 
+<div class="entry decision">
+<span class="tag">设计决策</span><span class="meta">2026-09-14 ｜ S41 ｜ 密集架 MCP 动画联动桥（副本丢失按文档重建，用户拍板 Q1-Q10）</span>
+<p><b>链路</b>：平台 MCP 执行 C款密集架 Agent 工具 → SSE TOOL_CALL_START{toolCallName} →
+onToolCallEvent（无参升带名，S20 静音置位无条件先行）→ ShelfMcpBridge.Client 异步 POST
+JSON 到密集架 App <code>Op=mcpUiSync</code>（UI-only，<b>防双控铁律</b>：平台已执行真实硬件，
+本地绝不再发硬件 Op）。<b>关键裁定</b>：a) baseUrl 为 provider 每轮现读而非构造期捕获——设置
+页改地址即时生效（变异锚：改构造期捕获→红）；b) 空串=禁用（显式存 "" 优先于默认值，对齐 S26
+设备地址形态）；c) 文字轮补接（S40 副本缺口，Q8 拍板）——TextChatRouter 平台路透传，云端路
+无 MCP 恒不触发；d) 桥三层防抛（非法 URL/enqueue 异常/onFailure 仅 PetLogger），绝不波及
+语音/文字管线。<b>重建偏差声明</b>：副本 ShelfMcpBridge 源码已失，本实现按执行文档 §4.3/§5.1
+重建，超时取 connect 4s/read 6s（对齐 DeviceClient）为新增细节（文档未载）。</p>
+</div>
+
+<div class="entry finding">
+<span class="tag">权衡取舍</span><span class="meta">2026-09-14 ｜ S41 ｜ 空 run 重试理论重复同步不去重 + critic P3×3 留痕</span>
+<p><b>取舍</b>：AguiClient 空 run 重试场景同一工具名可能重复 POST mcpUiSync——不去重：
+对端为 UI 状态覆写幂等（动画页/Toast 重放无害），工具事件稀疏，去重反而引入状态。
+<b>critic P3 留痕</b>（不阻断，后续票候选）：a) SSE 层「TOOL_CALL_START 无 toolCallName
+字段→回调以 "" 触发→静音置位」无专测锚（S20 遗留缺口，callFor("") 层有锚）；b)
+SettingsScreen 链路自检 .chat("你好") 走默认 no-op 回调（S20 事故同款默认参数形态，
+诊断 ping 语义无需桥）；c) 用户手输尾斜杠会产生 //MjjWebApi 双斜杠（与 S26 既有形态
+同款，仅误输可达）。</p>
+</div>
+
 </body>
 </html>
 <tr><td>2026-09-11</td><td>KwsCore.kt / KwsEngine.kt / VoiceForegroundService.kt</td><td>设计决策+取证驱动修复（票①）</td><td>S35 解码线程优先级提档：主引擎 MIN(1)→6，影子保持 MIN。<b>取证依据</b>：14.18 全天 diff 曲线（空闲≈0，对话期 +940/+283 块撕裂）+ 解码实测 7.5 块/s&lt;喂 10 + IDLE 连喊 2 次不中现行（19:26:11/15 影子 0.15 中、主 0.3 不中）。<b>6 的理由</b>：NORM(5)=S25b 前白屏态；6→ART nice≈-1，介于普通(0)与 UI(-4)之间——保解码吞吐且 Choreographer 不回归。<b>风险与锚</b>：S25b 白屏回归 → 装机后 Choreographer 复测 + diff 恢复双验收。变异锚：KwsCoreTest 删 priority 赋值红。</td></tr>

@@ -234,6 +234,44 @@ class TextChatRouterTest {
         assertEquals(0, platformServer.requestCount)
     }
 
+    /** 4. S41 文字轮补接：平台路 TOOL_CALL_START 工具名透传到 onToolCallEvent
+     *  （密集架动画联动；S40 副本缺口「TextChatRouter 未接 onToolCallEvent」本票拍板补上） */
+    @Test
+    fun platformModeForwardsToolCallName() {
+        platformServer.enqueue(loginOk())
+        platformServer.enqueue(threadOk())
+        platformServer.enqueue(
+            MockResponse().setHeader("Content-Type", "text/event-stream").setBody(
+                listOf(
+                    """{"type":"RUN_STARTED","runId":"r"}""",
+                    """{"type":"TOOL_CALL_START","toolCallId":"t1","toolCallName":"mjj_move"}""",
+                    """{"type":"TEXT_MESSAGE_START","messageId":"m1","role":"assistant"}""",
+                    """{"type":"TEXT_MESSAGE_CONTENT","messageId":"m1","delta":"已打开"}""",
+                    """{"type":"TEXT_MESSAGE_END","messageId":"m1"}""",
+                    """{"type":"RUN_FINISHED","runId":"r"}""",
+                ).joinToString("\n\n") { "data: $it" } + "\n\n",
+            ),
+        )
+        val names = mutableListOf<String>()
+
+        val result = router(llmIsCloud = false).chat(
+            messages = listOf(
+                msg("m1", ChatMessage.Role.USER, "打开1号密集架"),
+                msg("m2", ChatMessage.Role.ASSISTANT, ""),
+            ),
+            userText = "打开1号密集架",
+            wireId = "w-4",
+            threadKey = "s1",
+            threadName = "标题",
+            fileRefs = emptyList(),
+            onDelta = {},
+            onToolCallEvent = { names.add(it) },
+        )
+
+        assertTrue(result is AguiClient.ChatResult.Success)
+        assertEquals(listOf("mjj_move"), names)
+    }
+
     private companion object {
         const val TOKEN_A = "11111111-1111-1111-1111-111111111111"
         const val THREAD_ID = "0123456789abcdef0123456789abcdef"

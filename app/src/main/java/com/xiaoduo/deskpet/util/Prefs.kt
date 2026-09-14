@@ -224,4 +224,15 @@ object Prefs {
     fun setDeviceBaseUrl(context: Context, url: String) {
         sp(context).edit().putString(KEY_DEVICE_BASE_URL, url.trim()).apply()
     }
+
+    /** S41：密集架同步地址（MCP 动画联动桥 POST 目标）。未存=默认同机 127.0.0.1:8848；
+     *  显式存空串=禁用联动（对齐 S26 deviceBaseUrl 形态）；分机部署改密集架 IP。 */
+    const val KEY_SHELF_BASE_URL = PrefContract.KEY_SHELF_BASE_URL
+
+    fun shelfBaseUrl(context: Context): String =
+        sp(context).getString(KEY_SHELF_BASE_URL, PrefContract.DEFAULT_SHELF_BASE_URL).orEmpty()
+
+    fun setShelfBaseUrl(context: Context, url: String) {
+        sp(context).edit().putString(KEY_SHELF_BASE_URL, url.trim()).apply()
+    }
 }

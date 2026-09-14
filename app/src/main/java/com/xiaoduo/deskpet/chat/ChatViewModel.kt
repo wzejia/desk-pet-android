@@ -11,6 +11,7 @@ import com.xiaoduo.deskpet.agui.UploadStatus
 import com.xiaoduo.deskpet.chat.ChatSession
 import com.xiaoduo.deskpet.device.DeviceClient
 import com.xiaoduo.deskpet.device.DeviceIntentMatcher
+import com.xiaoduo.deskpet.device.ShelfMcpBridge
 import com.xiaoduo.deskpet.cloud.CloudClientFactory
 import com.xiaoduo.deskpet.cloud.OpenAIChatClient
 import com.xiaoduo.deskpet.cloud.TextChatRouter
@@ -67,6 +68,13 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
 
     /** S30 文字设备控制：共享 OkHttp（与语音轮同源），设备地址每轮现读即时生效。 */
     private val deviceHttp by lazy { DeviceClient.defaultHttp() }
+
+    /** S41 文字轮补接：密集架 MCP 动画联动桥（与语音轮同桥语义；baseUrl 每轮现读，
+     *  设置页改动即时生效；失败只记日志不拖文字管线）。 */
+    private val shelfMcpClient = ShelfMcpBridge.Client(
+        baseUrl = { Prefs.shelfBaseUrl(app) },
+        logger = { msg -> PetLogger.i("ShelfMcpBridge", msg) },
+    )
 
     /**
      * 文字轮 LLM 路由（08-14 云端分支，事故后按 jadx 寄存器级伪码复原，语义见 [TextChatRouter]）：
@@ -682,6 +690,8 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
                     threadName = threadName,
                     fileRefs = fileRefs,
                     onDelta = onDelta,
+                    // S41 文字轮补接：TOOL_CALL_START 工具名 → 密集架动画联动桥
+                    onToolCallEvent = { tool -> shelfMcpClient.syncAsync(tool) },
                 )
                 if (myEpoch != turnEpoch) return@launch // 已被打断：结果不落盘不改相位
                 when (result) {

@@ -73,7 +73,12 @@ class VoiceSessionManagerMcpMuteTest {
         server.shutdown()
     }
 
-    private fun newManager(sink: RecSink, speakMcp: Boolean, rewakeAfterTool: Boolean = true): VoiceSessionManager {
+    private fun newManager(
+        sink: RecSink,
+        speakMcp: Boolean,
+        rewakeAfterTool: Boolean = true,
+        shelfSync: MutableList<String>? = null,
+    ): VoiceSessionManager {
         val asr = AsrClient(OkHttpClient(), server.url("/asr").toString(), logger = {})
         val tts = TtsClient(
             OkHttpClient(),
@@ -101,6 +106,8 @@ class VoiceSessionManagerMcpMuteTest {
             logger = {},
             speakMcpResultProvider = { speakMcp },
             rewakeAfterToolCallProvider = { rewakeAfterTool },
+            // S41：密集架联动桥挂点（测试用记录器替代真实 HTTP 桥）
+            shelfMcpSync = { tool -> shelfSync?.add(tool) },
         ).also { it.transcriptSink = sink }
     }
 
@@ -223,6 +230,24 @@ class VoiceSessionManagerMcpMuteTest {
         assertEquals(VoiceStateRouter.State.LISTENING, mgr.stateFlow.value)
         val paths = drainRequestPaths()
         assertTrue("静音开关下不得有 TTS 请求: $paths", paths.none { it.startsWith("/tts") })
+    }
+
+    /** S41：语音轮 TOOL_CALL_START 的工具名经 shelfMcpSync 转发（密集架动画联动挂点） */
+    @Test
+    fun `tool call turn forwards tool name to shelf mcp sync`() {
+        val sink = RecSink()
+        val synced = CopyOnWriteArrayList<String>()
+        val mgr = newManager(sink, speakMcp = true, rewakeAfterTool = false, shelfSync = synced)
+        server.enqueue(asrOk("打开1号密集架"))
+        server.enqueue(loginOk())
+        server.enqueue(threadOk())
+        server.enqueue(toolCallSse("已为您打开。"))
+        server.enqueue(ttsOk())
+
+        utterance(mgr)
+        pumpTurn(sink)
+
+        assertEquals(listOf("mjj_move"), synced)
     }
 
     /** 2. 开关开（默认）：含工具调用轮 -> TTS 正常合成播放（回归） */

@@ -22,6 +22,14 @@ class PrefContractTest {
     }
 
     @Test
+    fun `s41 shelf base url key and default are pinned`() {
+        // S41 密集架 MCP 动画联动桥 POST 目标（同机默认 127.0.0.1:8848；分机部署改密集架 IP）
+        assertEquals("shelf_base_url", PrefContract.KEY_SHELF_BASE_URL)
+        assertEquals("http://127.0.0.1:8848", PrefContract.DEFAULT_SHELF_BASE_URL)
+        assertEquals(setOf("shelf_base_url"), PrefContract.S41_KEYS)
+    }
+
+    @Test
     fun `defaults stay within declared bounds`() {
         // 盲测 v3 遮挡克制批评：默认缩放有意从 1.0 降到 0.5（≈1.9×图标高，不压 dock）
         assertEquals(0.5f, PrefContract.DEFAULT_SCALE)

@@ -72,6 +72,10 @@ class VoiceSessionManager(
     // 工具轮待遇（turnSawToolCall 置位，S20 静音/S21 重唤醒语义自动套用）。
     private val deviceSkillMatcher: ((String) -> DeviceIntentMatcher.Command?)? = null,
     private val deviceSkillExecutor: (suspend (DeviceIntentMatcher.Command) -> DeviceClient.SkillResult)? = null,
+    // S41 密集架 MCP 动画联动：TOOL_CALL_START 透传工具名（默认 no-op；工厂装配
+    // ShelfMcpBridge.Client）。未知工具由桥内 callFor 过滤，此处无脑转发；
+    // S20 静音标记语义不动（任何 TOOL_CALL_START 含空名都置位 turnSawToolCall）。
+    private val shelfMcpSync: (String) -> Unit = {},
 ) {
 
     /** ASR 模式分支：云端按配置厂商分发（pcm 包 WAV），平台走 AsrClient。 */
@@ -104,18 +108,20 @@ class VoiceSessionManager(
             stripped,
             onDelta = onDelta,
             threadKey = threadKey,
-            onToolCallEvent = {
+            onToolCallEvent = { name ->
                 turnSawToolCall.set(true)
-                logger("MCP tool call seen (TOOL_CALL_START)")
+                logger("MCP tool call seen (TOOL_CALL_START) name=$name")
+                shelfMcpSync(name) // S41：密集架动画联动（桥内过滤未知工具，失败只记日志）
             },
         )
         if (!NetConfig.llmIsCloud(ctx)) return aguiFactory().chat(
             stripped,
             onDelta = onDelta,
             threadKey = threadKey,
-            onToolCallEvent = {
+            onToolCallEvent = { name ->
                 turnSawToolCall.set(true)
-                logger("MCP tool call seen (TOOL_CALL_START)")
+                logger("MCP tool call seen (TOOL_CALL_START) name=$name")
+                shelfMcpSync(name)
             },
         )
         return when (val r = CloudClientFactory.chat(ctx).chat(listOf(Message("user", stripped)), null, onDelta)) {

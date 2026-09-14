@@ -1,5 +1,27 @@
 # 小朵 Android M1 进度
 
+## 状态：S41 密集架 MCP 动画联动桥 🔨 代码+单测收口（2026-09-14，584 绿，板子端到端 L3 待喊话验收）
+
+- **需求**（用户拍板，全链已在 D:\mijijia 侧落地 commit 354fe8e）：平台执行 C款密集架 Agent 的
+  10 个 MCP 工具时，SSE `TOOL_CALL_START{toolCallName}` → 本地桥 POST JSON
+  `{"Op":"mcpUiSync","tool":"<name>"}` → 密集架 App 播动画页/Toast。**UI-only 防双控**——
+  平台 MCP 已执行真实硬件，本地绝不再发硬件 Op。
+- **背景**：E:\mjj 副本（原 S40-MCP 联动）已丢失仅余执行文档；本票按
+  `E:\mjj\EXECUTION-S40-MCP动画联动.md` 蓝图在最新 main 上重建（该仓库 S40 号为唤醒盲区占用，
+  本票顺延 S41）。
+- **交付**：`device/ShelfMcpBridge.kt` 新增（SYNCED_TOOLS 恰 10 契约锚 / callFor 纯映射 /
+  Client OkHttp NO_PROXY 异步 POST，baseUrl provider 每轮现读，失败/非 2xx 仅日志不抛管线）；
+  onToolCallEvent 无参→透传工具名（S20 静音语义不动：任何形态先置位再转发）；
+  VSM shelfMcpSync 回调 + VoiceClientFactory 装配单例；**文字轮补接**（S40 副本缺口，Q8 拍板）；
+  Prefs `shelf_base_url`（默认 `http://127.0.0.1:8848`，显式空串=禁用）+ 设置页「密集架同步地址」。
+- **验收**：571→**584** 绿 skipped=0（+13：桥 8/SseConsumer 1/AguiClient 1/Router 1/PrefContract 1/
+  McpMute 1）；critic（opus）**不逊**——亲跑复算属实、变异双抽查红绿齐（删过滤双红/per-call
+  baseUrl 红）、对端接收点 D:\mijijia AppController:254 逐字对账、泄密零命中。P3×3 留痕 notes。
+- **板上 L2 已证**（D:\mijijia 侧）：curl 直调 10/10 `操作成功` + 动画页/toast 截图 + 反例。
+- **待用户**：rk3568 板 192.168.137.46（双 App 同机）L3 真对话三档喊话验收：
+  ①查询/借阅（零硬件）②通风 ③开/闭架（现场口令）。观测：小朵日志 `shelf mcp sync` +
+  密集架 logcat `mcpUiSync tool=` + 动画页。
+
 ## 状态：S40 唤醒应答期盲区修复 ✅ 代码+单测收口（2026-09-12，570 绿，装机 14.18）
 
 - **用户报障「唤醒后在『在听』前说话没检测到」定位收口**：①唤醒→「我在」播完→vad.start

@@ -30,6 +30,16 @@ class AguiSseConsumerTest {
         assertTrue(r is AguiSseConsumer.RunResult.Success)
     }
 
+    /** S41：TOOL_CALL_START 回调透传 toolCallName（密集架动画联动桥的工具名源；一轮可多次） */
+    @Test
+    fun `tool call start passes tool call name`() {
+        val names = mutableListOf<String>()
+        val c = AguiSseConsumer(onToolCallEvent = { names.add(it) })
+        c.feedLine("""data: {"type":"TOOL_CALL_START","toolCallId":"t1","toolCallName":"mjj_move"}""")
+        c.feedLine("""data: {"type":"TOOL_CALL_START","toolCallId":"t2","toolCallName":"mjj_close"}""")
+        assertEquals(listOf("mjj_move", "mjj_close"), names)
+    }
+
     @Test
     fun normalFlowConcatenatesFullText() {
         val deltas = mutableListOf<String>()

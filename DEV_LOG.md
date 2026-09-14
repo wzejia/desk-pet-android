@@ -1,3 +1,27 @@
+## 2026-09-14（S41 密集架 MCP 动画联动桥：副本丢失按文档重建，builder+critic 协议收口）
+
+- **起因**：S40-MCP 联动原在 E:\mjj 副本开发（模拟器取证过），副本工程被删仅余执行文档；
+  今日用户拍板在真板（rk3568 192.168.137.46，双 App 同机）整条落地。对侧 D:\mijijia
+  先行实现 `Op=mcpUiSync`（commit 354fe8e，curl L2 十工具全通+动画页截图取证）。
+- **交付**（builder 实施）：ShelfMcpBridge 新增（10 工具集合契约锚/callFor 纯映射/Client
+  NO_PROXY 异步 POST，ByteArray 版 toRequestBody 保 Content-Type 逐字 `application/json`
+  无 charset 尾巴——与蓝本 §7.2 实测形态对齐）；onToolCallEvent 无参→带工具名（S20 静音
+  置位无条件先行，语义零回归）；VSM 转发+VoiceClientFactory 装配（baseUrl 每轮现读）；
+  文字轮 TextChatRouter/ChatViewModel 补接（副本缺口 Q8 拍板补上）；Prefs shelf_base_url
+  默认 127.0.0.1:8848（空串=禁用）+ 设置页项。
+- **验收**：571→584 绿 skipped=0（+13）；critic（opus）不逊——亲跑复算、变异双抽查
+  （删过滤→双红/per-call baseUrl→构造期捕获红，还原复绿）、对端 AppController:254 对账、
+  泄密零命中；P3×3 留痕 notes。
+- **坑**：OkHttp `String.toRequestBody(mediaType)` 对无 charset 的 media type 自动追加
+  `; charset=utf-8`，与蓝本逐字形态冲突——改 ByteArray 变体（body 不变，header 逐字）。
+- **待办**：板上 L3 真对话三档喊话验收（查询/借阅→通风→开闭架，第三档等用户口令）。
+
+```evidence
+verify_cmd: export PATH="/c/Program Files/Microsoft/jdk-17.0.20.8-hotspot/bin:$PATH" && ./gradlew.bat assembleDebug testDebugUnitTest
+verify_claim: BUILD SUCCESSFUL；test XML 亲算 76 套件 tests=584 skipped=0 failures=0 errors=0（基线 571+13）；critic（opus）独立评审不逊：变异抽查 2 处红绿齐（删 callFor 过滤→双红、per-call baseUrl 改构造期捕获→红，还原复绿）；对端接收点 D:\mijijia AppController.kt mcpUiSync 分支逐字对账一致
+files_touched: [app/src/main/java/com/xiaoduo/deskpet/device/ShelfMcpBridge.kt, app/src/main/java/com/xiaoduo/deskpet/agui/AguiSseConsumer.kt, app/src/main/java/com/xiaoduo/deskpet/agui/AguiClient.kt, app/src/main/java/com/xiaoduo/deskpet/voice/VoiceSessionManager.kt, app/src/main/java/com/xiaoduo/deskpet/voice/VoiceClientFactory.kt, app/src/main/java/com/xiaoduo/deskpet/util/PrefContract.kt, app/src/main/java/com/xiaoduo/deskpet/util/Prefs.kt, app/src/main/java/com/xiaoduo/deskpet/ui/screens/SettingsScreen.kt, app/src/main/java/com/xiaoduo/deskpet/cloud/TextChatRouter.kt, app/src/main/java/com/xiaoduo/deskpet/chat/ChatViewModel.kt, app/src/test/java/com/xiaoduo/deskpet/device/ShelfMcpBridgeTest.kt, app/src/test/java/com/xiaoduo/deskpet/agui/AguiSseConsumerTest.kt, app/src/test/java/com/xiaoduo/deskpet/agui/AguiClientAgentListTest.kt, app/src/test/java/com/xiaoduo/deskpet/cloud/TextChatRouterTest.kt, app/src/test/java/com/xiaoduo/deskpet/util/PrefContractTest.kt, app/src/test/java/com/xiaoduo/deskpet/voice/VoiceSessionManagerMcpMuteTest.kt, CONSTRUCTION.md, PROGRESS.md, DEV_LOG.md, implementation-notes.html]
+```
+
 ## 2026-09-12（S40 唤醒应答期盲区修复：取证→诊断→用户拍板→当日收口）
 
 - **诊断（用户报障「唤醒后在『在听』前说话没检测到」）**：拉取 14.18 当日日志 6386 行，

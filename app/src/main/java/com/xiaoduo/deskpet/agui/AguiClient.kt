@@ -206,8 +206,9 @@ class AguiClient(
         threadName: String? = null,
         fileRefs: List<Pair<String, String>> = emptyList(),
         onDelta: (String) -> Unit = {},
-        /** S20：MCP 工具调用标记回调（TOOL_CALL_START 到达即触发，早于最终文本）。 */
-        onToolCallEvent: () -> Unit = {},
+        /** S20/S41：MCP 工具调用回调（TOOL_CALL_START 到达即触发，早于最终文本），
+         *  透传 toolCallName（S20 静音标记 + S41 密集架动画联动桥）。 */
+        onToolCallEvent: (String) -> Unit = {},
     ): ChatResult {
         reloginUsed = false
         var token = ensureToken() ?: return ChatResult.Error(lastAuthError ?: "登录失败")
@@ -689,7 +690,7 @@ class AguiClient(
         attempt: Int,
         content: String,
         onDelta: (String) -> Unit,
-        onToolCallEvent: () -> Unit = {},
+        onToolCallEvent: (String) -> Unit = {},
     ): AttemptResult {
         val runId = "deskpet_run_${clock()}_$attempt"
         val payload = JSONObject()

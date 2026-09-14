@@ -204,6 +204,30 @@ class AguiClientAgentListTest {
         org.junit.Assert.assertEquals(1, fired)
     }
 
+    /** S41：chat 把 TOOL_CALL_START 的 toolCallName 透传到 onToolCallEvent
+     *  （S20 排障留痕「runOnce 漏传参被默认参数静默吞」的锚升级——名字丢失必须变红） */
+    @Test
+    fun `chat passes tool call name to callback`() {
+        val cache = MemTokenCache().apply { token = TOKEN_A }
+        val threads = MemThreadStore().apply { map[AguiClient.DEFAULT_THREAD_KEY] = THREAD_ID }
+        val names = mutableListOf<String>()
+        val sse = listOf(
+            """{"type":"RUN_STARTED","runId":"r"}""",
+            """{"type":"TOOL_CALL_START","toolCallId":"t1","toolCallName":"mjj_move"}""",
+            """{"type":"TEXT_MESSAGE_CONTENT","messageId":"m1","delta":"好"}""",
+            """{"type":"RUN_FINISHED","runId":"r"}""",
+        ).joinToString("\n\n") { "data: " + it } + "\n\n"
+        server.enqueue(
+            MockResponse().setHeader("Content-Type", "text/event-stream").setBody(sse),
+        )
+        val result = client(cache, threads).chat(
+            "打开1号密集架",
+            onToolCallEvent = { names.add(it) },
+        )
+        org.junit.Assert.assertTrue(result is AguiClient.ChatResult.Success)
+        org.junit.Assert.assertEquals(listOf("mjj_move"), names)
+    }
+
     companion object {
         private const val TOKEN_A = "11111111-1111-1111-1111-111111111111"
         private const val TOKEN_B = "22222222-2222-2222-2222-222222222222"

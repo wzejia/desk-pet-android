@@ -2,6 +2,7 @@ package com.xiaoduo.deskpet.voice
 
 import com.xiaoduo.deskpet.device.DeviceClient
 import com.xiaoduo.deskpet.device.DeviceIntentMatcher
+import com.xiaoduo.deskpet.device.ShelfMcpBridge
 import android.content.Context
 import com.xiaoduo.deskpet.PetOverlayService
 import com.xiaoduo.deskpet.agui.AguiClientFactory
@@ -129,6 +130,9 @@ object VoiceClientFactory {
                 else { cmd ->
                     DeviceClient(http = deviceHttp, baseUrl = Prefs.deviceBaseUrl(app)).execute(cmd)
                 },
+                // S41：密集架 MCP 动画联动桥（TOOL_CALL_START 工具名 → POST mcpUiSync；
+                // baseUrl 每次调用现读 Prefs，改设置即时生效；失败只记日志不拖管线）
+                shelfMcpSync = { tool -> shelfMcpClient(app).syncAsync(tool) },
             ).also { session = it }
         }
         // S9-3 冷路径接线：装配完成后触发应答音预取（保存即合成的「启动补漏」半边）。
@@ -178,6 +182,22 @@ object VoiceClientFactory {
 
     /** S26 设备技能共享连接（NO_PROXY 局域网直连）。 */
     private val deviceHttp by lazy { DeviceClient.defaultHttp() }
+
+    /** S41 桥客户端进程内单例（Client 无会话状态、baseUrl provider 每次调用现读，
+     *  与 wakeAckResolver 同款 @Volatile+双检装配）。 */
+    @Volatile
+    private var shelfMcpClient: ShelfMcpBridge.Client? = null
+
+    private fun shelfMcpClient(context: Context): ShelfMcpBridge.Client =
+        shelfMcpClient ?: synchronized(this) {
+            shelfMcpClient ?: ShelfMcpBridge.Client(
+                baseUrl = { Prefs.shelfBaseUrl(context.applicationContext) },
+                http = shelfMcpHttp,
+                logger = { msg -> PetLogger.i("ShelfMcpBridge", msg) },
+            ).also { shelfMcpClient = it }
+        }
+
+    private val shelfMcpHttp by lazy { ShelfMcpBridge.defaultHttp() }
 
 private const val TAG = "VoiceClientFactory"
     private const val WOZAI_ASSET = "wozai.wav"

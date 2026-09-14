@@ -67,6 +67,12 @@ object PrefContract {
     const val KEY_TTS_VOLUME = "tts_volume"               // Float 0..1，默认 0.45（S24）
     const val KEY_DEVICE_BASE_URL = "device_base_url"   // String，默认设备地址（S26，空=禁用）
 
+    // ---- S41 密集架 MCP 动画联动（同步地址；显式存空串=禁用）----
+    const val KEY_SHELF_BASE_URL = "shelf_base_url"     // String，默认 http://127.0.0.1:8848
+    const val DEFAULT_SHELF_BASE_URL = "http://127.0.0.1:8848"
+
+    val S41_KEYS: Set<String> = setOf(KEY_SHELF_BASE_URL)
+
     val S18_KEYS: Set<String> = setOf(KEY_VAD_SPEECH_LEVEL, KEY_MIC_SOURCE_MODE)
     val S20_KEYS: Set<String> = setOf(KEY_SPEAK_MCP_RESULT)
 }

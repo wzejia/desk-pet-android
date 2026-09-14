@@ -39,6 +39,9 @@ class TextChatRouter(
         threadName: String?,
         fileRefs: List<Pair<String, String>>,
         onDelta: (String) -> Unit,
+        /** S41 文字轮补接：TOOL_CALL_START 透传 toolCallName（密集架动画联动桥；
+         *  云端路无 MCP，恒不触发）。 */
+        onToolCallEvent: (String) -> Unit = {},
     ): AguiClient.ChatResult {
         if (!llmIsCloud()) {
             return platformClient.chat(
@@ -48,6 +51,7 @@ class TextChatRouter(
                 threadName = threadName,
                 fileRefs = fileRefs,
                 onDelta = onDelta,
+                onToolCallEvent = onToolCallEvent,
             )
         }
         if (fileRefs.isNotEmpty()) {
