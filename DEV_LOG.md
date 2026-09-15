@@ -1,3 +1,22 @@
+## 2026-09-15（S41 补丁：回环明文白名单——装机 L3 首测抓真凶）
+
+- **症状**：板子喊话「帮我盘点档」，小朵全链正常（ASR→平台→TOOL_CALL_START
+  name=archives_inventory）但密集架零反应；日志实锤 `shelf mcp sync failed:
+  CLEARTEXT communication to 127.0.0.1 not permitted`——networkSecurityConfig
+  未放行回环明文（S40 副本从未端到端，雷埋至今）。
+- **修复**：白名单加 127.0.0.1/localhost（不收窄全局策略，踩坑 #39 不动）；
+  新增 `NetworkSecurityConfigContractTest` 3 测（默认同步地址主机∈白名单 /
+  localhost 别名 / 禁 base-config 全局明文）——默认地址与清单漂移即红。
+- **附带发现（话术侧）**：「查询/借阅」不带具体档案名时平台 Agent 只反问不调工具；
+  盘点/通风/开架类无参数指令可直接触发。
+- **结果**：584→**587** 绿 skipped=0；修复版已装板（192.168.137.46）。
+
+```evidence
+verify_cmd: export PATH="/c/Program Files/Microsoft/jdk-17.0.20.8-hotspot/bin:$PATH" && ./gradlew.bat assembleDebug testDebugUnitTest
+verify_claim: BUILD SUCCESSFUL；test XML 亲算 77 套件 tests=587 skipped=0 failures=0 errors=0；板上日志证实修复前失败形态（CLEARTEXT 拦截原文）与修复后装机成功
+files_touched: [app/src/main/res/xml/network_security_config.xml, app/src/test/java/com/xiaoduo/deskpet/net/NetworkSecurityConfigContractTest.kt, DEV_LOG.md, PROGRESS.md]
+```
+
 ## 2026-09-14（S41 密集架 MCP 动画联动桥：副本丢失按文档重建，builder+critic 协议收口）
 
 - **起因**：S40-MCP 联动原在 E:\mjj 副本开发（模拟器取证过），副本工程被删仅余执行文档；

@@ -18,6 +18,8 @@
   McpMute 1）；critic（opus）**不逊**——亲跑复算属实、变异双抽查红绿齐（删过滤双红/per-call
   baseUrl 红）、对端接收点 D:\mijijia AppController:254 逐字对账、泄密零命中。P3×3 留痕 notes。
 - **板上 L2 已证**（D:\mijijia 侧）：curl 直调 10/10 `操作成功` + 动画页/toast 截图 + 反例。
+- **2026-09-15 补丁**：装机 L3 首测实锤 `CLEARTEXT to 127.0.0.1 not permitted`——白名单
+  加回环两域 + `NetworkSecurityConfigContractTest` 3 测钉死（587 绿），修复版已装板。
 - **待用户**：rk3568 板 192.168.137.46（双 App 同机）L3 真对话三档喊话验收：
   ①查询/借阅（零硬件）②通风 ③开/闭架（现场口令）。观测：小朵日志 `shelf mcp sync` +
   密集架 logcat `mcpUiSync tool=` + 动画页。

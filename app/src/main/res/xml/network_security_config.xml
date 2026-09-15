@@ -12,4 +12,10 @@
         <!-- S26 设备技能：整理台/净化柜一体机直连 HTTP（设置页可配，改地址需同步此处） -->
         <domain includeSubdomains="false">10.0.18.47</domain>
     </domain-config>
+    <!-- S41 密集架联动桥：同机部署走回环明文 HTTP（默认 127.0.0.1:8848）。
+         分机部署时密集架 IP 需按实际地址追加于此，否则桥会被 cleartext 策略拦截。 -->
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">127.0.0.1</domain>
+        <domain includeSubdomains="false">localhost</domain>
+    </domain-config>
 </network-security-config>
