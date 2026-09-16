@@ -133,6 +133,10 @@ object VoiceClientFactory {
                 // S41：密集架 MCP 动画联动桥（TOOL_CALL_START 工具名 → POST mcpUiSync；
                 // baseUrl 每次调用现读 Prefs，改设置即时生效；失败只记日志不拖管线）
                 shelfMcpSync = { tool -> shelfMcpClient(app).syncAsync(tool) },
+                // S43：结果卡转发（run 收尾最后一次工具结果 → POST mcpUiResult，守卫同上）
+                shelfMcpOutcome = { oc ->
+                    shelfMcpClient(app).resultAsync(oc.toolCallName, oc.content, oc.argsJson)
+                },
             ).also { session = it }
         }
         // S9-3 冷路径接线：装配完成后触发应答音预取（保存即合成的「启动补漏」半边）。

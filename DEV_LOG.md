@@ -1,3 +1,24 @@
+## 2026-09-15（S43：MCP 结果卡弹窗——结果捕获 + 转发链路）
+
+- **需求**：语音 MCP 借/还/查结果只在助手语音里，屏上无视觉结果。原型
+  `E:\mjj\prototype-s43-mcp-result-card.html` 确认（只显示结果不显示参数、与自带弹窗同族、
+  全中文、只读防双控、查询卡带按键）。
+- **前置验证（SSE 抓包实证，PC 复刻小朵请求，只读查询零副作用）**：平台完整发出
+  TOOL_CALL_START（rawEvent.data.chunk.tool_calls[0].args 内含完整参数）/END/RESULT
+  （content 为结构化 JSON：success/status/message/summary/rows…）；一轮可有多个 RESULT
+  （含平台内部 needs_clarification 澄清轮次，文案可能带英文）→ 规则定死：只取本轮
+  最后一次 RESULT，澄清轮次自然被覆盖不弹卡。
+- **交付**：AguiSseConsumer 加 ToolCallOutcome（toolCallId→名字映射 + rawEvent.args 提取 +
+  最后覆盖语义，takeToolCallOutcome 收口）；AguiClient.chat/runOnce 加 onToolCallOutcome
+  （仅 Success 回吐，断流/空 run 不弹卡）；ShelfMcpBridge.resultBodyFor/resultAsync
+  （org.json 组装防 content 嵌串引号非法 JSON，守卫口径同 sync）；VSM/VoiceClientFactory/
+  TextChatRouter/ChatViewModel 全链接线（语音轮 + 文字轮）。
+- **验收**：595 绿 skipped=0（587 基线 + 新增 8：消费者捕获 5 测 + 桥转发 3 测；
+  基线只增不减）。对侧（D:\mijijia）curl L2 全绿：归还成功卡/查询空卡原地刷新/
+  查询带行卡（题名/档号/位置/徽标/按键）/「去检索页操作」跳页+关键词回填+自动检索
+  （logcat 三段链路实证 archiveId=102）/needs_clarification 200 且不弹卡/mcpUiSync 回归。
+- **待用户**：L3 整链喊话终验——喊「帮我查询一下《XX档案》」，助手回复同时结果卡应弹出。
+
 ## 2026-09-15（S41 补丁：回环明文白名单——装机 L3 首测抓真凶）
 
 - **症状**：板子喊话「帮我盘点档」，小朵全链正常（ASR→平台→TOOL_CALL_START
@@ -16,6 +37,17 @@ verify_cmd: export PATH="/c/Program Files/Microsoft/jdk-17.0.20.8-hotspot/bin:$P
 verify_claim: BUILD SUCCESSFUL；test XML 亲算 77 套件 tests=587 skipped=0 failures=0 errors=0；板上日志证实修复前失败形态（CLEARTEXT 拦截原文）与修复后装机成功
 files_touched: [app/src/main/res/xml/network_security_config.xml, app/src/test/java/com/xiaoduo/deskpet/net/NetworkSecurityConfigContractTest.kt, DEV_LOG.md, PROGRESS.md]
 ```
+
+## 2026-09-15 续（S41 对侧映射升级 + 端口对齐，本侧零代码改动）
+
+- **对侧跳页升级**（D:\mijijia `42dc266`/`89472d4`，HTML 原型 `E:\mjj\prototype-s41-*.html`
+  用户过目确认后实现）：盘点/盘存→跳 RFID 盒定位盘点页+toast；借阅/盒借→「档案借阅」页；
+  归还/盒还→「档案归还」页；查询→检索页（「档案利用」all 模式）；幂等不叠页；
+  只跳页不下发任务（防双控）。桥协议不变（仍 10 工具透传），本侧无需改动。
+- **端口对齐生产**：生产板 10.0.14.18 的 AndServer 实为 8849（curl 实证，8848 仅出厂默认）；
+  测试板按生产配置写入（9 区 1 列/库房 8/业务 API 10.0.14.230:8849 等全字段），
+  本机 SP `shelf_base_url` 改 `http://127.0.0.1:8849`；新端口 curl 复测跳页 ✓。
+- **环境坑**：adb forward 不随设备重连保留（overnight 断线后 curl 空响应，重建即恢复）。
 
 ## 2026-09-14（S41 密集架 MCP 动画联动桥：副本丢失按文档重建，builder+critic 协议收口）
 

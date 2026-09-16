@@ -1,6 +1,21 @@
 # 小朵 Android M1 进度
 
-## 状态：S41 密集架 MCP 动画联动桥 🔨 代码+单测收口（2026-09-14，584 绿，板子端到端 L3 待喊话验收）
+## 状态：S43 MCP 结果卡弹窗 ✅ 代码收口（2026-09-15，595 绿，对侧 L2 全绿，L3 喊话终验待用户）
+
+- **S43 需求**（原型 `E:\mjj\prototype-s43-mcp-result-card.html` 确认）：语音 MCP 借/还/查结果只在
+  助手语音里，屏上无视觉结果——小朵把平台 **TOOL_CALL_RESULT**（SSE 抓包实证 content 为结构化
+  JSON）转发密集架 `Op=mcpUiResult`，密集架弹**只读结果卡**（只显示结果不显示参数、与自带弹窗
+  同族样式、全中文、防双控无执行按钮、查询卡带「去检索页操作」按键）。
+- **S43 交付（本侧）**：`AguiSseConsumer` 新增 ToolCallOutcome（toolCallId→名字映射 +
+  rawEvent.args 提取 + 最后一次 RESULT 覆盖语义，澄清轮次自然被盖）；`AguiClient.chat/runOnce`
+  新增 onToolCallOutcome 回调（仅 Success 回吐）；`ShelfMcpBridge.resultBodyFor/resultAsync`
+  （org.json 组装防嵌串引号，守卫口径同 sync）；VSM/工厂/TextChatRouter/ChatViewModel 全链接线。
+- **S43 验收**：595 绿 skipped=0（+8：消费者捕获 5 测 + 桥转发 3 测；基线 587 只增不减）。
+  对侧（D:\mijijia）L2 全绿：归还成功卡/查询空卡原地刷新/查询带行卡（档号位置徽标齐全）/
+  「去检索页操作」跳页+关键词回填+自动检索/needs_clarification 不弹卡/mcpUiSync 回归。
+- **待用户**：L3 整链喊话终验（「帮我查询一下《XX档案》」→ 助手回复同时结果卡弹出）。
+
+## 历史：S41 密集架 MCP 动画联动桥 ✅ 代码收口（2026-09-15，587 绿，L3 语音链实锤）
 
 - **需求**（用户拍板，全链已在 D:\mijijia 侧落地 commit 354fe8e）：平台执行 C款密集架 Agent 的
   10 个 MCP 工具时，SSE `TOOL_CALL_START{toolCallName}` → 本地桥 POST JSON
@@ -20,9 +35,13 @@
 - **板上 L2 已证**（D:\mijijia 侧）：curl 直调 10/10 `操作成功` + 动画页/toast 截图 + 反例。
 - **2026-09-15 补丁**：装机 L3 首测实锤 `CLEARTEXT to 127.0.0.1 not permitted`——白名单
   加回环两域 + `NetworkSecurityConfigContractTest` 3 测钉死（587 绿），修复版已装板。
-- **待用户**：rk3568 板 192.168.137.46（双 App 同机）L3 真对话三档喊话验收：
-  ①查询/借阅（零硬件）②通风 ③开/闭架（现场口令）。观测：小朵日志 `shelf mcp sync` +
-  密集架 logcat `mcpUiSync tool=` + 动画页。
+- **2026-09-15 对侧映射升级**（HTML 原型先行，用户确认；本侧零代码改动，D:\mijijia `42dc266`/`89472d4`）：
+  盘点/盘存→跳 RFID 盒定位盘点页+toast；借阅/盒借→「档案借阅」页；归还/盒还→「档案归还」页；
+  查询→检索页（「档案利用」all 模式）；全部幂等不叠页。同日**端口对齐生产**：板 192.168.137.46
+  按生产板 10.0.14.18 配置（AndServer=8849），本机 SP `shelf_base_url=http://127.0.0.1:8849` 已写。
+- **L3 进展**：语音链已实锤（「帮我盘点档」→ ASR → 平台 `TOOL_CALL_START archives_inventory` →
+  桥触发）；cleartext 修复后整链喊话终验 + 通风/开闭架档待用户现场口令。
+  话术须知：查询/借阅须带具体档案名（否则 Agent 只反问）；盘点/通风/开架类可直接触发。
 
 ## 状态：S40 唤醒应答期盲区修复 ✅ 代码+单测收口（2026-09-12，570 绿，装机 14.18）
 

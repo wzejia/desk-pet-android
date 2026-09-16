@@ -3,6 +3,7 @@ package com.xiaoduo.deskpet.voice
 import android.content.Context
 import com.xiaoduo.deskpet.PetOverlayService
 import com.xiaoduo.deskpet.agui.AguiClient
+import com.xiaoduo.deskpet.agui.AguiSseConsumer
 import com.xiaoduo.deskpet.device.DeviceClient
 import com.xiaoduo.deskpet.device.DeviceIntentMatcher
 import com.xiaoduo.deskpet.cloud.CloudClientFactory
@@ -76,6 +77,9 @@ class VoiceSessionManager(
     // ShelfMcpBridge.Client）。未知工具由桥内 callFor 过滤，此处无脑转发；
     // S20 静音标记语义不动（任何 TOOL_CALL_START 含空名都置位 turnSawToolCall）。
     private val shelfMcpSync: (String) -> Unit = {},
+    // S43 密集架结果卡：run 收尾回吐最后一次工具结果（默认 no-op；工厂装配桥 resultAsync；
+    // 无结果轮/断流/空 run 不回调——结果卡只增强不重放）。
+    private val shelfMcpOutcome: (AguiSseConsumer.ToolCallOutcome) -> Unit = {},
 ) {
 
     /** ASR 模式分支：云端按配置厂商分发（pcm 包 WAV），平台走 AsrClient。 */
@@ -113,6 +117,12 @@ class VoiceSessionManager(
                 logger("MCP tool call seen (TOOL_CALL_START) name=$name")
                 shelfMcpSync(name) // S41：密集架动画联动（桥内过滤未知工具，失败只记日志）
             },
+            onToolCallOutcome = { oc ->
+                oc?.let {
+                    logger("MCP tool result captured name=${it.toolCallName}")
+                    shelfMcpOutcome(it) // S43：结果卡转发（桥内过滤，失败只记日志）
+                }
+            },
         )
         if (!NetConfig.llmIsCloud(ctx)) return aguiFactory().chat(
             stripped,
@@ -122,6 +132,12 @@ class VoiceSessionManager(
                 turnSawToolCall.set(true)
                 logger("MCP tool call seen (TOOL_CALL_START) name=$name")
                 shelfMcpSync(name)
+            },
+            onToolCallOutcome = { oc ->
+                oc?.let {
+                    logger("MCP tool result captured name=${it.toolCallName}")
+                    shelfMcpOutcome(it)
+                }
             },
         )
         return when (val r = CloudClientFactory.chat(ctx).chat(listOf(Message("user", stripped)), null, onDelta)) {

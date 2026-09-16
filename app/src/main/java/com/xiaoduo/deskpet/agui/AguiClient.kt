@@ -209,6 +209,8 @@ class AguiClient(
         /** S20/S41：MCP 工具调用回调（TOOL_CALL_START 到达即触发，早于最终文本），
          *  透传 toolCallName（S20 静音标记 + S41 密集架动画联动桥）。 */
         onToolCallEvent: (String) -> Unit = {},
+        /** S43：run 正常收尾后回吐本轮最后一次工具结果（无结果轮为 null；断流/空 run 不回吐）。 */
+        onToolCallOutcome: (AguiSseConsumer.ToolCallOutcome?) -> Unit = {},
     ): ChatResult {
         reloginUsed = false
         var token = ensureToken() ?: return ChatResult.Error(lastAuthError ?: "登录失败")
@@ -233,7 +235,7 @@ class AguiClient(
         var attempt = 0
         while (attempt < MAX_ATTEMPTS) {
             attempt++
-            when (val r = runOnce(token, threadId, msgId, attempt, content, onDelta, onToolCallEvent)) {
+            when (val r = runOnce(token, threadId, msgId, attempt, content, onDelta, onToolCallEvent, onToolCallOutcome)) {
                 is AttemptResult.Success ->
                     return ChatResult.Success(r.text, r.firstTokenLatencyMs, attempt)
                 AttemptResult.Empty ->
@@ -691,6 +693,7 @@ class AguiClient(
         content: String,
         onDelta: (String) -> Unit,
         onToolCallEvent: (String) -> Unit = {},
+        onToolCallOutcome: (AguiSseConsumer.ToolCallOutcome?) -> Unit = {},
     ): AttemptResult {
         val runId = "deskpet_run_${clock()}_$attempt"
         val payload = JSONObject()
@@ -751,6 +754,7 @@ class AguiClient(
         return when (val r = consumer.finish()) {
             is AguiSseConsumer.RunResult.Success -> {
                 logger("RUN_FINISHED ok, reply ${r.text.length} chars, runId=$runId")
+                onToolCallOutcome(consumer.takeToolCallOutcome()) // S43：run 收尾回吐最后工具结果
                 AttemptResult.Success(r.text, firstTokenMs)
             }
             AguiSseConsumer.RunResult.EmptyRun -> AttemptResult.Empty

@@ -194,4 +194,77 @@ class AguiSseConsumerTest {
         assertEquals(listOf("好"), deltas)
         assertEquals("好", (result as AguiSseConsumer.RunResult.Success).text)
     }
+
+    /** ===== S43：工具结果捕获（结果卡数据源）===== */
+
+    /** S43-1：TOOL_CALL_RESULT 捕获——名字经 toolCallId 映射、content 逐字、args 从 rawEvent 提取 */
+    @Test
+    fun `tool call result captured with name content and args`() {
+        val c = AguiSseConsumer()
+        c.feedLine(
+            """data: {"type":"TOOL_CALL_START","toolCallId":"t1","toolCallName":"c_archive_query",""" +
+                """"rawEvent":{"event":"on_chat_model_stream","data":{"chunk":{"type":"AIMessageChunk",""" +
+                """"tool_calls":[{"name":"c_archive_query","args":{"query":"帮我查询一下《测试档案0001》","tm":"测试档案0001"},"type":"tool_call"}]}}}}"""
+        )
+        c.feedLine("""data: {"type":"TOOL_CALL_RESULT","toolCallId":"t1","content":"{\"success\":true,\"status\":\"no_result\"}"}""")
+        c.feedLine("""data: {"type":"TEXT_MESSAGE_CONTENT","delta":"好"}""")
+        c.feedLine("""data: {"type":"RUN_FINISHED","runId":"r"}""")
+        assertTrue(c.finish() is AguiSseConsumer.RunResult.Success)
+        val oc = c.takeToolCallOutcome()
+        assertEquals("c_archive_query", oc?.toolCallName)
+        assertEquals("{\"success\":true,\"status\":\"no_result\"}", oc?.content)
+        assertTrue(oc?.argsJson?.contains("测试档案0001") == true)
+    }
+
+    /** S43-2：一轮多结果取最后一条（内部澄清轮次被覆盖，结果卡只见最终结果） */
+    @Test
+    fun `multiple results last one wins`() {
+        val c = AguiSseConsumer()
+        c.feedLine("""data: {"type":"TOOL_CALL_START","toolCallId":"t1","toolCallName":"c_archive_query"}""")
+        c.feedLine("""data: {"type":"TOOL_CALL_RESULT","toolCallId":"t1","content":"{\"status\":\"needs_clarification\"}"}""")
+        c.feedLine("""data: {"type":"TOOL_CALL_RESULT","toolCallId":"t1","content":"{\"status\":\"no_result\"}"}""")
+        c.feedLine("""data: {"type":"TEXT_MESSAGE_CONTENT","delta":"好"}""")
+        c.feedLine("""data: {"type":"RUN_FINISHED","runId":"r"}""")
+        assertTrue(c.finish() is AguiSseConsumer.RunResult.Success)
+        assertEquals("{\"status\":\"no_result\"}", c.takeToolCallOutcome()?.content)
+    }
+
+    /** S43-3：纯文本轮（无 RESULT）→ takeToolCallOutcome 为 null（结果卡静默降级） */
+    @Test
+    fun `no result yields null outcome`() {
+        val c = AguiSseConsumer()
+        c.feedLine("""data: {"type":"TOOL_CALL_START","toolCallId":"t1","toolCallName":"mjj_move"}""")
+        c.feedLine("""data: {"type":"TEXT_MESSAGE_CONTENT","delta":"已打开"}""")
+        c.feedLine("""data: {"type":"RUN_FINISHED","runId":"r"}""")
+        assertTrue(c.finish() is AguiSseConsumer.RunResult.Success)
+        assertEquals(null, c.takeToolCallOutcome())
+    }
+
+    /** S43-4：缺 START 名字映射的 RESULT（id 对不上）→ 名字空串但 content 仍透出 */
+    @Test
+    fun `result without matching start keeps content with blank name`() {
+        val c = AguiSseConsumer()
+        c.feedLine("""data: {"type":"TOOL_CALL_RESULT","toolCallId":"tX","content":"ok"}""")
+        c.feedLine("""data: {"type":"TEXT_MESSAGE_CONTENT","delta":"好"}""")
+        c.feedLine("""data: {"type":"RUN_FINISHED","runId":"r"}""")
+        assertTrue(c.finish() is AguiSseConsumer.RunResult.Success)
+        val oc = c.takeToolCallOutcome()
+        assertEquals("", oc?.toolCallName)
+        assertEquals("ok", oc?.content)
+    }
+
+    /** S43-5：rawEvent 缺失/形态不符 → argsJson 为 null，主链路不受影响（防御性提取） */
+    @Test
+    fun `malformed raw event yields null args but keeps result`() {
+        val c = AguiSseConsumer()
+        c.feedLine("""data: {"type":"TOOL_CALL_START","toolCallId":"t1","toolCallName":"archive_return","rawEvent":"weird"}""")
+        c.feedLine("""data: {"type":"TOOL_CALL_RESULT","toolCallId":"t1","content":"{\"status\":\"success\"}"}""")
+        c.feedLine("""data: {"type":"TEXT_MESSAGE_CONTENT","delta":"好"}""")
+        c.feedLine("""data: {"type":"RUN_FINISHED","runId":"r"}""")
+        assertTrue(c.finish() is AguiSseConsumer.RunResult.Success)
+        val oc = c.takeToolCallOutcome()
+        assertEquals("archive_return", oc?.toolCallName)
+        assertEquals(null, oc?.argsJson)
+        assertEquals("{\"status\":\"success\"}", oc?.content)
+    }
 }

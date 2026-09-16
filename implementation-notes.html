@@ -1328,6 +1328,20 @@ NLMS 直通=带回声回灌，时序仍对，S19-2 空 ASR 续听兑底伪轮；
 </div>
 
 <div class="entry decision">
+<span class="tag">设计决策</span><span class="meta">2026-09-15 ｜ S41 ｜ 对侧映射升级跳页（HTML 原型先行，用户确认）+ 端口对齐生产</span>
+<p><b>映射升级</b>（D:\mijijia 侧实现，本侧零代码改动）：盘点/盘存 → 跳 RFID 盒定位盘点页
+（HDWMainActivity）；借阅/盒借 → 「档案借阅」页（LocalSearchFragment borrow）；归还/盒还 →
+「档案归还」页（return）；查询 → 检索页（all 模式，标题「档案利用」）；toast 全部保留，
+跳页幂等不叠加。<b>流程定例</b>：用户拍板——效果类变更先做 HTML 原型过目再实现
+（原型 <code>E:\mjj\prototype-s41-*.html</code>，真板实拍截图+联动模拟）。<b>端口事实</b>：
+生产板 10.0.14.18 的 AndServer 实为 <b>8849</b>（service_port，业务 API 同端口指
+10.0.14.230:8849），8848 只是出厂默认；测试板 192.168.137.46 已对齐生产配置，本机 SP
+<code>shelf_base_url=http://127.0.0.1:8849</code>。<b>话术事实</b>：查询/借阅类须带具体
+档案名平台 Agent 才调工具（否则只反问）；盘点/通风/开架类无参数指令可直接触发——L3 喊话
+验收据此选词。</p>
+</div>
+
+<div class="entry decision">
 <span class="tag">设计决策</span><span class="meta">2026-09-14 ｜ S41 ｜ 密集架 MCP 动画联动桥（副本丢失按文档重建，用户拍板 Q1-Q10）</span>
 <p><b>链路</b>：平台 MCP 执行 C款密集架 Agent 工具 → SSE TOOL_CALL_START{toolCallName} →
 onToolCallEvent（无参升带名，S20 静音置位无条件先行）→ ShelfMcpBridge.Client 异步 POST

@@ -1,6 +1,7 @@
 package com.xiaoduo.deskpet.cloud
 
 import com.xiaoduo.deskpet.agui.AguiClient
+import com.xiaoduo.deskpet.agui.AguiSseConsumer
 import com.xiaoduo.deskpet.chat.ChatMessage
 
 /**
@@ -42,6 +43,8 @@ class TextChatRouter(
         /** S41 文字轮补接：TOOL_CALL_START 透传 toolCallName（密集架动画联动桥；
          *  云端路无 MCP，恒不触发）。 */
         onToolCallEvent: (String) -> Unit = {},
+        /** S43 文字轮补接：run 收尾回吐最后一次工具结果（密集架结果卡；云端路恒 null）。 */
+        onToolCallOutcome: (AguiSseConsumer.ToolCallOutcome?) -> Unit = {},
     ): AguiClient.ChatResult {
         if (!llmIsCloud()) {
             return platformClient.chat(
@@ -52,6 +55,7 @@ class TextChatRouter(
                 fileRefs = fileRefs,
                 onDelta = onDelta,
                 onToolCallEvent = onToolCallEvent,
+                onToolCallOutcome = onToolCallOutcome,
             )
         }
         if (fileRefs.isNotEmpty()) {

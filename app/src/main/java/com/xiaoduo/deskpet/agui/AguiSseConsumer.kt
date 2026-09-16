@@ -35,9 +35,18 @@ class AguiSseConsumer(
         data class Error(val reason: String) : RunResult
     }
 
+    /** S43：本轮最后一次工具调用的结果（SSE 实证：TOOL_CALL_START 顶层带 toolCallId/toolCallName
+     *  与 rawEvent 内完整 args；TOOL_CALL_RESULT 顶层带 toolCallId/content。多结果轮取最后一条，
+     *  平台内部澄清轮次自然被覆盖，密集架侧结果卡只看到最终结果）。 */
+    data class ToolCallOutcome(val toolCallName: String, val content: String, val argsJson: String?)
+
     private val accumulated = StringBuilder()
     private var sawRunFinished = false
     private var snapshotText: String? = null
+    private val toolCallNames = HashMap<String, String>()
+    private val toolCallArgs = HashMap<String, String?>()
+    private var lastResultId: String? = null
+    private var lastResultContent: String? = null
 
     /** 因坏 JSON 等原因跳过的 data 行数（容错观测用） */
     var skippedLines: Int = 0
@@ -64,7 +73,23 @@ class AguiSseConsumer(
                 }
             }
             "MESSAGES_SNAPSHOT" -> snapshotText = extractLastAssistantText(json)
-            "TOOL_CALL_START" -> onToolCallEvent(json.optString("toolCallName", "")) // S20 标记 + S41 透传工具名（先于最终文本到达）
+            "TOOL_CALL_START" -> {
+                val name = json.optString("toolCallName", "")
+                onToolCallEvent(name) // S20 标记 + S41 透传工具名（先于最终文本到达）
+                val id = json.optString("toolCallId", "")
+                if (id.isNotEmpty()) {
+                    toolCallNames[id] = name
+                    toolCallArgs[id] = extractArgs(json)
+                }
+            }
+            "TOOL_CALL_RESULT" -> {
+                // S43：记最后一次结果（多结果轮覆盖，finish 后由 takeToolCallOutcome 取出）
+                val id = json.optString("toolCallId", "")
+                if (id.isNotEmpty()) {
+                    lastResultId = id
+                    lastResultContent = json.optString("content", "")
+                }
+            }
             "RUN_FINISHED" -> sawRunFinished = true
             // RUN_STARTED / RAW / STEP_STARTED / TEXT_MESSAGE_START/END 等一律忽略（#24）
         }
@@ -116,4 +141,32 @@ class AguiSseConsumer(
         }
         return null
     }
+
+    /** S43：finish 后取本轮最后一次工具结果；无结果轮（纯文本/断流未收 RESULT）返回 null */
+    fun takeToolCallOutcome(): ToolCallOutcome? {
+        val id = lastResultId ?: return null
+        val content = lastResultContent ?: return null
+        return ToolCallOutcome(
+            toolCallName = toolCallNames[id].orEmpty(),
+            content = content,
+            argsJson = toolCallArgs[id],
+        )
+    }
+
+    /** 从 TOOL_CALL_START 的 rawEvent 提取工具参数原文（实证路径 rawEvent.data.chunk.tool_calls[0].args，
+     *  args 为 JSON 对象；防御性提取，任一层缺失/形态不符 → null，不影响主链路）。 */
+    private fun extractArgs(start: JSONObject): String? = runCatching {
+        val args = start.optJSONObject("rawEvent")
+            ?.optJSONObject("data")
+            ?.optJSONObject("chunk")
+            ?.optJSONArray("tool_calls")
+            ?.optJSONObject(0)
+            ?.opt("args")
+        when (args) {
+            is JSONObject -> args.toString()
+            is org.json.JSONArray -> args.toString()
+            is String -> args.takeIf { it.isNotBlank() }
+            else -> null
+        }
+    }.getOrNull()
 }

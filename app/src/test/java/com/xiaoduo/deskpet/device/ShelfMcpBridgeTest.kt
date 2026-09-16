@@ -142,4 +142,40 @@ class ShelfMcpBridgeTest {
             server2.shutdown()
         }
     }
+
+    /** ===== S43：结果卡转发体（resultBodyFor / resultAsync）===== */
+
+    /** S43-1：已知工具+结果 → 合法 JSON，Op/tool/result 逐字，content 内引号正确转义 */
+    @Test
+    fun `result body escapes nested content verbatim`() {
+        val body = ShelfMcpBridge.resultBodyFor(
+            "c_archive_query", "{\"success\":true,\"status\":\"no_result\"}", "{\"tm\":\"测试档案0001\"}"
+        )
+        val j = org.json.JSONObject(requireNotNull(body))
+        assertEquals("mcpUiResult", j.getString("Op"))
+        assertEquals("c_archive_query", j.getString("tool"))
+        assertEquals("{\"success\":true,\"status\":\"no_result\"}", j.getString("result"))
+        assertEquals("{\"tm\":\"测试档案0001\"}", j.getString("args"))
+    }
+
+    /** S43-2：未知工具 / 空白 content → null（静默不发）；args 缺省时不带该键 */
+    @Test
+    fun `result body guards unknown tool and blank content`() {
+        assertNull(ShelfMcpBridge.resultBodyFor("not_a_shelf_tool", "x"))
+        assertNull(ShelfMcpBridge.resultBodyFor("archive_return", "  "))
+        val j = org.json.JSONObject(requireNotNull(ShelfMcpBridge.resultBodyFor("archive_return", "ok")))
+        assertEquals(false, j.has("args"))
+    }
+
+    /** S43-3：Client.resultAsync 真实发出 POST，路径/Content-Type 与 sync 同形态 */
+    @Test
+    fun `client posts result to mjj web api`() {
+        server.enqueue(MockResponse().setResponseCode(200))
+        val client = ShelfMcpBridge.Client(baseUrl = { baseUrl() }, logger = {})
+        client.resultAsync("archive_return", "{\"status\":\"success\"}")
+        val req = server.takeRequest(2, TimeUnit.SECONDS)
+        assertEquals("/MjjWebApi", req?.path)
+        assertEquals("application/json", req?.getHeader("Content-Type"))
+        assertTrue(req?.body?.readUtf8()?.contains("mcpUiResult") == true)
+    }
 }

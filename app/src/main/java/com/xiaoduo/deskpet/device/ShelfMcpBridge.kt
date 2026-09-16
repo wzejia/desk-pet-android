@@ -54,6 +54,22 @@ object ShelfMcpBridge {
         if (tool in SYNCED_TOOLS) """{"Op":"mcpUiSync","tool":"$tool"}""" else null
 
     /**
+     * S43：结果卡转发体 `{"Op":"mcpUiResult","tool":..,"result":..,"args":..}`。
+     * result/args 是平台原文（result 为工具结果的 JSON 字符串），经 org.json 转义嵌套——
+     * 不可用字符串模板拼接（content 内含引号会产出非法 JSON）。
+     * 未知工具 / 空 result → null：调用方不发请求。
+     */
+    fun resultBodyFor(tool: String, content: String, argsJson: String? = null): String? {
+        if (tool !in SYNCED_TOOLS || content.isBlank()) return null
+        val body = org.json.JSONObject()
+            .put("Op", "mcpUiResult")
+            .put("tool", tool)
+            .put("result", content)
+        if (!argsJson.isNullOrBlank()) body.put("args", argsJson)
+        return body.toString()
+    }
+
+    /**
      * 异步同步客户端（OkHttp enqueue fire-and-forget；[baseUrl] 每次调用现读，
      * 设置页改动即时生效）。本类无会话状态，进程内单例即可。
      */
@@ -63,7 +79,15 @@ object ShelfMcpBridge {
         private val logger: (String) -> Unit = {},
     ) {
         fun syncAsync(tool: String) {
-            val body = callFor(tool) ?: return // 未知工具静默（不动画、不打扰）
+            postAsync(callFor(tool) ?: return, tool, "sync")
+        }
+
+        /** S43：结果卡转发（fire-and-forget，守卫口径同 [syncAsync]）。 */
+        fun resultAsync(tool: String, content: String, argsJson: String? = null) {
+            postAsync(resultBodyFor(tool, content, argsJson) ?: return, tool, "result")
+        }
+
+        private fun postAsync(body: String, tool: String, kind: String) {
             val base = baseUrl().trim()
             if (base.isEmpty()) return // 设置清空 = 禁用联动
             val req = try {
@@ -74,24 +98,24 @@ object ShelfMcpBridge {
                     .post(body.toByteArray(Charsets.UTF_8).toRequestBody(JSON))
                     .build()
             } catch (e: IllegalArgumentException) {
-                logger("shelf mcp sync skipped, bad base url: ${e.message}")
+                logger("shelf mcp $kind skipped, bad base url: ${e.message}")
                 return
             }
             try {
                 http.newCall(req).enqueue(object : Callback {
                     override fun onFailure(call: Call, e: IOException) {
-                        logger("shelf mcp sync failed tool=$tool: ${e.message}")
+                        logger("shelf mcp $kind failed tool=$tool: ${e.message}")
                     }
 
                     override fun onResponse(call: Call, resp: Response) {
                         resp.use {
-                            if (it.isSuccessful) logger("shelf mcp sync ok tool=$tool")
-                            else logger("shelf mcp sync HTTP ${it.code} tool=$tool")
+                            if (it.isSuccessful) logger("shelf mcp $kind ok tool=$tool")
+                            else logger("shelf mcp $kind HTTP ${it.code} tool=$tool")
                         }
                     }
                 })
             } catch (e: Exception) {
-                logger("shelf mcp sync enqueue failed tool=$tool: ${e.message}")
+                logger("shelf mcp $kind enqueue failed tool=$tool: ${e.message}")
             }
         }
     }
