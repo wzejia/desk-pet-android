@@ -450,16 +450,11 @@ class PetOverlayService : Service() {
                 Prefs.setOverlayEnabled(this, false)
                 stopSelf()
             },
-            canViewLastRound = hasShownBubbleContent,
-            onViewLastRound = {
-                PetLogger.i(TAG, "menu: view last round")
-                runCatching {
-                    startActivity(
-                        Intent(this, MainActivity::class.java)
-                            .putExtra(MainActivity.EXTRA_VIEW_LAST_ROUND, true)
-                            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                    )
-                }.onFailure { PetLogger.e(TAG, "menu view last round failed", it) }
+            canCreateNewSession = !(chatBusyProvider?.invoke() ?: true), // S48 无 VM 桥（VM 未建）保守置灰
+            onCreateNewSession = {
+                val ok = runCatching { chatNewSession?.invoke() ?: false }.getOrElse { false }
+                PetLogger.i(TAG, "menu: create new session, ok=$ok")
+                if (ok) showBubble(BubbleOwner.CHAT, "已开启新会话") // 用户拍板：成功气泡反馈
             },
             canInterrupt = VoiceClientFactory.session(this).state != VoiceStateRouter.State.IDLE,
             onInterrupt = {
@@ -670,6 +665,17 @@ class PetOverlayService : Service() {
          */
         @Volatile
         var chatInterrupt: (() -> Unit)? = null
+
+        /**
+         * S48 悬浮窗「创建新会话」桥：ChatViewModel init 时挂载（busyProvider 提供菜单弹出
+         * 时刻的忙态快照供置灰；newSession 成功 true / busy 拒绝 false）。双桥均可为 null
+         * （VM 未建极端态：菜单项置灰不可点，与「查看最近一轮」无桥时同语义）。
+         */
+        @Volatile
+        var chatBusyProvider: (() -> Boolean)? = null
+
+        @Volatile
+        var chatNewSession: (() -> Boolean)? = null
 
         /** 悬浮窗侧统一打断入口：双击与长按菜单共用。 */
         fun requestInterrupt(context: android.content.Context) {

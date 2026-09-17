@@ -36,8 +36,8 @@ object OverlayMenu {
         onOpenDenseShelf: () -> Unit,
         onToggleVoice: () -> Boolean, // 返回切换后的新状态
         onHideOverlay: () -> Unit,
-        canViewLastRound: Boolean,
-        onViewLastRound: () -> Unit,
+        canCreateNewSession: Boolean,
+        onCreateNewSession: () -> Unit,
         canInterrupt: Boolean,
         onInterrupt: () -> Unit,
     ) {
@@ -114,10 +114,11 @@ object OverlayMenu {
         }
         menu.addView(divider())
 
-        // S8-6「查看最近一轮」：canViewLastRound=false（气泡从未显示过非空内容）时置灰不可点
-        row("查看最近一轮").also {
-            if (canViewLastRound) {
-                it.setOnClickListener { popup.dismiss(); onViewLastRound() }
+        // S48「创建新会话」（替换 S8-6「查看最近一轮」，用户拍板 2026-09-17）：
+        // canCreateNewSession=false（busy 快照：文字/语音轮进行中）时置灰不可点
+        row("创建新会话").also {
+            if (canCreateNewSession) {
+                it.setOnClickListener { popup.dismiss(); onCreateNewSession() }
             } else {
                 it.alpha = 0.4f
                 it.isEnabled = false

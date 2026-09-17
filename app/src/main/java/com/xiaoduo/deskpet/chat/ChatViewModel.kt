@@ -142,6 +142,9 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
         // S31 双击打断修复：把统一门控版 cancelCurrentTurn 挂到悬浮窗静态桥
         // （文字轮播报期 vsm.state=IDLE，悬浮窗直调 vsm.cancelCurrentTurn 是 no-op）
         PetOverlayService.chatInterrupt = { cancelCurrentTurn() }
+        // S48 悬浮窗「创建新会话」：忙态快照 + 新会话桥（不进 APP，气泡提示由 Service 负责）
+        PetOverlayService.chatBusyProvider = { busy }
+        PetOverlayService.chatNewSession = { newSessionFromOverlay() }
     }
 
     /**
@@ -176,6 +179,9 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
                 private val rawBuffer = StringBuilder()
 
                 override fun onUserUtterance(text: String) {
+                    // S48 惰性超时轮转：与文字轮同规则（置守卫窗前调用，rotate 内部不查 busy）。
+                    // 轮转后下方 _currentSession.value 拿到新会话，本轮消息入新会话/新 thread。
+                    rotateSessionIfIdle()
                     _voiceActive.value = true // 守卫窗口开启（done|error 的 endTurn 关闭）
                     val session = _currentSession.value ?: return
                     val userMsg = ChatMessage(
@@ -418,6 +424,9 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
             PetLogger.d(TAG, "send ignored: upload in flight")
             return
         }
+        // S48 惰性超时轮转：当前会话最后一条消息超 10 分钟无后续 → 先静默新建会话再发
+        // （本轮消息入新会话，新 threadId=LLM 无上文；静默无提示，旧会话保留可切回）
+        rotateSessionIfIdle()
         val session = _currentSession.value ?: store.createSession().also {
             _currentSession.value = it
             refreshSessions()
@@ -563,6 +572,23 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
             PetLogger.d(TAG, "newSession ignored: busy")
             return
         }
+        newSessionInternal()
+    }
+
+    /**
+     * S48 悬浮窗「创建新会话」桥入口（不进 APP）：成功静默新建返回 true；
+     * busy 拒绝返回 false（菜单弹出时已按快照置灰，此处为双保险）。气泡提示由 Service 负责。
+     */
+    fun newSessionFromOverlay(): Boolean {
+        if (busy) {
+            PetLogger.d(TAG, "newSessionFromOverlay ignored: busy")
+            return false
+        }
+        newSessionInternal()
+        return true
+    }
+
+    private fun newSessionInternal() {
         val session = store.createSession()
         turns.reset()
         resetFiles() // S7-f：文件绑定旧会话 thread，不可带入新会话
@@ -571,6 +597,29 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
         _currentSession.value = session
         refreshSessions()
         PetLogger.i(TAG, "new session, ${_sessions.value.size} total")
+    }
+
+    /**
+     * S48 惰性超时轮转：当前会话最后一条消息距今超 10 分钟 → 静默新建会话并切换。
+     * 与 [newSession] 的差异：不查 busy（调用点在 busy gate 之后/语音守卫窗开启之前）、
+     * 无 UI 提示（用户拍板静默）。空会话永不触发（SessionRules.shouldRotateForIdle）。
+     * 存储异常降级为不轮转继续原会话（不打断用户当前输入，仅日志）。
+     */
+    private fun rotateSessionIfIdle() {
+        val session = _currentSession.value ?: return
+        val lastTs = _messages.value.lastOrNull()?.ts
+        val now = System.currentTimeMillis()
+        if (!SessionRules.shouldRotateForIdle(lastTs, now)) return
+        runCatching {
+            val fresh = store.createSession()
+            turns.reset()
+            resetFiles() // 文件绑定旧会话 thread，不可带入新会话（S7-f 同 newSession）
+            _phase.value = Phase.IDLE
+            _messages.value = emptyList()
+            _currentSession.value = fresh
+            refreshSessions()
+            PetLogger.i(TAG, "session idle rotate: ${session.id} -> ${fresh.id} (last msg ${now - (lastTs ?: 0)}ms ago)")
+        }.onFailure { PetLogger.e(TAG, "session idle rotate failed, keep current", it) }
     }
 
     /** 切换会话：持久化选择（杀进程恢复），载入该会话消息（busy 时忽略）。 */

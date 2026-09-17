@@ -1,5 +1,40 @@
 # 小朵 Android 开发日志
 
+## 2026-09-17 S48 Agent 全量拉取 + 会话闲置轮转 + 悬浮窗「创建新会话」
+
+三项需求（grilling 一轮定案）：Q1=a 大 pageSize 一次拿全（失败退循环翻页）；Q2=惰性超时轮转——按消息 ts 记录，最后一条消息超 10 分钟无后续才在下次交互时新建（空会话无时间戳永不触发，杜绝空会话循环，用户拍板）；Q3=超时轮转完全静默；Q4=菜单「查看最近一轮」→「创建新会话」+ busy 置灰 + 成功气泡反馈。
+
+#### 票 1：Agent 全量拉取
+- 真机实测（curl + 板上 token）：`agent/list` 空 body 黔回前 10 条（信封 total:14/pageSize:10/pages:2，PageHelper 风格）；`{"pageSize":500}` 一把拿全 14 条
+- `AguiClient.listAgents`：循环翻页聚合（pageNum 递增直到不足一页；20 页硬上限防服务端忽略参数死循环；401 透明重登后清空半卷从第 1 页重拉）；`listAgentsOnce` body 改 `{"pageSize":500,"pageNum":N}`
+- `SettingsScreen` 选择器：限高 320dp 滚动列表（全量后不再撑爆页面）
+- 坑：`chatNewSession?.invoke()` 在 runCatching 内产生 Boolean?，`getOrElse{false}` 后仍是可空——`?: false` 在 lambda 内先兜平
+
+#### 票 2：会话闲置 10 分钟惰性轮转
+- `SessionRules.shouldRotateForIdle(lastMessageTs, now, timeoutMs)`：纯函数；`ChatMessage.ts` 字段已有，零新增存储
+- `ChatViewModel.rotateSessionIfIdle()`：静默版（不查 busy/无提示/存储异常降级不轮转），与 newSessionInternal 同构
+- 触发点两处：文字 `send()`（upload gate 后、session 捕获前）+ 语音 `onUserUtterance`（置 voiceActive 守卫窗之前，rotate 后本轮消息入新会话/新 thread）
+- resends 不轮转（旧会话内操作语义）
+
+#### 票 3：悬浮窗菜单「查看最近一轮」→「创建新会话」
+- `OverlayMenu` 行替换 + `canCreateNewSession` 置灰（busy 快照）
+- Service→VM 双桥（chatInterrupt 同范式）：`chatBusyProvider={busy}`（菜单弹出时刻快照）+ `chatNewSession={newSessionFromOverlay()}`（busy 拒绝 false 双保险）；不进 APP，Service 侧 `showBubble(CHAT, "已开启新会话")` 反馈
+- Activity 的 viewLastRound 哨兵机制保留未删（仅换菜单入口，surgical）
+
+```evidence
+verify_cmd: ./gradlew testDebugUnitTest（606 例全绿，+11：翻页聚合/401 重拉/分页 body 契约/超时判定 4 例）；真机：logcat `agent/list POST ... pageSize=500 pageNum=1` + 设置页可见超 10 个 agent（s48_agents.png）；chat send 空会话不触发轮转 ✓；悬浮窗菜单 dump 六项含「创建新会话」✓（s48 菜单 dump）。**待用户补验**：① 旧会话（>10min）发消息 → logcat `session idle rotate` ② 手点菜单「创建新会话」→ 气泡反馈
+files_touched: [
+  app/src/main/java/com/xiaoduo/deskpet/agui/AguiClient.kt,
+  app/src/main/java/com/xiaoduo/deskpet/ui/screens/SettingsScreen.kt,
+  app/src/main/java/com/xiaoduo/deskpet/chat/SessionRules.kt,
+  app/src/main/java/com/xiaoduo/deskpet/chat/ChatViewModel.kt,
+  app/src/main/java/com/xiaoduo/deskpet/ui/overlay/OverlayMenu.kt,
+  app/src/main/java/com/xiaoduo/deskpet/PetOverlayService.kt,
+  app/src/test/java/com/xiaoduo/deskpet/agui/AguiClientAgentListTest.kt,
+  app/src/test/java/com/xiaoduo/deskpet/chat/SessionRulesTest.kt
+]
+```
+
 ## 2026-09-17 S46 密集架页面导航（本地意图直连，不走平台）
 
 需求：语音/文字「打开借阅/归还/盘点页面」→ 密集架 app 跳对应页面。平台侧注册 open_page MCP 工具不确定可行 → 改走本地意图分流（零平台改动），完全复用 S26-3 设备技能同款模式。
