@@ -22,7 +22,7 @@
 - Activity 的 viewLastRound 哨兵机制保留未删（仅换菜单入口，surgical）
 
 ```evidence
-verify_cmd: ./gradlew testDebugUnitTest（606 例全绿，+11：翻页聚合/401 重拉/分页 body 契约/超时判定 4 例）；真机：logcat `agent/list POST ... pageSize=500 pageNum=1` + 设置页可见超 10 个 agent（s48_agents.png）；chat send 空会话不触发轮转 ✓；悬浮窗菜单 dump 六项含「创建新会话」✓（s48 菜单 dump）。**待用户补验**：① 旧会话（>10min）发消息 → logcat `session idle rotate` ② 手点菜单「创建新会话」→ 气泡反馈
+verify_cmd: ./gradlew testDebugUnitTest（606 例全绿，+11：翻页聚合/401 重拉/分页 body 契约/超时判定 4 例）；真机：logcat `agent/list POST ... pageSize=500 pageNum=1` + 设置页可见超 10 个 agent（s48_agents.png）；chat send 空会话不触发轮转 ✓；悬浮窗菜单 dump 六项含「创建新会话」✓（s48 菜单 dump）。用户补验（2026-09-17 10:30）：② 菜单「创建新会话」板端日志实证 `menu: create new session, ok=true`（桥链路/busy gate/气泡链路通）；① 闲置轮转板端日志未捕获 rotate 记录（用户口头确认完成），规则层由 4 例单测 + 空会话不触发实测兜底
 files_touched: [
   app/src/main/java/com/xiaoduo/deskpet/agui/AguiClient.kt,
   app/src/main/java/com/xiaoduo/deskpet/ui/screens/SettingsScreen.kt,
