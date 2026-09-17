@@ -16,6 +16,8 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -460,7 +462,14 @@ private fun AgentPicker(context: Context) {
                     style = MaterialTheme.typography.bodyMedium,
                     modifier = Modifier.padding(vertical = XiaoduoDimens.SpaceS),
                 )
-                else -> agents.forEach { agent ->
+                else -> Column(
+                    // S48 agent 全量后可能数十条：限高滚动，不撑爆设置页
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 320.dp)
+                        .verticalScroll(rememberScrollState()),
+                ) {
+                    agents.forEach { agent ->
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -483,6 +492,7 @@ private fun AgentPicker(context: Context) {
                                 )
                             }
                         }
+                    }
                     }
                 }
             }

@@ -80,7 +80,7 @@ class AguiClientAgentListTest {
                 "data: {\"type\":\"RUN_FINISHED\",\"runId\":\"r\"}\n\n",
         )
 
-    /** 1. listAgents：登录 -> POST /agent/list 空 body + Bearer，信封 data.list 解析为 AgentBrief 列表 */
+    /** 1. listAgents：登录 -> POST /agent/list 分页 body + Bearer，信封 data.list 解析为 AgentBrief 列表 */
     @Test
     fun listAgentsParsesEnvelopeList() {
         server.enqueue(loginOk())
@@ -111,10 +111,37 @@ class AguiClientAgentListTest {
         val req = takeRequest()
         assertEquals("/ai-server/agent/list", req.path)
         assertEquals("Bearer $TOKEN_A", req.getHeader("Authorization"))
-        assertEquals("{}", req.body.readUtf8())
+        // S48 全量拉取：分页参数体（真机验证 PageHelper 风格 pageSize/pageNum 生效）
+        assertEquals("""{"pageSize":500,"pageNum":1}""", req.body.readUtf8())
     }
 
-    /** 2. token 过期 401 -> 透明重登 1 次后重试成功（与 deleteThread 同模式） */
+    /** 2. S48 翻页聚合：首页恰好 pageSize 条 → 续拉第 2 页（不足一页）→ 两页拼接返回 */
+    @Test
+    fun listAgentsAggregatesPagesUntilShortPage() {
+        val page = { n: Int, count: Int ->
+            val items = (1..count).joinToString(",") { i ->
+                """{"agentId":"agent_p${n}_$i","agentName":"页$n-$i"}"""
+            }
+            """{"code":200,"msg":"ok","data":{"list":[$items]}}"""
+        }
+        server.enqueue(loginOk())
+        server.enqueue(MockResponse().setBody(page(1, 500)))
+        server.enqueue(MockResponse().setBody(page(2, 3)))
+
+        val result = client(MemTokenCache(), MemThreadStore()).listAgents()
+
+        assertTrue(result is AguiClient.AgentListResult.Ok)
+        val agents = (result as AguiClient.AgentListResult.Ok).agents
+        assertEquals(503, agents.size)
+        assertEquals("agent_p1_1", agents.first().agentId)
+        assertEquals("agent_p2_3", agents.last().agentId)
+
+        assertEquals("/login", takeRequest().path)
+        assertEquals("""{"pageSize":500,"pageNum":1}""", takeRequest().body.readUtf8())
+        assertEquals("""{"pageSize":500,"pageNum":2}""", takeRequest().body.readUtf8())
+    }
+
+    /** 3. token 过期 401 -> 透明重登 1 次后重试成功（与 deleteThread 同模式；重登后从第 1 页重拉） */
     @Test
     fun listAgents401TriggersOneTransparentRelogin() {
         val cache = MemTokenCache().apply { token = TOKEN_A }
@@ -136,7 +163,7 @@ class AguiClientAgentListTest {
         assertEquals("/ai-server/agent/list", takeRequest().path)          // 新 token 重试
     }
 
-    /** 3. 信封 code!=200 -> Error 透传平台 msg */
+    /** 4. 信封 code!=200 -> Error 透传平台 msg */
     @Test
     fun listAgentsEnvelopeErrorYieldsError() {
         val cache = MemTokenCache().apply { token = TOKEN_A }
@@ -148,7 +175,7 @@ class AguiClientAgentListTest {
         assertTrue((result as AguiClient.AgentListResult.Error).message.contains("内部错误"))
     }
 
-    /** 4. agentId 动态 provider：两次请求间切换，header 与 createThreadId body 均即时取新值 */
+    /** 5. agentId 动态 provider：两次请求间切换，header 与 createThreadId body 均即时取新值 */
     @Test
     fun agentIdProviderReadsDynamicallyPerRequest() {
         val cache = MemTokenCache().apply { token = TOKEN_A }

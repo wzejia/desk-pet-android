@@ -411,17 +411,28 @@ class AguiClient(
     }
 
     /**
-     * S16：拉取平台 agent 列表（POST {listUrl} 空 body + Bearer，信封 code==200 data.list[]）。
-     * 供设置页选择器；401 透明重登 1 次（与 deleteThread 同模式，重登额度独立）。
-     * 交互语义（用户 08-25 拍板）：agentId 仅请求头路由（提示词/MCP 不同），
+     * S16：拉取平台 agent 列表（POST {listUrl} + Bearer，信封 code==200 data.list[]）。
+     * S48 全量拉取：POST {"pageSize":500,"pageNum":N}（2026-09-17 真机验证：服务端
+     * PageHelper 风格信封 total/pageNum/pageSize/pages，空 body 黔回前 10 条）；
+     * 循环翻页直到不足一页（参数名若变/被服务端忽略则退化为重复首页，防死循环设 20 页上限）；
+     * 401 透明重登 1 次（与 deleteThread 同模式，重登额度独立；重登后从第 1 页重拉防半卷）。。
+     * 供设置页选择器；交互语义（用户 08-25 拍板）：agentId 仅请求头路由（提示词/MCP 不同），
      * thread 连续性与本地历史均不动。
      */
     fun listAgents(): AgentListResult {
         var token = ensureToken() ?: return AgentListResult.Error(lastAuthError ?: "登录失败")
         var reloginRetried = false
+        val agents = mutableListOf<AgentBrief>()
+        var pageNum = 1
         while (true) {
-            when (val r = listAgentsOnce(token)) {
-                is AgentListCall.Done -> return AgentListResult.Ok(r.agents)
+            when (val r = listAgentsOnce(token, AGENT_PAGE_SIZE, pageNum)) {
+                is AgentListCall.Done -> {
+                    agents += r.agents
+                    if (r.agents.size < AGENT_PAGE_SIZE || pageNum >= AGENT_PAGE_LIMIT) {
+                        return AgentListResult.Ok(agents)
+                    }
+                    pageNum++
+                }
                 is AgentListCall.Failed -> return AgentListResult.Error(r.message)
                 AgentListCall.Unauthorized -> {
                     if (reloginRetried) return AgentListResult.Error("透明重登后 agent/list 仍鉴权失败")
@@ -429,18 +440,21 @@ class AguiClient(
                     logger("agent/list HTTP 401, token 视为过期，透明重登 1 次")
                     tokenCache.clear()
                     token = login() ?: return AgentListResult.Error(lastAuthError ?: "token 过期透明重登失败")
+                    agents.clear() // 已聚合的半卷作废，从第 1 页重拉（防旧 token 页与新 token 页混合）
+                    pageNum = 1
                 }
             }
         }
     }
 
     /** 单次 agent/list 调用；name 缺失回退 id，条目缺 agentId 则跳过（脏数据容错）。 */
-    private fun listAgentsOnce(token: String): AgentListCall {
-        logger("agent/list POST $listUrl")
+    private fun listAgentsOnce(token: String, pageSize: Int, pageNum: Int): AgentListCall {
+        logger("agent/list POST $listUrl pageSize=$pageSize pageNum=$pageNum")
+        val body = """{"pageSize":$pageSize,"pageNum":$pageNum}"""
         val req = Request.Builder()
             .url(listUrl)
             .header("Authorization", "Bearer $token")
-            .post("{}".toRequestBody(JSON))
+            .post(body.toRequestBody(JSON))
             .build()
         return try {
             http.newCall(req).execute().use { resp ->
@@ -772,6 +786,12 @@ class AguiClient(
     companion object {
         /** 默认 agentId（知识包 §6.2 PLATFORM_AGENT_ID=chatAgent，换 agent 只改 header，踩坑 #29） */
         const val DEFAULT_AGENT_ID = "chatAgent"
+
+        /** S48 agent 全量拉取：单页条数（真机验证 pageSize 生效；500 覆盖平台全量绰绰有余）。 */
+        private const val AGENT_PAGE_SIZE = 500
+
+        /** S48 翻页硬上限（防御：若服务端忽略分页参数恒回同页，避免死循环）。 */
+        private const val AGENT_PAGE_LIMIT = 20
 
         /** 默认会话路由 key（未显式指定 threadKey 的调用方，如语音路径/设置自检，共享此 thread） */
         const val DEFAULT_THREAD_KEY = "default"
