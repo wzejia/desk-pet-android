@@ -12,6 +12,7 @@ import com.xiaoduo.deskpet.chat.ChatSession
 import com.xiaoduo.deskpet.device.DeviceClient
 import com.xiaoduo.deskpet.device.DeviceIntentMatcher
 import com.xiaoduo.deskpet.device.ShelfMcpBridge
+import com.xiaoduo.deskpet.device.ShelfNavIntentMatcher
 import com.xiaoduo.deskpet.cloud.CloudClientFactory
 import com.xiaoduo.deskpet.cloud.OpenAIChatClient
 import com.xiaoduo.deskpet.cloud.TextChatRouter
@@ -446,6 +447,14 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
             runDeviceTurn(session, deviceCmd, assistant.id)
             return
         }
+        // S46 密集架页面导航：本地意图命中 → 直连跳页（零 LLM），本地回复上屏。
+        // 与 S30 设备轮同模式；拦截后不发云端——避免「打开借阅页面」被误路由到
+        // archive_borrow（执行语义） 引发多余工具调用。
+        val shelfPage = shelfNavPageOrNull(trimmed)
+        if (shelfPage != null) {
+            runShelfNavTurn(session, shelfPage, assistant.id)
+            return
+        }
         runChat(
             session,
             trimmed,
@@ -459,6 +468,36 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
     /** 设备地址已配置时返回文字输入的设备意图（否则 null → 走 LLM 常规轮）。 */
     private fun deviceIntentOrNull(text: String): DeviceIntentMatcher.Command? =
         DeviceTurnRules.gate(Prefs.deviceBaseUrl(getApplication()), text)
+
+    /** S46：密集架地址已配置时返回文字输入的页面导航意图（否则 null）。 */
+    private fun shelfNavPageOrNull(text: String): String? =
+        if (Prefs.shelfBaseUrl(getApplication()).isEmpty()) null
+        else ShelfNavIntentMatcher.match(text)
+
+    /**
+     * S46 密集架页面导航轮：同步 POST mcpUiNavigate（IO 线程）→ 结果 speech 作为
+     * assistant 终态（DONE）上屏。失败降级为 Fail 文案，不抛异常不标 ERROR 轮
+     * （设备轮同款：联动不可达是常态而非崩溃）。
+     */
+    private fun runShelfNavTurn(
+        session: ChatSession,
+        page: String,
+        assistantId: String,
+    ) {
+        _phase.value = Phase.SENDING
+        viewModelScope.launch(Dispatchers.IO) {
+            val ok = runCatching { shelfMcpClient.navigate(page) }
+                .getOrElse { false }
+            val speech = if (ok) "已打开${ShelfNavIntentMatcher.pageName(page)}页面"
+                         else "密集架联动不可用，请检查网络后重试"
+            PetLogger.i(TAG, "shelf nav turn done: page=$page ok=$ok")
+            withContext(Dispatchers.Main) {
+                _messages.value = turns.markDone(_messages.value, assistantId, speech)
+                persist(session)
+                _phase.value = Phase.IDLE
+            }
+        }
+    }
 
     /**
      * 文字设备轮：直连执行（IO 线程）→ 结果 speech 作为 assistant 终态（DONE）上屏。

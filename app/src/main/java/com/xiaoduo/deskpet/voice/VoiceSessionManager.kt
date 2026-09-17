@@ -73,6 +73,11 @@ class VoiceSessionManager(
     // 工具轮待遇（turnSawToolCall 置位，S20 静音/S21 重唤醒语义自动套用）。
     private val deviceSkillMatcher: ((String) -> DeviceIntentMatcher.Command?)? = null,
     private val deviceSkillExecutor: (suspend (DeviceIntentMatcher.Command) -> DeviceClient.SkillResult)? = null,
+    // S46 密集架页面导航（本地意图）：ASR 后先匹配，命中直连跳页跳过 LLM，结果 speech
+    // 走同一条分句/TTS 管线。密集架无自带播报 → 不置工具轮标记（正常 TTS 播报结果）。
+    // null=禁用（工厂按 shelfBaseUrl 非空装配）。
+    private val shelfNavMatcher: ((String) -> String?)? = null,
+    private val shelfNavExecutor: (suspend (String) -> String)? = null,
     // S41 密集架 MCP 动画联动：TOOL_CALL_START 透传工具名（默认 no-op；工厂装配
     // ShelfMcpBridge.Client）。未知工具由桥内 callFor 过滤，此处无脑转发；
     // S20 静音标记语义不动（任何 TOOL_CALL_START 含空名都置位 turnSawToolCall）。
@@ -822,6 +827,19 @@ class VoiceSessionManager(
                 .getOrElse { DeviceClient.SkillResult.Fail("设备控制异常，请重试") }
         }
 
+        // S46 密集架页面导航：本地意图命中 → 同步跳页（跳过 LLM），结果 speech 与设备轮
+        // 共用同一条上屏/分句/TTS 路。不置 turnSawToolCall（无自带播报，需正常 TTS）。
+        var shelfNavSpeech: String? = null
+        val navPage = shelfNavMatcher?.invoke(stripped)
+        val navExec = shelfNavExecutor
+        if (navPage != null && navExec != null) {
+            logger("shelf nav hit: $navPage")
+            status("正在打开页面…")
+            shelfNavSpeech = runCatching { navExec.invoke(navPage) }
+                .onFailure { logger("shelf nav exception: ${it.message}") }
+                .getOrElse { "密集架联动异常，请重试" }
+        }
+
         // 异常兜底：user 已上屏后，任何非取消异常逃逸（bubble 层 RuntimeException / chat 内残余
         // 非 IOException 等）都视同失败轮——补发 onAssistantError 让 VM 标 error 并复位守卫窗口，
         // 防终态回调被跳过导致 voiceActive 永久悬挂。terminalFired CAS 防正常终态后再异常双触发。
@@ -858,9 +876,11 @@ class VoiceSessionManager(
                 is DeviceClient.SkillResult.Fail -> dr.speech
                 null -> null
             }
-            val chat: AguiClient.ChatResult = if (deviceSpeech != null) {
-                handleDelta(deviceSpeech)
-                AguiClient.ChatResult.Success(deviceSpeech, firstTokenLatencyMs = null, attempts = 1)
+            // S46：本地导航回复与设备轮回复同通道（零 LLM 轮的二选一出口）
+            val directSpeech = deviceSpeech ?: shelfNavSpeech
+            val chat: AguiClient.ChatResult = if (directSpeech != null) {
+                handleDelta(directSpeech)
+                AguiClient.ChatResult.Success(directSpeech, firstTokenLatencyMs = null, attempts = 1)
             } else voiceChat(stripped) { delta ->
                 handleDelta(delta)
             }

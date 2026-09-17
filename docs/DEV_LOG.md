@@ -1,5 +1,30 @@
 # 小朵 Android 开发日志
 
+## 2026-09-17 S46 密集架页面导航（本地意图直连，不走平台）
+
+需求：语音/文字「打开借阅/归还/盘点页面」→ 密集架 app 跳对应页面。平台侧注册 open_page MCP 工具不确定可行 → 改走本地意图分流（零平台改动），完全复用 S26-3 设备技能同款模式。
+
+- 新增 `device/ShelfNavIntentMatcher`（纯 Kotlin，JVM 单测 20 例）：保守匹配——导航动词（打开/跳转/进入/切换/切到/去…）或页面名词 + 目标词（借阅/借书、归还/还书、盘点）三路取先现者；**含执行对象词（档案/文件/编号/盒…）绝不拦截**——「借阅档案A」必须走平台 MCP 工具链（防双控语义不破）
+- `ShelfMcpBridge`：`NAVIGATE_PAGES = {borrow, return, inventory}` 白名单 + `navigate(page)` **同步** POST `{"Op":"mcpUiNavigate","page":...}`（区别 sync 的 fire-and-forget：导航需成败回执）；导航非 MCP 工具，不进 SYNCED_TOOLS
+- `ChatViewModel`：文字轮 deviceCmd 后同级拦截 → `runShelfNavTurn`（零 LLM；成功「已打开XX页面」/失败「密集架联动不可用…」作为 assistant 终态上屏）
+- `VoiceSessionManager`：S26-3 同款注入 `shelfNavMatcher/shelfNavExecutor`，命中走同一条分句/TTS 管线；密集架无自带播报 → **不置 turnSawToolCall**（正常 TTS，区别设备轮静音语义）
+- `VoiceClientFactory`：按 `shelfBaseUrl` 非空装配（空=禁用零劫持）
+- 密集架端（D:/mijijia 同步改动）：AppController 新增 mcpUiNavigate Op——borrow/return 走 searchPageRequest 跳检索页对应模式，inventory 走 openInventoryPage()（archives_inventory 同款）
+
+边界：拦截后**不发云端**——「打开借阅页面」若发云端会被 LLM 误路由到 archive_borrow（执行语义）引发多余工具调用（S30 拦截语义同源）。
+
+```evidence
+verify_cmd: ./gradlew testDebugUnitTest --tests ShelfNavIntentMatcherTest（20 例全过）+ assembleDebug；密集架端 curl mcpUiNavigate borrow/return/inventory 三页真机跳转截图 + 非法 page 注入守卫（详见 D:/mijijia/docs/DEV_LOG.md S46 追加节）
+files_touched: [
+  app/src/main/java/com/xiaoduo/deskpet/device/ShelfNavIntentMatcher.kt,
+  app/src/main/java/com/xiaoduo/deskpet/device/ShelfMcpBridge.kt,
+  app/src/main/java/com/xiaoduo/deskpet/chat/ChatViewModel.kt,
+  app/src/main/java/com/xiaoduo/deskpet/voice/VoiceSessionManager.kt,
+  app/src/main/java/com/xiaoduo/deskpet/voice/VoiceClientFactory.kt,
+  app/src/test/java/com/xiaoduo/deskpet/device/ShelfNavIntentMatcherTest.kt
+]
+```
+
 ## 2026-08-05 S8 UI 微调合集代码侧收口
 
 ### 会话背景

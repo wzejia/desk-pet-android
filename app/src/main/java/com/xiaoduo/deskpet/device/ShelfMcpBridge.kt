@@ -53,6 +53,16 @@ object ShelfMcpBridge {
     fun callFor(tool: String): String? =
         if (tool in SYNCED_TOOLS) """{"Op":"mcpUiSync","tool":"$tool"}""" else null
 
+    /** S46 允许本地导航的密集架页面（白名单防注入；page 拼进逐字 JSON）。 */
+    val NAVIGATE_PAGES: Set<String> = setOf("borrow", "return", "inventory")
+
+    /**
+     * S46 页面 → mcpUiNavigate 请求体（desk-pet 本地意图直发，非 MCP 工具，
+     * 不走 [SYNCED_TOOLS]：导航不执行业务/硬件，无防双控问题）。未知 page → null。
+     */
+    fun navigateBodyFor(page: String): String? =
+        if (page in NAVIGATE_PAGES) """{"Op":"mcpUiNavigate","page":"$page"}""" else null
+
     /**
      * S43：结果卡转发体 `{"Op":"mcpUiResult","tool":..,"result":..,"args":..}`。
      * result/args 是平台原文（result 为工具结果的 JSON 字符串），经 org.json 转义嵌套——
@@ -80,6 +90,24 @@ object ShelfMcpBridge {
     ) {
         fun syncAsync(tool: String) {
             postAsync(callFor(tool) ?: return, tool, "sync")
+        }
+
+        /** S46：密集架页面导航（**同步** POST，须在 IO 线程调用；true=2xx）。
+         *  与 sync 的 fire-and-forget 不同：导航需要成败反馈给用户语音/文字回执。 */
+        fun navigate(page: String): Boolean {
+            val body = navigateBodyFor(page) ?: return false
+            val base = baseUrl().trim()
+            if (base.isEmpty()) return false // 设置清空 = 禁用联动
+            return try {
+                val req = Request.Builder()
+                    .url("$base/MjjWebApi")
+                    .post(body.toByteArray(Charsets.UTF_8).toRequestBody(JSON))
+                    .build()
+                http.newCall(req).execute().use { it.isSuccessful }
+            } catch (e: Exception) {
+                logger("shelf mcp navigate failed page=$page: ${e.message}")
+                false
+            }
         }
 
         /** S43：结果卡转发（fire-and-forget，守卫口径同 [syncAsync]）。 */

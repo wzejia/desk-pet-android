@@ -3,6 +3,7 @@ package com.xiaoduo.deskpet.voice
 import com.xiaoduo.deskpet.device.DeviceClient
 import com.xiaoduo.deskpet.device.DeviceIntentMatcher
 import com.xiaoduo.deskpet.device.ShelfMcpBridge
+import com.xiaoduo.deskpet.device.ShelfNavIntentMatcher
 import android.content.Context
 import com.xiaoduo.deskpet.PetOverlayService
 import com.xiaoduo.deskpet.agui.AguiClientFactory
@@ -129,6 +130,16 @@ object VoiceClientFactory {
                 deviceSkillExecutor = if (Prefs.deviceBaseUrl(app).isEmpty()) null
                 else { cmd ->
                     DeviceClient(http = deviceHttp, baseUrl = Prefs.deviceBaseUrl(app)).execute(cmd)
+                },
+                // S46 密集架页面导航（本地意图）：shelfBaseUrl 空=禁用；同步 POST mcpUiNavigate，
+                // 成败转 speech（语音轮 TTS 播报，无自带播报不置工具轮标记）
+                shelfNavMatcher = if (Prefs.shelfBaseUrl(app).isEmpty()) null
+                else { text -> ShelfNavIntentMatcher.match(text) },
+                shelfNavExecutor = if (Prefs.shelfBaseUrl(app).isEmpty()) null
+                else { page ->
+                    val ok = shelfMcpClient(app).navigate(page)
+                    if (ok) "已打开${ShelfNavIntentMatcher.pageName(page)}页面"
+                    else "密集架联动不可用，请检查网络后重试"
                 },
                 // S41：密集架 MCP 动画联动桥（TOOL_CALL_START 工具名 → POST mcpUiSync；
                 // baseUrl 每次调用现读 Prefs，改设置即时生效；失败只记日志不拖管线）
