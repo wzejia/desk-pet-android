@@ -1,6 +1,21 @@
 # 小朵 Android M1 进度
 
-## 状态：S43 MCP 结果卡弹窗 ✅ 代码收口（2026-09-15，595 绿，对侧 L2 全绿，L3 喊话终验待用户）
+## 状态：S48 三票 + S46 本地导航 ✅ 双板部署收口（2026-09-17，606 绿，生产板已上线）
+
+- **S46 本地导航**（用户拍板不走平台，S26-3 设备技能同款模式）：`ShelfNavIntentMatcher`（纯 Kotlin，
+  保守匹配导航动词/页面名词+借/还/盘点目标词，执行对象词绝不拦截防劫持）→ `ShelfMcpBridge.navigate`
+  同步 POST `mcpUiNavigate`（page 白名单 borrow/return/inventory）→ 文字轮 `runShelfNavTurn` /
+  语音轮 VSM 注入 matcher/executor（不置工具轮标记，正常 TTS）。对侧 AppController 新 Op 分支。
+- **S48-1 agent 全量**：`listAgents` 循环翻页 `{"pageSize":500,"pageNum":N}`（真机验证 PageHelper
+  参数名生效，平台 14 个 agent 全量可见）；设置页选择器限高 320dp 滚动。
+- **S48-2 闲置轮转**：会话最后一条消息超 10 分钟 → 下次交互时静默新建（`SessionRules.
+  shouldRotateForIdle` 纯函数，空会话永不触发防循环；文字 send/语音 onUserUtterance 两入口）。
+- **S48-3 悬浮窗「创建新会话」**：菜单替换「查看最近一轮」，Service→VM 双桥（chatBusyProvider/
+  chatNewSession），不进 APP，成功气泡「已开启新会话」。板端日志实证 `menu: create new session ok=true`。
+- **验收**：606 绿（+11）；真机 e2e 全绿（agent 全量截图/菜单 dump/日志实证）；双板部署完成
+  （生产板坑与教训详见 D:\mijijia\docs\DEV_LOG.md 2026-09-17 三条目：签名冲突毁库/备份先行灌回）。
+
+## 历史：S43 MCP 结果卡弹窗 ✅ 收口（2026-09-15；S46 期间三场景真机验收全绿）
 
 - **S43 需求**（原型 `E:\mjj\prototype-s43-mcp-result-card.html` 确认）：语音 MCP 借/还/查结果只在
   助手语音里，屏上无视觉结果——小朵把平台 **TOOL_CALL_RESULT**（SSE 抓包实证 content 为结构化
