@@ -769,5 +769,18 @@
 1. 子智能体编排协议见 CLAUDE.md：fan out builder、critic 盲测严评、loop 到不逊
 2. 四类事件立即记 `implementation-notes.html`；每日追加 `DEV_LOG.md`；每票完更新 `PROGRESS.md`
 3. 协议/参数只认知识包 + 对账表，实现偏离 = bug；Spec 漂移改 Spec 并记 notes
-4. 单测只增不减（当前基线 455，见 CLAUDE.md），skipped=0；禁 mock 被测对象 / 禁 `|| true`
+4. 单测只增不减（当前基线 627，见 CLAUDE.md），skipped=0；禁 mock 被测对象 / 禁 `|| true`
 5. 日志禁打 token/密码明文；catch 不静默吞，错误透传真实 msg
+
+## 评审候补（2026-09-18 周评审 71e0927...HEAD 产出，非阻塞）
+
+- [ ] **voiceChat 回调块去重**：`VoiceSessionManager.voiceChat()` 平台两分支的
+  `onToolCallEvent`/`onToolCallOutcome` 回调块逐字重复（S41/S43 各同步长大两份），
+  下次加回调漏改一份即静默分叉——抽共享 lambda 或合并分支
+- [ ] **S46 回执文案下沉**：`已打开…页面`/`密集架联动不可用…` 在 ChatViewModel 与
+  VoiceClientFactory 各一份——下沉 ShelfNavIntentMatcher（pageName 旁补 fail 常量）
+- [ ] **本地意图 seam**：本地直连轮已三胞胎（S30 设备/S46 导航），每个新意图要动
+  matcher+bridge+VSM 构造参数+工厂装配+ChatViewModel 门控 5 处——加第 4 个意图前
+  先抽 LocalIntentTurn seam
+- [ ] **RMS 常量/EMA 共享**：FullscreenVoiceScreen 与 VoiceIndicatorModel 各存
+  RMS_FLOOR/SPAN + EMA 公式（已注释互引）——下次动全屏页声波时顺手抽共享

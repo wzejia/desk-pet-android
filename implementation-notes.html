@@ -1392,7 +1392,9 @@ show 必须认领 VOICE round（原「在听…」show 的接管语义）且与 
 生产装配恒非空，回退分支仅测试可达（注释声明）。② 帧循环用 Choreographer 自循环 + invalidate
 （plain View）：S25c 冻结病史是 Compose 重组管线特有，View 无重组概念；draw 阶段零分配、RMS
 目标值 @Volatile 直写（VAD 每块喂不 post）。③ updateBubbleWindow 仍以文字泡宽计算窗口 X——
-指示泡居中于 260dp 窗内，X 偏差 ≤ 半个文字泡宽，可接受（未改，留观）。</p>
+指示泡居中于 260dp 窗内，X 偏差 ≤ 半个文字泡宽，可接受（未改，留观）。④ `voiceIndicator`
+字段非 @Volatile，主线程写/VAD 协程读（updateVoiceIndicatorLevel 高频口）——引用写原子、
+最坏延迟可见几毫秒，影响趋零（周评审 2026-09-18 记录在案，较真可标 @Volatile）。</p>
 </div>
 
 </body>

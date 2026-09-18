@@ -11,18 +11,20 @@ M1（悬浮桌宠本体）与「助手化」大切片（S0-S8）均已收口；�
 
 ## 架构速览
 
-### 包结构（`com.xiaoduo.deskpet`，~65 个 Kotlin 文件）
+### 包结构（`com.xiaoduo.deskpet`，105 个 Kotlin 文件）
 
 | 包 | 职责 | 关键类 |
 |---|---|---|
 | 根包 | Android 入口 | `App.kt`, `MainActivity.kt`, `PetOverlayService.kt`, `VoiceForegroundService.kt` |
-| `voice/` | 语音管线（17 文件） | `VoiceSessionManager.kt`(中枢，~33KB 全仓最大), `AudioCapture.kt`, `VadDetector.kt`, `KwsEngine.kt`(sherpa 薄适配), `KwsCore.kt`(门控/decode 线程/检出率统计/release 时序，JVM 可测), `AsrClient.kt`, `TtsClient.kt`, `SentenceSplitter.kt`, `VoicePlayer.kt`, `VoiceStateRouter.kt`, `VoiceClientFactory.kt`(会话单例工厂；RevealScheduler 已退役仅留类备查) |
-| `chat/` | 聊天领域（14 文件） | `ChatViewModel.kt`(AndroidViewModel), `ChatTurnLogic.kt`(纯逻辑), `ChatStore.kt`, `MarkdownRenderer.kt`, `ThinkCleaner.kt`, `FunctionKeyLogic.kt`, `FileListRules.kt` |
-| `agui/` | 平台 AG-UI 客户端（4 文件） | `AguiClient.kt`(SSE+登录+上传), `AguiSseConsumer.kt`(纯逻辑状态机), `FileMeta.kt` |
-| `ui/` | Compose UI（15 文件，4 子目录） | `ui/screens/ChatScreen.kt`, `InputBar.kt`, `FullscreenVoiceScreen.kt`, `SessionDrawer.kt`; `ui/overlay/BubbleView.kt`, `BubbleTextStrip.kt`, `BubbleOwnership.kt`, `OverlayMenu.kt`; `ui/navigation/AppNavHost.kt`; `ui/PetView.kt` |
-| `pet/` | 精灵动画/几何（3 文件） | `PetFrameTable.kt`, `FrameAnimator.kt`, `OverlayClamp.kt` |
-| `net/` | 网络基础设施（3 文件） | `NetConfig.kt`, `HttpClients.kt`(NO_PROXY+白名单TrustManager), `TokenStore.kt` |
-| `util/` | 工具（5 文件） | `PetLogger.kt`, `LogRotator.kt`, `CrashReporter.kt`, `Prefs.kt`, `PrefContract.kt` |
+| `voice/` | 语音管线（32 文件） | `VoiceSessionManager.kt`(中枢，全仓最大), `AudioCapture.kt`, `VadDetector.kt`, `KwsEngine.kt`(sherpa 薄适配), `KwsCore.kt`(门控/decode 线程/检出率统计/release 时序，JVM 可测), `AsrClient.kt`, `TtsClient.kt`, `SentenceSplitter.kt`, `VoicePlayer.kt`, `VoiceStateRouter.kt`, `VoiceClientFactory.kt`(会话单例工厂；RevealScheduler 已退役仅留类备查), `VadSeamPolicy.kt`/`WakeBlindWindowBuffer.kt`/`StampedBlock.kt`(S40 盲区回灌三件套), `ListeningHintPolicy.kt`(S49 聆听提示判定) |
+| `chat/` | 聊天领域（15 文件） | `ChatViewModel.kt`(AndroidViewModel), `ChatTurnLogic.kt`(纯逻辑), `ChatStore.kt`, `MarkdownRenderer.kt`, `ThinkCleaner.kt`, `FunctionKeyLogic.kt`, `FileListRules.kt`, `SessionRules.kt`(S48 闲置轮转判定) |
+| `agui/` | 平台 AG-UI 客户端（4 文件） | `AguiClient.kt`(SSE+登录+上传+agent 分页拉取), `AguiSseConsumer.kt`(纯逻辑状态机+工具结果捕获), `AguiClientFactory.kt`, `FileMeta.kt` |
+| `device/` | 密集架/设备直连（4 文件） | `DeviceClient.kt`(S26 设备技能), `DeviceIntentMatcher.kt`(本地意图), `ShelfMcpBridge.kt`(S41/43/46 联动桥：mcpUiSync/mcpUiResult/mcpUiNavigate，UI-only 防双控), `ShelfNavIntentMatcher.kt`(S46 保守导航匹配) |
+| `cloud/` | 多厂商云端兜底（9 文件） | `CloudClientFactory.kt` + OpenAI 兼容/火山/阿里 ASR·TTS·Chat 客户端, `TextChatRouter.kt` |
+| `ui/` | Compose UI（21 文件，6 子目录） | `ui/screens/ChatScreen.kt`, `InputBar.kt`, `FullscreenVoiceScreen.kt`, `SessionDrawer.kt`, `FullscreenVoiceLayout.kt`(纯 Kotlin 布局计算器); `ui/overlay/BubbleView.kt`, `BubbleTextStrip.kt`, `BubbleOwnership.kt`, `OverlayMenu.kt`, `BubbleScrollPolicy.kt`(S39), `VoiceIndicatorModel.kt`/`VoiceIndicatorView.kt`(S49); `ui/navigation/AppNavHost.kt`; `ui/PetView.kt` |
+| `pet/` | 精灵动画/几何（4 文件） | `PetFrameTable.kt`, `FrameAnimator.kt`, `OverlayClamp.kt`, `EdgeDock.kt` |
+| `net/` | 网络基础设施（4 文件） | `NetConfig.kt`, `HttpClients.kt`(NO_PROXY+白名单TrustManager), `TokenStore.kt`, `TtsVoiceDefaults.kt` |
+| `util/` | 工具（8 文件） | `PetLogger.kt`, `LogRotator.kt`, `CrashReporter.kt`, `Prefs.kt`, `PrefContract.kt`, `TapGesture.kt`, `AppLauncher.kt`, `NavInsetPolicy.kt` |
 
 ### 语音管线：四态半双工
 
@@ -34,11 +36,13 @@ IDLE ──(唤醒词/按住说话)──▶ LISTENING ──(VAD判停)──�
 ```
 
 - **半双工两层**：① `VoiceStateRouter.route(state)` 按状态路由麦块（PROCESSING/SPEAKING 丢块）；② `kwsPaused` 对话期暂停 KWS 防 TTS 自声误触发
+- **S40 唤醒盲区回灌**：唤醒路径 vad.start 前落接缝水位，ack 时代块进 `WakeBlindWindowBuffer`（30 块=3s 环形）不直灌 VAD；接缝后首块触发 FIFO 回灌（过 NLMS 消「我在」回声，参考由 `WakeAck.attachReferenceListener` 推入）；cancel/新唤醒清缓冲防旧轮泄入
 - **TurnFlags 模式**（`VoiceSessionManager` 私有内部类）：每轮新建实例，`sealed` 封轮（cancel 第一步先置位）+ `terminalFired` AtomicBoolean CAS 防双终态 + `utteranceForwarded` 记用户已转发
 - **新旧轮隔离**：`currentTurn` 引用 + `turn !== currentTurn` 检查——旧轮残跑协程持旧 TurnFlags 引用，迟到 delta/终态被拒绝
 - **cancelCurrentTurn 分支**：IDLE→no-op / LISTENING→停VAD回IDLE / PROCESSING+SPEAKING→封轮→停播→停管线→收泡→回IDLE
 - **S8-3 barge-in 接续**：speaking/processing 态按住说话 → cancelCurrentTurn → 同一次按住直接进 LISTENING 采音
-- **S8-7 唤醒反馈**：`wakeAckActive` StateFlow gate 视觉映射（SPEAKING+true → JUMPING→WAITING，跳过通用 TALKING）；应答音入口 `playAckThenListen()`（S12 起对话态唤醒经 cancel 接续也可达）
+- **S33 聆听期重唤醒**：LISTENING 态收唤醒回调（KWS 旁路可达）→ cancelCurrentTurn 接续重播「我在」重听
+- **S8-7 唤醒反馈**：`wakeAckActive` StateFlow gate 视觉映射（SPEAKING+true → WAITING 静止【S13 取消唤醒跳】，跳过通用 TALKING）；应答音入口 `playAckThenListen()`（S12 起对话态唤醒经 cancel 接续也可达）
 
 ### 聊天层：文字/语音统一视图
 
@@ -48,10 +52,12 @@ IDLE ──(唤醒词/按住说话)──▶ LISTENING ──(VAD判停)──�
 - **barge-in**：`ChatViewModel.cancelCurrentTurn()` 按 `voiceActive || vsm.state != IDLE` 门控路由到语音/文字路径
 - **ChatTurnLogic**：纯逻辑（零 Android import，JVM 可测），处理消息追加/delta 应用/取消标记
 
-### 悬浮窗：双窗口 + 气泡
+### 悬浮窗：双窗口 + 气泡 + 语音指示
 
-- **PetOverlayService**：交互层（可触精灵 645×698px）+ 显示层（气泡专用条 260dp 宽，NOT_TOUCHABLE）
-- **气泡**：`BubbleOwnership` 纯逻辑 round/owner 令牌 → `BubbleTextStrip` 流式 markdown 剥离 → `BubbleView` 打字机渲染
+- **PetOverlayService**：交互层（可触精灵，尺寸=PetView 192×208dp×scale）+ 显示层（气泡窗 260dp 宽，`NOT_TOUCHABLE` **S39 起动态切换**：文字泡可见期开触摸供滑动查看，隐藏/指示态还原穿透）
+- **气泡**：`BubbleOwnership` 纯逻辑 round/owner 令牌 → `BubbleTextStrip` 流式 markdown 剥离 → `BubbleView` 打字机渲染；S39 滚动跟随仲裁 `BubbleScrollPolicy`
+- **S49 语音指示泡**：聆听=镜像柱声纹（`VoiceIndicatorView`，RMS EMA 120ms 驱动）/ 思考=三点错相跳动；恒定 132×40dp 与文字泡同容器互斥二选一；**show 认领 VOICE round**（回复 delta 令牌基础，删认领则回复流式上屏全灭）；`ListeningHintPolicy` 判定显隐（多轮回听同显，S5 旧抑制已废）
+- **S48 悬浮窗桥**：`chatBusyProvider`/`chatNewSession`/`chatInterrupt` 三桥（ChatViewModel init 挂载，菜单「创建新会话」不进 APP）
 - **S8-5 流式解耦**：AG-UI delta 回调直接 bubble.show/append，与 TTS 播放彻底解耦（RevealScheduler 退役，类保留备查）
 
 ### 导航
@@ -94,7 +100,7 @@ IDLE ──(唤醒词/按住说话)──▶ LISTENING ──(VAD判停)──�
 
 ### 基线（不可退）
 
-- 单测 **455 个**，skipped=0，failures=0，errors=0（56 测试套件）
+- 单测 **627 个**，skipped=0，failures=0，errors=0（81 测试套件）
 - 验证命令：`./gradlew.bat testDebugUnitTest --rerun-tasks`
 - 增量纪律：`CONSTRUCTION.md`「单测只增不减，skipped=0」
 

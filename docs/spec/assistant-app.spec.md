@@ -75,6 +75,20 @@
   完整兑现「语音轮与文字轮是同一会话的不同输入方式」拍板语义
 - reveal：`len(pcm)/2/24000` 句级均分逐字；播放阻塞写天然背压；失败降级 4.5 字/秒
   **【2026-08-05 撤销】S8-5 改流式直出**（delta 回调直接气泡上屏，不等音频），reveal 退役仅留类备查
+- 盲区回灌（**S40**，治唤醒应答期话头丢失）：唤醒路径 vad.start 前落接缝水位（nanoTime），
+  ack 时代块进 `WakeBlindWindowBuffer`（30 块=3s 环形）不直灌 VAD；接缝后首块触发 FIFO 回灌
+  （块过 NLMS 消「我在」回声，参考由 `WakeAck.attachReferenceListener` 播放期推入）；
+  cancel/新唤醒清缓冲防旧轮泄入；回灌中 utterance 即止余块（极端时序可截句，S19-2 续听兑底）
+
+### 密集架联动桥（S41/S43/S46，device/ 包，UI-only 防双控铁律：平台 MCP 已执行真实硬件，本地绝不再发硬件 Op）
+
+- `ShelfMcpBridge`：TOOL_CALL_START{toolCallName} → `callFor` 白名单（10 工具契约锚，多/少/改名皆红）
+  → POST `mcpUiSync`（fire-and-forget，NO_PROXY，失败只记日志绝不抛进管线）；baseUrl 每轮现读，空=禁用
+- **S43 结果卡**：TOOL_CALL_RESULT 最后一次覆盖语义 → `mcpUiResult`（org.json 转义防嵌套引号；
+  无结果轮/断流不回吐）；文字轮 TextChatRouter 补接，云端路无 MCP 恒不触发
+- **S46 本地导航**：`ShelfNavIntentMatcher` 保守匹配（纯导航语态，执行对象词绝不拦截防劫持）→
+  同步 POST `mcpUiNavigate`（page 白名单 borrow/return/inventory），成败回执走分句/TTS 管线；
+  文字轮 ChatViewModel 拦截、语音轮 VSM 注入 matcher/executor 双路
 
 ### UI 结构（Compose，参照物截图 docs/research/）
 
@@ -96,6 +110,9 @@
   rgba(255,255,255,0.92) / 11px×font-scale / 打字机 40ms/字）+ X 向 clamp 到屏内
   **【S7-c 后实值：max-height 100dp / 13sp / 白底不透明】**；S39 滚动跟随仲裁
   BubbleScrollPolicy（拖动挂起打字机拽底/松手贴底恢复）
+- 悬浮窗双窗口见下节；**S49 语音指示泡**：聆听=镜像柱声纹（`VoiceIndicatorView`，captureBlocks 同源
+  RMS EMA 120ms）/ 思考=三点错相跳动；恒定 132×40dp 与文字泡同容器互斥，show 认领 VOICE round；
+  `ListeningHintPolicy`：多轮回听同显（S5 旧抑制废止，用户 2026-09-18 拍板），wozai 驻留 800ms 后顶替
 - 位置持久化（clamp 纯函数可单测）+ 总开关持久化 + 杀进程恢复（吸收 U2）
 
 ## 边界条件
