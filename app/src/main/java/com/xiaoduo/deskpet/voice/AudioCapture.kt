@@ -178,13 +178,16 @@ class AudioCapture(
      * 门限取 [EnergyGate.DEFAULT_GATE] 而非用户校准门：诊断用固定口径，feed 侧按真实
      * 动态门，两侧 rms 值原样落日志可互配。
      * runCatching 兜底：探针永不向上抛——只探不修票，探针本身不得成为新故障源。
+     *
+     * S52 历史注记：2026-09-18 AGC 压制取证时曾临时改 gate=0f 全量落行（需看
+     * 0.001~0.015 float 域低值段包络，门控会滤掉病灶频段）；取证毕已回退默认门。
+     * 再需低值段包络时临时改回 0f，随取证票立即收回（armed 全量 ≈10 行/s，不可带
+     * 入量产/长期分支）。
      */
     private fun probeBlock(r: AudioRecord, block: ByteArray) {
         if (!AudioProbe.armed) return
         val rms = EnergyGate.rmsOf(block)
-        // S52 诊断构建：armed 时全量落行（去掉 0.015 门）——AGC 压制取证需看到 0.001~0.015
-        // float 域（VAD 0.004~0.06）的完整包络，门控会把病灶频段滤掉
-        if (!AudioProbe.shouldLog(rms, 0f)) return
+        if (!AudioProbe.shouldLog(rms, EnergyGate.DEFAULT_GATE)) return
         val lagText = runCatching { captureLagText(r) }
             .getOrElse { "NA(error:${it.message})" }
         PetLogger.i(PROBE_TAG, "cap rms=%.4f lag=%s".format(rms, lagText))

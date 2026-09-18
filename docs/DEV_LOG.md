@@ -1,5 +1,29 @@
 # 小朵 Android 开发日志
 
+## 2026-09-18 两张小票：探针诊断构建回退 + mic_source_mode 对照复测（S52 后收尾）
+
+**票 1：探针回退**（S52 遗留 hack 收回）：`AudioCapture.probeBlock` 门限 `shouldLog(rms, 0f)`（armed 全量 ~10 行/s）→ 回退 `shouldLog(rms, EnergyGate.DEFAULT_GATE)`，KDoc 注明 S52 历史（为何曾全量：AGC 压制取证需看 0.001~0.015 float 域低值段；再需时临时改 0f 随取证票收回）。`shouldLog` 语义已有 AudioProbeTest 5 锁，调用点回归无新行为不需新测，633 绿不退。
+
+**票 2：mode 0/2 对照复测**（S52 停用上攻后首次同条件对照，一轮一变量）：新包装板 → 轮 A（mode 0/source=7）3 轮 → force-stop+sed prefs+relaunch 切 mode 2（source=9，capture start 实证）→ 轮 B 同脚本 3 轮 → 切回 mode 0（source=7 实证）。
+
+| 维度 | 轮 A mode 0 | 轮 B mode 2 |
+|---|---|---|
+| 唤醒 | 3/3 | 3/3（含聆听期重唤醒 1 次） |
+| maxLevel | 0.63/0.33/0.29 | 0.32/0.39/0.30 |
+| ASR 完整性 | 3/3 完整 | 3/3（第 3 轮少「合同」系用户口误，非切字） |
+| S51 链 | hold→dispatch 3/3（32000/35200/51200 样本） | 3/3（33600/38400/48000 样本） |
+| 幽灵轮/切尾/拖尾 | 0/0/0 | 0/0/0（S40 backfill 每轮 7 块正常，**无硬件 AEC 下「我在」回声未构成回灌**） |
+| 判停尾段 | diag 落底 0.004~0.007 | 同 0.005~0.008 |
+| 噪声底（VAD 域 diag） | 0.0045~0.0076 | 同量级（电子噪底 0.0013 float×4.096≈0.005 吻合） |
+
+**结论**：S52 后 mode 0/2 在判停质量/回声/ASR 完整性上**无实质差异**（n=3，同脚本同音量）；曾经 S18 时代的 AGC 钉死问题在两模式下均未复现（用户现中等音量 + end 线 0.03 + 上攻停用三重缓解）。**维持 mode 0 现役**（mode 2 无优势，mode 0 硬件 AEC 在真回声场景仍有保险价值且为出厂默认）。顺带：用户确认悬浮窗已自行开启（prefs 无 false 条目=默认 true，relaunch 后 `PetOverlayService pref=true` 双窗口实证）。轮 B 第 2 轮未走 MCP 工具、第 3 轮 empty run retry×1——均平台 LLM 侧行为，与采麦模式无关，不入票。
+
+```evidence
+verify_cmd: ./gradlew testDebugUnitTest assembleDebug（633 绿）；adb install -r 192.168.137.45:5555 Success；轮 A tail -n +34619 / 轮 B tail -n +34817 会话锚对齐；capture start source=7→9→7 三段实证
+verify_claim: 探针回退后 armed 仅打过门块（S52 hack 收回）；mode 0/2 对照 3+3 轮全部完整收账无幽灵轮无切尾，mode 0 恢复现役；悬浮窗 pref=true 双窗口已加
+files_touched: [app/src/main/java/com/xiaoduo/deskpet/voice/AudioCapture.kt, docs/DEV_LOG.md, implementation-notes.html]
+```
+
 ## 2026-09-18 大票 A/B 归档（用户拍板：当前效果可以）
 
 S52 交接后立项排程中的两张候选大票归档：**大票 A（软件 AGC 补偿/限幅预压）+ 大票 B（流式 ASR+语义端点），不立项**。依据：S52 规避方案（中等音量，峰值压 0.1 float 下）用户验收通过——连续两轮完整句收账后日常使用效果可接受，codec AGC 烸增益问题在现行用法下不再构成障斑。
