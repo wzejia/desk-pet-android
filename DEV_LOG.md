@@ -15,8 +15,9 @@
   多轮不显=零反馈）→ 抽 `ListeningHintPolicy` 纯逻辑 + 5 测锚（变异锚：恢复 SPEAKING 跳过→红）。
 - **验收**：627 绿 skipped=0（+21：模型 8 + VSM 指示层 7 + 策略 5 + 锚修正）；板端日志实证
   全链路（唤醒→VOICEPRINT round=2 / PROCESSING→THINKING_DOTS 同容器顶替零 hide 间隙 /
-  回复首音频 hide 顶替 / 唤醒打断 / 打断收指示）；真机多轮回听声纹**待复核**（修复包 14:36
-  上板，用户尚未复测）。
+  回复首音频 hide 顶替 / 唤醒打断 / 打断收指示）；真机多轮回听声纹**复测通过**（14:57
+  用户多轮实测：multi-turn LISTENING→show 仅 71/82ms ×2；800ms 驻留 813/858ms ×2；
+  MCP 工具轮回归 ✓）。
 
 ```evidence
 verify_cmd: ./gradlew :app:testDebugUnitTest :app:assembleDebug --console=plain
