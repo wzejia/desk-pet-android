@@ -1227,7 +1227,7 @@ class VoiceSessionManager(
         internal const val EMPTY_ASR_MAX_RESUMES = 2
 
         /** S51 断句续听窗（块）：判停后追加的静音观察期，耗尽才合并派发。
-         *  1000ms：容忍总静音 ≈1.8s（判停 800ms + 本窗），覆盖短语间气口；
+         *  1000ms：容忍总静音 ≈1.6s（判停 600ms + 本窗），覆盖短语间气口；
          *  回忆型长停顿（2s+）不在此列——那是按住说话的场景，否则每轮延迟不可接受。 */
         internal const val CONTINUATION_TICKS = 10
     }

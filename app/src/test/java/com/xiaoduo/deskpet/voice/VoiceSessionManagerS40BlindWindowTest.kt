@@ -181,8 +181,8 @@ class VoiceSessionManagerS40BlindWindowTest {
         repeat(VoiceSessionManager.CONTINUATION_TICKS) { mgr.routeBlockForTest(nowStamped(silence())) }
         assertEquals("续听窗耗尽派发 → utterance 进管线（盲区语音找回）", VoiceStateRouter.State.PROCESSING, mgr.state)
         // 回灌块不喂 kwsSink（KWS 已实时解过，双喂恐二次命中重唤醒环）；活块 S33 旁路照旧
-        // （活静音块共 15：8 判停 + 7 续听窗）→ 3（ack 期）+ 15（活块旁路）= 18；
-        // 若回灌双喂应为 21
+        // （活静音块共 16：判停 6 + 续听窗 10）→ 3（ack 期）+ 16（活块旁路）= 19；
+        // 若回灌双喂应为 22
         assertEquals(
             "kwsSink 计数 = ack 期 3 + 活块（判停 ${VadDetector.SILENCE_END_TICKS} + 续听窗 ${VoiceSessionManager.CONTINUATION_TICKS}）（回灌 3 块不双喂）",
             3 + VadDetector.SILENCE_END_TICKS + VoiceSessionManager.CONTINUATION_TICKS, kwsFed,

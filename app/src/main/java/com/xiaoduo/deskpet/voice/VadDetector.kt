@@ -19,7 +19,8 @@ import kotlin.math.sqrt
  *   speechLevelProvider（校准公式 coerceIn(0.05,0.15) 在安静域钳在 0.05，数学上无法
  *   低于 0.05，救不了轻声场景）；0.03 让弱音节 0.03~0.05 域计回说话；
  * - 判起线保持 max(speechLevelProvider, floor×[ADAPTIVE_START_FACTOR])（环境校准联动不变）；
- * - 判停窗 6→8 块（800ms）：句中气口容忍加倍，代价端点延迟 +200ms；
+ * - 判停窗回落 6 块（600ms，S52 晚回调）：S52 停用上攻 + end 线 0.03 后原切尾根因已除，
+ *   800ms 的额外延迟不再必要；
  * - 恒成立 end < start（0.03<0.05 且 1.4f<2.0f）。
  *
  * S19-1 自适应噪声底 v5（rk3568 无 AEC + 底层 AGC 慢释放致非平稳噪声下固定阈值
@@ -50,9 +51,10 @@ class VadDetector(
                                               // 刻意不走 speechLevelProvider（校准钳位见类注释）
         const val RMS_REF = 8000.0
         const val SPEECH_START_TICKS = 3       // 连续超阈值判说话开始（300ms）
-        const val SILENCE_END_TICKS = 8        // 连续低于阈值判说话结束（800ms；S50 2026-09-18
-                                              // 用户拍板：600ms 切轻声句尾实测四连切，回桌面端原值；
-                                              // 2026-09-11 曾 400→600 折中，2026-08-29 曾 8→4 提速）
+        const val SILENCE_END_TICKS = 6        // 连续低于阈值判说话结束（600ms；2026-09-18 晚
+                                              // 用户拍板回 600：S52 停用上攻 + end 线 0.03 后原切尾
+                                              // 根因已除，800ms 的额外延迟不再必要。演进史：
+                                              // 8→4(08-29 提速)→6(09-11 折中)→8(S50)→6(S52 晚)）
         const val MIN_UTTERANCE_TICKS = 3      // 更短当噪音丢弃
         const val LISTEN_TIMEOUT_S = 30        // 生效值 30s（sidecar 显式传参；勿用类默认值 8）
         const val MAX_UTTERANCE_S = 8          // 说话超时强制结束（防增益爬升噪声永不结束）
