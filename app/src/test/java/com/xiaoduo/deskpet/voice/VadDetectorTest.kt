@@ -9,6 +9,7 @@ import org.junit.Test
 /**
  * VadDetector 单测：合成 PCM 块（恒定值块 = 精确 RMS）拼场景。
  * 量纲：level = RMS/8000；loud(1000) → 0.125 ≥ 0.05；quiet(100) → 0.0125 < 0.05。
+ * S50：判停线独立 0.03（判起线仍 0.05），判停窗 800ms。
  */
 class VadDetectorTest {
 
@@ -21,10 +22,11 @@ class VadDetectorTest {
     private fun feedN(vad: VadDetector, b: ShortArray, n: Int): List<VadDetector.Event> =
         (1..n).mapNotNull { vad.feed(b) }
 
-    /** S18：阈值可注入（校准联动）--provider 抬高后原 loud(0.125) 沦为静音，更响块才算语音 */
+    /** S18：阈值可注入（校准联动）--provider 抬高后原 loud(0.125) 沦为静音，更响块才算语音。
+     *  S50：判停线拆分后双 provider 同抬，保「双线均可注入」语义。 */
     @Test
     fun `injected speech level provider raises the bar`() {
-        val vad = VadDetector(speechLevelProvider = { 0.2 })
+        val vad = VadDetector(speechLevelProvider = { 0.2 }, speechEndLevelProvider = { 0.2 })
         vad.start()
         // loud=0.125 < 0.2 -> 静音；讲话中阈值抬高后旧 loud 块计为静音
         repeat(3) { assertNull(vad.feed(block(2000))) } // 0.25 >= 0.2 判起
@@ -32,9 +34,11 @@ class VadDetectorTest {
         assertNull(vad.feed(loud))    // 0.125 < 0.2 -> 说话中静音块（below=1）
         assertNull(vad.feed(zero))    // below=2
         assertNull(vad.feed(zero))    // below=3
-        assertNull(vad.feed(zero))    // below=4（600ms 拍板后不判停）
+        assertNull(vad.feed(zero))    // below=4
         assertNull(vad.feed(zero))    // below=5
-        assertTrue(vad.feed(zero) is VadDetector.Event.Utterance) // below=6 判停
+        assertNull(vad.feed(zero))    // below=6
+        assertNull(vad.feed(zero))    // below=7（800ms 窗内不判停）
+        assertTrue(vad.feed(zero) is VadDetector.Event.Utterance) // below=8 判停（S50 800ms）
     }
 
     /** S18：默认 provider 与硬编码 0.05 行为一致（回归保障） */
@@ -58,14 +62,14 @@ class VadDetectorTest {
     }
 
     @Test
-    fun `three loud blocks trigger and six silence blocks end utterance`() {
+    fun `three loud blocks trigger and eight silence blocks end utterance`() {
         val vad = VadDetector()
         vad.start()
         assertTrue(feedN(vad, loud, 3).isEmpty())
         assertTrue(vad.isSpeaking)
 
-        assertTrue(feedN(vad, zero, 5).isEmpty()) // 5 块静音不判停（句中短停顿保护，600ms 拍板放宽）
-        val ev = vad.feed(zero) // 第 6 块判停（600ms，2026-09-11 用户拍板放宽截断）
+        assertTrue(feedN(vad, zero, 7).isEmpty()) // 7 块静音不判停（句中短停顿保护，S50 800ms）
+        val ev = vad.feed(zero) // 第 8 块判停（800ms，S50 2026-09-18 拍板回桌面端原值）
         assertTrue(ev is VadDetector.Event.Utterance)
         // deque 里只有 3 触发块 → utterance = 3 块 = 9600 字节，恰为 min_utterance 边界（>= 通过）
         assertEquals(3 * VadDetector.BLOCK_SAMPLES, (ev as VadDetector.Event.Utterance).pcm.size)
@@ -80,11 +84,11 @@ class VadDetectorTest {
         feedN(vad, loud, 3) // 判起
         assertTrue(vad.isSpeaking)
         feedN(vad, loud, 2) // 继续说话
-        val events = feedN(vad, zero, 6) // 判停（600ms）
+        val events = feedN(vad, zero, 8) // 判停（S50 800ms）
 
         assertEquals(1, events.size)
         val pcm = (events[0] as VadDetector.Event.Utterance).pcm
-        // 3 pre-roll + 3 触发块 + 2 说话块 = 8 块；尾部 6 块静音不进 buffer
+        // 3 pre-roll + 3 触发块 + 2 说话块 = 8 块；尾部 8 块静音不进 buffer
         assertEquals(8 * VadDetector.BLOCK_SAMPLES, pcm.size)
         assertEquals(100, pcm[0].toInt()) // 首块 = 低电平 pre-roll（防丢首字）
         assertEquals(100, pcm[3 * VadDetector.BLOCK_SAMPLES - 1].toInt())
@@ -223,20 +227,26 @@ class VadDetectorTest {
         assertTrue("判停应发生在衰减早期（<25 块），实际第 $fired 块", fired < 25)
     }
 
-    /** S19-1：手机安静域零回归--噪声 0.006 时阈值回校准下限 0.05，
-     *  行为与硬编码版一致（3 块判起 0.0525、6 块 0.045 判停） */
+    /** S50：判停/判起线拆分--安静域（噪声底 0.006）判起线保持校准 0.05 语义不变；
+     *  判停线独立 0.03：连续弱音节 0.045（轻声句尾）不再计静音切尾（原 0.05 线 6 块即切，
+     *  实测病灶「盘点当前有哪」四连切），真静音 8 块（800ms）仍正常判停 */
     @Test
-    fun `quiet phone domain keeps 0_05 behavior unchanged`() {
+    fun `quiet domain start keeps 0_05 while end splits to 0_03`() {
         val vad = VadDetector()
         vad.start()
-        feedN(vad, block(48), 5) // 噪声底 0.006
-        assertNull(vad.feed(block(360)))  // 0.045 < 0.05 静音
+        feedN(vad, block(48), 5)          // 建噪声底 0.006
+        assertNull(vad.feed(block(360)))  // 0.045 < 0.05 判起侧静音（判起线不变）
         feedN(vad, block(420), 3)         // 0.0525 >= 0.05 判起
         assertTrue(vad.isSpeaking)
-        feedN(vad, block(360), 3)         // 0.045 静音 3 块不判停
-        feedN(vad, block(360), 2)         // 4-5 块仍不判停（600ms 拍板）
-        val ev = vad.feed(block(360))     // 第 6 块判停
-        assertTrue(ev is VadDetector.Event.Utterance)
+        // S50 修复核心：连续弱音节 0.045 >= 判停线 0.03 → 计说话不切尾
+        // （只喂 8 块：恒定值块 ≥10 块会触发平台通道判停，属合成信号病理，真语声有波动）
+        feedN(vad, block(360), 8)
+        assertTrue(vad.isSpeaking)
+        // 真静音（噪声底 0.006）8 块（800ms）判停
+        val evs = feedN(vad, block(48), 8)
+        assertEquals(1, evs.size)
+        assertTrue(evs[0] is VadDetector.Event.Utterance)
+        assertFalse(vad.isActive)
     }
 
     /** S19-1 泵态幽灵轮：首轮（EMA 未学到泵态）允许短幽灵 utterance（<2.5s，非 8s），
@@ -274,7 +284,7 @@ class VadDetectorTest {
         repeat(3) { assertNull(vad.feed(bytes)) }
         assertTrue(vad.isSpeaking)
         var ev: VadDetector.Event? = null
-        repeat(6) { ev = vad.feed(ByteArray(VadDetector.BLOCK_BYTES)) } // 600ms 判停
+        repeat(8) { ev = vad.feed(ByteArray(VadDetector.BLOCK_BYTES)) } // 800ms 判停（S50）
         assertTrue(ev is VadDetector.Event.Utterance)
         assertEquals(3 * VadDetector.BLOCK_SAMPLES, (ev as VadDetector.Event.Utterance).pcm.size)
     }

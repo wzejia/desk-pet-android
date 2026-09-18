@@ -171,15 +171,22 @@ class VoiceSessionManagerS40BlindWindowTest {
         assertEquals("陈块改道缓冲，不直灌 VAD", 3, mgr.blindBufferSizeForTest)
         assertEquals(VoiceStateRouter.State.LISTENING, mgr.state)
 
-        // 接缝后首块触发回灌：3 响块判起 → 活静音块×6 判停 → utterance（找回盲区话头）
+        // 接缝后首块触发回灌：3 响块判起 → 活静音块×SILENCE_END_TICKS 判停（S50 800ms）→ S51 续听窗挂起
         mgr.routeBlockForTest(nowStamped(silence()))
-        repeat(5) { mgr.routeBlockForTest(nowStamped(silence())) }
-        assertEquals("回灌话头+判停 → utterance 进管线（盲区语音找回）", VoiceStateRouter.State.PROCESSING, mgr.state)
+        repeat(VadDetector.SILENCE_END_TICKS - 1) { mgr.routeBlockForTest(nowStamped(silence())) }
+        assertEquals("判停后进 S51 续听窗（状态仍 LISTENING 不即派发）", VoiceStateRouter.State.LISTENING, mgr.state)
         assertTrue(logs.any { it.contains("S40 blind-window backfill: 3 blocks") })
+        assertTrue(logs.any { it.contains("S51 continuation hold") })
+        // 续听窗耗尽（再 CONTINUATION_TICKS 静音块）→ 合并派发 → utterance 进管线
+        repeat(VoiceSessionManager.CONTINUATION_TICKS) { mgr.routeBlockForTest(nowStamped(silence())) }
+        assertEquals("续听窗耗尽派发 → utterance 进管线（盲区语音找回）", VoiceStateRouter.State.PROCESSING, mgr.state)
         // 回灌块不喂 kwsSink（KWS 已实时解过，双喂恐二次命中重唤醒环）；活块 S33 旁路照旧
-        // （活静音块共 6：1 触发回灌 + 5 判停）→ 3（ack 期）+ 6（活块旁路）= 9；
-        // 若回灌双喂应为 12
-        assertEquals("kwsSink 计数 = ack 期 3 + 活块 6（回灌 3 块不双喂）", 9, kwsFed)
+        // （活静音块共 15：8 判停 + 7 续听窗）→ 3（ack 期）+ 15（活块旁路）= 18；
+        // 若回灌双喂应为 21
+        assertEquals(
+            "kwsSink 计数 = ack 期 3 + 活块（判停 ${VadDetector.SILENCE_END_TICKS} + 续听窗 ${VoiceSessionManager.CONTINUATION_TICKS}）（回灌 3 块不双喂）",
+            3 + VadDetector.SILENCE_END_TICKS + VoiceSessionManager.CONTINUATION_TICKS, kwsFed,
+        )
     }
 
     @Test

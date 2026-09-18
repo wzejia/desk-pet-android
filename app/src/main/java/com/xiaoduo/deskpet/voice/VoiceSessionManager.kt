@@ -422,6 +422,7 @@ class VoiceSessionManager(
             cancelCurrentTurn()
         }
         if (state != VoiceStateRouter.State.IDLE) return
+        clearContinuation() // S51：新聆听轮开清挂起（防泄漏；re-wake 已经 cancelCurrentTurn→backToIdle 清过）
         ensureCollectLoop()
         kwsPaused = true // 半双工第二层：对话期 IDLE 分支暂停 KWS
         val ack = if (playWakeAck) wakeAck else null
@@ -618,6 +619,21 @@ class VoiceSessionManager(
     @Volatile
     private var vadDiagTicks = 0
 
+    // ---- S51 断句续听状态（仅采麦消费线程写，cancel/停止跨线程清，续听锁保护）----
+    /** 续听片段累积（各片段均过 min_utterance 门，合并后交 ASR）。 */
+    private val continuationParts = ArrayList<ShortArray>()
+
+    /** 续听窗剩余块数（0=无挂起；语音级块冻结，连续静音递减）。 */
+    @Volatile
+    private var continuationTicksLeft = 0
+
+    /** 各片段 maxLevel 最大值（合并事件诊断用，「一值定层」口径）。 */
+    @Volatile
+    private var continuationMaxLevel = 0.0
+
+    /** 续听状态锁（routeBlock 消费线程 vs cancel 跨线程清理竞态收口）。 */
+    private val continuationLock = Any()
+
     /** S19-2 空 ASR 续听剩余额度（真文本/新对话链复位）。 */
     @Volatile
     private var emptyAsrResumesLeft = EMPTY_ASR_MAX_RESUMES
@@ -705,17 +721,23 @@ class VoiceSessionManager(
                 if (vadDiagTicks % 10 == 0) {
                     logger("vad diag level=%.4f".format(lvl))
                 }
-                handleVadEvent(vad.feed(block))
+                val ev = vad.feed(block)
+                handleVadEvent(ev)
+                // S51 断句续听：无事件块才驱动倒计时（utterance 块已重置窗口，语音块冻结）
+                if (ev == null) tickContinuation(lvl.toDouble())
             }
         }
     }
 
-    /** VAD 事件统一出口（活块/回灌共用）：utterance 进管线；超时回 IDLE。 */
+    /**
+     * VAD 事件统一出口（活块/回灌共用）：utterance 进续听窗（S51）；超时回 IDLE。
+     * 按 [onUtterance] 仍保留即时派发语义（按住松开 stopListening 直通、JVM 单测直注）。
+     */
     private fun handleVadEvent(ev: VadDetector.Event?) {
         when (ev) {
             is VadDetector.Event.Utterance -> {
                 logger("VAD utterance, ${ev.pcm.size} samples, maxLevel=%.4f".format(ev.maxLevel))
-                onUtterance(ev)
+                holdForContinuation(ev)
             }
             is VadDetector.Event.Timeout -> {
                 // 一值定层（坑 #19）：maxLevel≈0.0001 系统层（权限/麦），0.01-0.05 阈值问题
@@ -725,6 +747,89 @@ class VoiceSessionManager(
                 kwsPaused = false
             }
             null -> Unit
+        }
+    }
+
+    // ---------------- S51 断句续听 ----------------
+
+    /*
+     * 病灶（09-18 板端实锤）：固定静音窗判停天生吃不掉长句字组气口——用户说
+     * 「盘点当前有哪些档案」在「有哪」后换气，气口>判停窗即切尾，且切尾改变
+     * LLM 工具路由（盘点被当查询调 c_archive_query）。三轮对照实验（轻声/正常音量
+     * ×600/800ms 窗）钉死切尾位置=气口位置，与音量无关（更响反而切得更早）。
+     *
+     * 机制（Siri/小爱同款）：判停片段不即派发——累积 + 重启 VAD + 续听窗倒计时；
+     * 窗内出现语音级块（用户续说）则冻结倒计时交 VAD 判起，下一片段到达重置窗口；
+     * 连续静音耗尽窗口才合并派发。代价：每轮派发延迟 +[CONTINUATION_TICKS] 块。
+     *
+     * 直通例外：按住松开 stopListening（松开=明确说完）与单测直注 onUtterance
+     * 不经此路径，保持即时派发语义。
+     */
+
+    /** 判停片段不即派发：累积 + 重启 VAD + 重置续听窗（状态保持 LISTENING，声纹续显）。 */
+    private fun holdForContinuation(ev: VadDetector.Event.Utterance) {
+        synchronized(continuationLock) {
+            continuationParts.add(ev.pcm)
+            continuationMaxLevel = maxOf(continuationMaxLevel, ev.maxLevel)
+            continuationTicksLeft = CONTINUATION_TICKS
+        }
+        vad.start() // 单发后已停机，重启接下一片段（listenTicks/preRoll 重置，多片段各自不超 8s）
+        logger(
+            "S51 continuation hold: parts=${continuationParts.size} " +
+                "samples=${continuationParts.sumOf { it.size }} window=$CONTINUATION_TICKS blocks",
+        )
+    }
+
+    /** 续听窗倒计时（仅聆听活块驱动，每块一次）：语音级块或片段成型中（含判停静音尾）冻结；
+     *  静音耗尽→合并派发。 */
+    private fun tickContinuation(lvl: Double) {
+        if (continuationTicksLeft <= 0) return
+        // 片段判停静音尾（belowTicks 计数中）与续听窗共用音频流：isSpeaking 期间必须冻结，
+        // 否则窗剩余 < 判停窗时会在片段成型中途提前派发（单测用例 2 实锤）
+        if (lvl >= vadSpeechLevel() || vad.isSpeaking) return
+        val fire = synchronized(continuationLock) {
+            if (continuationTicksLeft > 0) continuationTicksLeft-- == 1 else false
+        }
+        if (fire) dispatchContinuation()
+    }
+
+    /** 窗口耗尽：拼接片段成单条 utterance，走 onUtterance 原派发语义（防双控不重复）。 */
+    private fun dispatchContinuation() {
+        val merged = synchronized(continuationLock) {
+            if (continuationTicksLeft != 0 || continuationParts.isEmpty() ||
+                state != VoiceStateRouter.State.LISTENING
+            ) {
+                continuationParts.clear()
+                continuationTicksLeft = 0
+                continuationMaxLevel = 0.0
+                null
+            } else {
+                val pcm = ShortArray(continuationParts.sumOf { it.size })
+                var off = 0
+                for (p in continuationParts) {
+                    p.copyInto(pcm, off)
+                    off += p.size
+                }
+                val ev = VadDetector.Event.Utterance(pcm, continuationMaxLevel)
+                continuationParts.clear()
+                continuationTicksLeft = 0
+                continuationMaxLevel = 0.0
+                ev
+            }
+        } ?: return
+        vad.stop() // 派发后 VAD 停机（对齐单发不变式）；多轮/空 ASR 续听由管线侧重启
+        logger(
+            "S51 continuation dispatch: ${merged.pcm.size} samples, maxLevel=%.4f".format(merged.maxLevel),
+        )
+        onUtterance(merged)
+    }
+
+    /** 续听挂起全清（backToIdle 单点复位纪律，同 kwsPaused；新唤醒轮也走此清）。 */
+    private fun clearContinuation() {
+        synchronized(continuationLock) {
+            continuationParts.clear()
+            continuationTicksLeft = 0
+            continuationMaxLevel = 0.0
         }
     }
 
@@ -1024,6 +1129,7 @@ class VoiceSessionManager(
     }
 
     private fun backToIdle(reason: String) {
+        clearContinuation() // S51：回 IDLE 必清续听挂起（cancel/超时/重唤醒单点收口，同 kwsPaused 纪律）
         transition(VoiceStateRouter.State.IDLE, reason)
         kwsPaused = false
     }
@@ -1116,5 +1222,10 @@ class VoiceSessionManager(
 
         /** S19-2 续听上限（防持续噪声下无限幽灵循环）。 */
         internal const val EMPTY_ASR_MAX_RESUMES = 2
+
+        /** S51 断句续听窗（块）：判停后追加的静音观察期，耗尽才合并派发。
+         *  1000ms：容忍总静音 ≈1.8s（判停 800ms + 本窗），覆盖短语间气口；
+         *  回忆型长停顿（2s+）不在此列——那是按住说话的场景，否则每轮延迟不可接受。 */
+        internal const val CONTINUATION_TICKS = 10
     }
 }

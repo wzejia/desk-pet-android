@@ -7,11 +7,21 @@ import kotlin.math.sqrt
  *
  * 参数对齐 docs/voice-param-reconciliation-2026-07-28.md VAD 节（单一事实源），
  * 行为对齐桌面端 voice_listen.py AsrListener（HEAD 实测）--例外：silence_end_ticks
- * 2026-08-29 用户拍板 8->4（端点提速，有意偏离桌面端，对账表补注 3）。
+ * 2026-08-29 用户拍板 8->4（端点提速，有意偏离桌面端，对账表补注 3）；
+ * S50（2026-09-18）回落 8/800ms 并新增独立判停线 SPEECH_END_LEVEL=0.03（见下）。
  * 与桌面端另一差异：
  * 30s 超时 / 8s 最长句用块数（100ms/块）替代 time.monotonic()，使 JVM 单测可确定性验证。
  */
 /**
+ * S50 判停/判起阈值拆分（轻声切尾实锤修复：同设备大声说话完整、轻声时「盘点当前有哪」
+ * 四连切——句尾弱音节 RMS 跌破 0.05 被计静音，600ms 计满即切）：
+ * - 判停线独立为 max([SPEECH_END_LEVEL], floor×[ADAPTIVE_END_FACTOR])，不再跟
+ *   speechLevelProvider（校准公式 coerceIn(0.05,0.15) 在安静域钳在 0.05，数学上无法
+ *   低于 0.05，救不了轻声场景）；0.03 让弱音节 0.03~0.05 域计回说话；
+ * - 判起线保持 max(speechLevelProvider, floor×[ADAPTIVE_START_FACTOR])（环境校准联动不变）；
+ * - 判停窗 6→8 块（800ms）：句中气口容忍加倍，代价端点延迟 +200ms；
+ * - 恒成立 end < start（0.03<0.05 且 1.4f<2.0f）。
+ *
  * S19-1 自适应噪声底 v5（rk3568 无 AEC + 底层 AGC 慢释放致非平稳噪声下固定阈值
  * 数学不可收敛）。EMA 双轨（WebRTC 式 attack/release）：
  * - 低于阈值块：noiseFloor 慢跟踪（0.1）--环境噪声上/下都跟随；
@@ -31,16 +41,18 @@ class VadDetector(
      * S19-1 起作自适应阈值的<b>下限</b>（max(provider, p20×k)）。
      */
     private val speechLevelProvider: () -> Double = { SPEECH_LEVEL },
+    private val speechEndLevelProvider: () -> Double = { SPEECH_END_LEVEL },
 ) {
 
     companion object {
-        const val SPEECH_LEVEL = 0.05          // 归一化音量阈值 = RMS/8000
+        const val SPEECH_LEVEL = 0.05          // 归一化音量阈值 = RMS/8000（判起线，环境校准联动）
+        const val SPEECH_END_LEVEL = 0.03      // S50 判停线独立常量：弱音节 0.03~0.05 域计回说话；
+                                              // 刻意不走 speechLevelProvider（校准钳位见类注释）
         const val RMS_REF = 8000.0
         const val SPEECH_START_TICKS = 3       // 连续超阈值判说话开始（300ms）
-        const val SILENCE_END_TICKS = 6        // 连续低于阈值判说话结束（600ms；2026-09-11
-                                              // 用户拍板放宽：400ms 截断句中停顿成多句——
-                                              // 半句进 LLM 答非所问；2026-08-29 曾从桌面端
-                                              // 8 块/800ms 提速至 4 块，现 600ms 为折中点）
+        const val SILENCE_END_TICKS = 8        // 连续低于阈值判说话结束（800ms；S50 2026-09-18
+                                              // 用户拍板：600ms 切轻声句尾实测四连切，回桌面端原值；
+                                              // 2026-09-11 曾 400→600 折中，2026-08-29 曾 8→4 提速）
         const val MIN_UTTERANCE_TICKS = 3      // 更短当噪音丢弃
         const val LISTEN_TIMEOUT_S = 30        // 生效值 30s（sidecar 显式传参；勿用类默认值 8）
         const val MAX_UTTERANCE_S = 8          // 说话超时强制结束（防增益爬升噪声永不结束）
@@ -238,9 +250,9 @@ class VadDetector(
     private fun startThreshold(): Double =
         maxOf(speechLevelProvider(), noiseFloor * ADAPTIVE_START_FACTOR)
 
-    /** S19-1 判停阈值 = max(provider, 噪声底×1.4)（恒 < 判起阈值）。 */
+    /** S50 判停阈值 = max(end provider, 噪声底×1.4)，独立于判起线（恒 < 判起阈值）。 */
     private fun endThreshold(): Double =
-        maxOf(speechLevelProvider(), noiseFloor * ADAPTIVE_END_FACTOR)
+        maxOf(speechEndLevelProvider(), noiseFloor * ADAPTIVE_END_FACTOR)
 
     /** S19-1 平台判据：最近块电平 (max-min)/mean < [PLATEAU_STABLE_RATIO]（AGC 钉死特征）。 */
     private fun isPlateau(): Boolean {
