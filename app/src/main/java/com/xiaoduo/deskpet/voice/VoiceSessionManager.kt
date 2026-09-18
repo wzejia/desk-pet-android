@@ -773,6 +773,7 @@ class VoiceSessionManager(
             continuationMaxLevel = maxOf(continuationMaxLevel, ev.maxLevel)
             continuationTicksLeft = CONTINUATION_TICKS
         }
+        vad.startLevelOverride = { VadDetector.SPEECH_END_LEVEL } // S51：续听期判起降敏到 end 线（轻声档案名可成型片段）
         vad.start() // 单发后已停机，重启接下一片段（listenTicks/preRoll 重置，多片段各自不超 8s）
         logger(
             "S51 continuation hold: parts=${continuationParts.size} " +
@@ -780,13 +781,13 @@ class VoiceSessionManager(
         )
     }
 
-    /** 续听窗倒计时（仅聆听活块驱动，每块一次）：语音级块或片段成型中（含判停静音尾）冻结；
-     *  静音耗尽→合并派发。 */
+    /** 续听窗倒计时（仅聆听活块驱动，每块一次）：≥当前判停阈值（end 线，全链单标“静音”定义）
+     *  或片段成型中冻结；真静音耗尽→合并派发。 */
     private fun tickContinuation(lvl: Double) {
         if (continuationTicksLeft <= 0) return
-        // 片段判停静音尾（belowTicks 计数中）与续听窗共用音频流：isSpeaking 期间必须冻结，
-        // 否则窗剩余 < 判停窗时会在片段成型中途提前派发（单测用例 2 实锤）
-        if (lvl >= vadSpeechLevel() || vad.isSpeaking) return
+        // 冻结线必须与判停同域（end 线 0.03）而非判起线 0.05：轻声续说（0.03~0.05 频段）
+        // 若被当静音倒数，会在用户开口说档案名时照常派发+停 VAD，整段丢弃（板端 17:00 实锤）
+        if (lvl >= vad.currentEndThreshold() || vad.isSpeaking) return
         val fire = synchronized(continuationLock) {
             if (continuationTicksLeft > 0) continuationTicksLeft-- == 1 else false
         }
@@ -818,6 +819,7 @@ class VoiceSessionManager(
             }
         } ?: return
         vad.stop() // 派发后 VAD 停机（对齐单发不变式）；多轮/空 ASR 续听由管线侧重启
+        vad.startLevelOverride = null // S51：退出续听态，判起线回归校准联动
         logger(
             "S51 continuation dispatch: ${merged.pcm.size} samples, maxLevel=%.4f".format(merged.maxLevel),
         )
@@ -826,6 +828,7 @@ class VoiceSessionManager(
 
     /** 续听挂起全清（backToIdle 单点复位纪律，同 kwsPaused；新唤醒轮也走此清）。 */
     private fun clearContinuation() {
+        vad.startLevelOverride = null // S51：判起线回归校准联动
         synchronized(continuationLock) {
             continuationParts.clear()
             continuationTicksLeft = 0

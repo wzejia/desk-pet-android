@@ -182,7 +182,9 @@ class AudioCapture(
     private fun probeBlock(r: AudioRecord, block: ByteArray) {
         if (!AudioProbe.armed) return
         val rms = EnergyGate.rmsOf(block)
-        if (!AudioProbe.shouldLog(rms, EnergyGate.DEFAULT_GATE)) return
+        // S52 诊断构建：armed 时全量落行（去掉 0.015 门）——AGC 压制取证需看到 0.001~0.015
+        // float 域（VAD 0.004~0.06）的完整包络，门控会把病灶频段滤掉
+        if (!AudioProbe.shouldLog(rms, 0f)) return
         val lagText = runCatching { captureLagText(r) }
             .getOrElse { "NA(error:${it.message})" }
         PetLogger.i(PROBE_TAG, "cap rms=%.4f lag=%s".format(rms, lagText))

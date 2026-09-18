@@ -69,6 +69,16 @@ class VadDetector(
         /** S19-1 「持续高电平疑似抬升噪声」的持续块数（1s）。 */
         const val NOISE_ATTACK_SUSTAIN_TICKS = 10
 
+        /** S52（2026-09-18）：噪声上攻通道总开关（=false 停用）。板端逐块 RMS 探针实锤误伤：
+         *  ①持续元音（VAD 0.15~0.30 稳定 2s）被 plateau 通道判为「AGC 钉死噪声」→ 阈值上攻
+         *  越过说话者电平 → 句中判停；②自然语句尾段音节衰减（0.18→0.095）被 half-peak 通道
+         *  触发上攻级联（end=floor×1.4 数块内越过说话者电平）→ 档案名整段丢失。
+         *  当前板端噪底 0.0013~0.002（S23 NLMS 后泵态不再观测），上攻收益消失、误伤恒在；
+         *  真正的早切根因是 codec AGC 对热输入（float 峰值 >~0.1）砸增益（输入越响切得越早，
+         *  inverse 相关全轮次吻合），与上攻无关。若泵态复发（floor 长期 >0.05 致判停失效拖满
+         *  8s），重开此开关并重审判据（稳定≠噪声：长元音同型）。 */
+        const val NOISE_ATTACK_ENABLED = false
+
         /** S19-1 抬升噪声上攻速率（快）。 */
         const val NOISE_ATTACK_RATE = 0.35
 
@@ -93,6 +103,16 @@ class VadDetector(
         const val LISTEN_TIMEOUT_TICKS = LISTEN_TIMEOUT_S * 1000 / BLOCK_MS // 300
         const val MAX_UTTERANCE_TICKS = MAX_UTTERANCE_S * 1000 / BLOCK_MS   // 80
     }
+
+    /** S51：续听阶段判起灵敏度覆写（null=正常校准线 0.05）。先验是“用户刚说完大概率续说”，
+     *  轻声续说（0.03~0.05 频段）必须能判起成片段，否则整段丢弃（板端 17:00 实锤：
+     *  档案名零残留、dispatch 恰在 hold+1.0s 整=10 块全被当静音）。噪声误判起由
+     *  min_utterance + S19-2 空 ASR 续听兜底；高噪声域 floor×2 照常抬高保护。 */
+    @Volatile
+    var startLevelOverride: (() -> Double)? = null
+
+    /** S51 续听窗冻结口径：当前判停阈值（与 feed 内同一“静音”定义，全链单标）。 */
+    fun currentEndThreshold(): Double = endThreshold()
 
     /** 触发事件。maxLevel = 期间最大归一化 level（「一值定层」诊断日志用）。 */
     sealed interface Event {
@@ -173,7 +193,7 @@ class VadDetector(
         while (plateauWindow.size > NOISE_ATTACK_SUSTAIN_TICKS) plateauWindow.removeFirst()
         if (isSpeech) {
             sustainedAbove++
-            if (sustainedAbove >= NOISE_ATTACK_SUSTAIN_TICKS &&
+            if (NOISE_ATTACK_ENABLED && sustainedAbove >= NOISE_ATTACK_SUSTAIN_TICKS &&
                 (level < speechPeak * NOISE_ATTACK_PEAK_HALF || isPlateau())
             ) {
                 // 抬升噪声（AGC 泵态/播放后增益慢释）：噪声底快速上攻
@@ -246,9 +266,10 @@ class VadDetector(
     }
 
     /** Int16 PCM 归一化音量：min(1.0, RMS/8000)（削波信号钳位到 1.0，同 voice_listen.py:48）。 */
-    /** S19-1 判起阈值 = max(provider, 噪声底×2.0)。 */
+    /** S19-1 判起阈值 = max(生效判起线, 噪声底×2.0)。生效判起线 = startLevelOverride
+     *  （S51 续听阶段降敏到 end 线 0.03）否则 speechLevelProvider（校准联动）。 */
     private fun startThreshold(): Double =
-        maxOf(speechLevelProvider(), noiseFloor * ADAPTIVE_START_FACTOR)
+        maxOf((startLevelOverride ?: speechLevelProvider)(), noiseFloor * ADAPTIVE_START_FACTOR)
 
     /** S50 判停阈值 = max(end provider, 噪声底×1.4)，独立于判起线（恒 < 判起阈值）。 */
     private fun endThreshold(): Double =

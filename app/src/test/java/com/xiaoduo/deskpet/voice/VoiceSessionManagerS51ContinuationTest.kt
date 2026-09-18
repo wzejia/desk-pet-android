@@ -71,6 +71,11 @@ class VoiceSessionManagerS51ContinuationTest {
         if (i % 2 == 0) (1000 and 0xFF).toByte() else (1000 shr 8).toByte()
     }
 
+    /** 振幅自定块（轻声续说用：360→0.045 / 560→0.07，落在旧冻结线 0.05 之下、end 线 0.03 之上） */
+    private fun ampBlock(amp: Int) = ByteArray(VadDetector.BLOCK_BYTES) { i ->
+        if (i % 2 == 0) (amp and 0xFF).toByte() else (amp shr 8).toByte()
+    }
+
     private fun silenceBlock() = ByteArray(VadDetector.BLOCK_BYTES)
 
     /** 喂一个完整片段：n 响块（判起+说话）+ 8 静音块（S50 判停），返回后必产出片段。 */
@@ -119,6 +124,32 @@ class VoiceSessionManagerS51ContinuationTest {
         repeat(VoiceSessionManager.CONTINUATION_TICKS) { mgr.routeBlockForTest(silenceBlock()) }
         assertEquals(VoiceStateRouter.State.PROCESSING, mgr.state)
         assertTrue(logs.any { it.contains("S51 continuation dispatch: 20800 samples") })
+    }
+
+    @Test
+    fun `quiet resumed speech freezes window and merges via relaxed start`() {
+        // 板端 17:00 实锤回归锁：轻声续说（0.03~0.05 频段，旧实现被当静音倒数 →
+        // hold+1.0s 整提前派发+停 VAD → 档案名整段丢弃）修复后应冻结窗口并降敏判起成片段
+        val logs = mutableListOf<String>()
+        val mgr = newManager(logs)
+        mgr.startListening()
+        feedFragment(mgr, 5) // 片段1 → hold（samples=8000）
+        assertTrue(logs.any { it.contains("S51 continuation hold: parts=1 samples=8000") })
+
+        // 轻声续说 12 块（0.045/0.07 交替，波动比 0.43>0.25 免触发平台通道）：
+        // 冻结线应认它是语音（≥end 0.03）不倒数；降敏判起（0.03）后成型片段2
+        repeat(12) { mgr.routeBlockForTest(ampBlock(if (it % 2 == 0) 360 else 560)) }
+        assertEquals("轻声续说中不派发（旧实现在第 10 块静音化派发）", VoiceStateRouter.State.LISTENING, mgr.state)
+        assertTrue(logs.none { it.contains("S51 continuation dispatch") })
+
+        // 轻声片段判停 → hold 累积（片段2 = 判起时 preRoll 3 + 后续轻声 9 = 12 块 = 19200）
+        repeat(VadDetector.SILENCE_END_TICKS) { mgr.routeBlockForTest(silenceBlock()) }
+        assertTrue(logs.any { it.contains("S51 continuation hold: parts=2 samples=27200") })
+
+        // 窗耗尽 → 两片段合并派发（8000 + 19200 = 27200）
+        repeat(VoiceSessionManager.CONTINUATION_TICKS) { mgr.routeBlockForTest(silenceBlock()) }
+        assertEquals(VoiceStateRouter.State.PROCESSING, mgr.state)
+        assertTrue(logs.any { it.contains("S51 continuation dispatch: 27200 samples") })
     }
 
     @Test

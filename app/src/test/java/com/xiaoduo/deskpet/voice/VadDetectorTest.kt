@@ -186,10 +186,10 @@ class VadDetectorTest {
         assertEquals(1.0, (ev as VadDetector.Event.Timeout).maxLevel, 1e-9)
     }
 
-    /** S19-1：AGC 泵态--语音后噪声被抬到 0.25（amp 2000），判停阈值应自适应跟高，
-     *  utterance 正常结束而不是拖满 8s 强制上限（rk3568 实测病灶 132800 samples 修复目标） */
+    /** S52：噪声上攻停用后，泵态噪声不再被中途判停——语音类定，由 max_utterance 8s 兜底；
+     *  幽灵轮由管线层 S19-2 空 ASR 续听兜底 */
     @Test
-    fun `agc pumped noise floor adapts and ends utterance promptly`() {
+    fun `agc pumped noise is not cut mid-way bounded by max utterance`() {
         val vad = VadDetector()
         vad.start()
         // 安静期（amp 48 -> level 0.006）建噪声底
@@ -197,18 +197,21 @@ class VadDetectorTest {
         // 说话：amp 6000 -> level 0.75
         feedN(vad, block(6000), 5)
         assertTrue(vad.isSpeaking)
-        // AGC 泵态：噪声被抬到 amp 2000（level 0.25）持续送 -- 若不自适应则 0.25 > 0.05 永不判停
-        val evs = feedN(vad, block(2000), 40) // 4s 泵态噪声
-        val utterance = evs.filterIsInstance<VadDetector.Event.Utterance>().firstOrNull()
-        assertTrue("泵态噪声下 4s 内应判停（实测应远低于 80 块上限）", utterance != null)
-        // 判停发生在早期（阈值跟高后），而非撞 max utterance
-        val idx = evs.indexOfFirst { it is VadDetector.Event.Utterance }
-        assertTrue("判停应发生在泵态噪声开始后 20 块内，实际第 ${idx + 1} 块", idx < 20)
+        // 泵态噪声（amp 2000 -> level 0.25）持续送：上攻停用 → 无中途判停
+        assertTrue("上攻停用后 4s 内不应判停", feedN(vad, block(2000), 40).isEmpty())
+        assertTrue(vad.isSpeaking)
+        // max_utterance 8s 兑底：speechTicks 计满强制结束
+        val evs = feedN(vad, block(2000), 45)
+        assertTrue(
+            "泵态噪声最终由 max_utterance 兑底",
+            evs.filterIsInstance<VadDetector.Event.Utterance>().isNotEmpty(),
+        )
+        assertFalse(vad.isActive)
     }
 
-    /** S19-1：AGC 指数衰减仿真--泵态噪声 0.30 衰减，判停不依赖衰减完成 */
+    /** S52：上攻停用后，衰减泵态噪声不再被中途判停（有界拖尾由 max_utterance 兑底） */
     @Test
-    fun `agc decay curve ends utterance before full decay`() {
+    fun `agc decay curve no longer cut mid-way bounded by max utterance`() {
         val vad = VadDetector()
         vad.start()
         feedN(vad, block(48), 5)                       // 安静建底
@@ -216,15 +219,15 @@ class VadDetectorTest {
         assertTrue(vad.isSpeaking)
         // 噪声从 0.30 指数衰减（rk809 AGC 慢释放曲线），全程高于校准阈值 0.05
         var level = 0.30
-        var fired = -1
+        val fired = mutableListOf<Int>()
         for (i in 1..40) {
             val amp = (level * 8000).toInt().coerceAtLeast(1)
             val ev = vad.feed(block(amp))
-            if (ev is VadDetector.Event.Utterance) { fired = i; break }
-            level *= 0.94 // 慢释放：每块衰减 6%（8s 后仍 0.30×0.94^80≈0.002）
+            if (ev is VadDetector.Event.Utterance) fired += i
+            level *= 0.94
         }
-        assertTrue("衰减曲线下应判停（40 块内）", fired > 0)
-        assertTrue("判停应发生在衰减早期（<25 块），实际第 $fired 块", fired < 25)
+        assertTrue("上攻停用后衰减噪声不应中途中途判停", fired.isEmpty())
+        assertTrue(vad.isSpeaking) // 仍语音类，由 max_utterance 兑底
     }
 
     /** S50：判停/判起线拆分--安静域（噪声底 0.006）判起线保持校准 0.05 语义不变；
@@ -249,28 +252,28 @@ class VadDetectorTest {
         assertFalse(vad.isActive)
     }
 
-    /** S19-1 泵态幽灵轮：首轮（EMA 未学到泵态）允许短幽灵 utterance（<2.5s，非 8s），
-     *  二轮（EMA 已学到）泵态噪声不再误判起 */
+    /** S52：上攻停用后，首轮泵态不再产生短幽灵 utterance（原靠上攻抬 start 阈值的「免疫」
+     *  一并失效）——语音类定 + max_utterance 兑底，幽灵轮由 S19-2 空 ASR 续听兜底 */
     @Test
-    fun `pumped noise ghosts once briefly then becomes immune`() {
+    fun `pumped noise no longer ghosts attack disabled`() {
         val vad = VadDetector()
         vad.start()
-        // 首轮泵态（amp 2000 = level 0.25）：前 3 块 provider 判起->幽灵轮，
-        // 但平台/半峰通道应让 utterance 远早于 8s 结束
+        // 首轮泵态（amp 2000 = level 0.25）：判起后不再被中途判停
         val evs = feedN(vad, block(2000), 30)
-        val ghost = evs.filterIsInstance<VadDetector.Event.Utterance>().firstOrNull()
-        assertTrue("首轮允许短幽灵轮", ghost != null)
-        assertTrue(
-            "幽灵轮应 <2.5s（25 块），实际 ${ghost!!.pcm.size / VadDetector.BLOCK_SAMPLES} 块",
-            ghost.pcm.size / VadDetector.BLOCK_SAMPLES < 25,
-        )
-        // 二轮（调用方重启，EMA 保持）：泵态噪声不再误判起
+        assertTrue("上攻停用后 3s 内无幽灵判停", evs.isEmpty())
+        assertTrue(vad.isSpeaking)
+    }
+
+    /** S52 回归锁（板端 17:43 实锤）：持续元音（VAD 0.15~0.30 稳定 2s+）被 plateau 通道
+     *  判为「AGC 钉死噪声」→ 阈值上攻越过说话者电平 → 句中判停。上攻停用后不得中途判停。 */
+    @Test
+    fun `sustained stable tone is not gated mid-way`() {
+        val vad = VadDetector()
         vad.start()
-        val evs2 = feedN(vad, block(2000), 20)
-        assertTrue(evs2.isEmpty())
-        assertFalse(vad.isSpeaking)
-        // 真说话 0.75 仍判起
-        feedN(vad, block(6000), 3)
+        feedN(vad, block(48), 5)                    // 安静建底
+        // 持续稳定音（amp 1280 -> level 0.16，波动 <25% = 旧 plateau 通道的特征 Signature）
+        val events = feedN(vad, block(1280), 30)   // 3 秒持续
+        assertTrue("持续音 3s 内不得被中途判停（S52）", events.isEmpty())
         assertTrue(vad.isSpeaking)
     }
 
