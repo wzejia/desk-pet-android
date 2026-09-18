@@ -1,5 +1,22 @@
 # 小朵 Android 开发日志
 
+## 2026-09-18 大票 A/B 归档（用户拍板：当前效果可以）
+
+S52 交接后立项排程中的两张候选大票归档：**大票 A（软件 AGC 补偿/限幅预压）+ 大票 B（流式 ASR+语义端点），不立项**。依据：S52 规避方案（中等音量，峰值压 0.1 float 下）用户验收通过——连续两轮完整句收账后日常使用效果可接受，codec AGC 烸增益问题在现行用法下不再构成障斑。
+
+**阶段 0 侦察留档**（立项前只读排查，已到手即归档，未来重启此票直接从这里继续）：
+- 板上 `/system/bin/tinymix` + `tinycap` 存在（amixer 无）——tinyalsa 工具链可用性已验证 ✅。
+- 声卡拓扑：0=rockchipbt / **1=rockchiprk809co（rk809 codec，采麦通路）** / 2=hdmi / 3=USB UGREEN CM564。`tinymix -D 0` 报 Failed to open mixer 系 card 0 是蓝牙（无 mixer），非工具不可用——**重启此票从 `tinymix -D 1 contents` 查起**，在 rk809 控件里找 AGC/ALC 开关。
+- 若开关存在→大票 A 退化为「一行 mixer 设置 + init.rc/持久化小票」；若无→才进软件补偿长路（增益轨迹盲估）。
+
+大票 B 归档口径：S51 续听窗（总静音容忍 ≈1.6s）+ 按住说话直通已覆盖现行场景，回忆型 2s+ 停顿的语义端点判定不再追（S51 边界拍板已明确「不迁就」）。
+
+```evidence
+verify_cmd: adb shell which tinymix tinycap（存在）；cat /proc/asound/cards（4 卡拓扑）；tinymix -D 0（Failed to open mixer，card 0=bt 无 mixer）
+verify_claim: 用户拍板归档（会话内确认）；S52 规避方案验收依据见 DEV_LOG 2026-09-18 S52 条（两轮完整句收账）
+files_touched: [docs/DEV_LOG.md, implementation-notes.html]
+```
+
 ## 2026-09-18 S52：S19-1 噪声上攻通道停用（逐块 RMS 探针定案早切真因）
 
 接 S50/S51：用户报告「聆听时间足够长，说档案时还在聆听但没识别到，且基本无停顿（词间 <1s）」——证词与「回忆型停顿」结论冲突，重新取证。用 AudioProbe（诊断构建：armed 时去掉 0.015 门全量落行）拿逐块 RMS 包络，两个实锤：
