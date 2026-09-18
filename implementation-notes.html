@@ -1365,6 +1365,36 @@ SettingsScreen 链路自检 .chat("你好") 走默认 no-op 回调（S20 事故�
 同款，仅误输可达）。</p>
 </div>
 
+<div class="entry decision">
+<span class="tag">设计决策</span><span class="meta">2026-09-18 ｜ S49 ｜ 悬浮窗语音指示泡定案（grill 两轮 + 原型逐轮纠偏）</span>
+<p><b>定案</b>：聆听=镜像柱声纹泡（×13 中轴对称，HaloCyan #19B8D8，<code>session.captureBlocks</code>
+同源 RMS 口径 (rms−0.005)/0.045，EMA 120ms）；思考=三点错相跳动泡（0.85s 升余弦，相位 1/3）；
+两态共用<b>恒定 132×40dp</b> 泡框（用户连续三轮纠偏：①原型画布擅改大尺寸→压回单行文字泡同高；
+②wrap-content 致两态跳动→同框居中；③168→132 宽）。「我在」/错误/回复泡、背景、触摸穿透、
+show_bubble 开关语义全不动；APP 内全屏语音页不动（载体 gate OVERLAY）。<b>最险坑</b>：指示泡
+show 必须认领 VOICE round（原「在听…」show 的接管语义）且与 OverlayBubbleSink 共用登记——
+否则回复 delta 因 stale round 被服务侧丢弃（回复流式上屏全灭）。</p>
+</div>
+
+<div class="entry deviation">
+<span class="tag">偏差</span><span class="meta">2026-09-18 ｜ S49 ｜ 驻留 2.5s→800ms + S5 多轮回听抑制废止（用户两连拍板）</span>
+<p>① listeningHintLingerMs 2500→800：旧值是 S15 治「我在」一闪而过的驻留；指示层接通后进聆听
+即换声纹，驻留只需保证「我在」可读。② <b>S5「多轮回听不显提示」废止</b>：用户实测报障
+「多轮对话时聆听气泡消失」——旧规则时代回复文字泡驻留即反馈本体，声纹接棒后多轮不显=零反馈；
+代价：回听起点回复文字泡被声纹顶替（TTS 已播完，文本在会话历史）。抽 ListeningHintPolicy
+纯逻辑 + 5 测锚（变异锚：恢复 from==SPEAKING 跳过→红）。<b>待复核</b>：修复包 14:36 上板后
+多轮回听声纹与 800ms 驻留真机复测未完成。</p>
+</div>
+
+<div class="entry finding">
+<span class="tag">权衡取舍</span><span class="meta">2026-09-18 ｜ S49 ｜ 指示层 null 回退 + plain View 帧循环选型</span>
+<p>① VSM indicator 参数可空（null=旧「在听…」文字泡路径）：存量 20+ VSM 测试组构造体零改动，
+生产装配恒非空，回退分支仅测试可达（注释声明）。② 帧循环用 Choreographer 自循环 + invalidate
+（plain View）：S25c 冻结病史是 Compose 重组管线特有，View 无重组概念；draw 阶段零分配、RMS
+目标值 @Volatile 直写（VAD 每块喂不 post）。③ updateBubbleWindow 仍以文字泡宽计算窗口 X——
+指示泡居中于 260dp 窗内，X 偏差 ≤ 半个文字泡宽，可接受（未改，留观）。</p>
+</div>
+
 </body>
 </html>
 <tr><td>2026-09-11</td><td>KwsCore.kt / KwsEngine.kt / VoiceForegroundService.kt</td><td>设计决策+取证驱动修复（票①）</td><td>S35 解码线程优先级提档：主引擎 MIN(1)→6，影子保持 MIN。<b>取证依据</b>：14.18 全天 diff 曲线（空闲≈0，对话期 +940/+283 块撕裂）+ 解码实测 7.5 块/s&lt;喂 10 + IDLE 连喊 2 次不中现行（19:26:11/15 影子 0.15 中、主 0.3 不中）。<b>6 的理由</b>：NORM(5)=S25b 前白屏态；6→ART nice≈-1，介于普通(0)与 UI(-4)之间——保解码吞吐且 Choreographer 不回归。<b>风险与锚</b>：S25b 白屏回归 → 装机后 Choreographer 复测 + diff 恢复双验收。变异锚：KwsCoreTest 删 priority 赋值红。</td></tr>

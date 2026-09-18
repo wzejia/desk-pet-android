@@ -51,11 +51,14 @@ class VoiceSessionManager(
     private val aguiFactory: () -> AguiClient,
     private val appContext: Context? = null,
     private val bubble: BubbleSink,
+    /** S49 语音指示层（聆听声纹/思考三点）：null = 未接（旧路径回退文字提示泡，测试兑底）。 */
+    private val indicator: IndicatorSink? = null,
     private val scope: CoroutineScope,
     private val logger: (String) -> Unit = { msg -> PetLogger.i(TAG, msg) },
     private val wakeAck: WakeAck? = null,
-    /** S15：「我在」播完驻留时长（ms），驻留结束换「在听…」聆听提示泡；测试注入小值。 */
-    private val listeningHintLingerMs: Long = 2_500L,
+    /** S15：「我在」播完驻留时长（ms），驻留结束换聆听提示（S49 起为声纹泡）；测试注入小值。
+     *  S49（用户拍板 2026-09-18）：2.5s→800ms——指示层接通后进聆听即换声纹，驻留只需防「我在」一闪而过。 */
+    private val listeningHintLingerMs: Long = 800L,
     /** S18：VAD 说话电平阈值 provider（环境校准联动；默认 VadDetector 0.05）。 */
     private val vadSpeechLevel: () -> Double = { VadDetector.SPEECH_LEVEL },
     /** S20：MCP 调用结果是否播报（默认 true；false 时含工具调用轮跳过 TTS，文字照上屏）。 */
@@ -161,6 +164,22 @@ class VoiceSessionManager(
         fun hideLater(delayMs: Long)
     }
 
+    /** S49 指示泡模式。 */
+    enum class IndicatorMode { VOICEPRINT, THINKING_DOTS }
+
+    /**
+     * S49 指示层出口抽象（Android 侧适配 PetOverlayService；与 BubbleSink 同容器互斥）。
+     * show 语义 = 原「在听…」提示泡 show：接管语音 round（工厂侧共用 round 登记处），
+     * show_bubble=false 时服务侧随开关禁用。onLevel 高频（VAD 每块），实现必须轻。
+     */
+    interface IndicatorSink {
+        fun show(mode: IndicatorMode)
+
+        /** 聆听期每块 RMS（VAD diag 同口径：rmsOf × 32768/8000），view 侧 EMA 平滑。 */
+        fun onLevel(rms: Float)
+        fun hide()
+    }
+
     /**
      * 会话历史出口抽象（语音轮流式上屏，Android 侧由 ChatViewModel 适配）：
      * - [onUserUtterance]：ASR 剥唤醒词前缀非空后、AG-UI 调用**之前**触发（user 立即上屏）；
@@ -243,7 +262,7 @@ class VoiceSessionManager(
      */
     private val wozaiEpoch = AtomicLong(0)
 
-    /** S15：当前气泡内容为本 VSM 挂的「在听…」提示（transition 离聆听收泡的归属判定）。 */
+    /** S49：聆听提示当前是否挂在本 VSM（指示泡或文字泡，transition 离聆听收的归属判定）。 */
     @Volatile
     private var listeningHintActive = false
 
@@ -252,9 +271,11 @@ class VoiceSessionManager(
     @Volatile
     private var suppressListeningHintOnce = false
 
-    /** S15 聆听提示泡：内容顶替式 show（BubbleView 重打，无 hide 间隙）。 */
+    /** S15 聆听提示：进聆听即显（指示层接通=声纹泡 / 未接=「在听…」文字泡）。
+     *  内容顶替式 show（同容器互斥由服务侧维护，无 hide 间隙）。 */
     private fun showListeningHint() {
-        bubble.show(LISTENING_HINT)
+        val ind = indicator
+        if (ind != null) ind.show(IndicatorMode.VOICEPRINT) else bubble.show(LISTENING_HINT)
         listeningHintActive = true
     }
 
@@ -677,9 +698,11 @@ class VoiceSessionManager(
                     kwsSink?.invoke(out)
                 }
                 // S18 声学诊断：聆听期电平轨迹（每 10 块=1s 一行；量化 rk3568 AGC 释放曲线）
+                // S49 聆听声纹：同口径 RMS 每块直喂指示层（view 侧 EMA 平滑，轻写不 post）
                 vadDiagTicks++
+                val lvl = EnergyGate.rmsOf(block) * (32768f / 8000f)
+                indicator?.onLevel(lvl)
                 if (vadDiagTicks % 10 == 0) {
-                    val lvl = EnergyGate.rmsOf(block) * (32768f / 8000f)
                     logger("vad diag level=%.4f".format(lvl))
                 }
                 handleVadEvent(vad.feed(block))
@@ -1009,23 +1032,39 @@ class VoiceSessionManager(
         val from = state
         state = to
         _stateFlow.value = to
-        // S15 聆听提示泡（用户 2026-08-24：S13 静止化后聆听期零反馈缺口）：
-        // 进 LISTENING——wozai 路径被一次性抑制标拦住（驻留 swap job 负责顶替「我在」）；
-        // 多轮回听（from==SPEAKING）不显（S5：回复泡跨轮驻留不收，语义不动）；
-        // 其余新鲜进入（按住/降级，from==IDLE）即显「在听…」低存在感提示泡。
+        // S49 聆听提示判定抽纯逻辑（ListeningHintPolicy）：新鲜进入/多轮回听即显声纹
+        // （S5「多轮不显」废止——声纹取代文字泡成为聆听反馈本体，用户 2026-09-18 实测
+        // 多轮聆听期零反馈报障）；wozai 路径由一次性抑制标拦住（驻留 swap job 顶替）。
         if (to == VoiceStateRouter.State.LISTENING) {
-            when {
-                suppressListeningHintOnce -> suppressListeningHintOnce = false
-                from == VoiceStateRouter.State.SPEAKING -> Unit
-                else -> showListeningHint()
+            when (ListeningHintPolicy.decide(to, from, suppressListeningHintOnce)) {
+                ListeningHintPolicy.Action.SUPPRESS_ONCE -> suppressListeningHintOnce = false
+                ListeningHintPolicy.Action.SHOW -> showListeningHint()
+                ListeningHintPolicy.Action.SKIP -> Unit
             }
         }
-        // 离 LISTENING 即收提示泡（思考期无泡；回复 delta/错误泡到达时另行 show 顶替）
+        // 离 LISTENING 即收提示（离聆听收泡的归属判定沿用 listeningHintActive）：
+        // S49 指示层接通时进 PROCESSING 由三点泡同容器顶替（不先收）；其余去向显式收。
+        // 未接指示层的旧路径照旧收文字泡。
         if (from == VoiceStateRouter.State.LISTENING &&
             to != VoiceStateRouter.State.LISTENING && listeningHintActive
         ) {
             listeningHintActive = false
-            bubble.hide()
+            val ind = indicator
+            when {
+                ind != null && to != VoiceStateRouter.State.PROCESSING -> ind.hide()
+                ind == null -> bubble.hide() // 思考期无泡；回复 delta/错误泡到达时另行 show 顶替
+                else -> Unit // 指示层接通 + 进 PROCESSING：三点顶替，不收
+            }
+        }
+        // S49 思考三点泡：进 PROCESSING 即弹（与文字泡互斥，回复 delta 到达时被服务侧顶替）
+        if (to == VoiceStateRouter.State.PROCESSING) {
+            indicator?.show(IndicatorMode.THINKING_DOTS)
+        }
+        // S49：离 PROCESSING（去 SPEAKING/IDLE）收三点；回 LISTENING 由聆听分支顶替
+        if (from == VoiceStateRouter.State.PROCESSING &&
+            to != VoiceStateRouter.State.PROCESSING && to != VoiceStateRouter.State.LISTENING
+        ) {
+            indicator?.hide()
         }
         // 回归守卫：回 IDLE 且 KWS 意愿已撤 → 收采麦循环（删此 → 对话中 stopIdleCapture
         // 后 collectJob 挂活 = 麦克风孤儿空采 → VoiceSessionManagerIdleCaptureTest 红）

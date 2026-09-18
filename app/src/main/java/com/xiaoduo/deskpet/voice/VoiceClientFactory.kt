@@ -63,26 +63,45 @@ object VoiceClientFactory {
      * 后续 append/hide 带同一 round；被文字轮接管后本 round 调用自动失效（服务侧丢弃+日志）。
      */
     private object OverlayBubbleSink : VoiceSessionManager.BubbleSink {
-        @Volatile
-        private var round = 0
-
         override fun show(text: String) {
             val svc = PetOverlayService.instance ?: return
-            round = svc.showBubble(BubbleOwner.VOICE, text)
+            voiceRound = svc.showBubble(BubbleOwner.VOICE, text)
         }
         override fun append(delta: String) {
-            PetOverlayService.instance?.appendBubble(BubbleOwner.VOICE, round, delta)
+            PetOverlayService.instance?.appendBubble(BubbleOwner.VOICE, voiceRound, delta)
         }
         override fun hide() {
-            PetOverlayService.instance?.hideBubble(BubbleOwner.VOICE, round)
+            PetOverlayService.instance?.hideBubble(BubbleOwner.VOICE, voiceRound)
         }
         override fun hideLater(delayMs: Long) {
-            PetOverlayService.instance?.hideBubbleLater(BubbleOwner.VOICE, round, delayMs)
+            PetOverlayService.instance?.hideBubbleLater(BubbleOwner.VOICE, voiceRound, delayMs)
+        }
+    }
+
+    /**
+     * S49 指示层出口 → PetOverlayService 服务级 API（overlay 未运行时 no-op）。
+     * 与 OverlayBubbleSink 共用 voiceRound 登记：指示泡 show 认领的新 round 同样是
+     * 后续回复 delta append 的令牌基础（原「在听…」文字泡同款接管语义）。
+     */
+    private object OverlayIndicatorSink : VoiceSessionManager.IndicatorSink {
+        override fun show(mode: VoiceSessionManager.IndicatorMode) {
+            val svc = PetOverlayService.instance ?: return
+            voiceRound = svc.showVoiceIndicator(mode)
+        }
+        override fun onLevel(rms: Float) {
+            PetOverlayService.instance?.updateVoiceIndicatorLevel(rms)
+        }
+        override fun hide() {
+            PetOverlayService.instance?.hideVoiceIndicator()
         }
     }
 
     @Volatile
     private var session: VoiceSessionManager? = null
+
+    /** S49 语音侧 round 登记处（文字泡/指示泡共用：谁 show 谁接管，append/hide 带同一 round）。 */
+    @Volatile
+    private var voiceRound = 0
 
     /** 唤醒应答解析器进程内单例（S9-3：memo 挂实例上，跨唤醒复用；播放热路径共用）。 */
     @Volatile
@@ -111,6 +130,19 @@ object VoiceClientFactory {
                     overlay = OverlayBubbleSink,
                     fullscreen = FullscreenBubbleSink,
                 ),
+                // S49 指示层：仅 OVERLAY 载体生效（全屏页有声波/三点原生指示，悬浮窗隐藏期间窗口已 GONE）；
+                // carrier 每调用现读，在途切换后续调用即改投（与 CarrierBubbleSink 同语义）
+                indicator = object : VoiceSessionManager.IndicatorSink {
+                    override fun show(mode: VoiceSessionManager.IndicatorMode) {
+                        if (replyCarrier == ReplyCarrier.OVERLAY) OverlayIndicatorSink.show(mode)
+                    }
+                    override fun onLevel(rms: Float) {
+                        if (replyCarrier == ReplyCarrier.OVERLAY) OverlayIndicatorSink.onLevel(rms)
+                    }
+                    override fun hide() {
+                        if (replyCarrier == ReplyCarrier.OVERLAY) OverlayIndicatorSink.hide()
+                    }
+                },
                 scope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
                 wakeAck = wakeAck(app),
                 // S18：VAD 阈值校准联动（每块现读，校准写入即时生效）

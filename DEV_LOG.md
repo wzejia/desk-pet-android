@@ -1,3 +1,29 @@
+## 2026-09-18（S49：悬浮窗语音指示泡——聆听声纹/思考三点，HTML 原型→当日收口）
+
+- **需求**（grill 两轮定案）：聆听提示「在听…」文字泡 → **镜像柱声纹泡**（样式参考全屏语音页
+  7 柱声波，真实 RMS 驱动）；思考期无泡 → **三点错相跳动泡**。原型
+  `designs/xiaoduo-motion-preview/悬浮窗声纹气泡预览.html`（真机精灵帧嵌入，无外部依赖，
+  用户逐轮纠正：泡恒定 132×40dp 与单行文字泡同高、声纹/思考两态切换尺寸零变化、宽度 168→132）。
+- **交付**：`VoiceIndicatorModel`（纯几何/动画公式，8 测锚）+ `VoiceIndicatorView`（自绘气泡卡
+  + Choreographer 帧循环 + RMS EMA 120ms，plain View 无 Compose 冻结病史）；PetOverlayService
+  指示泡服务级 API（show 认领 VOICE round——原「在听…」show 的令牌接管语义，删认领则回复
+  delta 因 stale round 丢弃，实施中抓出的最险坑）；VSM `IndicatorSink`（null 回退旧文字泡路径，
+  存量测试零改动）；工厂侧 OverlayIndicatorSink 与文字泡**共用 voiceRound 登记**；VAD 分支
+  每块 RMS 直喂（diag 同口径）。
+- **两处拍板**：①驻留 2.5s→800ms（指示层接通后「我在」只需防一闪而过）；②**S5 多轮回听
+  抑制废止**（用户实测报障「多轮聆听气泡消失」——旧规则时代文字泡驻留即反馈本体，声纹接棒后
+  多轮不显=零反馈）→ 抽 `ListeningHintPolicy` 纯逻辑 + 5 测锚（变异锚：恢复 SPEAKING 跳过→红）。
+- **验收**：627 绿 skipped=0（+21：模型 8 + VSM 指示层 7 + 策略 5 + 锚修正）；板端日志实证
+  全链路（唤醒→VOICEPRINT round=2 / PROCESSING→THINKING_DOTS 同容器顶替零 hide 间隙 /
+  回复首音频 hide 顶替 / 唤醒打断 / 打断收指示）；真机多轮回听声纹**待复核**（修复包 14:36
+  上板，用户尚未复测）。
+
+```evidence
+verify_cmd: ./gradlew :app:testDebugUnitTest :app:assembleDebug --console=plain
+verify_claim: BUILD SUCCESSFUL；test XML 亲算 tests=627 failures=0 errors=0；板端 PetLogger：voice indicator show VOICEPRINT/THINKING_DOTS/hide 全时序（14:12 三轮旧包实证 S49 主链）
+files_touched: [VoiceIndicatorModel.kt(新), VoiceIndicatorView.kt(新), ListeningHintPolicy.kt(新), VoiceIndicatorModelTest.kt(新), ListeningHintPolicyTest.kt(新), VoiceSessionManagerIndicatorTest.kt(新), PetOverlayService.kt, VoiceSessionManager.kt, VoiceClientFactory.kt, designs/xiaoduo-motion-preview/悬浮窗声纹气泡预览.html(新), DEV_LOG.md, PROGRESS.md, implementation-notes.html]
+```
+
 ## 2026-09-15（S43：MCP 结果卡弹窗——结果捕获 + 转发链路）
 
 - **需求**：语音 MCP 借/还/查结果只在助手语音里，屏上无视觉结果。原型

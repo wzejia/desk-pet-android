@@ -26,10 +26,12 @@ import com.xiaoduo.deskpet.ui.overlay.BubbleOwnership
 import com.xiaoduo.deskpet.ui.overlay.BubbleTextStrip
 import com.xiaoduo.deskpet.ui.overlay.BubbleView
 import com.xiaoduo.deskpet.ui.overlay.OverlayMenu
+import com.xiaoduo.deskpet.ui.overlay.VoiceIndicatorView
 import com.xiaoduo.deskpet.util.PetLogger
 import com.xiaoduo.deskpet.util.Prefs
 import com.xiaoduo.deskpet.util.TapGesture
 import com.xiaoduo.deskpet.voice.VoiceClientFactory
+import com.xiaoduo.deskpet.voice.VoiceSessionManager
 import com.xiaoduo.deskpet.voice.VoiceStateRouter
 import kotlin.math.abs
 
@@ -70,6 +72,7 @@ class PetOverlayService : Service() {
     private var interactionBox: FrameLayout? = null
     private var petView: PetView? = null
     private var bubble: BubbleView? = null
+    private var voiceIndicator: VoiceIndicatorView? = null
     private lateinit var displayLp: WindowManager.LayoutParams
     private lateinit var interactionLp: WindowManager.LayoutParams
     private var built = false
@@ -204,6 +207,17 @@ class PetOverlayService : Service() {
                 Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL,
             ),
         )
+        // S49 语音指示泡（聆听声纹/思考三点）：与文字泡同锚点（底对齐居中）二选一，
+        // 恒定 132×40dp（View 内 onMeasure 自定）。默认 GONE，show 时接管。
+        val indicatorView = VoiceIndicatorView(this).apply { visibility = View.GONE }
+        bubbleLayer.addView(
+            indicatorView,
+            FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.WRAP_CONTENT,
+                FrameLayout.LayoutParams.WRAP_CONTENT,
+                Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL,
+            ),
+        )
         // 打字机逐字改变气泡宽度 -> 每次布局重算气泡窗 X（贴边 clamp）
         bubbleView.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ -> updateBubbleWindow() }
 
@@ -220,6 +234,7 @@ class PetOverlayService : Service() {
         interactionBox = interaction
         petView = pet
         bubble = bubbleView
+        voiceIndicator = indicatorView
         built = true
         moveTo(ix, iy)
         PetOverlayState.running = true
@@ -501,12 +516,17 @@ class PetOverlayService : Service() {
     }
 
     /** 带令牌弹泡：仅当前 round 受理；show_bubble=false 时 no-op 并立即隐藏（不验 round）。
-     *  文本经 BubbleTextStrip 渲染 markdown 基础集（全量重置语义：重建流式会话再喂入）。 */
+     *  文本经 BubbleTextStrip 渲染 markdown 基础集（全量重置语义：重建流式会话再喂入）。
+     *  S49：文字泡显示即收指示泡（同容器互斥：回复 delta/我在/错误顶替声纹/三点）。 */
     fun showBubble(owner: BubbleOwner, round: Int, text: String) {
         when (bubbleOwnership.judgePublish(owner, round, Prefs.showBubble(this))) {
             BubbleOwnership.Verdict.APPLY -> {
                 if (text.isNotEmpty()) hasShownBubbleContent = true
                 handler.post {
+                    voiceIndicator?.let {
+                        it.stopLoop()
+                        it.visibility = View.GONE
+                    }
                     bubble?.let {
                         val session = BubbleTextStrip.Session()
                         bubbleStrip = session
@@ -527,12 +547,17 @@ class PetOverlayService : Service() {
     }
 
     /** 带令牌流式追加：气泡未显示时自动弹出，打字机续打；校验语义同 [showBubble]。
-     *  delta 经 BubbleTextStrip 流式渲染（半截标记 hold，reset 兜底全量重打）。 */
+     *  delta 经 BubbleTextStrip 流式渲染（半截标记 hold，reset 兜底全量重打）。
+     *  S49：同 showBubble，文字上屏即收指示泡（思考三点被回复内容顶替）。 */
     fun appendBubble(owner: BubbleOwner, round: Int, delta: String) {
         when (bubbleOwnership.judgePublish(owner, round, Prefs.showBubble(this))) {
             BubbleOwnership.Verdict.APPLY -> {
                 if (delta.isNotEmpty()) hasShownBubbleContent = true
                 handler.post {
+                    voiceIndicator?.let {
+                        it.stopLoop()
+                        it.visibility = View.GONE
+                    }
                     bubble?.let {
                         if (it.visibility != View.VISIBLE) it.visibility = View.VISIBLE
                         val emit = bubbleStrip.feed(delta)
@@ -572,11 +597,15 @@ class PetOverlayService : Service() {
         }, delayMs)
     }
 
-    /** 无条件收泡（FORCE_HIDE 路径与令牌校验通过后的实际执行）。 */
+    /** 无条件收泡（FORCE_HIDE 路径与令牌校验通过后的实际执行）。指示泡一并收（互斥同容器）。 */
     private fun forceHideBubble() {
         handler.post {
             bubble?.let {
                 it.cancelAndClear()
+                it.visibility = View.GONE
+            }
+            voiceIndicator?.let {
+                it.stopLoop()
                 it.visibility = View.GONE
             }
         }
@@ -601,6 +630,53 @@ class PetOverlayService : Service() {
         runCatching { wm.updateViewLayout(displayBox, displayLp) }
             .onFailure { PetLogger.e(TAG, "bubble touch mode update failed: ${it.message}") }
         PetLogger.d(TAG, "bubble touchable=$on")
+    }
+
+    // ---------------- S49 语音指示泡（聆听声纹/思考三点，同容器互斥文字泡） ----------------
+
+    /**
+     * 显示语音指示泡并认领语音 round（原「在听…」提示泡的同款接管语义——后续
+     * OverlayBubbleSink.append 的回复 delta 以本 round 为令牌基础，删认领则回复丢）。
+     * show_bubble=false 时随开关禁用（与文字泡同判）。返回 round 供工厂侧登记。
+     */
+    fun showVoiceIndicator(mode: VoiceSessionManager.IndicatorMode): Int {
+        val round = claimBubbleRound(BubbleOwner.VOICE)
+        when (bubbleOwnership.judgePublish(BubbleOwner.VOICE, round, Prefs.showBubble(this))) {
+            BubbleOwnership.Verdict.APPLY -> handler.post {
+                val ind = voiceIndicator ?: return@post
+                ind.setMode(
+                    if (mode == VoiceSessionManager.IndicatorMode.VOICEPRINT) VoiceIndicatorView.Mode.VOICEPRINT
+                    else VoiceIndicatorView.Mode.DOTS,
+                )
+                bubble?.visibility = View.GONE // 互斥：指示态不显文字（我在泡由指示接管）
+                ind.visibility = View.VISIBLE
+                setBubbleTouchable(false) // 指示泡无内容可滑 → 恒穿透
+                PetLogger.d(TAG, "voice indicator show: $mode, round=$round")
+            }
+            BubbleOwnership.Verdict.FORCE_HIDE -> {
+                PetLogger.d(TAG, "show_bubble=false, indicator no-op + hide")
+                forceHideBubble()
+            }
+            BubbleOwnership.Verdict.DROP_STALE ->
+                PetLogger.d(TAG, "indicator show dropped: stale round=$round")
+        }
+        return round
+    }
+
+    /** 聆听声纹 RMS 直喂（VSM VAD 分支高频调用；view 侧 @Volatile 直写，不 post）。 */
+    fun updateVoiceIndicatorLevel(rms: Float) {
+        voiceIndicator?.onLevel(rms)
+    }
+
+    /** 收指示泡（只动指示视图，不碰文字泡；VSM transition 离聆听/思考时调用，幂等）。 */
+    fun hideVoiceIndicator() {
+        handler.post {
+            voiceIndicator?.let {
+                it.stopLoop()
+                it.visibility = View.GONE
+            }
+            PetLogger.d(TAG, "voice indicator hide")
+        }
     }
 
     // ---------------- 精灵状态服务级 API（S4 VoiceSessionManager 接线用） ----------------
@@ -649,6 +725,8 @@ class PetOverlayService : Service() {
         interactionBox = null
         petView = null
         bubble = null
+        voiceIndicator?.stopLoop()
+        voiceIndicator = null
         built = false
         if (instance === this) instance = null
         super.onDestroy()
