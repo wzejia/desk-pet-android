@@ -1,6 +1,24 @@
 # 小朵 Android 开发日志
 
 
+## 2026-09-21 S62：跳转页面增加「首页」（语音/文字导航回主界面，双板已更）
+
+**需求**：跳转页面集合（借阅/归还/盘点）增加「首页」。**链路**：ShelfNavIntentMatcher += HOME_WORDS（首页/主页/主界面/主页面）→ page="home" → ShelfMcpBridge.NAVIGATE_PAGES += home → `{"Op":"mcpUiNavigate","page":"home"}` → 密集架 AppController 接受 home（盘点页前台先收起）→ `searchPageRequest` → MainActivity `popBackStack(mainFragment)` 回主界面（已在主界面幂等 no-op）。
+
+**保守策略（home 专属）**：「首页」自身含页面名词「页」——若走页面名词兜底，「首页有什么」「主界面显示的内容」类话题会被导航劫持。**home 必须带导航动词**（打开/去/返回/回到/进入/切换）；NAV_VERBS += 返回/回到；裸「回」不入列（「回答」含「回」，hasNavVerb 会平凡为真）。执行对象词闸（档案/文件…）仍先于一切：「打开首页查档案」不劫持。
+
+**文案**：回执共用函数 `navSpeech(page)`——home=「已回到首页」，其余=「已打开X页面」（既有语义不变，语音/文字两入口同源）。
+
+**测试**：+3 锚（home 命中 5 形态 / 裸词与话题不劫持+对象词闸 / navSpeech 文案+既有语义不变）。**652 绿**。密集架端见 mijijia DEV_LOG 同票据条目。
+
+```evidence
+verify_cmd: gradlew testDebugUnitTest（652 绿 = 649 + 3 S62）；assembleDebug（3ad856a2）；双板 install -r Success + capture start + 0 FATAL
+verify_claim: 「打开首页/返回首页/回到主界面」等 → page=home 经 mcpUiNavigate 回主界面；裸「首页」/话题形态/对象词语句不劫持；既有 borrow/return/inventory 语义不变
+files_touched: [app/src/main/java/com/xiaoduo/deskpet/device/ShelfNavIntentMatcher.kt, app/src/main/java/com/xiaoduo/deskpet/device/ShelfMcpBridge.kt, app/src/main/java/com/xiaoduo/deskpet/chat/ChatViewModel.kt, app/src/main/java/com/xiaoduo/deskpet/voice/VoiceClientFactory.kt, app/src/test/java/com/xiaoduo/deskpet/device/ShelfNavIntentMatcherTest.kt, docs/DEV_LOG.md]
+```
+
+
+
 ## 2026-09-21 S61：「好了」误打断杀死回答（阈值 0.3→0.5，双板已更）
 
 **用户报障**：问「查询其他档案」没等到回答，反而听到「我在」。**21:19 logcat 取证**：ASR「查询其他档案。」→ PROCESSING 21 秒（LLM+工具）→ **21:19:50.888 shadow 好了（thr=0.15）→ 21:19:51.064 真命中「好了」→ barge-in cancel → 回答胎死腹中 → 播「我在」**。用户全程未说「好了」= 环境噪声误触发（21:17:41 还有一次 shadow 好了 未遂）。「好了」双音节音素常见，全局阈值 0.3（08-10 锚）在 0.19 噪声域 + 21s 长窗下被击穿——**S54 Q7 判废标准「负样本误动作>0 即调」首次实战触发**。

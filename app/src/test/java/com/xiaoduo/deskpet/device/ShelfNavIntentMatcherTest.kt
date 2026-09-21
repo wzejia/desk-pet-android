@@ -54,6 +54,32 @@ class ShelfNavIntentMatcherTest {
     }
 
     @Test
+    fun `S62 首页导航命中`() {
+        assertEquals("home", ShelfNavIntentMatcher.match("打开首页"))
+        assertEquals("home", ShelfNavIntentMatcher.match("去主页"))
+        assertEquals("home", ShelfNavIntentMatcher.match("返回首页"))
+        assertEquals("home", ShelfNavIntentMatcher.match("回到主界面"))
+        assertEquals("home", ShelfNavIntentMatcher.match("切换到主页面"))
+    }
+
+    @Test
+    fun `S62 首页裸词与话题形态不劫持（home 须导航动词）`() {
+        // 「首页」自身含「页」——页面名词兜底对 home 关闭，防话题被劫持
+        assertNull(ShelfNavIntentMatcher.match("首页"))
+        assertNull(ShelfNavIntentMatcher.match("首页有什么"))
+        assertNull(ShelfNavIntentMatcher.match("主界面显示的内容"))
+        // 带执行对象词仍走执行（object 闸先于一切）
+        assertNull(ShelfNavIntentMatcher.match("打开首页查档案"))
+    }
+
+    @Test
+    fun `S62 首页回执文案`() {
+        assertEquals("首页", ShelfNavIntentMatcher.pageName("home"))
+        assertEquals("已回到首页", ShelfNavIntentMatcher.navSpeech("home"))
+        assertEquals("已打开借阅页面", ShelfNavIntentMatcher.navSpeech("borrow")) // 既有语义不变
+    }
+
+    @Test
     fun `借还词同时出现取先者`() {
         assertEquals("borrow", ShelfNavIntentMatcher.match("从借阅切到归还"))
         assertEquals("return", ShelfNavIntentMatcher.match("从归还切到借阅页面"))

@@ -497,7 +497,7 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch(Dispatchers.IO) {
             val ok = runCatching { shelfMcpClient.navigate(page) }
                 .getOrElse { false }
-            val speech = if (ok) "已打开${ShelfNavIntentMatcher.pageName(page)}页面"
+            val speech = if (ok) ShelfNavIntentMatcher.navSpeech(page) // S62：共用回执（home=已回到首页）
                          else "密集架联动不可用，请检查网络后重试"
             PetLogger.i(TAG, "shelf nav turn done: page=$page ok=$ok")
             withContext(Dispatchers.Main) {

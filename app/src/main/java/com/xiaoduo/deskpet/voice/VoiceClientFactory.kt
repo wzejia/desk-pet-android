@@ -170,7 +170,7 @@ object VoiceClientFactory {
                 shelfNavExecutor = if (Prefs.shelfBaseUrl(app).isEmpty()) null
                 else { page ->
                     val ok = shelfMcpClient(app).navigate(page)
-                    if (ok) "已打开${ShelfNavIntentMatcher.pageName(page)}页面"
+                    if (ok) ShelfNavIntentMatcher.navSpeech(page) // S62：共用回执（home=已回到首页）
                     else "密集架联动不可用，请检查网络后重试"
                 },
                 // S41：密集架 MCP 动画联动桥（TOOL_CALL_START 工具名 → POST mcpUiSync；
