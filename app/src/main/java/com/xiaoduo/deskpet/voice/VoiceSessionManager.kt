@@ -787,7 +787,10 @@ class VoiceSessionManager(
         if (continuationTicksLeft <= 0) return
         // 冻结线必须与判停同域（end 线 0.03）而非判起线 0.05：轻声续说（0.03~0.05 频段）
         // 若被当静音倒数，会在用户开口说档案名时照常派发+停 VAD，整段丢弃（板端 17:00 实锤）
-        if (lvl >= vad.currentEndThreshold() || vad.isSpeaking) return
+        // S55（2026-09-21 双板实证）：噪声环境电平 0.19~0.29（判停线 0.03 的 7~10 倍）下
+        // 冻结永不解除 → hold 无限累积（实测 parts=8/66s 零派发）=「说完不回答」根因。
+        // 窗=1（暂关续听）时冻结短路——无条件倒数，判停后必派发；窗>1 恢复时冻结语义回归。
+        if (CONTINUATION_TICKS > 1 && (lvl >= vad.currentEndThreshold() || vad.isSpeaking)) return
         val fire = synchronized(continuationLock) {
             if (continuationTicksLeft > 0) continuationTicksLeft-- == 1 else false
         }

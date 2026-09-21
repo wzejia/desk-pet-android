@@ -120,29 +120,39 @@ class VoiceSessionManagerS51ContinuationTest {
     }
 
     @Test
-    fun `quiet resumed speech freezes window and merges via relaxed start`() {
-        // 板端 17:00 实锤回归锁：轻声续说（0.03~0.05 频段，旧实现被当静音倒数 →
-        // hold+1.0s 整提前派发+停 VAD → 档案名整段丢弃）修复后应冻结窗口并降敏判起成片段
+    fun `window=1 dispatches even when hold-period blocks are loud (noise-immune)`() {
+        // S55 板端实证回归锁（2026-09-21 18:12）：噪声电平 0.19~0.29 下冻结永不解除，
+        // hold 无限累积 parts=8/66s 零派发。修复=窗=1 时冻结短路——hold 后的响块
+        // （0.25 ≥ end 0.03，旧实现会冻结）必须照常倒数派发。
+        val logs = mutableListOf<String>()
+        val mgr = newManager(logs)
+        mgr.startListening()
+
+        feedFragment(mgr, 5) // 片段1 → hold（ticks=1）
+        assertTrue(logs.any { it.contains("S51 continuation hold: parts=1 samples=8000") })
+
+        mgr.routeBlockForTest(ampBlock(2000)) // 0.25 噪声级块：旧实现冻结（不派发）→ 现在必派发
+        assertEquals("噪声块不阻塞派发（hold 死锁已除）", VoiceStateRouter.State.PROCESSING, mgr.state)
+        assertTrue(logs.any { it.contains("S51 continuation dispatch: 8000 samples") })
+    }
+
+    @Test
+    fun `window=1 dispatches on quiet continuation too (merge fully off)`() {
+        // S55（2026-09-21）：窗=1 冻结短路后，轻声续说（0.045 ≥ end 0.03）同样不再冻结——
+        // 首块即派发，合并彻底全关（含轻声场景）。
+        // 历史锁（板端 17:00 实锤：轻声档案名整段丢弃 → 冻结线+降敏判起）在窗>1 恢复时
+        // 还原——原版见 git 历史。
         val logs = mutableListOf<String>()
         val mgr = newManager(logs)
         mgr.startListening()
         feedFragment(mgr, 5) // 片段1 → hold（samples=8000）
         assertTrue(logs.any { it.contains("S51 continuation hold: parts=1 samples=8000") })
 
-        // 轻声续说 12 块（0.045/0.07 交替，波动比 0.43>0.25 免触发平台通道）：
-        // 冻结线应认它是语音（≥end 0.03）不倒数；降敏判起（0.03）后成型片段2
-        repeat(12) { mgr.routeBlockForTest(ampBlock(if (it % 2 == 0) 360 else 560)) }
-        assertEquals("轻声续说中不派发（旧实现在第 10 块静音化派发）", VoiceStateRouter.State.LISTENING, mgr.state)
-        assertTrue(logs.none { it.contains("S51 continuation dispatch") })
-
-        // 轻声片段判停 → hold 累积（片段2 = 判起时 preRoll 3 + 后续轻声 9 = 12 块 = 19200）
-        repeat(VadDetector.SILENCE_END_TICKS) { mgr.routeBlockForTest(silenceBlock()) }
-        assertTrue(logs.any { it.contains("S51 continuation hold: parts=2 samples=27200") })
-
-        // 窗耗尽 → 两片段合并派发（8000 + 19200 = 27200）
-        repeat(VoiceSessionManager.CONTINUATION_TICKS) { mgr.routeBlockForTest(silenceBlock()) }
-        assertEquals(VoiceStateRouter.State.PROCESSING, mgr.state)
-        assertTrue(logs.any { it.contains("S51 continuation dispatch: 27200 samples") })
+        // 轻声续说首块（0.045）：窗=1 冻结短路 → 照常倒数派发
+        mgr.routeBlockForTest(ampBlock(360))
+        assertEquals("轻声续说不再冻结（合并全关）", VoiceStateRouter.State.PROCESSING, mgr.state)
+        assertTrue(logs.any { it.contains("S51 continuation dispatch: 8000 samples") })
+        assertTrue(logs.none { it.contains("parts=2") })
     }
 
     @Test
