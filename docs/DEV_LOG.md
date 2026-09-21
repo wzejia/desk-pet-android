@@ -1,6 +1,24 @@
 # 小朵 Android 开发日志
 
 
+## 2026-09-21 S60：判停倒计时尾垫进 PCM（「最后几个字没检测到」根因修复，双板已更）
+
+**用户报障**：聆听正常、无提前判停，但句尾几字丢失（「其他类型档~~案~~」「所有~~档案~~」）。**20:51 logcat 取证**：句长 3.1~3.6s 远未触 8s 顶——非强截；2/3 轮缺尾。
+
+**根因（一行定案）**：VadDetector.feed 说话中分支 `buffer.add(block)` 仅在 isSpeech 时执行——**判停倒计时的 6 块（600ms）不进 PCM**（注释自称"同桌面端"）。安静域无害（end=0.03，句尾弱音节在线上）；S56/S58 起 end 线随噪声底上浮（0.19 环境 ≈0.27），句尾 0.1~0.25 弱音节被判"静音"且**音频物理丢弃** → ASR 缺尾。**S50 的病（弱音节掉字）从自适应门回归**——S50 当年修法是 end 线拆分 0.03，今晚被噪声顶高击穿。
+
+**修复（S60）**：倒计时块也 `buffer.add`（尾垫 ≤600ms）。判停阈值/600ms 窗/噪声免疫一个不动；代价=每句多带 ≤600ms 尾部环境音（ASR 对尾静音天然容忍）。与桌面端分叉点，有意为之。**git 历史脉络**：S50 end 线拆分（7字→8字）→ S51 续听窗合并气口 → S52 取证「切尾=气口位置」+ 窗回调 6 → 今晚 S60 尾垫（end 线高低不再影响尾巴采集）。
+
+**测试**：+1 语义锁（弱音节尾 100 进 PCM 末样本，旧行为末样本是 1000）；7 锚随拍板改（VadDetectorTest 3 处尺寸 3→9/8→14、pre-roll 用例改名、S51ContinuationTest 4 处 samples 8000→17600）。**649 绿**。
+
+```evidence
+verify_cmd: gradlew testDebugUnitTest（649 绿 = 648 + 1 S60）；assembleDebug（b6b50b7b）；双板 install -r Success + capture start + 0 FATAL；20:51 现场 logcat 缺尾三轮取证
+verify_claim: 判停倒计时块（≤600ms，含句尾弱音节）进入派发 PCM；判停/噪声免疫/8s 顶语义不变（7 处锚同步 S60 尺寸）
+files_touched: [app/src/main/java/com/xiaoduo/deskpet/voice/VadDetector.kt, app/src/test/java/com/xiaoduo/deskpet/voice/VadDetectorTest.kt, app/src/test/java/com/xiaoduo/deskpet/voice/VoiceSessionManagerS51ContinuationTest.kt, docs/DEV_LOG.md]
+```
+
+
+
 ## 2026-09-21 S59：TTS 尾音衰减窗（「唤醒后说了没听到」根因修复，双板已更）
 
 **用户报障**：唤醒后说「帮我查询2013年的档案」无响应无对话。**20:18 logcat 取证**：wozai「我在」播完 VAD 即刻启动，喇叭余音（满幅 1.0）被当成语音——**0.68s 派发幽灵句「我在。」** → 状态进 PROCESSING 不再听 → 用户真实指令落在空窗全丢 → 幽灵句判纯唤醒词回 IDLE；20:18:57 二次唤醒原样重演。S58b 自回声丢弃未拦住：「我在」是应答音非 AG-UI 回复，不在对照文本。

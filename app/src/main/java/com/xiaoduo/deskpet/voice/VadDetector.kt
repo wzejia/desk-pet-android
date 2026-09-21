@@ -265,11 +265,18 @@ class VadDetector(
         speechTicks++
         return if (isSpeech) {
             belowTicks = 0
-            buffer.add(block.copyOf()) // 只累积说话块（尾部静音不进 buffer）
+            buffer.add(block.copyOf())
             null
         } else {
             belowTicks++
             aboveTicks = 0
+            // S60：判停倒计时块也进 PCM（尾垫 ≤600ms）——句尾弱音节跌破 end 线后仍被
+            //  采集。旧行为「尾部静音不进 buffer」在安静域无害（end=0.03，弱音节在线
+            //  上）；S56/S58 起 end 线随噪声底上浮（0.19 环境 ≈0.27），句尾 0.1~0.25
+            //  的弱音节被判"静音"且音频丢弃 → 「档案」类尾巴物理丢失（S50 病从自适应
+            //  门回归）。判停逻辑不变（仍 600ms 判停），噪声免疫全部保留；代价=每句
+            //  多带 ≤600ms 尾部环境音，ASR 对尾静音天然容忍。与桌面端分叉点，有意为之。
+            buffer.add(block.copyOf())
             if (belowTicks >= SILENCE_END_TICKS) finishUtterance() else null
         }
     }

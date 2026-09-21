@@ -69,13 +69,13 @@ class VadDetectorTest {
         assertTrue(feedN(vad, zero, 5).isEmpty()) // 5 块静音不判停（句中短停顿保护，600ms）
         val ev = vad.feed(zero) // 第 6 块判停（600ms，S52 晚回调）
         assertTrue(ev is VadDetector.Event.Utterance)
-        // deque 里只有 3 触发块 → utterance = 3 块 = 9600 字节，恰为 min_utterance 边界（>= 通过）
-        assertEquals(3 * VadDetector.BLOCK_SAMPLES, (ev as VadDetector.Event.Utterance).pcm.size)
+        // S60：3 触发块 + 6 判停倒计时尾垫 = 9 块（倒计时块进 PCM，句尾弱音节不再丢）
+        assertEquals(9 * VadDetector.BLOCK_SAMPLES, (ev as VadDetector.Event.Utterance).pcm.size)
         assertFalse(vad.isActive) // 单次触发后停
     }
 
     @Test
-    fun `pre-roll preserves three pre-trigger low blocks and excludes trailing silence`() {
+    fun `pre-roll preserves three pre-trigger low blocks and S60 tail padding included`() {
         val vad = VadDetector()
         vad.start()
         feedN(vad, quiet, 3) // 触发前低电平句首段
@@ -86,8 +86,8 @@ class VadDetectorTest {
 
         assertEquals(1, events.size)
         val pcm = (events[0] as VadDetector.Event.Utterance).pcm
-        // 3 pre-roll + 3 触发块 + 2 说话块 = 8 块；尾部 8 块静音不进 buffer
-        assertEquals(8 * VadDetector.BLOCK_SAMPLES, pcm.size)
+        // 3 pre-roll + 3 触发块 + 2 说话块 + 6 尾垫（S60）= 14 块
+        assertEquals(14 * VadDetector.BLOCK_SAMPLES, pcm.size)
         assertEquals(100, pcm[0].toInt()) // 首块 = 低电平 pre-roll（防丢首字）
         assertEquals(100, pcm[3 * VadDetector.BLOCK_SAMPLES - 1].toInt())
         assertEquals(1000, pcm[3 * VadDetector.BLOCK_SAMPLES].toInt()) // 第 4 块起为触发块
@@ -293,7 +293,23 @@ class VadDetectorTest {
         var ev: VadDetector.Event? = null
         repeat(6) { ev = vad.feed(ByteArray(VadDetector.BLOCK_BYTES)) } // 600ms 判停（S52 晚回调）
         assertTrue(ev is VadDetector.Event.Utterance)
-        assertEquals(3 * VadDetector.BLOCK_SAMPLES, (ev as VadDetector.Event.Utterance).pcm.size)
+        assertEquals(9 * VadDetector.BLOCK_SAMPLES, (ev as VadDetector.Event.Utterance).pcm.size) // S60：+6 尾垫
+    }
+
+    @Test
+    fun `S60 soft tail below end line is included via countdown padding`() {
+        // 板端实证（2026-09-21 20:51）：「帮我查询2019年的所有档案」尾二字「档案」音量
+        // 跌破自适应 end 线（噪声域 ≈0.27）被判静音且音频丢弃 → ASR 缺尾。S60 尾垫锁：
+        // 判停倒计时 6 块（含弱音节）必须进 PCM。
+        val vad = VadDetector()
+        vad.start()
+        feedN(vad, loud, 5) // 判起 + 说话（0.125）
+        val events = feedN(vad, quiet, 6) // 句尾弱音节 0.012 < end 0.03 → 判停倒计时
+        assertEquals(1, events.size)
+        val pcm = (events[0] as VadDetector.Event.Utterance).pcm
+        // 3 判起 + 2 说话 + 6 尾垫 = 11 块；末样本 = 弱音节 100（旧行为末样本会是 1000）
+        assertEquals(11 * VadDetector.BLOCK_SAMPLES, pcm.size)
+        assertEquals(100, pcm[pcm.size - 1].toInt())
     }
 
 

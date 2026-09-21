@@ -93,11 +93,11 @@ class VoiceSessionManagerS51ContinuationTest {
 
         feedFragment(mgr, 5) // 片段1：5 响 + 8 静音 → utterance → hold
         assertEquals("判停后保持 LISTENING（续听窗内不派发）", VoiceStateRouter.State.LISTENING, mgr.state)
-        assertTrue(logs.any { it.contains("S51 continuation hold: parts=1 samples=8000") })
+        assertTrue(logs.any { it.contains("S51 continuation hold: parts=1 samples=17600") })
 
         repeat(VoiceSessionManager.CONTINUATION_TICKS) { mgr.routeBlockForTest(silenceBlock()) }
         assertEquals("续听窗耗尽 → 合并派发", VoiceStateRouter.State.PROCESSING, mgr.state)
-        assertTrue(logs.any { it.contains("S51 continuation dispatch: 8000 samples") })
+        assertTrue(logs.any { it.contains("S51 continuation dispatch: 17600 samples") })
     }
 
     @Test
@@ -110,12 +110,12 @@ class VoiceSessionManagerS51ContinuationTest {
         val mgr = newManager(logs)
         mgr.startListening()
 
-        feedFragment(mgr, 5) // 片段1 → hold（samples=8000）
-        assertTrue(logs.any { it.contains("S51 continuation hold: parts=1 samples=8000") })
+        feedFragment(mgr, 5) // 片段1 → hold（samples=17600）
+        assertTrue(logs.any { it.contains("S51 continuation hold: parts=1 samples=17600") })
 
         repeat(VoiceSessionManager.CONTINUATION_TICKS) { mgr.routeBlockForTest(silenceBlock()) }
         assertEquals("窗=1：判停后 1 静音块即派发（不等合并）", VoiceStateRouter.State.PROCESSING, mgr.state)
-        assertTrue(logs.any { it.contains("S51 continuation dispatch: 8000 samples") })
+        assertTrue(logs.any { it.contains("S51 continuation dispatch: 17600 samples") })
         assertTrue("合并语义已关：不再出现 parts=2 累积", logs.none { it.contains("parts=2") })
     }
 
@@ -129,11 +129,11 @@ class VoiceSessionManagerS51ContinuationTest {
         mgr.startListening()
 
         feedFragment(mgr, 5) // 片段1 → hold（ticks=1）
-        assertTrue(logs.any { it.contains("S51 continuation hold: parts=1 samples=8000") })
+        assertTrue(logs.any { it.contains("S51 continuation hold: parts=1 samples=17600") })
 
         mgr.routeBlockForTest(ampBlock(2000)) // 0.25 噪声级块：旧实现冻结（不派发）→ 现在必派发
         assertEquals("噪声块不阻塞派发（hold 死锁已除）", VoiceStateRouter.State.PROCESSING, mgr.state)
-        assertTrue(logs.any { it.contains("S51 continuation dispatch: 8000 samples") })
+        assertTrue(logs.any { it.contains("S51 continuation dispatch: 17600 samples") })
     }
 
     @Test
@@ -145,13 +145,13 @@ class VoiceSessionManagerS51ContinuationTest {
         val logs = mutableListOf<String>()
         val mgr = newManager(logs)
         mgr.startListening()
-        feedFragment(mgr, 5) // 片段1 → hold（samples=8000）
-        assertTrue(logs.any { it.contains("S51 continuation hold: parts=1 samples=8000") })
+        feedFragment(mgr, 5) // 片段1 → hold（samples=17600）
+        assertTrue(logs.any { it.contains("S51 continuation hold: parts=1 samples=17600") })
 
         // 轻声续说首块（0.045）：窗=1 冻结短路 → 照常倒数派发
         mgr.routeBlockForTest(ampBlock(360))
         assertEquals("轻声续说不再冻结（合并全关）", VoiceStateRouter.State.PROCESSING, mgr.state)
-        assertTrue(logs.any { it.contains("S51 continuation dispatch: 8000 samples") })
+        assertTrue(logs.any { it.contains("S51 continuation dispatch: 17600 samples") })
         assertTrue(logs.none { it.contains("parts=2") })
     }
 
