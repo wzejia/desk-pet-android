@@ -1,5 +1,25 @@
 # 小朵 Android 开发日志
 
+
+## 2026-09-21 S54 多唤醒词+打断词（grilling 三轮拍板全落地）+ S55 立项（快语速漏唤醒取证）
+
+**S54 内容**：KWS 词表 1→6 行——新增唤醒词「你好小朵」「小度小度」（Q1=①+②）、打断词「好了」「停下」、「停」为 spike 观测词（Q7）。命中后按词组路由：`VoiceStateRouter.decide(keyword, state)`——唤醒组全态动作；打断组仅 SPEAKING/PROCESSING 动作（Q5=b），**IDLE/LISTENING 命中丢弃**（Q6=a，防闲聊「好了」误唤醒）；「停」恒 DROP 只留日志，真机双合格（播报中真喊 ≥8/10 且播放期误打断 0；负样本误动作>0 判废）后挪 INTERRUPT_WORDS 转正。打断语义=打断并续听（Q3=b），与 S12 唤醒词打断完全同构，动作层零分叉。未登记词默认 ACT（词表/组表漂移不静默失效）。ASR 剥除表 WAKE_PREFIXES 补「你好小朵」与声学行为对称（原「非前缀不剥」用例中 你好小朵 断言随拍板删除）。六词拼音 token 逐一核验在表（含轻声 e）；keywords.txt「停」行带独立阈值 `@0.5`。
+
+**机制备案**：sherpa-onnx KeywordSpotter 原生多词每行一个+回调带词名+每词阈值；打断组 IDLE 丢弃是唯一防线（sherpa 无按态切换词表能力，改词表=重建引擎）；「你好小朵」兼唤醒/打断是语义 no-op（唤醒词在 S12 通道下本来就打断续听），词表只写一次。
+
+**坑与修复**：① enum `KwsHitAction` 定义在 companion object 内时跨文件 `VoiceStateRouter.KwsHitAction` 引用 Unresolved——挪类级嵌套解决；首版修复错插在 companion 花括号内（缩进误导，Kotlin 只看大括号不看缩进），clean+关缓存后仍复现才定位真因。② 本机 Gradle 全挂 `BindException: Address already in use`（FileLockCommunicator 随机 UDP）：最小复现=Java 经典 `DatagramSocket()` 通配绑定 0/30 全败，显式 loopback/NIO DatagramChannel/Python 均全通（疑 Clash TUN 驱动干扰双栈通配路径，**待复核**）——`-Djava.net.preferIPv4Stack=true` 救活（三个候选开关 preferIPv4Stack/preferIPv6Addresses=true/system 各 5/5 实测），写入用户级 `~/.gradle/gradle.properties` 不污染仓库。
+
+**板端**：192.168.137.45:5555 install Success（app-debug.apk sha256 前 16 位 91efafccd7d63eab）；主引擎加载成功后影子引擎才启动加载（代码时序保证），两次 newFromAsset 无 FATAL；KwsEngine gap-reset 周期行=消费线程活跃。`@0.5` 语法初始化未炸；**细粒度行为（0.5 档命中率）随 spike 日志复核**。
+
+**S55 立项（快语速漏唤醒，不并入 S54）**：现象=语速快时「小朵小朵」概率性唤不醒。三假设与判据：H1 阈值/韵律——影子通道(0.15)命中而主(0.3)不中=实锤，S54 soak 顺带采集差分数据（新唤醒词一并攒料）；H2 门削首音——影子也不中+探针构建见词首块被 RMS 门吞（S11-6 机制残余），坐实才临时 re-arm 探针（S52 先例用完收回）；H3 解码积压——kws stats fed/gated 断档。取证口径：用户 20 次快语速+20 次常速对照喊话+logcat 留痕。对症菜单（影子先行证据后动主通道）：每词阈值↓ / keywordsScore 1.0→1.3 / maxActivePaths 4→8；**拒绝项**：换/重训模型（成本不成比例）、关能量门（功耗+误触）。权衡拍板（Q11）：证据先行，误唤醒比漏唤醒更伤日常。
+
+```evidence
+verify_cmd: ./gradlew testDebugUnitTest（638 绿 = 633 基线 + 5 新增）；assembleDebug（apk sha256 前缀 91efafccd7d63eab）；adb install -r 192.168.137.45:5555 Success；logcat：双 newFromAsset 无 FATAL + KwsEngine gap-reset 活跃行
+verify_claim: 六词词表+词组路由+剥除表落地，板端双引擎加载运行中；「停」spike 恒 DROP 不接动作；待用户喊话验收（唤醒组 IDLE ≥10/10；打断组播报中真喊 ≥8/10 且 IDLE 闲聊含好了/停 0 误唤醒；「停」spike 数据另行采集）
+files_touched: [app/src/main/assets/kws-model/keywords.txt, app/src/main/java/com/xiaoduo/deskpet/voice/VoiceStateRouter.kt, app/src/main/java/com/xiaoduo/deskpet/VoiceForegroundService.kt, app/src/test/java/com/xiaoduo/deskpet/voice/VoiceStateRouterTest.kt, docs/DEV_LOG.md, implementation-notes.html]
+```
+
+
 ## 2026-09-18 两张小票：探针诊断构建回退 + mic_source_mode 对照复测（S52 后收尾）
 
 **票 1：探针回退**（S52 遗留 hack 收回）：`AudioCapture.probeBlock` 门限 `shouldLog(rms, 0f)`（armed 全量 ~10 行/s）→ 回退 `shouldLog(rms, EnergyGate.DEFAULT_GATE)`，KDoc 注明 S52 历史（为何曾全量：AGC 压制取证需看 0.001~0.015 float 域低值段；再需时临时改 0f 随取证票收回）。`shouldLog` 语义已有 AudioProbeTest 5 锁，调用点回归无新行为不需新测，633 绿不退。

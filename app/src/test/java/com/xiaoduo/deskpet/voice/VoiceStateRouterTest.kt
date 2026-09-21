@@ -53,7 +53,8 @@ class VoiceStateRouterTest {
 
     @Test
     fun `非前缀不剥 词中小朵不剥`() {
-        assertEquals("你好小朵", VoiceStateRouter.stripWakePrefix("你好小朵"))
+        // S54：原断言 stripWakePrefix("你好小朵")=="你好小朵" 删除——「你好小朵」升级为
+        // 声学唤醒词（拍板 Q1=①），话头须剥除，见下方 S54 用例
         assertEquals("给我讲个小朵朵的故事", VoiceStateRouter.stripWakePrefix("给我讲个小朵朵的故事"))
     }
 
@@ -74,5 +75,51 @@ class VoiceStateRouterTest {
         assertEquals("", VoiceStateRouter.stripWakePrefix("小朵小朵我在"))
         // 已知代价锁定：指令恰以「我在」开头会被误剥（命令式对话极少见，拍板接受）
         assertEquals("想", VoiceStateRouter.stripWakePrefix("我在想"))
+    }
+
+    // ---- S54 多唤醒/打断词（grilling 拍板 2026-09-21）----
+
+    @Test
+    fun `S54 你好小朵升级唤醒词后话头剥除`() {
+        assertEquals("帮我查档案", VoiceStateRouter.stripWakePrefix("你好小朵帮我查档案"))
+        assertEquals("", VoiceStateRouter.stripWakePrefix("你好小朵"))
+        // 与既有前缀叠加循环剥（小朵小朵 → 你好小朵 → 空）
+        assertEquals("在吗", VoiceStateRouter.stripWakePrefix("小朵小朵你好小朵在吗"))
+    }
+
+    @Test
+    fun `S54 唤醒组全态动作`() {
+        for (w in VoiceStateRouter.WAKE_WORDS) {
+            for (s in VoiceStateRouter.State.values()) {
+                assertEquals("$w@$s", VoiceStateRouter.KwsHitAction.ACT, VoiceStateRouter.decide(w, s))
+            }
+        }
+    }
+
+    @Test
+    fun `S54 打断组对话两态动作 IDLE与LISTENING丢弃`() {
+        for (w in VoiceStateRouter.INTERRUPT_WORDS) {
+            // Q5=b：SPEAKING/PROCESSING 动作（= S12 唤醒词打断同链路，Q3=b 打断并续听）
+            assertEquals(w, VoiceStateRouter.KwsHitAction.ACT, VoiceStateRouter.decide(w, VoiceStateRouter.State.SPEAKING))
+            assertEquals(w, VoiceStateRouter.KwsHitAction.ACT, VoiceStateRouter.decide(w, VoiceStateRouter.State.PROCESSING))
+            // Q6=a：IDLE 期闲聊「好了」不得唤醒小朵；LISTENING 物理不可达仍防御性丢弃
+            assertEquals(w, VoiceStateRouter.KwsHitAction.DROP, VoiceStateRouter.decide(w, VoiceStateRouter.State.IDLE))
+            assertEquals(w, VoiceStateRouter.KwsHitAction.DROP, VoiceStateRouter.decide(w, VoiceStateRouter.State.LISTENING))
+        }
+    }
+
+    @Test
+    fun `S54 spike词停恒丢弃`() {
+        // Q7：「停」真机双合格（播报中 ≥8/10 且播放期误打断 0）前不接动作；
+        // 转正 = 挪 VoiceStateRouter.INTERRUPT_WORDS（届时本用例随拍板红→改）
+        for (s in VoiceStateRouter.State.values()) {
+            assertEquals("停@$s", VoiceStateRouter.KwsHitAction.DROP, VoiceStateRouter.decide("停", s))
+        }
+    }
+
+    @Test
+    fun `S54 未登记词默认动作保持既有语义`() {
+        // keywords.txt 与组表漂移时不静默失效（保持 S12 起命中即动作的行为）
+        assertEquals(VoiceStateRouter.KwsHitAction.ACT, VoiceStateRouter.decide("某新词", VoiceStateRouter.State.IDLE))
     }
 }
