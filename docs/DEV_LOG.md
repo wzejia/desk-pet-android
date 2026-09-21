@@ -1,6 +1,22 @@
 # 小朵 Android 开发日志
 
 
+## 2026-09-21 S59：TTS 尾音衰减窗（「唤醒后说了没听到」根因修复，双板已更）
+
+**用户报障**：唤醒后说「帮我查询2013年的档案」无响应无对话。**20:18 logcat 取证**：wozai「我在」播完 VAD 即刻启动，喇叭余音（满幅 1.0）被当成语音——**0.68s 派发幽灵句「我在。」** → 状态进 PROCESSING 不再听 → 用户真实指令落在空窗全丢 → 幽灵句判纯唤醒词回 IDLE；20:18:57 二次唤醒原样重演。S58b 自回声丢弃未拦住：「我在」是应答音非 AG-UI 回复，不在对照文本。
+
+**修复（S59 时序根治）**：`vadStartDelayMs=400`（@Volatile internal，测试可置 0）——TTS 播完延迟 400ms 再 vad.start()，两处接线：①wozai 播完（守卫在延迟后重新执行，cancel 落窗内不启动，不放大 check-then-act）；②multi-turn TTS 播完（延迟后复查 currentTurn/state/sealed 三守卫，CancellationException 走原 catch 拆解）。S58b 文本判定保留作第二道兜底的网。
+
+**测试**：+2 锁（衰减窗内保持 SPEAKING 不迁 LISTENING / 窗内 cancel 无迟到 LISTENING）；S33/S40 盲区测试置 `vadStartDelayMs=0`（测盲区机制与衰减窗无关，保原时序）。**648 绿**。
+
+```evidence
+verify_cmd: gradlew testDebugUnitTest（648 绿 = 646 + 2 S59）；assembleDebug（299a6930）；双板 install -r Success + capture start + 0 FATAL；20:18 现场 logcat 幽灵「我在。」链取证
+verify_claim: TTS（wozai/回复）播完 400ms 后才启动 VAD——尾音不再被捕获成幽灵句，用户紧随其后说的真实指令落在有效聆听窗内；cancel/封轮守卫语义不变
+files_touched: [app/src/main/java/com/xiaoduo/deskpet/voice/VoiceSessionManager.kt, app/src/test/java/com/xiaoduo/deskpet/voice/VoiceSessionManagerWakeAckTest.kt, app/src/test/java/com/xiaoduo/deskpet/voice/VoiceSessionManagerS33BlindSpotTest.kt, app/src/test/java/com/xiaoduo/deskpet/voice/VoiceSessionManagerS40BlindWindowTest.kt, docs/DEV_LOG.md]
+```
+
+
+
 ## 2026-09-21 S58b：TTS 尾音自噬丢弃（「只监听一小会」根因修复，双板已更）
 
 **现象与取证**（20:04~20:07 logcat）：S58 上线后出现新症状「只监听一小会」——multi-turn 回答完毕 VAD 重启聆听的瞬间，**喇叭余音未衰减**被麦克风捕获（diag 1.55/2.22），0.24s 即判起成句，ASR 转出 **「或档案管理帮助吗？」= 刚播回复的尾巴**（自回声）→ 幽灵轮送 LLM → 吃掉聆听窗口 + 空耗一轮 LLM，用户双击打断收场。

@@ -391,6 +391,13 @@ class VoiceSessionManager(
     @Volatile
     private var lastSpokenReplyText: String? = null
 
+    /** S59：TTS 播完 → VAD 启动的尾音衰减窗（ms）。「我在」/回复的喇叭余音（实测满幅
+     *  1.0）曾在 VAD 启动瞬间被捕获成幽灵句——20:18 实证 wozai 播完 0.68s 派发「我在。」
+     *  → 用户真实指令「帮我查询2013年的档案」落在 PROCESSING 空窗丢失（感知"说了没听到"）。
+     *  400ms 覆盖常见尾音衰减；测试置 0 保确定性。 */
+    @Volatile
+    internal var vadStartDelayMs: Long = 400L
+
     @Volatile
     var threadKeyProvider: (() -> String?)? = null
 
@@ -488,6 +495,10 @@ class VoiceSessionManager(
             // 再 wakeAck.stop() 打断 playBlocking；backToIdle 后 state 也非 SPEAKING。
             // 留痕（critic P3-⑥）：双查是 check-then-act，cancel 与 transition 间有微秒窗——
             // 最坏拦不住一次已落地的 LISTENING 迁移（30s 无语音超时自愈回 IDLE），无状态泄漏
+            // S59：尾音衰减窗——「我在」喇叭余音（满幅）曾被 VAD 启动瞬间捕获成幽灵「我在。」
+            //  句 0.68s 派发抢占聆听窗（用户真实指令落空）。延迟后双防线守卫重新执行：
+            //  cancel 落窗内 → isActive=false → 不启动；CancellationException 透传正常拆解。
+            delay(vadStartDelayMs)
             if (isActive && state == VoiceStateRouter.State.SPEAKING) {
                 // S40：接缝水位先于 vad.start 落笔（此后捕获的块均判接缝后）+ 挂账回灌
                 vadSeamNs = System.nanoTime()
@@ -1072,9 +1083,14 @@ class VoiceSessionManager(
                     // S21：工具轮后需重新唤醒——机器播报时段不进 VAD 续听，KWS 守门
                     backToIdle("tool call turn, re-wake required")
                 } else {
-                    vad.start()
-                    transition(VoiceStateRouter.State.LISTENING, "multi-turn, VAD restart")
-                    status("继续聆听…（30s 无语音退出）")
+                    // S59：尾音衰减窗——回复尾音防自噬（S58b 文本判定之外的时序根治）；
+                    //  延迟期间 cancel/新轮到访 → 复查守卫不启动；delay 取消走下方 catch 拆解。
+                    delay(vadStartDelayMs)
+                    if (currentTurn === turn && state != VoiceStateRouter.State.IDLE && !turn.sealed) {
+                        vad.start()
+                        transition(VoiceStateRouter.State.LISTENING, "multi-turn, VAD restart")
+                        status("继续聆听…（30s 无语音退出）")
+                    }
                 }
             }
         } catch (e: CancellationException) {
