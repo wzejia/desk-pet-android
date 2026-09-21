@@ -1,6 +1,24 @@
 # 小朵 Android 开发日志
 
 
+## 2026-09-21 S55/S56 追加实验（夜）：采麦模式复位无效 + 重启无效 → 收敛至物理声源；采麦源设置锁定（S57）
+
+**三连排除实验**（137.45）：①mode 1→0 复位（source=7 实证）后 diag 仍 0.19；②板子整机重启（uptime 122h→0，IP 变 137.76）后 diag 仍 0.19（kws stats fed=511/gated=10 与重启前同）；③modes 0/1 两路径同电平。→ **采麦模式漂移与 HAL/codec 状态爬升均排除**，0.19 为麦克风真实拾取的持续声（能量≈09-18 底噪的 1500 倍 ≈ 31dB）。S52 曾记录「新包装板」——包装/麦克风孔/风扇物理状态为剩余嫌疑。
+
+**待用户物理排查**（耳朵+手，10 分钟）：①耳朵贴板：有无风扇嗡嗡/电流声；②摸外壳：温度/振动；③看麦克风孔：有无遮挡/摩擦/贴膜起边；④把板子挪到另一房间再喊唤醒（我方立即抓 diag 对照）——挪开回落=原位置有噪声源，挪开仍响=板载硬件（风扇/麦克风）。
+
+**S57（随本条同包）**：设置页「采麦源」选择器锁定为只读展示（TextButtonRow→Text），漂移通道关闭；变更须 adb run-as sed prefs+重启。同包含项目级 gradle.properties preferIPv4Stack（守护进程必需，用户级会被项目级 jvmargs 覆盖的教训入册：同键双文件时以项目级为准——本机两次 BindException 复盘修正）。热区实测 soc 56°C（正常）。
+
+**现状可用性**：S56 自适应生效后，0.19 噪声房内**大音量**说完 ~1s 判停可回答（判起线自适应至 ≈0.38）；正常音量被底噪物理掩蔽——噪声源消除前无解，消除后 S56 自适应自动把线降回 0.03 基线恢复灵敏。
+
+```evidence
+verify_cmd: 复位+重启后 diag 仍 0.19（19:14 mode0 / 19:31 mode0 重启后 stats fed=511 gated=10）；tinycap root 实测失败（HAL 权限/占用，待复核）；设置页采麦源已改只读（TextButtonRow→Text）；双板 install Success（be9e094d）
+verify_claim: 三连排除（模式/重启/双路径同电平）→ 物理声源收敛；S57 锁定上线；静默期 floor 自适应护甲保留
+files_touched: [app/src/main/java/com/xiaoduo/deskpet/ui/screens/SettingsScreen.kt, gradle.properties, docs/DEV_LOG.md]
+```
+
+
+
 ## 2026-09-21 S55/S56 真根因追加定案：采麦模式漂移（mic_source_mode 1/2，已双板复位 mode 0）
 
 用户一句「9月18日没这个问题」触发对照：DEV_LOG 09-18 S52 表格 diag 噪底 **0.004~0.008** vs 今日 **0.19**（同板同指标差 30~50 倍）→ 代码音频链零改动（S54 词表/S55 续听/S56 floor 全不碰采集增益）→ 查 prefs 石锤：**测试板 mic_source_mode=1（VOICE_RECOGNITION）**、**生产板 =2（UNPROCESSED 裸麦）**，而 09-18 S52 收口实证现役=**mode 0（VOICE_COMMUNICATION，硬件语音路径）**。映射（AudioCapture.kt：0→通话/1→识别/2→原始）；设置界面 SettingsScreen 有该选择器（:941）——漂移路径=设置页人工拨动（何时/何人待用户回忆），生产板另有 09-17 16:41 远端同事重装（prefs 全新，可能当时即非 0）。
