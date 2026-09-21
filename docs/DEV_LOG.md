@@ -1,6 +1,24 @@
 # 小朵 Android 开发日志
 
 
+## 2026-09-21 S55 第二刀：hold 冻结死锁根因石锤 + 短路修复（双板已更）
+
+**取证**（137.45 重测现场 logcat）：①每条 utterance 恒 132800 样本=8s MAX_UTTERANCE 强截断，maxLevel 1.0000 削顶——判停（600ms<0.03）**零触发**，环境电平 0.19~0.29=判停线的 7~10 倍；②`parts=1→8` 无限累积（66s 音频全滞留 hold，零派发）——即便第一刀把窗关到 1，`tickContinuation` 冻结条件（块 ≥0.03 或 isSpeaking）在噪声下永不解除，派发通道仍死锁。校准对照：kws_energy_gate=0.0046（校准时刻安静）+ 重启后 60s stats fed=512/gated=10（当前全程高于校准底）——环境电平暴涨 40 倍（真实噪声 or codec AGC 增益爬升，S18 老病史，**待分辨**：重启 app 后立即唤醒看 vad diag 是否回落）。
+
+**修复**：`tickContinuation` 冻结条件加 `CONTINUATION_TICKS > 1` 门——窗=1（暂关续听）时无条件倒数，判停后下一块**必派发**，与噪声电平无关；窗>1 恢复时冻结语义整体回归。锚随拍板改：用例 3（轻声冻结合并）重写为「合并全关」锁 + 新增噪声回归锁（0.25 响块后必派发），639 绿。
+
+**双板部署**：install -r Success（APK 前 16 `d433b9ac`），双引擎加载 0 异常，app 已重启加载新包。
+
+**遗留分级**：①判停本身在此噪声下仍死（每句 8s 大块+削顶音频，ASR 质量与延迟受损）——正解=**判停线自适应**（滚动噪底跟踪，end=max(0.03, 噪底×k)）或 AGC 限幅（大票 A 复活候选），下一票；②环境电平 40 倍暴涨归因（AGC 爬升 vs 真噪声）待用户配合 10 秒实验（重启后立即唤醒+静默，看 vad diag 回落与否）；③生产板 10.0.14.18 今晚 logcat 无语音活动痕迹（用户重测或在 137.45）。
+
+```evidence
+verify_cmd: log-137.txt：VAD utterance 132800 samples×8 + hold parts=1→8 + vad diag level=0.19~0.29；修复后 gradlew testDebugUnitTest（639 绿）+ assembleDebug（d433b9ac）+ 双板 install -r Success + 2×newFromAsset 0 FATAL
+verify_claim: hold 派发通道在任意电平下必通（噪声回归锁锁死）；判停 0 触发系环境电平超线 7~10 倍（非代码回归）；638→639 测试（+1 噪声锁，用例 3 重写）
+files_touched: [app/src/main/java/com/xiaoduo/deskpet/voice/VoiceSessionManager.kt, app/src/test/java/com/xiaoduo/deskpet/voice/VoiceSessionManagerS51ContinuationTest.kt, docs/DEV_LOG.md]
+```
+
+
+
 ## 2026-09-21 S55 第一刀（用户拍板）：续听窗 10→1 双板暂关（排查「说完不回答、持续聆听」）
 
 **现象**：用户实测说完话后 app 持续「聆听中…」不回答。**嫌疑定位**（代码走查，未取证即先行处置——用户拍板优先）：`tickContinuation` 冻结条件 = 单块 ≥end 线(0.03) 或 `vad.isSpeaking` 即冻结倒计时；噪声环境下永不解除，且 `holdForContinuation` 内 `vad.start()` **重置 30s 聆听超时** → 无限挂起（30s 兜底也失效，与「一直监听」吻合）。
