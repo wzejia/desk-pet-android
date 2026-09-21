@@ -1,6 +1,22 @@
 # 小朵 Android 开发日志
 
 
+## 2026-09-21 S58：上攻通道复活（回退实验定案 + 用户拍板），全功能版恢复可用判停
+
+**回退二分实验**（用户实测 + logcat 对账）：①ee80b27（S52 收口态：判停 600ms + 续听窗 1000ms 原版 + 上攻停用）→ 今晚噪声下 **S51 死锁原样复现**（parts=2/265600 样本滞留零派发）→ **S54~S56 代码全部排除**，变量=环境（底噪 09-18 0.005 → 今 0.19）；②**9e82c03**（S50+S51 重构**之前**：无续听窗、判停线跟校准联动、**上攻通道开启**）→ 用户实测「判停正常」，logcat 四轮全自然成句（41600/11200/44800/48000 样本，无一条 8s 强截），长句「借阅2025年的合同档案」档案名完整、ASR 全清。
+
+**定案**：S19-1 上攻通道（稳态噪声 plateau/half-peak 快速抬 floor）在当前环境**工作正常且必要**——S52 当年停用它是因持续元音误伤（长元音与稳态噪声同型），但实测今晚长句未触发误伤，判停可用性优先。**S58 动作**：`NOISE_ATTACK_ENABLED` false→true（KDoc 保留 S52 全部误伤知识 + 回退实验数据；若长句切尾再现，重审判据——建议方向：空 ASR 裁判门控 + 上攻限速）。锚随拍板改：4 个 S52 测试反转语义为「上攻滤除」锁（ pumped/decay/ghost/sustained-tone，S52 教训全文留档 git 历史）。642 绿。
+
+**双板部署**：APK `9155a888`（= HEAD 1723d7b+S58），测试板 source=7 双引擎 0 异常，生产板同步。**版本矩阵留档**：ee80b27=`35b0375b`、9e82c03=`a7987505`（E:/desk-pet-ee80b27 worktree 可复现）。
+
+```evidence
+verify_cmd: gradlew testDebugUnitTest（642 绿，4 锚随拍板反转）；assembleDebug（9155a888）；双板 install -r Success + source=7 + 0 FATAL；9e82c03 现场四轮 ASR text 全清（今晚 logcat）
+verify_claim: 上攻通道复活后全功能版（多唤醒词+全部加固）在 0.19 噪声环境判停正常；S52 误伤风险明示接受（长句实测未复现，再现时按 KDoc 方向重审）
+files_touched: [app/src/main/java/com/xiaoduo/deskpet/voice/VadDetector.kt, app/src/test/java/com/xiaoduo/deskpet/voice/VadDetectorTest.kt, docs/DEV_LOG.md]
+```
+
+
+
 ## 2026-09-21 S55/S56 追加实验（夜）：采麦模式复位无效 + 重启无效 → 收敛至物理声源；采麦源设置锁定（S57）
 
 **三连排除实验**（137.45）：①mode 1→0 复位（source=7 实证）后 diag 仍 0.19；②板子整机重启（uptime 122h→0，IP 变 137.76）后 diag 仍 0.19（kws stats fed=511/gated=10 与重启前同）；③modes 0/1 两路径同电平。→ **采麦模式漂移与 HAL/codec 状态爬升均排除**，0.19 为麦克风真实拾取的持续声（能量≈09-18 底噪的 1500 倍 ≈ 31dB）。S52 曾记录「新包装板」——包装/麦克风孔/风扇物理状态为剩余嫌疑。

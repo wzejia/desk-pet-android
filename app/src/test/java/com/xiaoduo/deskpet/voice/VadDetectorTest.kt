@@ -187,7 +187,7 @@ class VadDetectorTest {
     /** S52：噪声上攻停用后，泵态噪声不再被中途判停——语音类定，由 max_utterance 8s 兜底；
      *  幽灵轮由管线层 S19-2 空 ASR 续听兜底 */
     @Test
-    fun `agc pumped noise is not cut mid-way bounded by max utterance`() {
+    fun `S58 sustained pump noise IS gated mid-way (attack re-enabled)`() {
         val vad = VadDetector()
         vad.start()
         // 安静期（amp 48 -> level 0.006）建噪声底
@@ -195,13 +195,12 @@ class VadDetectorTest {
         // 说话：amp 6000 -> level 0.75
         feedN(vad, block(6000), 5)
         assertTrue(vad.isSpeaking)
-        // 泵态噪声（amp 2000 -> level 0.25）持续送：上攻停用 → 无中途判停
-        assertTrue("上攻停用后 4s 内不应判停", feedN(vad, block(2000), 40).isEmpty())
-        assertTrue(vad.isSpeaking)
-        // max_utterance 8s 兑底：speechTicks 计满强制结束
-        val evs = feedN(vad, block(2000), 45)
+        // 泵态噪声（amp 2000 -> level 0.25）持续送：S58 上攻复活 → floor 快速抬升 →
+        // end 越过 0.25 → 中途判停滤除噪声（不再拖 8s；原「不应判停」锁随拍板反转，
+        // S52 误伤知识见 git 历史与本仓 VadDetector KDoc）
+        val evs = feedN(vad, block(2000), 40)
         assertTrue(
-            "泵态噪声最终由 max_utterance 兑底",
+            "S58：稳态泵噪应被上攻滤除（8s 上限前中判停）",
             evs.filterIsInstance<VadDetector.Event.Utterance>().isNotEmpty(),
         )
         assertFalse(vad.isActive)
@@ -209,13 +208,14 @@ class VadDetectorTest {
 
     /** S52：上攻停用后，衰减泵态噪声不再被中途判停（有界拖尾由 max_utterance 兑底） */
     @Test
-    fun `agc decay curve no longer cut mid-way bounded by max utterance`() {
+    fun `S58 agc decay curve tail IS cut mid-way (accepted trade-off)`() {
         val vad = VadDetector()
         vad.start()
         feedN(vad, block(48), 5)                       // 安静建底
         feedN(vad, block(6000), 5)                     // 说话
         assertTrue(vad.isSpeaking)
-        // 噪声从 0.30 指数衰减（rk809 AGC 慢释放曲线），全程高于校准阈值 0.05
+        // 噪声从 0.30 指数衰减（rk809 AGC 慢释放曲线）：S58 上攻复活后 half-peak 通道
+        // 会切衰减尾——接受为代价（9e82c03 实测长句档案名完整；S52 教训留档 git 历史）
         var level = 0.30
         val fired = mutableListOf<Int>()
         for (i in 1..40) {
@@ -224,8 +224,8 @@ class VadDetectorTest {
             if (ev is VadDetector.Event.Utterance) fired += i
             level *= 0.94
         }
-        assertTrue("上攻停用后衰减噪声不应中途中途判停", fired.isEmpty())
-        assertTrue(vad.isSpeaking) // 仍语音类，由 max_utterance 兑底
+        assertTrue("S58：衰减尾应被上攻切除（fired 非空）", fired.isNotEmpty())
+        assertFalse(vad.isActive)
     }
 
     /** S50：判停/判起线拆分--安静域（噪声底 0.006）判起线保持校准 0.05 语义不变；
@@ -253,26 +253,32 @@ class VadDetectorTest {
     /** S52：上攻停用后，首轮泵态不再产生短幽灵 utterance（原靠上攻抬 start 阈值的「免疫」
      *  一并失效）——语音类定 + max_utterance 兑底，幽灵轮由 S19-2 空 ASR 续听兜底 */
     @Test
-    fun `pumped noise no longer ghosts attack disabled`() {
+    fun `S58 sustained pump noise from start yields early utterance (attack filters)`() {
         val vad = VadDetector()
         vad.start()
-        // 首轮泵态（amp 2000 = level 0.25）：判起后不再被中途判停
+        // 首轮泵态（amp 2000 = level 0.25）：判起后上攻抬 end → ~2s 内早判停（噪声滤除），
+        // 原「无幽灵判停」锁随 S58 拍板反转（幻觉轮由 S19-2 空 ASR 兜底 + S56 floor 上行）
         val evs = feedN(vad, block(2000), 30)
-        assertTrue("上攻停用后 3s 内无幽灵判停", evs.isEmpty())
-        assertTrue(vad.isSpeaking)
+        assertTrue(
+            "S58：稳态泵噪应产出早判停 utterance",
+            evs.filterIsInstance<VadDetector.Event.Utterance>().isNotEmpty(),
+        )
+        assertFalse(vad.isActive)
     }
 
     /** S52 回归锁（板端 17:43 实锤）：持续元音（VAD 0.15~0.30 稳定 2s+）被 plateau 通道
      *  判为「AGC 钉死噪声」→ 阈值上攻越过说话者电平 → 句中判停。上攻停用后不得中途判停。 */
     @Test
-    fun `sustained stable tone is not gated mid-way`() {
+    fun `S58 sustained stable tone IS gated mid-way (attack re-enabled)`() {
         val vad = VadDetector()
         vad.start()
         feedN(vad, block(48), 5)                    // 安静建底
-        // 持续稳定音（amp 1280 -> level 0.16，波动 <25% = 旧 plateau 通道的特征 Signature）
+        // 持续稳定音（amp 1280 -> level 0.16，波动 <25% = plateau Signature）
+        // S58 拍板：上攻通道复活——稳态噪声必须被滤（0.19 环境实测 9e82c03 判停正常）；
+        // 代价=长元音同型有被切风险（S52 教训留档：真语声有波动、恒定值合成块必中）
         val events = feedN(vad, block(1280), 30)   // 3 秒持续
-        assertTrue("持续音 3s 内不得被中途判停（S52）", events.isEmpty())
-        assertTrue(vad.isSpeaking)
+        assertTrue("S58：稳态音应被上攻滤除（中途中判停）", events.isNotEmpty())
+        assertFalse(vad.isActive)
     }
 
     @Test
