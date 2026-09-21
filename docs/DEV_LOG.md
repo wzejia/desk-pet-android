@@ -1,6 +1,22 @@
 # 小朵 Android 开发日志
 
 
+## 2026-09-21 S55 取证收口：链路端到端复活 + 噪声源定案（真实环境噪声，非 AGC）
+
+**10 秒实验结果**（18:25~18:26 logcat）：用户唤醒后静默期 vad diag 恒定 **0.185~0.21**——app 刚重启（AGC 已重置）仍不衰减 → **排除 AGC 增益爬升，定案真实环境噪声**（稳态宽频特征，疑似板载风扇/空调/设备声，位置待用户排查）。
+
+**修复实效端到端实证**：`wake → 判停(8s 截断) → dispatch(100ms 内) → ASR text「今天的天气怎么样？」「你能做哪些事情？」→ LLM（firstToken=1810ms）→ TTS 播报（143280 frames）→ 多轮续听 → 下一轮 dispatch→PROCESSING→SPEAKING` 全循环正常转——「说完不回答」问题**解决**。
+
+**遗留（量化）**：判停线 0.03 在 0.19 噪底下失效 → 每轮最长 8s 才截断派发（延迟）+ 截断位置任意（ASR 出现「寻到是」类碎片文本）。**S56 候选（正解）**：判停线自适应——滚动噪底跟踪，end = max(0.03, 噪底×k)，恢复快自然判停；小票体量。临时缓解：排查板子附近噪声源（风扇/空调）；或接受 8s 节奏使用。
+
+```evidence
+verify_cmd: 137.45 logcat 18:25~18:26：vad diag 静默期 0.185~0.21 恒定；ASR text×2 正常；AG-UI done reply 30 chars firstToken=1810ms；VoicePlayer stream 143280 frames；多轮 LISTENING→dispatch→PROCESSING→SPEAKING 循环
+verify_claim: 派发-ASR-LLM-TTS-续听全链复活；噪声源=真实环境（AGC 排除：重启后不衰减）；判停失效遗留已量化并立项候选
+files_touched: [docs/DEV_LOG.md]
+```
+
+
+
 ## 2026-09-21 S55 第二刀：hold 冻结死锁根因石锤 + 短路修复（双板已更）
 
 **取证**（137.45 重测现场 logcat）：①每条 utterance 恒 132800 样本=8s MAX_UTTERANCE 强截断，maxLevel 1.0000 削顶——判停（600ms<0.03）**零触发**，环境电平 0.19~0.29=判停线的 7~10 倍；②`parts=1→8` 无限累积（66s 音频全滞留 hold，零派发）——即便第一刀把窗关到 1，`tickContinuation` 冻结条件（块 ≥0.03 或 isSpeaking）在噪声下永不解除，派发通道仍死锁。校准对照：kws_energy_gate=0.0046（校准时刻安静）+ 重启后 60s stats fed=512/gated=10（当前全程高于校准底）——环境电平暴涨 40 倍（真实噪声 or codec AGC 增益爬升，S18 老病史，**待分辨**：重启 app 后立即唤醒看 vad diag 是否回落）。
