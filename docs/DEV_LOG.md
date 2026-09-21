@@ -1,6 +1,24 @@
 # 小朵 Android 开发日志
 
 
+## 2026-09-21 S58b：TTS 尾音自噬丢弃（「只监听一小会」根因修复，双板已更）
+
+**现象与取证**（20:04~20:07 logcat）：S58 上线后出现新症状「只监听一小会」——multi-turn 回答完毕 VAD 重启聆听的瞬间，**喇叭余音未衰减**被麦克风捕获（diag 1.55/2.22），0.24s 即判起成句，ASR 转出 **「或档案管理帮助吗？」= 刚播回复的尾巴**（自回声）→ 幽灵轮送 LLM → 吃掉聆听窗口 + 空耗一轮 LLM，用户双击打断收场。
+
+**修复（S58b，两层）**：①纯函数 `isSelfEcho(newText, lastReply)`——新转写去标点后 ≥4 有效字符且为上一轮回复（去标点）子串 → 判自回声；②VSM ASR 文本处接线：判定命中 → 不送 LLM，静默重回聆听（对话保持，S19-2 额度不受影响——复位行位于插入点之后未执行）。AG-UI done 处留档 `lastSpokenReplyText` 供对照。误杀边界：用户复述上一轮回答中 ≥4 字短语会被吞（罕见，日志可见，接受）。
+
+**验证**：646 绿（+4 S58b 锁：尾巴命中/去标点/新指令不误杀/短文本与无历史）。双板 install Success（APK 前 16 `c4a66017`）。
+
+**杂项**：①Gradle BindException 呈**概率性**（同命令忽过忽败，项目级 preferIPv4Stack 在位）——Clash TUN 干扰疑云升级为「概率性干扰」，重试即过，持续观察；②ee80b27/9e82c03 回退实验 APK 与 worktree（E:/desk-pet-ee80b27）保留备查；③生产板 20:01 已同步 S58+b 包。
+
+```evidence
+verify_cmd: gradlew testDebugUnitTest（646 绿 = 642 + 4 S58b）；assembleDebug（c4a66017）；双板 install -r Success + source=7 + 0 FATAL；20:07 现场 logcat 自回声链取证
+verify_claim: 自回声（回复尾巴转写）不再送 LLM，静默重回聆听；S19-2 额度与真指令路径不变（新指令不误杀锁）
+files_touched: [app/src/main/java/com/xiaoduo/deskpet/voice/VoiceSessionManager.kt, app/src/test/java/com/xiaoduo/deskpet/voice/VoiceSessionManagerSelfEchoTest.kt(新), docs/DEV_LOG.md]
+```
+
+
+
 ## 2026-09-21 S58：上攻通道复活（回退实验定案 + 用户拍板），全功能版恢复可用判停
 
 **回退二分实验**（用户实测 + logcat 对账）：①ee80b27（S52 收口态：判停 600ms + 续听窗 1000ms 原版 + 上攻停用）→ 今晚噪声下 **S51 死锁原样复现**（parts=2/265600 样本滞留零派发）→ **S54~S56 代码全部排除**，变量=环境（底噪 09-18 0.005 → 今 0.19）；②**9e82c03**（S50+S51 重构**之前**：无续听窗、判停线跟校准联动、**上攻通道开启**）→ 用户实测「判停正常」，logcat 四轮全自然成句（41600/11200/44800/48000 样本，无一条 8s 强截），长句「借阅2025年的合同档案」档案名完整、ASR 全清。

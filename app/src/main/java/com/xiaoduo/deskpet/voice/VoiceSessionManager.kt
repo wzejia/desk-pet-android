@@ -387,6 +387,10 @@ class VoiceSessionManager(
      * [AguiClient.DEFAULT_THREAD_KEY]（纯悬浮窗无会话兕底）。挂点同 transcriptSink
      * （ChatViewModel attach 时一并挂）。
      */
+    /** S58b：最近一次成功播报的回复原文（TTS 尾音自噬对照；跨轮保留仅作对照基准）。 */
+    @Volatile
+    private var lastSpokenReplyText: String? = null
+
     @Volatile
     var threadKeyProvider: (() -> String?)? = null
 
@@ -931,6 +935,16 @@ class VoiceSessionManager(
             }
             return
         }
+        // S58b：TTS 尾音自噬丢弃——multi-turn 重聆听瞬间喇叭余音被 VAD 捕获，ASR 转出
+        // 上一轮回答的尾巴 → 幽灵轮吃掉聆听窗口（「只监听一小会」）。判定自回声 → 不送
+        // LLM，静默重回聆听（对话保持；S19-2 额度不受影响——复位行在下方未执行）。
+        if (isSelfEcho(stripped, lastSpokenReplyText)) {
+            logger("S58b self-echo discard: \"$stripped\" ⊆ 上一轮回复，重回聆听")
+            vad.start()
+            transition(VoiceStateRouter.State.LISTENING, "self-echo discard, resume listening")
+            status("聆听中…（30s 无语音自动退出）")
+            return
+        }
         emptyAsrResumesLeft = EMPTY_ASR_MAX_RESUMES // S19-2：真文本到达，续听额度复位
         logger("ASR->LLM send latency=${System.currentTimeMillis() - asrStart}ms")
         status("小朵思考中…")
@@ -1030,6 +1044,8 @@ class VoiceSessionManager(
                     logger(
                         "AG-UI done, reply ${chat.text.length} chars, firstToken=${chat.firstTokenLatencyMs}ms, attempts=${chat.attempts}",
                     )
+                    // S58b：留档回复原文，供下一轮转写的自回声判定
+                    lastSpokenReplyText = chat.text
                     fireDoneOnce(turn)
                 }
                 is AguiClient.ChatResult.Error -> {
@@ -1231,6 +1247,16 @@ class VoiceSessionManager(
 
         /** S19-2 续听上限（防持续噪声下无限幽灵循环）。 */
         internal const val EMPTY_ASR_MAX_RESUMES = 2
+
+        /** S58b：自回声判定——新转写去标点后 ≥4 有效字符且为上一轮回复（去标点）的子串
+         *  （20:07 实测「或档案管理帮助吗？」= 刚播回复尾巴 → 幽灵轮吃掉聆听窗口）。
+         *  纯逻辑 JVM 可测；去标点对抗 ASR/TTS 标点差异。 */
+        internal fun isSelfEcho(newText: String, lastReply: String?): Boolean {
+            if (lastReply.isNullOrEmpty()) return false
+            val norm = newText.filter { it.isLetterOrDigit() }
+            if (norm.length < 4) return false
+            return lastReply.filter { it.isLetterOrDigit() }.contains(norm)
+        }
 
         /** S51 断句续听窗（块）：判停后追加的静音观察期，耗尽才合并派发。
          *  1000ms：容忍总静音 ≈1.6s（判停 600ms + 本窗），覆盖短语间气口；
