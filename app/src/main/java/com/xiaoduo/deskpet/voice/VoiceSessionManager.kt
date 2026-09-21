@@ -1228,7 +1228,13 @@ class VoiceSessionManager(
 
         /** S51 断句续听窗（块）：判停后追加的静音观察期，耗尽才合并派发。
          *  1000ms：容忍总静音 ≈1.6s（判停 600ms + 本窗），覆盖短语间气口；
-         *  回忆型长停顿（2s+）不在此列——那是按住说话的场景，否则每轮延迟不可接受。 */
-        internal const val CONTINUATION_TICKS = 10
+         *  回忆型长停顿（2s+）不在此列——那是按住说话的场景，否则每轮延迟不可接受。
+         *  S55（2026-09-21 用户拍板，双板暂关）：实测「说完不回答、持续聆听」——嫌疑=
+         *  tickContinuation 冻结条件（块级 ≥end 线或 isSpeaking 即冻结）在噪声环境永不
+         *  解除，且 hold 内 vad.start() 重置 30s 聆听超时 → 无限挂起。暂关至 1 块
+         *  （判停 +100ms 即派发，≈S50 前行为）。**不可设 0**：hold 只攒片，派发全靠
+         *  倒计时耗尽，0=永不派发。正解候选=有界续听（冻结也有总上限），恢复窗口拨回 10
+         *  并还原 S51ContinuationTest 用例 2（见 git 历史）。 */
+        internal const val CONTINUATION_TICKS = 1
     }
 }

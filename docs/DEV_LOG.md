@@ -1,6 +1,24 @@
 # 小朵 Android 开发日志
 
 
+## 2026-09-21 S55 第一刀（用户拍板）：续听窗 10→1 双板暂关（排查「说完不回答、持续聆听」）
+
+**现象**：用户实测说完话后 app 持续「聆听中…」不回答。**嫌疑定位**（代码走查，未取证即先行处置——用户拍板优先）：`tickContinuation` 冻结条件 = 单块 ≥end 线(0.03) 或 `vad.isSpeaking` 即冻结倒计时；噪声环境下永不解除，且 `holdForContinuation` 内 `vad.start()` **重置 30s 聆听超时** → 无限挂起（30s 兜底也失效，与「一直监听」吻合）。
+
+**处置**：`CONTINUATION_TICKS` 10→1（判停 600ms + 100ms 即派发，≈S50 前行为）。**关键陷阱**：不可设 0——`holdForContinuation` 只攒片，派发全靠倒计时耗尽，0=永不派发=语音哑火。代价：短语气口合并（S51 主价值）暂失，「查询一下…（停>0.7s）…2025年的合同」会被拆两轮；轻声续说（0.03~0.05 频段）因冻结线语义仍可合并（用例 3 不变仍绿）。锚随拍板改：S51ContinuationTest 用例 2 重写为关窗语义锁（KDoc 注明恢复窗口时还原，原版见 git 历史），638 绿不变。
+
+**双板部署**：137.45 + 10.0.14.18 install -r Success，双引擎加载 0 异常（APK sha256 前 16 `edeee8d6`）。
+
+**待办**：①重测——若症状消失=冻结假设成立，正解候选=**有界续听**（冻结也有总上限 ~2.5s，保住合并语义又杜绝无限挂起）；②若仍不回答→抓 logcat 分流（empty ASR 续听 / 平台 LLM 挂起 / 判停线被噪声顶穿），与续听窗无关；③生产板环境噪声 vs 判停线 0.03 需 AmbientCalibrator 复核。
+
+```evidence
+verify_cmd: gradlew testDebugUnitTest（638 绿，用例 2 已随拍板重写）；assembleDebug（edeee8d6）；双板 install -r Success + logcat 2×newFromAsset 0 FATAL
+verify_claim: 双板续听窗=1 块生效；判停即派发（+100ms）；hold 零派发陷阱已规避（0 未使用）
+files_touched: [app/src/main/java/com/xiaoduo/deskpet/voice/VoiceSessionManager.kt, app/src/test/java/com/xiaoduo/deskpet/voice/VoiceSessionManagerS51ContinuationTest.kt, docs/DEV_LOG.md]
+```
+
+
+
 ## 2026-09-21 S54 多唤醒词+打断词（grilling 三轮拍板全落地）+ S55 立项（快语速漏唤醒取证）
 
 **S54 内容**：KWS 词表 1→6 行——新增唤醒词「你好小朵」「小度小度」（Q1=①+②）、打断词「好了」「停下」、「停」为 spike 观测词（Q7）。命中后按词组路由：`VoiceStateRouter.decide(keyword, state)`——唤醒组全态动作；打断组仅 SPEAKING/PROCESSING 动作（Q5=b），**IDLE/LISTENING 命中丢弃**（Q6=a，防闲聊「好了」误唤醒）；「停」恒 DROP 只留日志，真机双合格（播报中真喊 ≥8/10 且播放期误打断 0；负样本误动作>0 判废）后挪 INTERRUPT_WORDS 转正。打断语义=打断并续听（Q3=b），与 S12 唤醒词打断完全同构，动作层零分叉。未登记词默认 ACT（词表/组表漂移不静默失效）。ASR 剥除表 WAKE_PREFIXES 补「你好小朵」与声学行为对称（原「非前缀不剥」用例中 你好小朵 断言随拍板删除）。六词拼音 token 逐一核验在表（含轻声 e）；keywords.txt「停」行带独立阈值 `@0.5`。

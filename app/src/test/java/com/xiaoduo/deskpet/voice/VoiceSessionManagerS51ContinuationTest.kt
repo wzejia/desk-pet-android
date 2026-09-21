@@ -101,7 +101,11 @@ class VoiceSessionManagerS51ContinuationTest {
     }
 
     @Test
-    fun `resumed speech freezes window then merges second fragment`() {
+    fun `window reduced to 1 - loud pause dispatches immediately instead of merging`() {
+        // S55（2026-09-21 用户拍板）：续听窗 10→1 暂关合并语义（排查「说完不回答、持续聆听」
+        // 无限挂起）。窗=1 时判停后首个静音块即耗尽派发，响块续说=新轮不合并。
+        // 注意：轻声续说（0.03~0.05 频段）仍冻结窗口可合并——冻结线语义见下一用例（仍绿）。
+        // 恢复窗口（CONTINUATION_TICKS 拨回 10）时本用例还原为合并语义锁（原版见 git 历史）。
         val logs = mutableListOf<String>()
         val mgr = newManager(logs)
         mgr.startListening()
@@ -109,21 +113,10 @@ class VoiceSessionManagerS51ContinuationTest {
         feedFragment(mgr, 5) // 片段1 → hold（samples=8000）
         assertTrue(logs.any { it.contains("S51 continuation hold: parts=1 samples=8000") })
 
-        // 窗中途续说：3 静音（倒计时 7→4）+ 5 响块（语音级冻结倒计时，第 3 响判起）
-        repeat(3) { mgr.routeBlockForTest(silenceBlock()) }
-        repeat(5) { mgr.routeBlockForTest(loudBlock()) }
-        assertEquals("第二片段进行中不派发", VoiceStateRouter.State.LISTENING, mgr.state)
-        assertTrue(logs.none { it.contains("S51 continuation dispatch") })
-
-        // 第二片段判停 → hold 重置窗口并累积（parts=2）
-        repeat(VadDetector.SILENCE_END_TICKS) { mgr.routeBlockForTest(silenceBlock()) }
-        assertEquals("片段2 判停后仍 LISTENING", VoiceStateRouter.State.LISTENING, mgr.state)
-        assertTrue(logs.any { it.contains("S51 continuation hold: parts=2 samples=20800") })
-
-        // 窗耗尽 → 两片段合并派发（8000 + 12800 = 20800）
         repeat(VoiceSessionManager.CONTINUATION_TICKS) { mgr.routeBlockForTest(silenceBlock()) }
-        assertEquals(VoiceStateRouter.State.PROCESSING, mgr.state)
-        assertTrue(logs.any { it.contains("S51 continuation dispatch: 20800 samples") })
+        assertEquals("窗=1：判停后 1 静音块即派发（不等合并）", VoiceStateRouter.State.PROCESSING, mgr.state)
+        assertTrue(logs.any { it.contains("S51 continuation dispatch: 8000 samples") })
+        assertTrue("合并语义已关：不再出现 parts=2 累积", logs.none { it.contains("parts=2") })
     }
 
     @Test
