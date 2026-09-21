@@ -890,7 +890,10 @@ class VoiceSessionManager(
                 // 上限 [EMPTY_ASR_MAX_RESUMES] 次防持续噪声下无限幽灵循环。
                 if (r.message.startsWith(EMPTY_ASR_PREFIX) && emptyAsrResumesLeft > 0) {
                     emptyAsrResumesLeft--
-                    logger("empty ASR（纯噪声轮），续听（剩 $emptyAsrResumesLeft 次）")
+                    // S56：ASR 裁判式噪声底上行——空轮=认证「不是话」，floor 向该轮 RMS 收敛，
+                    // 判停/判起线随之抬升过滤噪声（0.19 噪声房实测修复「判停拖满 8s」）
+                    vad.raiseNoiseFloorFromLastUtterance()
+                    logger("empty ASR（纯噪声轮），续听（剩 $emptyAsrResumesLeft 次）floor=${vad.currentNoiseFloor()}")
                     vad.start()
                     transition(VoiceStateRouter.State.LISTENING, "empty asr, resume listening")
                     status("聆听中…（30s 无语音自动退出）")

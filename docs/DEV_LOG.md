@@ -1,6 +1,24 @@
 # 小朵 Android 开发日志
 
 
+## 2026-09-21 S56：判停线自适应落地——ASR 裁判式噪声底上行（双板已更，待喊话验收）
+
+**设计缺口**：S19-1 v5 自适应底本有双通道，但上行通道（噪声上攻）被 S52 停用（误伤持续元音/衰减尾音）后，floor 只能向下/低位跟随——环境噪声阶跃到阈值之上（实测 0.19 vs 判停线 0.03）时 floor 永远学不到，判停恒失效拖满 8s（用户实测「说完 ~5s 才动」= 8s 窗减去说话时长）。
+
+**S56 机制（语义裁判，误伤免疫）**：空 ASR 轮 = ASR 认证「收集到的不是话」——`VadDetector.raiseNoiseFloorFromLastUtterance()`（VSM S19-2 空 ASR 分支调用）以 0.6 速率把 floor 向该轮整段 RMS 收敛（封顶 0.5）；**有文本轮绝不推高 floor**（真语音免疫 S52 式误伤）。收敛动力学（单测锁死）：1 个幻觉轮反馈 → floor≈0.116 → 判起线 floor×2=0.232 > 噪声 0.19 → **幻觉轮绝迹** → 慢速跟踪（NOISE_TRACK_RATE）在聆听期接管（噪声块落回阈值下方可更新）→ floor→0.19、end=max(0.03,×1.4)≈0.25>噪底 → **判停复活（600ms 噪声尾即成句）**，判起=max(0.05,×2)≈0.38 过滤噪声。
+
+**物理极限（明示）**：底噪 0.19 内正常音量（峰值 0.1~0.3）SNR 不足，判起线 0.38 意味着**需较大声说话**；根治=消除噪声源（板旁风扇/空调排查，用户侧）。
+
+**验收预期**：首轮唤醒可能仍有一轮 8s+「没听清」（自适应轮），第二遍起：较大声说完 → ~1s 内判停 → ~2s 回答。若持续「没听清」且声嘶力竭 → 噪声源必须物理处置。
+
+```evidence
+verify_cmd: gradlew testDebugUnitTest（642 绿 = 639 + 3 S56 锁：floor 上行/幻觉轮过滤/适应后判停复活/no-op+语音中性）；assembleDebug（22b6522c）；双板 install -r Success + 2×newFromAsset 0 FATAL
+verify_claim: floor 上行仅由空 ASR 轮触发（真语音中性）；适应后判停 600ms 恢复且幻觉轮被滤；0 直写陷阱/锚错位教训已规避（行号手术）
+files_touched: [app/src/main/java/com/xiaoduo/deskpet/voice/VadDetector.kt, app/src/main/java/com/xiaoduo/deskpet/voice/VoiceSessionManager.kt, app/src/test/java/com/xiaoduo/deskpet/voice/VadDetectorTest.kt, gradle.properties, docs/DEV_LOG.md]
+```
+
+
+
 ## 2026-09-21 S55 取证收口：链路端到端复活 + 噪声源定案（真实环境噪声，非 AGC）
 
 **10 秒实验结果**（18:25~18:26 logcat）：用户唤醒后静默期 vad diag 恒定 **0.185~0.21**——app 刚重启（AGC 已重置）仍不衰减 → **排除 AGC 增益爬升，定案真实环境噪声**（稳态宽频特征，疑似板载风扇/空调/设备声，位置待用户排查）。

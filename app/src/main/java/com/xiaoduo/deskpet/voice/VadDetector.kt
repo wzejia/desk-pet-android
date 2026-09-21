@@ -33,6 +33,17 @@ import kotlin.math.sqrt
  * - 判起阈值 = max(provider, floor×2.0)、判停阈值 = max(provider, floor×1.4)；
  * - start() 不清 EMA（设备声学属性跨轮保持--泵态多轮重启免幽灵轮）。
  * 手机安静域 floor≈0.001 -> 阈值=provider 零回归（单测锁定）。
+ *
+ * S56（2026-09-21）ASR 裁判式噪声底上行（生产板 0.19 稳态环境噪声实证修复）：
+ * v5 的上行通道（噪声上攻）被 S52 停用后，floor 只能向下/低位跟随——环境噪声阶跃
+ * 到阈值之上（实测 0.19 vs 判停线 0.03 的 7~10 倍）时 floor 永远学不到，判停失效
+ * 每轮拖满 8s 强制截断。上攻通道复活会重蹈 S52 误伤（持续元音/衰减尾音同型），
+ * 故改用<b>语义裁判</b>：空 ASR 轮 = ASR 认证「收集到的不是话」（[raiseNoiseFloorFromLastUtterance]，
+ * VoiceSessionManager S19-2 空 ASR 分支调用），floor 以 0.6 速率向该轮 RMS 收敛——
+ * 语音轮永不推高 floor（真语音轮有文本，不触发），误伤免疫。约 2 个空轮收敛后
+ * end=max(0.03,floor×1.4) 越过噪底 → 判停复活（600ms）、判起=max(0.05,floor×2) 过滤
+ * 幻觉轮，系统自洽。物理极限：底噪 0.19 内正常音量（峰值 0.1~0.3）SNR 不足仍需
+ * 大声——根治靠消除噪声源（板旁风扇/空调排查）。
  */
 class VadDetector(
     /**
@@ -102,6 +113,9 @@ class VadDetector(
         /** S19-1 判起/判停对噪声底的倍率。 */
         const val ADAPTIVE_START_FACTOR = 2.0
         const val ADAPTIVE_END_FACTOR = 1.4
+
+        /** S56 空 ASR 轮噪声底上行速率（floor += (rms-floor)×0.6，约 2 个空轮收敛）。 */
+        const val EMPTY_TURN_FLOOR_RATE = 0.6
         const val LISTEN_TIMEOUT_TICKS = LISTEN_TIMEOUT_S * 1000 / BLOCK_MS // 300
         const val MAX_UTTERANCE_TICKS = MAX_UTTERANCE_S * 1000 / BLOCK_MS   // 80
     }
@@ -115,6 +129,18 @@ class VadDetector(
 
     /** S51 续听窗冻结口径：当前判停阈值（与 feed 内同一“静音”定义，全链单标）。 */
     fun currentEndThreshold(): Double = endThreshold()
+
+    /** S56 当前噪声底（诊断日志用）。 */
+    fun currentNoiseFloor(): Double = noiseFloor
+
+    /** S56 ASR 裁判式噪声底上行：空 ASR 轮（ASR 认证「收集到的不是话」）调用一次，
+     *  floor 向最近成句 RMS 收敛（速率 [EMPTY_TURN_FLOOR_RATE]，封顶 [NOISE_FLOOR_MAX]）。
+     *  有文本轮绝不调用——真语音永不推高 floor，S52 式误伤免疫。无成句历史时 no-op。 */
+    fun raiseNoiseFloorFromLastUtterance() {
+        val rms = lastUtteranceRms ?: return
+        noiseFloor = (noiseFloor + (rms - noiseFloor) * EMPTY_TURN_FLOOR_RATE)
+            .coerceIn(0.0, NOISE_FLOOR_MAX)
+    }
 
     /** 触发事件。maxLevel = 期间最大归一化 level（「一值定层」诊断日志用）。 */
     sealed interface Event {
@@ -145,6 +171,9 @@ class VadDetector(
 
     /** S19-1 噪声底 EMA（设备声学属性，跨轮保持；见类注释双轨更新规则）。 */
     private var noiseFloor = 0.0
+
+    /** S56 最近一次成句的整段 RMS（ASR 裁判式 floor 上行的电平依据；跨轮保持）。 */
+    private var lastUtteranceRms: Double? = null
 
     /** S19-1 语音峰值 EMA（说话块推升、逐块衰减；上攻通道①的基准）。 */
     private var speechPeak = 0.0
@@ -261,6 +290,7 @@ class VadDetector(
                 off += b.size
             }
             buffer.clear()
+            lastUtteranceRms = levelOf(pcm) // S56：空 ASR 反馈时 floor 上行的电平依据
             return Event.Utterance(pcm, maxLevel)
         }
         buffer.clear()

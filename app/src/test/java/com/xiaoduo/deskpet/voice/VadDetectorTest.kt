@@ -289,4 +289,65 @@ class VadDetectorTest {
         assertTrue(ev is VadDetector.Event.Utterance)
         assertEquals(3 * VadDetector.BLOCK_SAMPLES, (ev as VadDetector.Event.Utterance).pcm.size)
     }
+
+
+    // ---- S56 ASR 裁判式噪声底上行（2026-09-21 生产板 0.19 稳态噪声实证）----
+
+    /** 喂一个纯噪声假语句：噪声块 0.19 判起 → 说话中拖满 8s → MAX_UTTERANCE 强制截断成句。 */
+    private fun feedPhantomNoiseTurn(vad: VadDetector): VadDetector.Event {
+        vad.start()
+        repeat(3) { assertNull(vad.feed(block(1520))) } // 0.19 ≥ 判起 0.05 → 3 块判起
+        var ev: VadDetector.Event? = null
+        repeat(85) { if (ev == null) ev = vad.feed(block(1520)) } // 80 块强制截断
+        return ev!!
+    }
+
+    @Test
+    fun `S56 empty-asr feedback raises floor past noise level`() {
+        val vad = VadDetector()
+        val baseline = vad.currentNoiseFloor()
+        val ev = feedPhantomNoiseTurn(vad)
+        assertTrue(ev is VadDetector.Event.Utterance)
+        vad.raiseNoiseFloorFromLastUtterance()
+        assertTrue("floor 应上行（单轮 0.6 速率）", vad.currentNoiseFloor() > baseline)
+        // 判起线 = floor×2 = 0.232 > 噪声 0.19 → 幻觉轮从此不再成型（噪声过滤生效）
+        assertTrue("判起线应高过噪声（幻觉轮被滤）",
+            maxOf(VadDetector.SPEECH_LEVEL, vad.currentNoiseFloor() * VadDetector.ADAPTIVE_START_FACTOR) > 0.19)
+        assertTrue("floor 封顶 0.5 防病理", vad.currentNoiseFloor() <= VadDetector.NOISE_FLOOR_MAX)
+    }
+
+    @Test
+    fun `S56 after adaptation endpointing fires in noise before 8s cap`() {
+        // 真实动力学：①幻觉轮空反馈一次（floor 0.005→0.116）→ ②判起线 0.232>噪声 0.19，
+        // 幻觉轮绝迹，慢速跟踪在聆听期接管（噪声块终于落在阈值下方可更新 floor）→
+        // ③end=max(0.03,floor×1.4) 越过噪底 → 判停复活（600ms 噪声尾即成句，不再拖 8s）。
+        val vad = VadDetector()
+        feedPhantomNoiseTurn(vad)
+        vad.raiseNoiseFloorFromLastUtterance()
+        vad.start()
+        repeat(20) { assertNull(vad.feed(block(1520))) } // 2s 纯噪声聆听：floor 慢轨升至 ≈0.18
+        assertTrue("慢速跟踪后 end 线应越过噪声 0.19", vad.currentEndThreshold() > 0.19)
+        // 真说话 0.5 ≥ 判起 0.232 → 成句；停止后噪声尾 6 块（600ms）判停，远早于 8s 上限
+        repeat(3) { assertNull(vad.feed(block(4000))) }
+        repeat(5) { assertNull(vad.feed(block(4000))) }
+        var ev: VadDetector.Event? = null
+        repeat(12) { if (ev == null) ev = vad.feed(block(1520)) }
+        assertTrue("判停应在 8s 上限前触发", ev is VadDetector.Event.Utterance)
+    }
+
+    @Test
+    fun `S56 raise is no-op without utterance history and real-speech turns never raise`() {
+        val vad = VadDetector()
+        val baseline = vad.currentNoiseFloor()
+        vad.raiseNoiseFloorFromLastUtterance() // 无成句历史 no-op
+        assertEquals(baseline, vad.currentNoiseFloor(), 1e-12)
+        // 真语音轮（有文本，不调用 raise）后 floor 不变——语音永不推高 floor
+        vad.start()
+        repeat(3) { assertNull(vad.feed(block(4000))) } // 判起
+        repeat(6) { assertNull(vad.feed(block(4000))) } // 说话
+        var ev: VadDetector.Event? = null
+        repeat(6) { if (ev == null) ev = vad.feed(block(0)) } // 静音 6 块（600ms）判停成句
+        assertTrue(ev is VadDetector.Event.Utterance)
+        assertEquals(baseline, vad.currentNoiseFloor(), 1e-9)
+    }
 }
