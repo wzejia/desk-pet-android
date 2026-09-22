@@ -13,6 +13,7 @@
 | **Open-LLM-VTuber**（开源，最贴近小朵架构） | 语音对话全链（ASR→LLM→TTS）+ 桌宠/直播 | **Live2D**（Cubism 3~5），Web 前端 **pixi-live2d-display-lipsyncpatch**（Pixi.js WebGL + 口型同步补丁） | **lipsync patch=音频驱动口型**；情绪→expression/motion 映射在 model3.json 配置 | 官方文档 open-llm-vtuber.github.io Live2D Guide |
 | **Desktop Mate / 桌面灵 等 Live2D 桌宠生态** | 桌面陪伴 | **Live2D**（用户可导入自备模型） | 模型自带表情/动作组 | Bing 检索多源（桌面灵 README、Electron+PIXI+Live2D 开源项目等） |
 | **VPet / Shimeji 类** | 传统桌宠 | **逐帧精灵图 + 状态机**（与小朵现状同路线） | 无口型同步（动作切换式） | 各项目 README（公知实现） |
+| **Codex Pets**（OpenAI，2026-05） | 编码 agent 桌面 App（macOS）内嵌桌宠 | **像素风逐帧动画 + 状态机**（官方示例「Meme」像素小狗；8 只内置崽；渲染层实现未官方披露，按像素美术形态与三状态切换机制推断为帧序列动画） | 无口型；**宠物=agent 状态指示器**：三状态 Running / Waiting for input / Ready for review + active thread + 进度提示（「灵动岛」思路）；`/pet` 唤醒浮动 overlay、`/hatch` 孵化自定义（本地 Codex home 加载，社区数小时 467 只自制） | akiraxclaw.com 评测（功能/状态机/像素小狗/自制流程）；Bing 检索多源（知乎/博客快照） |
 | **Live2D 手游阵营**（碧蓝航线/公主连结 等） | 移动端 | **Live2D** 立绘动效 | 音频/剧情驱动 | Live2D 官方维护「商业作品数据库」（Live2D Database）+ 官网自称「industry standard tool for 2D real-time expression」 |
 
 ## 2. 四条技术路线归纳
@@ -42,7 +43,10 @@
    - **模型来源生态**：Booth / Bilibili / 模之屋 / Eikanya·Live2d-models（GitHub 上千个模型仓库）
      ——P0 素材未定制前，可先用**可商用授权的现成模型**跑通集成（注意逐一核对模型许可，
      游戏提取模型不可商用）。
-3. **风险不变项**：Live2D 常驻渲染线程 vs 语音链调度争抢（rk3568 红线）仍须装机三件套验收；
+3. **产品语义的高价值参照（Codex Pets）**：把桌宠做成「后台 agent 的可视化状态」——宠物
+   表情/动作实时反映任务态（跑任务/等输入/待审阅）。小朵已同构（VSM 四态→帧表），Live2D
+   化后该语义可升级为更细粒度的任务反馈（如处理期微动作差异、说话口型=任务语义的一部分）。
+4. **风险不变项**：Live2D 常驻渲染线程 vs 语音链调度争抢（rk3568 红线）仍须装机三件套验收；
    Open-LLM-VTuber 的 Web 前端不构成 Android 原生性能参照，Cubism Android SDK 侧仍以
    `2026-09-17-live2d-feasibility.md` 的验收口径为准。
 
@@ -59,3 +63,6 @@
 5. Bing 检索快照——Desktop Mate/桌面灵/Electron+PIXI Live2D 桌宠生态多源
 6. live2d.com 官网（「industry standard tool for 2D real-time expression」）+ Live2D Database
    （官方商业采用作品数据库）
+7. akiraxclaw.com《OpenAI 把 Tamagotchi 塞進 Codex》（2026-05-01）+ 中文快照多源——
+   Codex Pets 功能形态：`/pet`·`/hatch`·Cmd+K、像素小狗 Meme、三状态指示器、本地
+   自定义加载与 467 只自制版
