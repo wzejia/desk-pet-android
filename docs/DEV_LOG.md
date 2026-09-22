@@ -1,6 +1,20 @@
 # 小朵 Android 开发日志
 
 
+## 2026-09-21 S63：禁用「停」打断词（keywords.txt 删行，SPIKE_WORDS 留墓碑，双板已更）
+
+**用户拍板**：禁用「停」。**处置**：keywords.txt 删 `t íng @0.5 @停` 行（引擎不再识别，剩 5 词）；`SPIKE_WORDS` 保留为防御性墓碑（若日后再加回引擎行，路由仍恒 DROP 待转正）；VoiceStateRouter/VoiceForegroundService 两处 KDoc 记录禁用原因（单音节误报体质，噪声/连续语流易越线——与 S61「好了」误触发同族，单字更甚）。复活/转正流程不变：真机双合格 + 用户拍板。
+
+**未动**：停下/好了打断语义不变；测试锚零改动（SPIKE_WORDS 路由行为未变，652 绿）。次生观察：本番 assembleDebug 首跑静默失败（tail -1 吞掉 FAILED，sha 未变暴露）——概率性 BindException 家族，改用 grep BUILD 过滤可见化。
+
+```evidence
+verify_cmd: gradlew testDebugUnitTest（652 绿）；assembleDebug（c6ec4721，keywords.txt 5 行）；双板 install -r Success + capture start + 0 FATAL
+verify_claim: 「停」不再被 KWS 识别（keywords.txt 无此行）；SPIKE_WORDS 墓碑保留（decide("停")=恒 DROP，防御）；打断组（好了@0.5/停下）与唤醒组不变
+files_touched: [app/src/main/assets/kws-model/keywords.txt, app/src/main/java/com/xiaoduo/deskpet/voice/VoiceStateRouter.kt, app/src/main/java/com/xiaoduo/deskpet/VoiceForegroundService.kt, docs/DEV_LOG.md]
+```
+
+
+
 ## 2026-09-21 S62：跳转页面增加「首页」（语音/文字导航回主界面，双板已更）
 
 **需求**：跳转页面集合（借阅/归还/盘点）增加「首页」。**链路**：ShelfNavIntentMatcher += HOME_WORDS（首页/主页/主界面/主页面）→ page="home" → ShelfMcpBridge.NAVIGATE_PAGES += home → `{"Op":"mcpUiNavigate","page":"home"}` → 密集架 AppController 接受 home（盘点页前台先收起）→ `searchPageRequest` → MainActivity `popBackStack(mainFragment)` 回主界面（已在主界面幂等 no-op）。

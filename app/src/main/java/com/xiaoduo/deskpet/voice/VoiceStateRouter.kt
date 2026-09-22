@@ -59,9 +59,10 @@ class VoiceStateRouter {
          *  把小朵喊醒（Q6=a）。 */
         val INTERRUPT_WORDS = listOf("好了", "停下")
 
-        /** Spike 观测词（Q7）：恒丢弃只留日志；keywords.txt 中带独立高阈值 @0.5。
-         *  真机双合格（播报中真喊命中 ≥8/10 且播放期误打断 0；负样本误动作>0 判废）后
-         *  挪入 [INTERRUPT_WORDS] 转正——转正时本表清空、对应用例随拍板更新。 */
+        /** Spike 观测词（Q7）：恒丢弃只留日志。
+         *  S63（2026-09-21 用户拍板）：「停」已从 keywords.txt 禁用（单音节误报体质，
+         *  噪声/连续语流易越线）——引擎不再识别，本表保留为防御性墓碑（若日后再加回
+         *  引擎行，路由仍安全丢弃待转正）。转正/复活流程同 Q7：真机双合格 + 用户拍板。 */
         val SPIKE_WORDS = listOf("停")
 
         /** S54 命中词路由决策（纯逻辑 JVM 可测；调用点 VoiceForegroundService.onWake）。

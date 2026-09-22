@@ -198,7 +198,8 @@ class VoiceForegroundService : Service() {
         }
         // S54 多词路由：命中词+当前态 → VoiceStateRouter.decide。唤醒组全态动作；打断组
         // （好了/停下）仅 SPEAKING/PROCESSING 动作，IDLE 命中丢弃（防闲聊误唤醒，Q6=a）；
-        // 「停」spike 观测恒丢弃（Q7，双合格后挪 INTERRUPT_WORDS 转正）。丢弃只留日志，
+        // 「停」spike 已从 keywords.txt 禁用（S63 用户拍板：单音节误报体质）；若命中
+        // 仍恒丢弃（Q7 路由不变，SPIKE_WORDS 墓碑）。丢弃只留日志，
         // 影子通道（独立引擎 0.15）照常观测——S55 快语速取证同用主/影差分。
         val st = VoiceClientFactory.session(this).stateFlow.value
         if (VoiceStateRouter.decide(keyword, st) == VoiceStateRouter.KwsHitAction.DROP) {

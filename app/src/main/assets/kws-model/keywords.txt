@@ -3,4 +3,3 @@ n ǐ h ǎo x iǎo d uǒ @你好小朵
 x iǎo d ù x iǎo d ù @小度小度
 h ǎo l e @0.5 @好了
 t íng x ià @停下
-t íng @0.5 @停
