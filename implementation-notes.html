@@ -1398,6 +1398,18 @@ wozai done→声纹 813/858ms）。</p>
 最坏延迟可见几毫秒，影响趋零（周评审 2026-09-18 记录在案，较真可标 @Volatile）。</p>
 </div>
 
+<div class="entry decision">
+<span class="tag">设计决策</span><span class="meta">2026-09-17 ｜ 形象渲染方向 ｜ 用户拍板：宠物动画转 Live2D（部分修订 S13 静止化语义）</span>
+<p><b>动机</b>：用户确认诉求=更生动的形象（呼吸/视线/物理微动），帧动画路线已到顶。<b>可行性</b>：
+Cubism SDK Android 双 ABI（arm64+x86_64）均官方支持，Mali-G52 GLES 3.1 无压力；口型可接
+TTS 播放进度（帧动画做不到的真增益）。<b>三关</b>：①分层 PSD 重制+Editor PRO+出版许可
+（用户侧关键路径，当前逐帧精灵图不可转换）；②PetRenderer 抽象+GL 挂载（示例模型可先行
+spike）；③装机性能硬门槛——Live2D 常驻渲染线程与语音链调度争抢风险（S34/S35/S25b 教训），
+忙环+diff 水位+Choreographer 三件套验收，不达标回退 Sprite 版。<b>已锁定代价</b>：S13 静止化
+由新动效映射表取代（P3 阶段逐项重新拍板）；与桌面端 spritesheet 形象分叉（双端同构在此项
+打破）。评估与路线图全文：`docs/research/2026-09-17-live2d-feasibility.md`。</p>
+</div>
+
 </body>
 </html>
 <tr><td>2026-09-11</td><td>KwsCore.kt / KwsEngine.kt / VoiceForegroundService.kt</td><td>设计决策+取证驱动修复（票①）</td><td>S35 解码线程优先级提档：主引擎 MIN(1)→6，影子保持 MIN。<b>取证依据</b>：14.18 全天 diff 曲线（空闲≈0，对话期 +940/+283 块撕裂）+ 解码实测 7.5 块/s&lt;喂 10 + IDLE 连喊 2 次不中现行（19:26:11/15 影子 0.15 中、主 0.3 不中）。<b>6 的理由</b>：NORM(5)=S25b 前白屏态；6→ART nice≈-1，介于普通(0)与 UI(-4)之间——保解码吞吐且 Choreographer 不回归。<b>风险与锚</b>：S25b 白屏回归 → 装机后 Choreographer 复测 + diff 恢复双验收。变异锚：KwsCoreTest 删 priority 赋值红。</td></tr>

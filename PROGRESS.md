@@ -392,6 +392,11 @@
    看触顶率（±32767）；⑤阿里云 ASR Access denied×2（18:43/44）待用户查账号。
 3. **待办/观察**：
    - **S32 票**：采麦零馈入自检告警（纯逻辑可 TDD）；
+   - **Live2D 宠物形象**（2026-09-17 方向拍板，待素材/授权后立票）：可行性评估与四阶段
+     路线图见 `docs/research/2026-09-17-live2d-feasibility.md`——分层 PSD 与 Editor PRO/
+     出版许可是关键路径；工程侧 PetRenderer 抽象+GL 挂载可先行 spike；装机性能验收
+     （忙环+diff 水位+Choreographer 三件套）是硬门槛，不达标回退 Sprite 版。部分修订
+     S13 静止化语义（notes 09-17 条目）；
    - **18.47 ROM 缺陷**待设备供应商（证据 docs/verification/v23-s32-mic-zero-feed/）；
    - **观察票：AEC 偶发失效态**（S12 遗留）——拉 `kws stats` 看 fed/gated 形态；
    - 观察票：全屏连喊唤醒视觉塌缩边缘（S12 critic F2，进 LISTENING 自愈）；
