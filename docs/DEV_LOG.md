@@ -1,6 +1,25 @@
 # 小朵 Android 开发日志
 
 
+## 2026-09-23 S65：回声纪元守卫——盲窗回灌滤「我在」回声（「唤醒后听到我在就结束监听」根因修复）
+
+**用户报障**：唤醒后板子应「我在」，随即监听结束（假对话轮抢走聆听窗）。**根因（测试板 10:49 三轮打断重唤醒 3/3 复现 + 代码/pcap 双实锤）**：打断播报场景重唤醒时，S40 盲窗缓冲内是「旧 TTS 残声 + wozai『我在』回声」（maxLevel 0.66-0.99）——wozai 播完后回灌 VAD，此时 NLMS 因参考过期（`now()-lastRefAt > REF_FRESH_MS=400ms` 直通零消除，遥测 `inRms≈outRms` 实锤）回声全额进 VAD → 判出伪 utterance（活块 `vad diag level=0.0007` 全静却 96ms 后报 1.2s 语音）→ ASR 转出「告诉我我在。」系假轮。IDLE 唤醒幸免（盲窗仅唤醒词尾+弱回声，不过判起线）。
+
+**修复（用户拍板方向 1「静音确认后才收」）**：回灌截止线 `cutoff = vadSeamNs - (vadStartDelayMs + ECHO_TAIL_GUARD_MS[150])`——wozai 播放期捕获块（含旧 TTS 残声/回声）整段丢弃，delay 窗尾部迟到块保留（S40 话头找回收窄存续）。实现：`WakeBlindWindowBuffer` 条目携带 capturedAtNs + `drainFrom(cutoff)`；`backfillBlindWindow` 过滤并留痕 `S65 echo-era dropped N`。**推翻 S40 原语义一处**：ack 时代块不再回灌进 VAD（09-12 Case B 注释里「NLMS 兜回声」的假设被证伪，该路径 NLMS 恒过期直通）。
+
+**新增测试 4 个（656 绿，+4）**：S65EchoEraGuardTest（回声纪元块丢弃不产伪轮 / delay 窗尾部迟到块仍回灌，变异验证：删过滤主用例红）；WakeBlindWindowBufferTest +drainFrom 边界 2 例；S40 用例 1/2 按新语义重写。
+
+**顺带排障大发现（详见 solutions/workflow-issues/platform-sse-...）**：排障期间板上 run 请求大面积断流（`SSE 断流 produced 0 chars`，HTTP 200+控制事件后 ~2.2s 关流）**定案为平台 chatAgent 故障**——切换 Agent 即恢复；板端代码全程无罪（PC 同期同 token 直连成功、聊天 UI 同源同断、S65 改动不碰网络栈）。**取证明细与事故教训**（adb 写 prefs 必须读回校验；MSYS 路径转换会把设备路径转成 `C:/Program Files/Git/...`）见同日 solutions 两条。
+
+```evidence
+verify_cmd: gradlew testDebugUnitTest（656 绿，+4：S65 2 例 + buffer drainFrom 2 例）；assembleDebug（APK b2df043c）；测试机 192.168.137.76 install -r Success
+verify_claim: 打断播报重唤醒后「我在」回声不再产出伪 utterance（S51 hold 不出现、状态保持 LISTENING）；delay 窗尾部迟到块回灌保留；IDLE 唤醒/按住路径零行为变更
+files_touched: [app/src/main/java/com/xiaoduo/deskpet/voice/VoiceSessionManager.kt, app/src/main/java/com/xiaoduo/deskpet/voice/WakeBlindWindowBuffer.kt, app/src/test/java/com/xiaoduo/deskpet/voice/VoiceSessionManagerS65EchoEraGuardTest.kt, app/src/test/java/com/xiaoduo/deskpet/voice/VoiceSessionManagerS40BlindWindowTest.kt, app/src/test/java/com/xiaoduo/deskpet/voice/WakeBlindWindowBufferTest.kt, implementation-notes.html]
+```
+
+**待真机验收**：测试板 prefs 恢复（password + 三模态 platform）后喊话复测「打断播报重唤醒→我在→说真指令」。
+
+
 ## 2026-09-23 S64：禁用打断词组（好了/停下，keywords.txt 删行，仅测试机）
 
 **用户拍板**：禁用打断词。**处置（沿 S63 先例）**：keywords.txt 删 `h ǎo l e @0.5 @好了` 与 `t íng x ià @停下` 两行（剩 3 行纯唤醒组）；`INTERRUPT_WORDS` 保留为防御性墓碑（路由语义照旧，引擎不再识别）。**打断能力未消失**：唤醒组（小朵小朵/你好小朵/小度小度）在 SPEAKING/PROCESSING 命中即打断（S12 链路），双击打断亦在——用户要打断播报说唤醒词即可。复活流程：加回 keywords.txt 行 + 拍板。

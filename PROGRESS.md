@@ -1,19 +1,23 @@
 # 小朵 Android M1 进度
 
-## 状态：S54~S64 语音链噪声域加固 + 关键词治理 ✅ 全部收口（2026-09-23，652 绿，分支 s54-multi-wake-interrupt=7d23e83 未合 main）
+## 状态：S50~S65 语音链噪声域加固 + 关键词治理 ✅ 已全合 main（2026-09-23，656 绿，main=1723f59）
 
-**S50~S64 十五票速览**（细节见 DEV_LOG 对应条目）：S50 弱音节判停拆线 → S51 续听窗（S55 后窗=1，09-23 拍板维持）→
+**S50~S65 速览**（细节见 DEV_LOG 对应条目）：S50 弱音节判停拆线 → S51 续听窗（S55 后窗=1，09-23 拍板维持）→
 S52 上攻停用 → **S54 多唤醒词/打断词** → S55 续听死锁 → S56 噪声底自适应 → S57 采麦源锁定 → **S58 上攻复活**
 （回退二分定案）→ S58b 自回声丢弃 → S59 尾音衰减窗 400ms → **S60 判停尾垫**（句尾弱音节进 PCM）→
 S61 好了阈值 0.5 → S62 首页导航（mijijia 同票）→ S63/S64 打断词全禁（keywords.txt 剩 3 纯唤醒词，
-打断=说唤醒词或双击）。
+打断=说唤醒词或双击）→ **S65 回声纪元守卫**（盲窗回灌滤「我在」回声，「唤醒后听到我在就结束监听」根因修复）。
 
-**两板运行矩阵（2026-09-23）**：测试机 192.168.137.76 = desk-pet S64（8e5ce3b0）+ mijijia xiaoduo 头（73f4fd72，
-MCP 链完整已验证）；生产板 10.0.14.18 = desk-pet S63（c6ec4721，好了/停下仍在）+ **mijijia 同事 replacement-skin
+**合并状态**：S54~S64 已合 main（aedee33，652 绿）；S65 直推 main（2a09d44+1723f59，656 绿）；s54 分支/worktree 已清场。
+
+**两板运行矩阵（2026-09-23 晚）**：测试机 192.168.137.76 = desk-pet S65（b2df043c）⚠️ prefs 事故重建后**待用户重填**（password + 三模态切回 platform）+ mijijia xiaoduo 头
+（MCP 链完整已验证）；生产板 10.0.14.18 = desk-pet S63（c6ec4721，好了/停下仍在）+ **mijijia 同事 replacement-skin
 包（无 MCP 链，弹窗 Invalid request 实锤，恢复=刷 xiaoduo 包待确认）**。
 
-**挂账**：①S54 验收清单（Temp/TEST-S54-shout-acceptance.md）未跑 → 分支未合 main；②生产板双包升级待确认；
-③mijijia tips⑧「停下」文案过时；④底噪 0.19 物理来源未明（对照实验未做）；⑤S55 快语速取证；⑥生产板语音自启观察。
+**挂账**：①S54 验收清单（Temp/TEST-S54-shout-acceptance.md）未跑（分支已合，可随时补跑）；②生产板双包升级待确认；
+③mijijia tips⑧「停下」文案过时；④底噪 0.19 物理来源未明（对照实验未做）；⑤S55 快语速取证；⑥生产板语音自启观察；
+⑦**测试机 prefs 重填**（password + 三模态 platform——不填则走云端/登录失败，事故见 solutions/workflow-issues/adb-run-as-prefs-write-must-verify.md）；
+⑧**平台 chatAgent 故障**已由平台侧切 Agent 恢复（语音轮大面积 SSE 断流根因，全案见 solutions/workflow-issues/platform-sse-zero-chars-server-side-diagnosis.md）。
 
 ## 历史：S49 语音指示泡（聆听声纹/思考三点）✅ 代码收口 + 主链板端实证（2026-09-18，627 绿）
 

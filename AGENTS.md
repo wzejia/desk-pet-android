@@ -45,20 +45,24 @@ M1（悬浮桌宠本体）与「助手化」大切片（S0-S8）均已收口；�
 
 ## 基线（不可退）
 
-- 单测基线 **652 个**（2026-09-23，S54~S64 后；此前 627=S49 时代）；skipped=0；新增只增不减；验证 `./gradlew.bat testDebugUnitTest --rerun-tasks`
+- 单测基线 **656 个**（2026-09-23 晚，S65 后；此前 652=S54~S64 时代）；skipped=0；新增只增不减；验证 `./gradlew.bat testDebugUnitTest --rerun-tasks`
 - `assembleDebug` 绿；spritesheet.webp MD5 `53c81ce652518f7fc7bf70554f363f54`；pet_states.json SHA256 `60b45124…4366`（S13 起 Android 行为有意偏离桌面镜像，见 implementation-notes 2026-08-24）
 
-## 当前状态（2026-09-23，收口对齐）
+## 当前状态（2026-09-23 晚，S65 后对齐）
 
-- **S50~S64 十五票已收口**（语音链噪声域加固 + 多唤醒词 + 关键词治理），652 绿；
-  活跃分支 `s54-multi-wake-interrupt`（7d23e83，**未合 main**——S54 验收清单待跑）。逐票速览见 `PROGRESS.md` 状态段。
+- **S50~S65 已全部收口并全合 main**（main=1723f59，656 绿）：语音链噪声域加固 + 多唤醒词 + 关键词治理
+  + **S65 回声纪元守卫**（盲窗回灌滤「我在」回声；s54 分支/worktree 已清场）。逐票速览见 `PROGRESS.md` 状态段。
 - **关键词现状**：唤醒词=小朵小朵/你好小朵/小度小度；打断词已全禁（S63/S64）——打断走唤醒词（S12 链路）或双击。
-- **两板矩阵**：测试机=desk-pet S64+mijijia xiaoduo 头（链路完整）；生产板=desk-pet S63+**mijijia 同事
-  replacement-skin 包（无 MCP 联动链，弹窗失效，恢复需刷 xiaoduo 包待用户确认）**。
-- 双板 adb：`C:/platform-tools/adb.exe`（SDK E 盘 adb 为历史路径）；MSYS 下 install/push 本地路径须 `E:/` 风格。
-- 挂账清单见 `PROGRESS.md` 状态段（验收/生产板升级/文案/底噪来源/快语速取证）。
-- 交接文档：`C:/Users/Administrator/AppData/Local/Temp/HANDOFF-s54-multi-wake.md`（Temp 易失，重要结论以
-  DEV_LOG/PROGRESS 为准）。
+- **两板矩阵**：测试机=desk-pet S65（b2df043c，⚠️ prefs 事故重建后**待重填 password+三模态 platform**）
+  +mijijia xiaoduo 头；生产板=desk-pet S63+**mijijia 同事 replacement-skin 包（无 MCP 联动链，
+  恢复需刷 xiaoduo 包待用户确认）**。
+- **平台注意**：10.0.18.166 平台曾出现 chatAgent 故障致语音轮 SSE 断流（HTTP 200+控制事件后 ~2.2s
+  空手关流）——**切换 Agent 即恢复**；全案（含双线对照/pktmon/tcpdump 方法论）见 `docs/solutions/workflow-issues/platform-sse-zero-chars-server-side-diagnosis.md`。
+- 双板 adb：`C:/platform-tools/adb.exe`（SDK E 盘 adb 为历史路径）；MSYS 下 install/push 本地路径须 `E:/` 风格；
+  **改板端文件用 run-as 相对路径（`shared_prefs/...`）+ 写回后读回校验**（prefs 事故教训见 solutions）。
+- 挂账清单见 `PROGRESS.md` 状态段（验收/生产板升级/文案/底噪/快语速/prefs 重填）。
+- 交接文档：`C:/Users/Administrator/AppData/Local/Temp/HANDOFF-s64-closeout.md`（Temp 易失，重要结论以
+  DEV_LOG/PROGRESS/solutions 为准）。
 
 ## 历史状态
 
