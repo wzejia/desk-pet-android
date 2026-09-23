@@ -1282,7 +1282,9 @@ class VoiceSessionManager(
          *  解除，且 hold 内 vad.start() 重置 30s 聆听超时 → 无限挂起。暂关至 1 块
          *  （判停 +100ms 即派发，≈S50 前行为）。**不可设 0**：hold 只攒片，派发全靠
          *  倒计时耗尽，0=永不派发。正解候选=有界续听（冻结也有总上限），恢复窗口拨回 10
-         *  并还原 S51ContinuationTest 用例 2（见 git 历史）。 */
+         *  并还原 S51ContinuationTest 用例 2（见 git 历史）。
+         *  2026-09-23 用户拍板：维持窗=1 现状（S60 尾垫已覆盖句尾弱音节场景，
+         *  气口合并语义不恢复；此决策已闭环，勿再当悬案翻出）。 */
         internal const val CONTINUATION_TICKS = 1
     }
 }
