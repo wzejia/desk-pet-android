@@ -45,18 +45,20 @@ M1（悬浮桌宠本体）与「助手化」大切片（S0-S8）均已收口；�
 
 ## 基线（不可退）
 
-- 单测基线 **627 个**（81 套件），skipped=0；新增只增不减；验证 `./gradlew.bat testDebugUnitTest --rerun-tasks`
+- 单测基线 **652 个**（2026-09-23，S54~S64 后；此前 627=S49 时代）；skipped=0；新增只增不减；验证 `./gradlew.bat testDebugUnitTest --rerun-tasks`
 - `assembleDebug` 绿；spritesheet.webp MD5 `53c81ce652518f7fc7bf70554f363f54`；pet_states.json SHA256 `60b45124…4366`（S13 起 Android 行为有意偏离桌面镜像，见 implementation-notes 2026-08-24）
 
-## 当前状态（2026-09-18）
+## 当前状态（2026-09-23，收口对齐）
 
-- **S40~S49 十票收口**：**S40** 唤醒盲区回灌（接缝水位+盲区缓冲+NLMS 参考，话头找回）；
-  **S41/S43/S46** 密集架联动三连（动画桥 mcpUiSync / 结果卡 mcpUiResult / 本地导航
-  mcpUiNavigate，UI-only 防双控，文字+语音双路）；**S48** agent 全量分页 + 会话闲置 10 分钟
-  惰性轮转（空会话永不触发）+ 悬浮窗「创建新会话」双桥；**S49** 语音指示泡（聆听声纹/
-  思考三点，恒定 132×40dp，驻留 800ms，多轮回听同显）。基线 **627 绿**。S49 复测通过
-  （14:57 多轮实测：回听声纹 71/82ms、驻留 813/858ms）；S43 L3 语音链终验待用户。
-  双板：测试板=最新包；生产板=09-17 包（无 S49）。历史逐票详见 `PROGRESS.md`/`DEV_LOG.md`。
+- **S50~S64 十五票已收口**（语音链噪声域加固 + 多唤醒词 + 关键词治理），652 绿；
+  活跃分支 `s54-multi-wake-interrupt`（7d23e83，**未合 main**——S54 验收清单待跑）。逐票速览见 `PROGRESS.md` 状态段。
+- **关键词现状**：唤醒词=小朵小朵/你好小朵/小度小度；打断词已全禁（S63/S64）——打断走唤醒词（S12 链路）或双击。
+- **两板矩阵**：测试机=desk-pet S64+mijijia xiaoduo 头（链路完整）；生产板=desk-pet S63+**mijijia 同事
+  replacement-skin 包（无 MCP 联动链，弹窗失效，恢复需刷 xiaoduo 包待用户确认）**。
+- 双板 adb：`C:/platform-tools/adb.exe`（SDK E 盘 adb 为历史路径）；MSYS 下 install/push 本地路径须 `E:/` 风格。
+- 挂账清单见 `PROGRESS.md` 状态段（验收/生产板升级/文案/底噪来源/快语速取证）。
+- 交接文档：`C:/Users/Administrator/AppData/Local/Temp/HANDOFF-s54-multi-wake.md`（Temp 易失，重要结论以
+  DEV_LOG/PROGRESS 为准）。
 
 ## 历史状态
 
