@@ -21,14 +21,17 @@ object ShelfNavIntentMatcher {
     private val BORROW_WORDS = listOf("借阅", "借书")
     private val RETURN_WORDS = listOf("归还", "还书")
     private val INVENTORY_WORDS = listOf("盘点")
+    // S62：首页/主界面目标词。注意「首页」含页面名词「页」——裸词/话题形态由下方
+    //  home 专属规则拦截（须导航动词），防「首页有什么」类聊天被劫持。
+    private val HOME_WORDS = listOf("首页", "主页", "主界面", "主页面")
 
-    private val NAV_VERBS = listOf("打开", "跳转", "跳到", "转到", "进入", "切换", "切到", "去", "开一下")
+    private val NAV_VERBS = listOf("打开", "跳转", "跳到", "转到", "进入", "切换", "切到", "去", "开一下", "返回", "回到")
     private val PAGE_NOUNS = listOf("页面", "界面", "页")
 
     /** 执行对象词：出现即视为执行借还（带档案对象），本地导航绝不拦截。 */
     private val OBJECT_WORDS = listOf("档案", "文件", "书名", "编号", "盒", "条码", "资料")
 
-    /** 返回 "borrow"/"return"/"inventory"；null = 非纯导航意图（走 LLM 常规轮）。 */
+    /** 返回 "borrow"/"return"/"inventory"/"home"；null = 非纯导航意图（走 LLM 常规轮）。 */
     fun match(text: String): String? {
         val t = text.trim()
         if (t.isEmpty()) return null
@@ -37,6 +40,9 @@ object ShelfNavIntentMatcher {
         val hasNavVerb = NAV_VERBS.any { t.contains(it) }
         val hasPageNoun = PAGE_NOUNS.any { t.contains(it) }
         // 保守：须有导航动词或页面名词二者其一；裸目标词不劫持
+        // S62：home 专属——必须带导航动词（「首页」自身含「页」，页面名词兜底会令
+        //  「首页有什么」「首页显示的内容」类话题被劫持；「打开/返回/回到首页」才导航）。
+        if (page == "home") return if (hasNavVerb) page else null
         return if (hasNavVerb || hasPageNoun) page else null
     }
 
@@ -47,6 +53,7 @@ object ShelfNavIntentMatcher {
             BORROW_WORDS.forEach { w -> t.indexOf(w).takeIf { i -> i >= 0 }?.let { add(Cand("borrow", it)) } }
             RETURN_WORDS.forEach { w -> t.indexOf(w).takeIf { i -> i >= 0 }?.let { add(Cand("return", it)) } }
             INVENTORY_WORDS.forEach { w -> t.indexOf(w).takeIf { i -> i >= 0 }?.let { add(Cand("inventory", it)) } }
+            HOME_WORDS.forEach { w -> t.indexOf(w).takeIf { i -> i >= 0 }?.let { add(Cand("home", it)) } }
         }
         return cands.minByOrNull { it.idx }?.page
     }
@@ -56,6 +63,11 @@ object ShelfNavIntentMatcher {
         "borrow" -> "借阅"
         "return" -> "归还"
         "inventory" -> "盘点"
+        "home" -> "首页"
         else -> page
     }
+
+    /** S62：导航成功回执文案（语音/文字两入口共用，home 用「回到」更自然）。 */
+    fun navSpeech(page: String): String =
+        if (page == "home") "已回到首页" else "已打开${pageName(page)}页面"
 }

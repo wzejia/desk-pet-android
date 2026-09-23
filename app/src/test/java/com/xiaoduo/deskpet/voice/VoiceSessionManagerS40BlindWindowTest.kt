@@ -95,7 +95,7 @@ class VoiceSessionManagerS40BlindWindowTest {
             scope = scope,
             logger = { msg -> logs += msg },
             wakeAck = wakeAck,
-        )
+        ).also { it.vadStartDelayMs = 0 } // S59：本组测盲区/接缝机制，与尾音衰减窗无关，置 0 保原时序
     }
 
     private fun awaitQuiescence() {

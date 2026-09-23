@@ -137,6 +137,36 @@ class VoiceSessionManagerWakeAckTest {
     }
 
     @Test
+    fun `S59 wozai 播完 VAD 延迟启动，衰减窗内保持 SPEAKING`() {
+        val ack = FakeWakeAck()
+        val mgr = newManager(wakeAck = ack)
+        mgr.vadStartDelayMs = 250
+        mgr.startListening(playWakeAck = true)
+        awaitState(mgr, VoiceStateRouter.State.SPEAKING)
+        assertTrue(ack.playStarted.await(3, TimeUnit.SECONDS))
+        ack.release() // 播完 → 进入尾音衰减窗
+        Thread.sleep(100) // 窗内（<250ms）：仍 SPEAKING，VAD 未启动、未迁 LISTENING
+        assertEquals(VoiceStateRouter.State.SPEAKING, mgr.state)
+        awaitState(mgr, VoiceStateRouter.State.LISTENING) // 窗后正常落地
+    }
+
+    @Test
+    fun `S59 衰减窗内 cancel 不再落地 LISTENING`() {
+        val ack = FakeWakeAck()
+        val mgr = newManager(wakeAck = ack)
+        mgr.vadStartDelayMs = 250
+        mgr.startListening(playWakeAck = true)
+        awaitState(mgr, VoiceStateRouter.State.SPEAKING)
+        assertTrue(ack.playStarted.await(3, TimeUnit.SECONDS))
+        ack.release()
+        Thread.sleep(80) // 进入衰减窗
+        mgr.cancelCurrentTurn()
+        awaitState(mgr, VoiceStateRouter.State.IDLE)
+        Thread.sleep(400) // 已过原窗点：不得有迟到的 LISTENING 落笔
+        assertEquals(VoiceStateRouter.State.IDLE, mgr.state)
+    }
+
+    @Test
     fun wakeAckPlaysThenTransitionsToListening() {
         val ack = FakeWakeAck()
         val mgr = newManager(ack)

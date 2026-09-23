@@ -33,6 +33,17 @@ import kotlin.math.sqrt
  * - 判起阈值 = max(provider, floor×2.0)、判停阈值 = max(provider, floor×1.4)；
  * - start() 不清 EMA（设备声学属性跨轮保持--泵态多轮重启免幽灵轮）。
  * 手机安静域 floor≈0.001 -> 阈值=provider 零回归（单测锁定）。
+ *
+ * S56（2026-09-21）ASR 裁判式噪声底上行（生产板 0.19 稳态环境噪声实证修复）：
+ * v5 的上行通道（噪声上攻）被 S52 停用后，floor 只能向下/低位跟随——环境噪声阶跃
+ * 到阈值之上（实测 0.19 vs 判停线 0.03 的 7~10 倍）时 floor 永远学不到，判停失效
+ * 每轮拖满 8s 强制截断。上攻通道复活会重蹈 S52 误伤（持续元音/衰减尾音同型），
+ * 故改用<b>语义裁判</b>：空 ASR 轮 = ASR 认证「收集到的不是话」（[raiseNoiseFloorFromLastUtterance]，
+ * VoiceSessionManager S19-2 空 ASR 分支调用），floor 以 0.6 速率向该轮 RMS 收敛——
+ * 语音轮永不推高 floor（真语音轮有文本，不触发），误伤免疫。约 2 个空轮收敛后
+ * end=max(0.03,floor×1.4) 越过噪底 → 判停复活（600ms）、判起=max(0.05,floor×2) 过滤
+ * 幻觉轮，系统自洽。物理极限：底噪 0.19 内正常音量（峰值 0.1~0.3）SNR 不足仍需
+ * 大声——根治靠消除噪声源（板旁风扇/空调排查）。
  */
 class VadDetector(
     /**
@@ -71,15 +82,13 @@ class VadDetector(
         /** S19-1 「持续高电平疑似抬升噪声」的持续块数（1s）。 */
         const val NOISE_ATTACK_SUSTAIN_TICKS = 10
 
-        /** S52（2026-09-18）：噪声上攻通道总开关（=false 停用）。板端逐块 RMS 探针实锤误伤：
-         *  ①持续元音（VAD 0.15~0.30 稳定 2s）被 plateau 通道判为「AGC 钉死噪声」→ 阈值上攻
-         *  越过说话者电平 → 句中判停；②自然语句尾段音节衰减（0.18→0.095）被 half-peak 通道
-         *  触发上攻级联（end=floor×1.4 数块内越过说话者电平）→ 档案名整段丢失。
-         *  当前板端噪底 0.0013~0.002（S23 NLMS 后泵态不再观测），上攻收益消失、误伤恒在；
-         *  真正的早切根因是 codec AGC 对热输入（float 峰值 >~0.1）砸增益（输入越响切得越早，
-         *  inverse 相关全轮次吻合），与上攻无关。若泵态复发（floor 长期 >0.05 致判停失效拖满
-         *  8s），重开此开关并重审判据（稳定≠噪声：长元音同型）。 */
-        const val NOISE_ATTACK_ENABLED = false
+        /** S58（2026-09-21 用户拍板）：上攻通道复活。回退实验定案：ee80b27（上攻停用态）在
+         *  当前环境（底噪 0.19 稳态，来源未明）下判停恒失效拖 8s；9e82c03（上攻开启态）
+         *  实测四轮全自然判停（1~3s 成句），长句「借阅2025年的合同档案」档案名完整——
+         *  S52 误伤（长元音同型被切）今晚未复现，判停可用性优先。S52 的历史误伤知识保留
+         *  于 git 历史与本注释：持续元音/衰减尾音与稳态噪声同型，上攻对二者同权——若长句
+         *  切尾再现，重审判据（建议方向：空 ASR 裁判门控 + 上攻限速）。 */
+        const val NOISE_ATTACK_ENABLED = true
 
         /** S19-1 抬升噪声上攻速率（快）。 */
         const val NOISE_ATTACK_RATE = 0.35
@@ -102,6 +111,9 @@ class VadDetector(
         /** S19-1 判起/判停对噪声底的倍率。 */
         const val ADAPTIVE_START_FACTOR = 2.0
         const val ADAPTIVE_END_FACTOR = 1.4
+
+        /** S56 空 ASR 轮噪声底上行速率（floor += (rms-floor)×0.6，约 2 个空轮收敛）。 */
+        const val EMPTY_TURN_FLOOR_RATE = 0.6
         const val LISTEN_TIMEOUT_TICKS = LISTEN_TIMEOUT_S * 1000 / BLOCK_MS // 300
         const val MAX_UTTERANCE_TICKS = MAX_UTTERANCE_S * 1000 / BLOCK_MS   // 80
     }
@@ -115,6 +127,18 @@ class VadDetector(
 
     /** S51 续听窗冻结口径：当前判停阈值（与 feed 内同一“静音”定义，全链单标）。 */
     fun currentEndThreshold(): Double = endThreshold()
+
+    /** S56 当前噪声底（诊断日志用）。 */
+    fun currentNoiseFloor(): Double = noiseFloor
+
+    /** S56 ASR 裁判式噪声底上行：空 ASR 轮（ASR 认证「收集到的不是话」）调用一次，
+     *  floor 向最近成句 RMS 收敛（速率 [EMPTY_TURN_FLOOR_RATE]，封顶 [NOISE_FLOOR_MAX]）。
+     *  有文本轮绝不调用——真语音永不推高 floor，S52 式误伤免疫。无成句历史时 no-op。 */
+    fun raiseNoiseFloorFromLastUtterance() {
+        val rms = lastUtteranceRms ?: return
+        noiseFloor = (noiseFloor + (rms - noiseFloor) * EMPTY_TURN_FLOOR_RATE)
+            .coerceIn(0.0, NOISE_FLOOR_MAX)
+    }
 
     /** 触发事件。maxLevel = 期间最大归一化 level（「一值定层」诊断日志用）。 */
     sealed interface Event {
@@ -145,6 +169,9 @@ class VadDetector(
 
     /** S19-1 噪声底 EMA（设备声学属性，跨轮保持；见类注释双轨更新规则）。 */
     private var noiseFloor = 0.0
+
+    /** S56 最近一次成句的整段 RMS（ASR 裁判式 floor 上行的电平依据；跨轮保持）。 */
+    private var lastUtteranceRms: Double? = null
 
     /** S19-1 语音峰值 EMA（说话块推升、逐块衰减；上攻通道①的基准）。 */
     private var speechPeak = 0.0
@@ -238,11 +265,18 @@ class VadDetector(
         speechTicks++
         return if (isSpeech) {
             belowTicks = 0
-            buffer.add(block.copyOf()) // 只累积说话块（尾部静音不进 buffer）
+            buffer.add(block.copyOf())
             null
         } else {
             belowTicks++
             aboveTicks = 0
+            // S60：判停倒计时块也进 PCM（尾垫 ≤600ms）——句尾弱音节跌破 end 线后仍被
+            //  采集。旧行为「尾部静音不进 buffer」在安静域无害（end=0.03，弱音节在线
+            //  上）；S56/S58 起 end 线随噪声底上浮（0.19 环境 ≈0.27），句尾 0.1~0.25
+            //  的弱音节被判"静音"且音频丢弃 → 「档案」类尾巴物理丢失（S50 病从自适应
+            //  门回归）。判停逻辑不变（仍 600ms 判停），噪声免疫全部保留；代价=每句
+            //  多带 ≤600ms 尾部环境音，ASR 对尾静音天然容忍。与桌面端分叉点，有意为之。
+            buffer.add(block.copyOf())
             if (belowTicks >= SILENCE_END_TICKS) finishUtterance() else null
         }
     }
@@ -261,6 +295,7 @@ class VadDetector(
                 off += b.size
             }
             buffer.clear()
+            lastUtteranceRms = levelOf(pcm) // S56：空 ASR 反馈时 floor 上行的电平依据
             return Event.Utterance(pcm, maxLevel)
         }
         buffer.clear()

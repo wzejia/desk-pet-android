@@ -387,6 +387,17 @@ class VoiceSessionManager(
      * [AguiClient.DEFAULT_THREAD_KEY]（纯悬浮窗无会话兕底）。挂点同 transcriptSink
      * （ChatViewModel attach 时一并挂）。
      */
+    /** S58b：最近一次成功播报的回复原文（TTS 尾音自噬对照；跨轮保留仅作对照基准）。 */
+    @Volatile
+    private var lastSpokenReplyText: String? = null
+
+    /** S59：TTS 播完 → VAD 启动的尾音衰减窗（ms）。「我在」/回复的喇叭余音（实测满幅
+     *  1.0）曾在 VAD 启动瞬间被捕获成幽灵句——20:18 实证 wozai 播完 0.68s 派发「我在。」
+     *  → 用户真实指令「帮我查询2013年的档案」落在 PROCESSING 空窗丢失（感知"说了没听到"）。
+     *  400ms 覆盖常见尾音衰减；测试置 0 保确定性。 */
+    @Volatile
+    internal var vadStartDelayMs: Long = 400L
+
     @Volatile
     var threadKeyProvider: (() -> String?)? = null
 
@@ -484,6 +495,10 @@ class VoiceSessionManager(
             // 再 wakeAck.stop() 打断 playBlocking；backToIdle 后 state 也非 SPEAKING。
             // 留痕（critic P3-⑥）：双查是 check-then-act，cancel 与 transition 间有微秒窗——
             // 最坏拦不住一次已落地的 LISTENING 迁移（30s 无语音超时自愈回 IDLE），无状态泄漏
+            // S59：尾音衰减窗——「我在」喇叭余音（满幅）曾被 VAD 启动瞬间捕获成幽灵「我在。」
+            //  句 0.68s 派发抢占聆听窗（用户真实指令落空）。延迟后双防线守卫重新执行：
+            //  cancel 落窗内 → isActive=false → 不启动；CancellationException 透传正常拆解。
+            delay(vadStartDelayMs)
             if (isActive && state == VoiceStateRouter.State.SPEAKING) {
                 // S40：接缝水位先于 vad.start 落笔（此后捕获的块均判接缝后）+ 挂账回灌
                 vadSeamNs = System.nanoTime()
@@ -787,7 +802,10 @@ class VoiceSessionManager(
         if (continuationTicksLeft <= 0) return
         // 冻结线必须与判停同域（end 线 0.03）而非判起线 0.05：轻声续说（0.03~0.05 频段）
         // 若被当静音倒数，会在用户开口说档案名时照常派发+停 VAD，整段丢弃（板端 17:00 实锤）
-        if (lvl >= vad.currentEndThreshold() || vad.isSpeaking) return
+        // S55（2026-09-21 双板实证）：噪声环境电平 0.19~0.29（判停线 0.03 的 7~10 倍）下
+        // 冻结永不解除 → hold 无限累积（实测 parts=8/66s 零派发）=「说完不回答」根因。
+        // 窗=1（暂关续听）时冻结短路——无条件倒数，判停后必派发；窗>1 恢复时冻结语义回归。
+        if (CONTINUATION_TICKS > 1 && (lvl >= vad.currentEndThreshold() || vad.isSpeaking)) return
         val fire = synchronized(continuationLock) {
             if (continuationTicksLeft > 0) continuationTicksLeft-- == 1 else false
         }
@@ -887,7 +905,10 @@ class VoiceSessionManager(
                 // 上限 [EMPTY_ASR_MAX_RESUMES] 次防持续噪声下无限幽灵循环。
                 if (r.message.startsWith(EMPTY_ASR_PREFIX) && emptyAsrResumesLeft > 0) {
                     emptyAsrResumesLeft--
-                    logger("empty ASR（纯噪声轮），续听（剩 $emptyAsrResumesLeft 次）")
+                    // S56：ASR 裁判式噪声底上行——空轮=认证「不是话」，floor 向该轮 RMS 收敛，
+                    // 判停/判起线随之抬升过滤噪声（0.19 噪声房实测修复「判停拖满 8s」）
+                    vad.raiseNoiseFloorFromLastUtterance()
+                    logger("empty ASR（纯噪声轮），续听（剩 $emptyAsrResumesLeft 次）floor=${vad.currentNoiseFloor()}")
                     vad.start()
                     transition(VoiceStateRouter.State.LISTENING, "empty asr, resume listening")
                     status("聆听中…（30s 无语音自动退出）")
@@ -923,6 +944,16 @@ class VoiceSessionManager(
                 status("未检出有效指令")
                 backToIdle("empty after strip")
             }
+            return
+        }
+        // S58b：TTS 尾音自噬丢弃——multi-turn 重聆听瞬间喇叭余音被 VAD 捕获，ASR 转出
+        // 上一轮回答的尾巴 → 幽灵轮吃掉聆听窗口（「只监听一小会」）。判定自回声 → 不送
+        // LLM，静默重回聆听（对话保持；S19-2 额度不受影响——复位行在下方未执行）。
+        if (isSelfEcho(stripped, lastSpokenReplyText)) {
+            logger("S58b self-echo discard: \"$stripped\" ⊆ 上一轮回复，重回聆听")
+            vad.start()
+            transition(VoiceStateRouter.State.LISTENING, "self-echo discard, resume listening")
+            status("聆听中…（30s 无语音自动退出）")
             return
         }
         emptyAsrResumesLeft = EMPTY_ASR_MAX_RESUMES // S19-2：真文本到达，续听额度复位
@@ -1024,6 +1055,8 @@ class VoiceSessionManager(
                     logger(
                         "AG-UI done, reply ${chat.text.length} chars, firstToken=${chat.firstTokenLatencyMs}ms, attempts=${chat.attempts}",
                     )
+                    // S58b：留档回复原文，供下一轮转写的自回声判定
+                    lastSpokenReplyText = chat.text
                     fireDoneOnce(turn)
                 }
                 is AguiClient.ChatResult.Error -> {
@@ -1050,9 +1083,14 @@ class VoiceSessionManager(
                     // S21：工具轮后需重新唤醒——机器播报时段不进 VAD 续听，KWS 守门
                     backToIdle("tool call turn, re-wake required")
                 } else {
-                    vad.start()
-                    transition(VoiceStateRouter.State.LISTENING, "multi-turn, VAD restart")
-                    status("继续聆听…（30s 无语音退出）")
+                    // S59：尾音衰减窗——回复尾音防自噬（S58b 文本判定之外的时序根治）；
+                    //  延迟期间 cancel/新轮到访 → 复查守卫不启动；delay 取消走下方 catch 拆解。
+                    delay(vadStartDelayMs)
+                    if (currentTurn === turn && state != VoiceStateRouter.State.IDLE && !turn.sealed) {
+                        vad.start()
+                        transition(VoiceStateRouter.State.LISTENING, "multi-turn, VAD restart")
+                        status("继续聆听…（30s 无语音退出）")
+                    }
                 }
             }
         } catch (e: CancellationException) {
@@ -1226,9 +1264,27 @@ class VoiceSessionManager(
         /** S19-2 续听上限（防持续噪声下无限幽灵循环）。 */
         internal const val EMPTY_ASR_MAX_RESUMES = 2
 
+        /** S58b：自回声判定——新转写去标点后 ≥4 有效字符且为上一轮回复（去标点）的子串
+         *  （20:07 实测「或档案管理帮助吗？」= 刚播回复尾巴 → 幽灵轮吃掉聆听窗口）。
+         *  纯逻辑 JVM 可测；去标点对抗 ASR/TTS 标点差异。 */
+        internal fun isSelfEcho(newText: String, lastReply: String?): Boolean {
+            if (lastReply.isNullOrEmpty()) return false
+            val norm = newText.filter { it.isLetterOrDigit() }
+            if (norm.length < 4) return false
+            return lastReply.filter { it.isLetterOrDigit() }.contains(norm)
+        }
+
         /** S51 断句续听窗（块）：判停后追加的静音观察期，耗尽才合并派发。
          *  1000ms：容忍总静音 ≈1.6s（判停 600ms + 本窗），覆盖短语间气口；
-         *  回忆型长停顿（2s+）不在此列——那是按住说话的场景，否则每轮延迟不可接受。 */
-        internal const val CONTINUATION_TICKS = 10
+         *  回忆型长停顿（2s+）不在此列——那是按住说话的场景，否则每轮延迟不可接受。
+         *  S55（2026-09-21 用户拍板，双板暂关）：实测「说完不回答、持续聆听」——嫌疑=
+         *  tickContinuation 冻结条件（块级 ≥end 线或 isSpeaking 即冻结）在噪声环境永不
+         *  解除，且 hold 内 vad.start() 重置 30s 聆听超时 → 无限挂起。暂关至 1 块
+         *  （判停 +100ms 即派发，≈S50 前行为）。**不可设 0**：hold 只攒片，派发全靠
+         *  倒计时耗尽，0=永不派发。正解候选=有界续听（冻结也有总上限），恢复窗口拨回 10
+         *  并还原 S51ContinuationTest 用例 2（见 git 历史）。
+         *  2026-09-23 用户拍板：维持窗=1 现状（S60 尾垫已覆盖句尾弱音节场景，
+         *  气口合并语义不恢复；此决策已闭环，勿再当悬案翻出）。 */
+        internal const val CONTINUATION_TICKS = 1
     }
 }

@@ -1,5 +1,259 @@
 # 小朵 Android 开发日志
 
+
+## 2026-09-23 S64：禁用打断词组（好了/停下，keywords.txt 删行，仅测试机）
+
+**用户拍板**：禁用打断词。**处置（沿 S63 先例）**：keywords.txt 删 `h ǎo l e @0.5 @好了` 与 `t íng x ià @停下` 两行（剩 3 行纯唤醒组）；`INTERRUPT_WORDS` 保留为防御性墓碑（路由语义照旧，引擎不再识别）。**打断能力未消失**：唤醒组（小朵小朵/你好小朵/小度小度）在 SPEAKING/PROCESSING 命中即打断（S12 链路），双击打断亦在——用户要打断播报说唤醒词即可。复活流程：加回 keywords.txt 行 + 拍板。
+
+**测试锚零改动**（路由行为未变，652 绿）。**部署**：遵守「编译后不上生产机」约束，仅测试机（APK `8e5ce3b0`）；生产板仍跑 S63 版（含好了@0.5/停下）。**挂账**：mijijia tips⑧ 文案「让我停：说「小朵小朵」或「停下」」中「停下」表述已过时（需产品确认新文案，随下次 mijijia 刷包同步）。
+
+```evidence
+verify_cmd: gradlew testDebugUnitTest（652 绿）；assembleDebug（8e5ce3b0，keywords.txt 3 行）；测试机 install -r Success + capture start + 0 FATAL
+verify_claim: 好了/停下不再被 KWS 识别；唤醒词打断（S12）与双击打断不变；唤醒组三词不受影响
+files_touched: [app/src/main/assets/kws-model/keywords.txt, app/src/main/java/com/xiaoduo/deskpet/voice/VoiceStateRouter.kt, docs/DEV_LOG.md]
+```
+
+
+
+## 2026-09-21 S63：禁用「停」打断词（keywords.txt 删行，SPIKE_WORDS 留墓碑，双板已更）
+
+**用户拍板**：禁用「停」。**处置**：keywords.txt 删 `t íng @0.5 @停` 行（引擎不再识别，剩 5 词）；`SPIKE_WORDS` 保留为防御性墓碑（若日后再加回引擎行，路由仍恒 DROP 待转正）；VoiceStateRouter/VoiceForegroundService 两处 KDoc 记录禁用原因（单音节误报体质，噪声/连续语流易越线——与 S61「好了」误触发同族，单字更甚）。复活/转正流程不变：真机双合格 + 用户拍板。
+
+**未动**：停下/好了打断语义不变；测试锚零改动（SPIKE_WORDS 路由行为未变，652 绿）。次生观察：本番 assembleDebug 首跑静默失败（tail -1 吞掉 FAILED，sha 未变暴露）——概率性 BindException 家族，改用 grep BUILD 过滤可见化。
+
+```evidence
+verify_cmd: gradlew testDebugUnitTest（652 绿）；assembleDebug（c6ec4721，keywords.txt 5 行）；双板 install -r Success + capture start + 0 FATAL
+verify_claim: 「停」不再被 KWS 识别（keywords.txt 无此行）；SPIKE_WORDS 墓碑保留（decide("停")=恒 DROP，防御）；打断组（好了@0.5/停下）与唤醒组不变
+files_touched: [app/src/main/assets/kws-model/keywords.txt, app/src/main/java/com/xiaoduo/deskpet/voice/VoiceStateRouter.kt, app/src/main/java/com/xiaoduo/deskpet/VoiceForegroundService.kt, docs/DEV_LOG.md]
+```
+
+
+
+## 2026-09-21 S62：跳转页面增加「首页」（语音/文字导航回主界面，双板已更）
+
+**需求**：跳转页面集合（借阅/归还/盘点）增加「首页」。**链路**：ShelfNavIntentMatcher += HOME_WORDS（首页/主页/主界面/主页面）→ page="home" → ShelfMcpBridge.NAVIGATE_PAGES += home → `{"Op":"mcpUiNavigate","page":"home"}` → 密集架 AppController 接受 home（盘点页前台先收起）→ `searchPageRequest` → MainActivity `popBackStack(mainFragment)` 回主界面（已在主界面幂等 no-op）。
+
+**保守策略（home 专属）**：「首页」自身含页面名词「页」——若走页面名词兜底，「首页有什么」「主界面显示的内容」类话题会被导航劫持。**home 必须带导航动词**（打开/去/返回/回到/进入/切换）；NAV_VERBS += 返回/回到；裸「回」不入列（「回答」含「回」，hasNavVerb 会平凡为真）。执行对象词闸（档案/文件…）仍先于一切：「打开首页查档案」不劫持。
+
+**文案**：回执共用函数 `navSpeech(page)`——home=「已回到首页」，其余=「已打开X页面」（既有语义不变，语音/文字两入口同源）。
+
+**测试**：+3 锚（home 命中 5 形态 / 裸词与话题不劫持+对象词闸 / navSpeech 文案+既有语义不变）。**652 绿**。密集架端见 mijijia DEV_LOG 同票据条目。
+
+```evidence
+verify_cmd: gradlew testDebugUnitTest（652 绿 = 649 + 3 S62）；assembleDebug（3ad856a2）；双板 install -r Success + capture start + 0 FATAL
+verify_claim: 「打开首页/返回首页/回到主界面」等 → page=home 经 mcpUiNavigate 回主界面；裸「首页」/话题形态/对象词语句不劫持；既有 borrow/return/inventory 语义不变
+files_touched: [app/src/main/java/com/xiaoduo/deskpet/device/ShelfNavIntentMatcher.kt, app/src/main/java/com/xiaoduo/deskpet/device/ShelfMcpBridge.kt, app/src/main/java/com/xiaoduo/deskpet/chat/ChatViewModel.kt, app/src/main/java/com/xiaoduo/deskpet/voice/VoiceClientFactory.kt, app/src/test/java/com/xiaoduo/deskpet/device/ShelfNavIntentMatcherTest.kt, docs/DEV_LOG.md]
+```
+
+
+
+## 2026-09-21 S61：「好了」误打断杀死回答（阈值 0.3→0.5，双板已更）
+
+**用户报障**：问「查询其他档案」没等到回答，反而听到「我在」。**21:19 logcat 取证**：ASR「查询其他档案。」→ PROCESSING 21 秒（LLM+工具）→ **21:19:50.888 shadow 好了（thr=0.15）→ 21:19:51.064 真命中「好了」→ barge-in cancel → 回答胎死腹中 → 播「我在」**。用户全程未说「好了」= 环境噪声误触发（21:17:41 还有一次 shadow 好了 未遂）。「好了」双音节音素常见，全局阈值 0.3（08-10 锚）在 0.19 噪声域 + 21s 长窗下被击穿——**S54 Q7 判废标准「负样本误动作>0 即调」首次实战触发**。
+
+**处置（S61）**：keywords.txt `h ǎo l e @0.5 @好了`（0.3→0.5，与 spike 词「停」同级）。「停下」今晚零误报不动。真实喊「好了」清亮发音得分远高于 0.5（spike 词同档已验证可用），边际噪声伪触发集中在 0.3~0.45 域被滤除。**待复核**：若用户正常音量说「好了」出现漏打断，下调至 0.4 再找平衡。
+
+**次生观察（挂账）**：误打断后「我在」播完仍出现一次幽灵「我在。」（21:19:52，maxLevel=1.0）——S59 的 400ms 衰减窗对本板 AudioTrack 排水深度可能不足（21:19:26 那次唤醒窗口正常）。证据不足不改参数，下次复现再量。
+
+```evidence
+verify_cmd: gradlew testDebugUnitTest（649 绿，keywords.txt 非断言对象）；assembleDebug（c9851565）；双板 install -r Success + capture start + 0 FATAL；21:19 现场 logcat 好了误触发链取证
+verify_claim: 「好了」KWS 触发阈值 0.3→0.5（单行覆盖，其余五词不变）；路由/打断语义不变
+files_touched: [app/src/main/assets/kws-model/keywords.txt, docs/DEV_LOG.md]
+```
+
+
+
+## 2026-09-21 S60：判停倒计时尾垫进 PCM（「最后几个字没检测到」根因修复，双板已更）
+
+**用户报障**：聆听正常、无提前判停，但句尾几字丢失（「其他类型档~~案~~」「所有~~档案~~」）。**20:51 logcat 取证**：句长 3.1~3.6s 远未触 8s 顶——非强截；2/3 轮缺尾。
+
+**根因（一行定案）**：VadDetector.feed 说话中分支 `buffer.add(block)` 仅在 isSpeech 时执行——**判停倒计时的 6 块（600ms）不进 PCM**（注释自称"同桌面端"）。安静域无害（end=0.03，句尾弱音节在线上）；S56/S58 起 end 线随噪声底上浮（0.19 环境 ≈0.27），句尾 0.1~0.25 弱音节被判"静音"且**音频物理丢弃** → ASR 缺尾。**S50 的病（弱音节掉字）从自适应门回归**——S50 当年修法是 end 线拆分 0.03，今晚被噪声顶高击穿。
+
+**修复（S60）**：倒计时块也 `buffer.add`（尾垫 ≤600ms）。判停阈值/600ms 窗/噪声免疫一个不动；代价=每句多带 ≤600ms 尾部环境音（ASR 对尾静音天然容忍）。与桌面端分叉点，有意为之。**git 历史脉络**：S50 end 线拆分（7字→8字）→ S51 续听窗合并气口 → S52 取证「切尾=气口位置」+ 窗回调 6 → 今晚 S60 尾垫（end 线高低不再影响尾巴采集）。
+
+**测试**：+1 语义锁（弱音节尾 100 进 PCM 末样本，旧行为末样本是 1000）；7 锚随拍板改（VadDetectorTest 3 处尺寸 3→9/8→14、pre-roll 用例改名、S51ContinuationTest 4 处 samples 8000→17600）。**649 绿**。
+
+```evidence
+verify_cmd: gradlew testDebugUnitTest（649 绿 = 648 + 1 S60）；assembleDebug（b6b50b7b）；双板 install -r Success + capture start + 0 FATAL；20:51 现场 logcat 缺尾三轮取证
+verify_claim: 判停倒计时块（≤600ms，含句尾弱音节）进入派发 PCM；判停/噪声免疫/8s 顶语义不变（7 处锚同步 S60 尺寸）
+files_touched: [app/src/main/java/com/xiaoduo/deskpet/voice/VadDetector.kt, app/src/test/java/com/xiaoduo/deskpet/voice/VadDetectorTest.kt, app/src/test/java/com/xiaoduo/deskpet/voice/VoiceSessionManagerS51ContinuationTest.kt, docs/DEV_LOG.md]
+```
+
+
+
+## 2026-09-21 S59：TTS 尾音衰减窗（「唤醒后说了没听到」根因修复，双板已更）
+
+**用户报障**：唤醒后说「帮我查询2013年的档案」无响应无对话。**20:18 logcat 取证**：wozai「我在」播完 VAD 即刻启动，喇叭余音（满幅 1.0）被当成语音——**0.68s 派发幽灵句「我在。」** → 状态进 PROCESSING 不再听 → 用户真实指令落在空窗全丢 → 幽灵句判纯唤醒词回 IDLE；20:18:57 二次唤醒原样重演。S58b 自回声丢弃未拦住：「我在」是应答音非 AG-UI 回复，不在对照文本。
+
+**修复（S59 时序根治）**：`vadStartDelayMs=400`（@Volatile internal，测试可置 0）——TTS 播完延迟 400ms 再 vad.start()，两处接线：①wozai 播完（守卫在延迟后重新执行，cancel 落窗内不启动，不放大 check-then-act）；②multi-turn TTS 播完（延迟后复查 currentTurn/state/sealed 三守卫，CancellationException 走原 catch 拆解）。S58b 文本判定保留作第二道兜底的网。
+
+**测试**：+2 锁（衰减窗内保持 SPEAKING 不迁 LISTENING / 窗内 cancel 无迟到 LISTENING）；S33/S40 盲区测试置 `vadStartDelayMs=0`（测盲区机制与衰减窗无关，保原时序）。**648 绿**。
+
+```evidence
+verify_cmd: gradlew testDebugUnitTest（648 绿 = 646 + 2 S59）；assembleDebug（299a6930）；双板 install -r Success + capture start + 0 FATAL；20:18 现场 logcat 幽灵「我在。」链取证
+verify_claim: TTS（wozai/回复）播完 400ms 后才启动 VAD——尾音不再被捕获成幽灵句，用户紧随其后说的真实指令落在有效聆听窗内；cancel/封轮守卫语义不变
+files_touched: [app/src/main/java/com/xiaoduo/deskpet/voice/VoiceSessionManager.kt, app/src/test/java/com/xiaoduo/deskpet/voice/VoiceSessionManagerWakeAckTest.kt, app/src/test/java/com/xiaoduo/deskpet/voice/VoiceSessionManagerS33BlindSpotTest.kt, app/src/test/java/com/xiaoduo/deskpet/voice/VoiceSessionManagerS40BlindWindowTest.kt, docs/DEV_LOG.md]
+```
+
+
+
+## 2026-09-21 S58b：TTS 尾音自噬丢弃（「只监听一小会」根因修复，双板已更）
+
+**现象与取证**（20:04~20:07 logcat）：S58 上线后出现新症状「只监听一小会」——multi-turn 回答完毕 VAD 重启聆听的瞬间，**喇叭余音未衰减**被麦克风捕获（diag 1.55/2.22），0.24s 即判起成句，ASR 转出 **「或档案管理帮助吗？」= 刚播回复的尾巴**（自回声）→ 幽灵轮送 LLM → 吃掉聆听窗口 + 空耗一轮 LLM，用户双击打断收场。
+
+**修复（S58b，两层）**：①纯函数 `isSelfEcho(newText, lastReply)`——新转写去标点后 ≥4 有效字符且为上一轮回复（去标点）子串 → 判自回声；②VSM ASR 文本处接线：判定命中 → 不送 LLM，静默重回聆听（对话保持，S19-2 额度不受影响——复位行位于插入点之后未执行）。AG-UI done 处留档 `lastSpokenReplyText` 供对照。误杀边界：用户复述上一轮回答中 ≥4 字短语会被吞（罕见，日志可见，接受）。
+
+**验证**：646 绿（+4 S58b 锁：尾巴命中/去标点/新指令不误杀/短文本与无历史）。双板 install Success（APK 前 16 `c4a66017`）。
+
+**杂项**：①Gradle BindException 呈**概率性**（同命令忽过忽败，项目级 preferIPv4Stack 在位）——Clash TUN 干扰疑云升级为「概率性干扰」，重试即过，持续观察；②ee80b27/9e82c03 回退实验 APK 与 worktree（E:/desk-pet-ee80b27）保留备查；③生产板 20:01 已同步 S58+b 包。
+
+```evidence
+verify_cmd: gradlew testDebugUnitTest（646 绿 = 642 + 4 S58b）；assembleDebug（c4a66017）；双板 install -r Success + source=7 + 0 FATAL；20:07 现场 logcat 自回声链取证
+verify_claim: 自回声（回复尾巴转写）不再送 LLM，静默重回聆听；S19-2 额度与真指令路径不变（新指令不误杀锁）
+files_touched: [app/src/main/java/com/xiaoduo/deskpet/voice/VoiceSessionManager.kt, app/src/test/java/com/xiaoduo/deskpet/voice/VoiceSessionManagerSelfEchoTest.kt(新), docs/DEV_LOG.md]
+```
+
+
+
+## 2026-09-21 S58：上攻通道复活（回退实验定案 + 用户拍板），全功能版恢复可用判停
+
+**回退二分实验**（用户实测 + logcat 对账）：①ee80b27（S52 收口态：判停 600ms + 续听窗 1000ms 原版 + 上攻停用）→ 今晚噪声下 **S51 死锁原样复现**（parts=2/265600 样本滞留零派发）→ **S54~S56 代码全部排除**，变量=环境（底噪 09-18 0.005 → 今 0.19）；②**9e82c03**（S50+S51 重构**之前**：无续听窗、判停线跟校准联动、**上攻通道开启**）→ 用户实测「判停正常」，logcat 四轮全自然成句（41600/11200/44800/48000 样本，无一条 8s 强截），长句「借阅2025年的合同档案」档案名完整、ASR 全清。
+
+**定案**：S19-1 上攻通道（稳态噪声 plateau/half-peak 快速抬 floor）在当前环境**工作正常且必要**——S52 当年停用它是因持续元音误伤（长元音与稳态噪声同型），但实测今晚长句未触发误伤，判停可用性优先。**S58 动作**：`NOISE_ATTACK_ENABLED` false→true（KDoc 保留 S52 全部误伤知识 + 回退实验数据；若长句切尾再现，重审判据——建议方向：空 ASR 裁判门控 + 上攻限速）。锚随拍板改：4 个 S52 测试反转语义为「上攻滤除」锁（ pumped/decay/ghost/sustained-tone，S52 教训全文留档 git 历史）。642 绿。
+
+**双板部署**：APK `9155a888`（= HEAD 1723d7b+S58），测试板 source=7 双引擎 0 异常，生产板同步。**版本矩阵留档**：ee80b27=`35b0375b`、9e82c03=`a7987505`（E:/desk-pet-ee80b27 worktree 可复现）。
+
+```evidence
+verify_cmd: gradlew testDebugUnitTest（642 绿，4 锚随拍板反转）；assembleDebug（9155a888）；双板 install -r Success + source=7 + 0 FATAL；9e82c03 现场四轮 ASR text 全清（今晚 logcat）
+verify_claim: 上攻通道复活后全功能版（多唤醒词+全部加固）在 0.19 噪声环境判停正常；S52 误伤风险明示接受（长句实测未复现，再现时按 KDoc 方向重审）
+files_touched: [app/src/main/java/com/xiaoduo/deskpet/voice/VadDetector.kt, app/src/test/java/com/xiaoduo/deskpet/voice/VadDetectorTest.kt, docs/DEV_LOG.md]
+```
+
+
+
+## 2026-09-21 S55/S56 追加实验（夜）：采麦模式复位无效 + 重启无效 → 收敛至物理声源；采麦源设置锁定（S57）
+
+**三连排除实验**（137.45）：①mode 1→0 复位（source=7 实证）后 diag 仍 0.19；②板子整机重启（uptime 122h→0，IP 变 137.76）后 diag 仍 0.19（kws stats fed=511/gated=10 与重启前同）；③modes 0/1 两路径同电平。→ **采麦模式漂移与 HAL/codec 状态爬升均排除**，0.19 为麦克风真实拾取的持续声（能量≈09-18 底噪的 1500 倍 ≈ 31dB）。S52 曾记录「新包装板」——包装/麦克风孔/风扇物理状态为剩余嫌疑。
+
+**待用户物理排查**（耳朵+手，10 分钟）：①耳朵贴板：有无风扇嗡嗡/电流声；②摸外壳：温度/振动；③看麦克风孔：有无遮挡/摩擦/贴膜起边；④把板子挪到另一房间再喊唤醒（我方立即抓 diag 对照）——挪开回落=原位置有噪声源，挪开仍响=板载硬件（风扇/麦克风）。
+
+**S57（随本条同包）**：设置页「采麦源」选择器锁定为只读展示（TextButtonRow→Text），漂移通道关闭；变更须 adb run-as sed prefs+重启。同包含项目级 gradle.properties preferIPv4Stack（守护进程必需，用户级会被项目级 jvmargs 覆盖的教训入册：同键双文件时以项目级为准——本机两次 BindException 复盘修正）。热区实测 soc 56°C（正常）。
+
+**现状可用性**：S56 自适应生效后，0.19 噪声房内**大音量**说完 ~1s 判停可回答（判起线自适应至 ≈0.38）；正常音量被底噪物理掩蔽——噪声源消除前无解，消除后 S56 自适应自动把线降回 0.03 基线恢复灵敏。
+
+```evidence
+verify_cmd: 复位+重启后 diag 仍 0.19（19:14 mode0 / 19:31 mode0 重启后 stats fed=511 gated=10）；tinycap root 实测失败（HAL 权限/占用，待复核）；设置页采麦源已改只读（TextButtonRow→Text）；双板 install Success（be9e094d）
+verify_claim: 三连排除（模式/重启/双路径同电平）→ 物理声源收敛；S57 锁定上线；静默期 floor 自适应护甲保留
+files_touched: [app/src/main/java/com/xiaoduo/deskpet/ui/screens/SettingsScreen.kt, gradle.properties, docs/DEV_LOG.md]
+```
+
+
+
+## 2026-09-21 S55/S56 真根因追加定案：采麦模式漂移（mic_source_mode 1/2，已双板复位 mode 0）
+
+用户一句「9月18日没这个问题」触发对照：DEV_LOG 09-18 S52 表格 diag 噪底 **0.004~0.008** vs 今日 **0.19**（同板同指标差 30~50 倍）→ 代码音频链零改动（S54 词表/S55 续听/S56 floor 全不碰采集增益）→ 查 prefs 石锤：**测试板 mic_source_mode=1（VOICE_RECOGNITION）**、**生产板 =2（UNPROCESSED 裸麦）**，而 09-18 S52 收口实证现役=**mode 0（VOICE_COMMUNICATION，硬件语音路径）**。映射（AudioCapture.kt：0→通话/1→识别/2→原始）；设置界面 SettingsScreen 有该选择器（:941）——漂移路径=设置页人工拨动（何时/何人待用户回忆），生产板另有 09-17 16:41 远端同事重装（prefs 全新，可能当时即非 0）。
+
+mode 1/2 与 mode 0 是**不同模拟增益拓扑**：raw/识别路径增益高 → 底噪 0.19 + 说话削顶 1.0 → 判停线 0.03 形同虚设 → 连锁出 hold 死锁（S55）与 floor 失学（S56 缺口）。**复位动作**：双板 force-stop → run-as sed → relaunch → `capture start, source=7` 双板实证。S55/S56 的加固（冻结短路、ASR 裁判式 floor）在 mode 0 安静域自动休眠不触发，作为护甲保留。
+
+**教训入册**：①「环境噪声」结论必须先排除**配置漂移**——同一个 0.19，先查 pref 再怪房间；②diag 噪底是最佳回归哨兵（与 09-18 表格数据对照 5 分钟定位），此类「设置页可改的音频路径参数」应入对账表巡检项。
+
+```evidence
+verify_cmd: run-as grep mic_source_mode（复位前 1/2 → 复位后 0/0）；logcat capture start source=7 双板实证；09-18 DEV_LOG diag 0.004~0.008 vs 今日 0.19 对照
+verify_claim: 采麦模式漂移为判停退化的第一因（mode 决定增益拓扑）；S56 自适应在 mode 0 安静域自动休眠；待用户喊话确认 diag 回落 0.005~0.01
+files_touched: [docs/DEV_LOG.md]
+```
+
+
+
+## 2026-09-21 S56：判停线自适应落地——ASR 裁判式噪声底上行（双板已更，待喊话验收）
+
+**设计缺口**：S19-1 v5 自适应底本有双通道，但上行通道（噪声上攻）被 S52 停用（误伤持续元音/衰减尾音）后，floor 只能向下/低位跟随——环境噪声阶跃到阈值之上（实测 0.19 vs 判停线 0.03）时 floor 永远学不到，判停恒失效拖满 8s（用户实测「说完 ~5s 才动」= 8s 窗减去说话时长）。
+
+**S56 机制（语义裁判，误伤免疫）**：空 ASR 轮 = ASR 认证「收集到的不是话」——`VadDetector.raiseNoiseFloorFromLastUtterance()`（VSM S19-2 空 ASR 分支调用）以 0.6 速率把 floor 向该轮整段 RMS 收敛（封顶 0.5）；**有文本轮绝不推高 floor**（真语音免疫 S52 式误伤）。收敛动力学（单测锁死）：1 个幻觉轮反馈 → floor≈0.116 → 判起线 floor×2=0.232 > 噪声 0.19 → **幻觉轮绝迹** → 慢速跟踪（NOISE_TRACK_RATE）在聆听期接管（噪声块落回阈值下方可更新）→ floor→0.19、end=max(0.03,×1.4)≈0.25>噪底 → **判停复活（600ms 噪声尾即成句）**，判起=max(0.05,×2)≈0.38 过滤噪声。
+
+**物理极限（明示）**：底噪 0.19 内正常音量（峰值 0.1~0.3）SNR 不足，判起线 0.38 意味着**需较大声说话**；根治=消除噪声源（板旁风扇/空调排查，用户侧）。
+
+**验收预期**：首轮唤醒可能仍有一轮 8s+「没听清」（自适应轮），第二遍起：较大声说完 → ~1s 内判停 → ~2s 回答。若持续「没听清」且声嘶力竭 → 噪声源必须物理处置。
+
+```evidence
+verify_cmd: gradlew testDebugUnitTest（642 绿 = 639 + 3 S56 锁：floor 上行/幻觉轮过滤/适应后判停复活/no-op+语音中性）；assembleDebug（22b6522c）；双板 install -r Success + 2×newFromAsset 0 FATAL
+verify_claim: floor 上行仅由空 ASR 轮触发（真语音中性）；适应后判停 600ms 恢复且幻觉轮被滤；0 直写陷阱/锚错位教训已规避（行号手术）
+files_touched: [app/src/main/java/com/xiaoduo/deskpet/voice/VadDetector.kt, app/src/main/java/com/xiaoduo/deskpet/voice/VoiceSessionManager.kt, app/src/test/java/com/xiaoduo/deskpet/voice/VadDetectorTest.kt, gradle.properties, docs/DEV_LOG.md]
+```
+
+
+
+## 2026-09-21 S55 取证收口：链路端到端复活 + 噪声源定案（真实环境噪声，非 AGC）
+
+**10 秒实验结果**（18:25~18:26 logcat）：用户唤醒后静默期 vad diag 恒定 **0.185~0.21**——app 刚重启（AGC 已重置）仍不衰减 → **排除 AGC 增益爬升，定案真实环境噪声**（稳态宽频特征，疑似板载风扇/空调/设备声，位置待用户排查）。
+
+**修复实效端到端实证**：`wake → 判停(8s 截断) → dispatch(100ms 内) → ASR text「今天的天气怎么样？」「你能做哪些事情？」→ LLM（firstToken=1810ms）→ TTS 播报（143280 frames）→ 多轮续听 → 下一轮 dispatch→PROCESSING→SPEAKING` 全循环正常转——「说完不回答」问题**解决**。
+
+**遗留（量化）**：判停线 0.03 在 0.19 噪底下失效 → 每轮最长 8s 才截断派发（延迟）+ 截断位置任意（ASR 出现「寻到是」类碎片文本）。**S56 候选（正解）**：判停线自适应——滚动噪底跟踪，end = max(0.03, 噪底×k)，恢复快自然判停；小票体量。临时缓解：排查板子附近噪声源（风扇/空调）；或接受 8s 节奏使用。
+
+```evidence
+verify_cmd: 137.45 logcat 18:25~18:26：vad diag 静默期 0.185~0.21 恒定；ASR text×2 正常；AG-UI done reply 30 chars firstToken=1810ms；VoicePlayer stream 143280 frames；多轮 LISTENING→dispatch→PROCESSING→SPEAKING 循环
+verify_claim: 派发-ASR-LLM-TTS-续听全链复活；噪声源=真实环境（AGC 排除：重启后不衰减）；判停失效遗留已量化并立项候选
+files_touched: [docs/DEV_LOG.md]
+```
+
+
+
+## 2026-09-21 S55 第二刀：hold 冻结死锁根因石锤 + 短路修复（双板已更）
+
+**取证**（137.45 重测现场 logcat）：①每条 utterance 恒 132800 样本=8s MAX_UTTERANCE 强截断，maxLevel 1.0000 削顶——判停（600ms<0.03）**零触发**，环境电平 0.19~0.29=判停线的 7~10 倍；②`parts=1→8` 无限累积（66s 音频全滞留 hold，零派发）——即便第一刀把窗关到 1，`tickContinuation` 冻结条件（块 ≥0.03 或 isSpeaking）在噪声下永不解除，派发通道仍死锁。校准对照：kws_energy_gate=0.0046（校准时刻安静）+ 重启后 60s stats fed=512/gated=10（当前全程高于校准底）——环境电平暴涨 40 倍（真实噪声 or codec AGC 增益爬升，S18 老病史，**待分辨**：重启 app 后立即唤醒看 vad diag 是否回落）。
+
+**修复**：`tickContinuation` 冻结条件加 `CONTINUATION_TICKS > 1` 门——窗=1（暂关续听）时无条件倒数，判停后下一块**必派发**，与噪声电平无关；窗>1 恢复时冻结语义整体回归。锚随拍板改：用例 3（轻声冻结合并）重写为「合并全关」锁 + 新增噪声回归锁（0.25 响块后必派发），639 绿。
+
+**双板部署**：install -r Success（APK 前 16 `d433b9ac`），双引擎加载 0 异常，app 已重启加载新包。
+
+**遗留分级**：①判停本身在此噪声下仍死（每句 8s 大块+削顶音频，ASR 质量与延迟受损）——正解=**判停线自适应**（滚动噪底跟踪，end=max(0.03, 噪底×k)）或 AGC 限幅（大票 A 复活候选），下一票；②环境电平 40 倍暴涨归因（AGC 爬升 vs 真噪声）待用户配合 10 秒实验（重启后立即唤醒+静默，看 vad diag 回落与否）；③生产板 10.0.14.18 今晚 logcat 无语音活动痕迹（用户重测或在 137.45）。
+
+```evidence
+verify_cmd: log-137.txt：VAD utterance 132800 samples×8 + hold parts=1→8 + vad diag level=0.19~0.29；修复后 gradlew testDebugUnitTest（639 绿）+ assembleDebug（d433b9ac）+ 双板 install -r Success + 2×newFromAsset 0 FATAL
+verify_claim: hold 派发通道在任意电平下必通（噪声回归锁锁死）；判停 0 触发系环境电平超线 7~10 倍（非代码回归）；638→639 测试（+1 噪声锁，用例 3 重写）
+files_touched: [app/src/main/java/com/xiaoduo/deskpet/voice/VoiceSessionManager.kt, app/src/test/java/com/xiaoduo/deskpet/voice/VoiceSessionManagerS51ContinuationTest.kt, docs/DEV_LOG.md]
+```
+
+
+
+## 2026-09-21 S55 第一刀（用户拍板）：续听窗 10→1 双板暂关（排查「说完不回答、持续聆听」）
+
+**现象**：用户实测说完话后 app 持续「聆听中…」不回答。**嫌疑定位**（代码走查，未取证即先行处置——用户拍板优先）：`tickContinuation` 冻结条件 = 单块 ≥end 线(0.03) 或 `vad.isSpeaking` 即冻结倒计时；噪声环境下永不解除，且 `holdForContinuation` 内 `vad.start()` **重置 30s 聆听超时** → 无限挂起（30s 兜底也失效，与「一直监听」吻合）。
+
+**处置**：`CONTINUATION_TICKS` 10→1（判停 600ms + 100ms 即派发，≈S50 前行为）。**关键陷阱**：不可设 0——`holdForContinuation` 只攒片，派发全靠倒计时耗尽，0=永不派发=语音哑火。代价：短语气口合并（S51 主价值）暂失，「查询一下…（停>0.7s）…2025年的合同」会被拆两轮；轻声续说（0.03~0.05 频段）因冻结线语义仍可合并（用例 3 不变仍绿）。锚随拍板改：S51ContinuationTest 用例 2 重写为关窗语义锁（KDoc 注明恢复窗口时还原，原版见 git 历史），638 绿不变。
+
+**双板部署**：137.45 + 10.0.14.18 install -r Success，双引擎加载 0 异常（APK sha256 前 16 `edeee8d6`）。
+
+**待办**：①重测——若症状消失=冻结假设成立，正解候选=**有界续听**（冻结也有总上限 ~2.5s，保住合并语义又杜绝无限挂起）；②若仍不回答→抓 logcat 分流（empty ASR 续听 / 平台 LLM 挂起 / 判停线被噪声顶穿），与续听窗无关；③生产板环境噪声 vs 判停线 0.03 需 AmbientCalibrator 复核。
+
+```evidence
+verify_cmd: gradlew testDebugUnitTest（638 绿，用例 2 已随拍板重写）；assembleDebug（edeee8d6）；双板 install -r Success + logcat 2×newFromAsset 0 FATAL
+verify_claim: 双板续听窗=1 块生效；判停即派发（+100ms）；hold 零派发陷阱已规避（0 未使用）
+files_touched: [app/src/main/java/com/xiaoduo/deskpet/voice/VoiceSessionManager.kt, app/src/test/java/com/xiaoduo/deskpet/voice/VoiceSessionManagerS51ContinuationTest.kt, docs/DEV_LOG.md]
+```
+
+
+
+## 2026-09-21 S54 多唤醒词+打断词（grilling 三轮拍板全落地）+ S55 立项（快语速漏唤醒取证）
+
+**S54 内容**：KWS 词表 1→6 行——新增唤醒词「你好小朵」「小度小度」（Q1=①+②）、打断词「好了」「停下」、「停」为 spike 观测词（Q7）。命中后按词组路由：`VoiceStateRouter.decide(keyword, state)`——唤醒组全态动作；打断组仅 SPEAKING/PROCESSING 动作（Q5=b），**IDLE/LISTENING 命中丢弃**（Q6=a，防闲聊「好了」误唤醒）；「停」恒 DROP 只留日志，真机双合格（播报中真喊 ≥8/10 且播放期误打断 0；负样本误动作>0 判废）后挪 INTERRUPT_WORDS 转正。打断语义=打断并续听（Q3=b），与 S12 唤醒词打断完全同构，动作层零分叉。未登记词默认 ACT（词表/组表漂移不静默失效）。ASR 剥除表 WAKE_PREFIXES 补「你好小朵」与声学行为对称（原「非前缀不剥」用例中 你好小朵 断言随拍板删除）。六词拼音 token 逐一核验在表（含轻声 e）；keywords.txt「停」行带独立阈值 `@0.5`。
+
+**机制备案**：sherpa-onnx KeywordSpotter 原生多词每行一个+回调带词名+每词阈值；打断组 IDLE 丢弃是唯一防线（sherpa 无按态切换词表能力，改词表=重建引擎）；「你好小朵」兼唤醒/打断是语义 no-op（唤醒词在 S12 通道下本来就打断续听），词表只写一次。
+
+**坑与修复**：① enum `KwsHitAction` 定义在 companion object 内时跨文件 `VoiceStateRouter.KwsHitAction` 引用 Unresolved——挪类级嵌套解决；首版修复错插在 companion 花括号内（缩进误导，Kotlin 只看大括号不看缩进），clean+关缓存后仍复现才定位真因。② 本机 Gradle 全挂 `BindException: Address already in use`（FileLockCommunicator 随机 UDP）：最小复现=Java 经典 `DatagramSocket()` 通配绑定 0/30 全败，显式 loopback/NIO DatagramChannel/Python 均全通（疑 Clash TUN 驱动干扰双栈通配路径，**待复核**）——`-Djava.net.preferIPv4Stack=true` 救活（三个候选开关 preferIPv4Stack/preferIPv6Addresses=true/system 各 5/5 实测），写入用户级 `~/.gradle/gradle.properties` 不污染仓库。
+
+**板端**：192.168.137.45:5555 install Success（app-debug.apk sha256 前 16 位 91efafccd7d63eab）；主引擎加载成功后影子引擎才启动加载（代码时序保证），两次 newFromAsset 无 FATAL；KwsEngine gap-reset 周期行=消费线程活跃。`@0.5` 语法初始化未炸；**细粒度行为（0.5 档命中率）随 spike 日志复核**。
+
+**S55 立项（快语速漏唤醒，不并入 S54）**：现象=语速快时「小朵小朵」概率性唤不醒。三假设与判据：H1 阈值/韵律——影子通道(0.15)命中而主(0.3)不中=实锤，S54 soak 顺带采集差分数据（新唤醒词一并攒料）；H2 门削首音——影子也不中+探针构建见词首块被 RMS 门吞（S11-6 机制残余），坐实才临时 re-arm 探针（S52 先例用完收回）；H3 解码积压——kws stats fed/gated 断档。取证口径：用户 20 次快语速+20 次常速对照喊话+logcat 留痕。对症菜单（影子先行证据后动主通道）：每词阈值↓ / keywordsScore 1.0→1.3 / maxActivePaths 4→8；**拒绝项**：换/重训模型（成本不成比例）、关能量门（功耗+误触）。权衡拍板（Q11）：证据先行，误唤醒比漏唤醒更伤日常。
+
+```evidence
+verify_cmd: ./gradlew testDebugUnitTest（638 绿 = 633 基线 + 5 新增）；assembleDebug（apk sha256 前缀 91efafccd7d63eab）；adb install -r 192.168.137.45:5555 Success；logcat：双 newFromAsset 无 FATAL + KwsEngine gap-reset 活跃行
+verify_claim: 六词词表+词组路由+剥除表落地，板端双引擎加载运行中；「停」spike 恒 DROP 不接动作；待用户喊话验收（唤醒组 IDLE ≥10/10；打断组播报中真喊 ≥8/10 且 IDLE 闲聊含好了/停 0 误唤醒；「停」spike 数据另行采集）
+files_touched: [app/src/main/assets/kws-model/keywords.txt, app/src/main/java/com/xiaoduo/deskpet/voice/VoiceStateRouter.kt, app/src/main/java/com/xiaoduo/deskpet/VoiceForegroundService.kt, app/src/test/java/com/xiaoduo/deskpet/voice/VoiceStateRouterTest.kt, docs/DEV_LOG.md, implementation-notes.html]
+```
+
+
 ## 2026-09-18 两张小票：探针诊断构建回退 + mic_source_mode 对照复测（S52 后收尾）
 
 **票 1：探针回退**（S52 遗留 hack 收回）：`AudioCapture.probeBlock` 门限 `shouldLog(rms, 0f)`（armed 全量 ~10 行/s）→ 回退 `shouldLog(rms, EnergyGate.DEFAULT_GATE)`，KDoc 注明 S52 历史（为何曾全量：AGC 压制取证需看 0.001~0.015 float 域低值段；再需时临时改 0f 随取证票收回）。`shouldLog` 语义已有 AudioProbeTest 5 锁，调用点回归无新行为不需新测，633 绿不退。

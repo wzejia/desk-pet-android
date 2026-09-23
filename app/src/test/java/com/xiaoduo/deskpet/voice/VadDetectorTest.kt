@@ -69,13 +69,13 @@ class VadDetectorTest {
         assertTrue(feedN(vad, zero, 5).isEmpty()) // 5 块静音不判停（句中短停顿保护，600ms）
         val ev = vad.feed(zero) // 第 6 块判停（600ms，S52 晚回调）
         assertTrue(ev is VadDetector.Event.Utterance)
-        // deque 里只有 3 触发块 → utterance = 3 块 = 9600 字节，恰为 min_utterance 边界（>= 通过）
-        assertEquals(3 * VadDetector.BLOCK_SAMPLES, (ev as VadDetector.Event.Utterance).pcm.size)
+        // S60：3 触发块 + 6 判停倒计时尾垫 = 9 块（倒计时块进 PCM，句尾弱音节不再丢）
+        assertEquals(9 * VadDetector.BLOCK_SAMPLES, (ev as VadDetector.Event.Utterance).pcm.size)
         assertFalse(vad.isActive) // 单次触发后停
     }
 
     @Test
-    fun `pre-roll preserves three pre-trigger low blocks and excludes trailing silence`() {
+    fun `pre-roll preserves three pre-trigger low blocks and S60 tail padding included`() {
         val vad = VadDetector()
         vad.start()
         feedN(vad, quiet, 3) // 触发前低电平句首段
@@ -86,8 +86,8 @@ class VadDetectorTest {
 
         assertEquals(1, events.size)
         val pcm = (events[0] as VadDetector.Event.Utterance).pcm
-        // 3 pre-roll + 3 触发块 + 2 说话块 = 8 块；尾部 8 块静音不进 buffer
-        assertEquals(8 * VadDetector.BLOCK_SAMPLES, pcm.size)
+        // 3 pre-roll + 3 触发块 + 2 说话块 + 6 尾垫（S60）= 14 块
+        assertEquals(14 * VadDetector.BLOCK_SAMPLES, pcm.size)
         assertEquals(100, pcm[0].toInt()) // 首块 = 低电平 pre-roll（防丢首字）
         assertEquals(100, pcm[3 * VadDetector.BLOCK_SAMPLES - 1].toInt())
         assertEquals(1000, pcm[3 * VadDetector.BLOCK_SAMPLES].toInt()) // 第 4 块起为触发块
@@ -187,7 +187,7 @@ class VadDetectorTest {
     /** S52：噪声上攻停用后，泵态噪声不再被中途判停——语音类定，由 max_utterance 8s 兜底；
      *  幽灵轮由管线层 S19-2 空 ASR 续听兜底 */
     @Test
-    fun `agc pumped noise is not cut mid-way bounded by max utterance`() {
+    fun `S58 sustained pump noise IS gated mid-way (attack re-enabled)`() {
         val vad = VadDetector()
         vad.start()
         // 安静期（amp 48 -> level 0.006）建噪声底
@@ -195,13 +195,12 @@ class VadDetectorTest {
         // 说话：amp 6000 -> level 0.75
         feedN(vad, block(6000), 5)
         assertTrue(vad.isSpeaking)
-        // 泵态噪声（amp 2000 -> level 0.25）持续送：上攻停用 → 无中途判停
-        assertTrue("上攻停用后 4s 内不应判停", feedN(vad, block(2000), 40).isEmpty())
-        assertTrue(vad.isSpeaking)
-        // max_utterance 8s 兑底：speechTicks 计满强制结束
-        val evs = feedN(vad, block(2000), 45)
+        // 泵态噪声（amp 2000 -> level 0.25）持续送：S58 上攻复活 → floor 快速抬升 →
+        // end 越过 0.25 → 中途判停滤除噪声（不再拖 8s；原「不应判停」锁随拍板反转，
+        // S52 误伤知识见 git 历史与本仓 VadDetector KDoc）
+        val evs = feedN(vad, block(2000), 40)
         assertTrue(
-            "泵态噪声最终由 max_utterance 兑底",
+            "S58：稳态泵噪应被上攻滤除（8s 上限前中判停）",
             evs.filterIsInstance<VadDetector.Event.Utterance>().isNotEmpty(),
         )
         assertFalse(vad.isActive)
@@ -209,13 +208,14 @@ class VadDetectorTest {
 
     /** S52：上攻停用后，衰减泵态噪声不再被中途判停（有界拖尾由 max_utterance 兑底） */
     @Test
-    fun `agc decay curve no longer cut mid-way bounded by max utterance`() {
+    fun `S58 agc decay curve tail IS cut mid-way (accepted trade-off)`() {
         val vad = VadDetector()
         vad.start()
         feedN(vad, block(48), 5)                       // 安静建底
         feedN(vad, block(6000), 5)                     // 说话
         assertTrue(vad.isSpeaking)
-        // 噪声从 0.30 指数衰减（rk809 AGC 慢释放曲线），全程高于校准阈值 0.05
+        // 噪声从 0.30 指数衰减（rk809 AGC 慢释放曲线）：S58 上攻复活后 half-peak 通道
+        // 会切衰减尾——接受为代价（9e82c03 实测长句档案名完整；S52 教训留档 git 历史）
         var level = 0.30
         val fired = mutableListOf<Int>()
         for (i in 1..40) {
@@ -224,8 +224,8 @@ class VadDetectorTest {
             if (ev is VadDetector.Event.Utterance) fired += i
             level *= 0.94
         }
-        assertTrue("上攻停用后衰减噪声不应中途中途判停", fired.isEmpty())
-        assertTrue(vad.isSpeaking) // 仍语音类，由 max_utterance 兑底
+        assertTrue("S58：衰减尾应被上攻切除（fired 非空）", fired.isNotEmpty())
+        assertFalse(vad.isActive)
     }
 
     /** S50：判停/判起线拆分--安静域（噪声底 0.006）判起线保持校准 0.05 语义不变；
@@ -253,26 +253,32 @@ class VadDetectorTest {
     /** S52：上攻停用后，首轮泵态不再产生短幽灵 utterance（原靠上攻抬 start 阈值的「免疫」
      *  一并失效）——语音类定 + max_utterance 兑底，幽灵轮由 S19-2 空 ASR 续听兜底 */
     @Test
-    fun `pumped noise no longer ghosts attack disabled`() {
+    fun `S58 sustained pump noise from start yields early utterance (attack filters)`() {
         val vad = VadDetector()
         vad.start()
-        // 首轮泵态（amp 2000 = level 0.25）：判起后不再被中途判停
+        // 首轮泵态（amp 2000 = level 0.25）：判起后上攻抬 end → ~2s 内早判停（噪声滤除），
+        // 原「无幽灵判停」锁随 S58 拍板反转（幻觉轮由 S19-2 空 ASR 兜底 + S56 floor 上行）
         val evs = feedN(vad, block(2000), 30)
-        assertTrue("上攻停用后 3s 内无幽灵判停", evs.isEmpty())
-        assertTrue(vad.isSpeaking)
+        assertTrue(
+            "S58：稳态泵噪应产出早判停 utterance",
+            evs.filterIsInstance<VadDetector.Event.Utterance>().isNotEmpty(),
+        )
+        assertFalse(vad.isActive)
     }
 
     /** S52 回归锁（板端 17:43 实锤）：持续元音（VAD 0.15~0.30 稳定 2s+）被 plateau 通道
      *  判为「AGC 钉死噪声」→ 阈值上攻越过说话者电平 → 句中判停。上攻停用后不得中途判停。 */
     @Test
-    fun `sustained stable tone is not gated mid-way`() {
+    fun `S58 sustained stable tone IS gated mid-way (attack re-enabled)`() {
         val vad = VadDetector()
         vad.start()
         feedN(vad, block(48), 5)                    // 安静建底
-        // 持续稳定音（amp 1280 -> level 0.16，波动 <25% = 旧 plateau 通道的特征 Signature）
+        // 持续稳定音（amp 1280 -> level 0.16，波动 <25% = plateau Signature）
+        // S58 拍板：上攻通道复活——稳态噪声必须被滤（0.19 环境实测 9e82c03 判停正常）；
+        // 代价=长元音同型有被切风险（S52 教训留档：真语声有波动、恒定值合成块必中）
         val events = feedN(vad, block(1280), 30)   // 3 秒持续
-        assertTrue("持续音 3s 内不得被中途判停（S52）", events.isEmpty())
-        assertTrue(vad.isSpeaking)
+        assertTrue("S58：稳态音应被上攻滤除（中途中判停）", events.isNotEmpty())
+        assertFalse(vad.isActive)
     }
 
     @Test
@@ -287,6 +293,83 @@ class VadDetectorTest {
         var ev: VadDetector.Event? = null
         repeat(6) { ev = vad.feed(ByteArray(VadDetector.BLOCK_BYTES)) } // 600ms 判停（S52 晚回调）
         assertTrue(ev is VadDetector.Event.Utterance)
-        assertEquals(3 * VadDetector.BLOCK_SAMPLES, (ev as VadDetector.Event.Utterance).pcm.size)
+        assertEquals(9 * VadDetector.BLOCK_SAMPLES, (ev as VadDetector.Event.Utterance).pcm.size) // S60：+6 尾垫
+    }
+
+    @Test
+    fun `S60 soft tail below end line is included via countdown padding`() {
+        // 板端实证（2026-09-21 20:51）：「帮我查询2019年的所有档案」尾二字「档案」音量
+        // 跌破自适应 end 线（噪声域 ≈0.27）被判静音且音频丢弃 → ASR 缺尾。S60 尾垫锁：
+        // 判停倒计时 6 块（含弱音节）必须进 PCM。
+        val vad = VadDetector()
+        vad.start()
+        feedN(vad, loud, 5) // 判起 + 说话（0.125）
+        val events = feedN(vad, quiet, 6) // 句尾弱音节 0.012 < end 0.03 → 判停倒计时
+        assertEquals(1, events.size)
+        val pcm = (events[0] as VadDetector.Event.Utterance).pcm
+        // 3 判起 + 2 说话 + 6 尾垫 = 11 块；末样本 = 弱音节 100（旧行为末样本会是 1000）
+        assertEquals(11 * VadDetector.BLOCK_SAMPLES, pcm.size)
+        assertEquals(100, pcm[pcm.size - 1].toInt())
+    }
+
+
+    // ---- S56 ASR 裁判式噪声底上行（2026-09-21 生产板 0.19 稳态噪声实证）----
+
+    /** 喂一个纯噪声假语句：噪声块 0.19 判起 → 说话中拖满 8s → MAX_UTTERANCE 强制截断成句。 */
+    private fun feedPhantomNoiseTurn(vad: VadDetector): VadDetector.Event {
+        vad.start()
+        repeat(3) { assertNull(vad.feed(block(1520))) } // 0.19 ≥ 判起 0.05 → 3 块判起
+        var ev: VadDetector.Event? = null
+        repeat(85) { if (ev == null) ev = vad.feed(block(1520)) } // 80 块强制截断
+        return ev!!
+    }
+
+    @Test
+    fun `S56 empty-asr feedback raises floor past noise level`() {
+        val vad = VadDetector()
+        val baseline = vad.currentNoiseFloor()
+        val ev = feedPhantomNoiseTurn(vad)
+        assertTrue(ev is VadDetector.Event.Utterance)
+        vad.raiseNoiseFloorFromLastUtterance()
+        assertTrue("floor 应上行（单轮 0.6 速率）", vad.currentNoiseFloor() > baseline)
+        // 判起线 = floor×2 = 0.232 > 噪声 0.19 → 幻觉轮从此不再成型（噪声过滤生效）
+        assertTrue("判起线应高过噪声（幻觉轮被滤）",
+            maxOf(VadDetector.SPEECH_LEVEL, vad.currentNoiseFloor() * VadDetector.ADAPTIVE_START_FACTOR) > 0.19)
+        assertTrue("floor 封顶 0.5 防病理", vad.currentNoiseFloor() <= VadDetector.NOISE_FLOOR_MAX)
+    }
+
+    @Test
+    fun `S56 after adaptation endpointing fires in noise before 8s cap`() {
+        // 真实动力学：①幻觉轮空反馈一次（floor 0.005→0.116）→ ②判起线 0.232>噪声 0.19，
+        // 幻觉轮绝迹，慢速跟踪在聆听期接管（噪声块终于落在阈值下方可更新 floor）→
+        // ③end=max(0.03,floor×1.4) 越过噪底 → 判停复活（600ms 噪声尾即成句，不再拖 8s）。
+        val vad = VadDetector()
+        feedPhantomNoiseTurn(vad)
+        vad.raiseNoiseFloorFromLastUtterance()
+        vad.start()
+        repeat(20) { assertNull(vad.feed(block(1520))) } // 2s 纯噪声聆听：floor 慢轨升至 ≈0.18
+        assertTrue("慢速跟踪后 end 线应越过噪声 0.19", vad.currentEndThreshold() > 0.19)
+        // 真说话 0.5 ≥ 判起 0.232 → 成句；停止后噪声尾 6 块（600ms）判停，远早于 8s 上限
+        repeat(3) { assertNull(vad.feed(block(4000))) }
+        repeat(5) { assertNull(vad.feed(block(4000))) }
+        var ev: VadDetector.Event? = null
+        repeat(12) { if (ev == null) ev = vad.feed(block(1520)) }
+        assertTrue("判停应在 8s 上限前触发", ev is VadDetector.Event.Utterance)
+    }
+
+    @Test
+    fun `S56 raise is no-op without utterance history and real-speech turns never raise`() {
+        val vad = VadDetector()
+        val baseline = vad.currentNoiseFloor()
+        vad.raiseNoiseFloorFromLastUtterance() // 无成句历史 no-op
+        assertEquals(baseline, vad.currentNoiseFloor(), 1e-12)
+        // 真语音轮（有文本，不调用 raise）后 floor 不变——语音永不推高 floor
+        vad.start()
+        repeat(3) { assertNull(vad.feed(block(4000))) } // 判起
+        repeat(6) { assertNull(vad.feed(block(4000))) } // 说话
+        var ev: VadDetector.Event? = null
+        repeat(6) { if (ev == null) ev = vad.feed(block(0)) } // 静音 6 块（600ms）判停成句
+        assertTrue(ev is VadDetector.Event.Utterance)
+        assertEquals(baseline, vad.currentNoiseFloor(), 1e-9)
     }
 }
