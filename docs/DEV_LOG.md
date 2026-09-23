@@ -1,6 +1,25 @@
 # 小朵 Android 开发日志
 
 
+## 2026-09-23 双板部署 S65：生产板 S63→S65 + 两板 mijijia 统一到 xiaoduo 1ef8614
+
+**用户拍板推新包**。测试机 desk-pet 已是 S65（11:07 部署），本次将两板统一到「desk-pet main S65 + mijijia xiaoduo 1ef8614」。
+
+- **测试机 192.168.137.76**：mijijia `install -r` Success（签名同源，签名同源数据自保留）；desk-pet S65 不变。
+- **生产板 10.0.14.18**：desk-pet S63→S65 `install -r` Success（同源签名，prefs/数据保留，双 KWS 引擎加载无 FATAL）；mijijia 同事签名包→我们的 debug 包（`fb528b1e`）——`install -r` 报 `INSTALL_FAILED_UPDATE_INCOMPATIBLE`（签名不同）→ 走「force-stop → 备份三件套+prefs（md5 存档 `E:/mjj/prod_db_backup_0923/`）→ 卸载 → 装 → push+root cp 回灌 → md5 全对 → 起活」流程，全部通过。
+- **生产板 mijijia 验证**：8849 起（GetDeviceTime 返回真实时间）；getShelfStatus 有真实柜体数据；MCP 链实锤（`mcpUiSync/mcpUiResult tool=c_archive_query` 双「操作成功」+ handler 日志入参实锤）；ROOM/异常日志干净。
+
+**两坑（写回类运维必读）**：①**adb shell stdin 重定向灌大文件会截断**（15.26MB db 灌成 4096B！小文件也只剩部分）——二进制回灌必须 `adb push`（binary-safe）+ root `cp` + `chown`，不能用 `shell ... < 文件`；②**重装 app 后 uid 会变**（u0_a152→u0_a153）——回灌后 chown 必须用**新** uid（从 databases 目录 owner 读），否则 app 打不开 db。
+
+```evidence
+verify_cmd: 双板 install（测试机 -r Success；生产板 desk-pet -r Success + mijijia 卸装流程）；回灌 md5 与备份逐字比对全对（db_induo f348d2f8…+shm+wal+LastingInfo+LocateLight）；生产板 8849 冒烟（GetDeviceTime/getShelfStatus/mcpUiSync/mcpUiResult=c_archive_query 均 200）；mijijia ROOM 错误 0；desk-pet 生产板 2×newFromAsset 无 FATAL
+verify_claim: 两板 = desk-pet S65（b2df043c）+ mijijia xiaoduo 1ef8614（fb528b1e）；生产板 mijijia 数据字节级完整（含 WAL 未合并数据）；MCP 联动链在生产板实锤可用
+files_touched: [E:/desk-pet-android（部署）, D:/mijijia（部署）, docs/DEV_LOG.md]
+```
+
+**遗留**：生产板 mijijia 现为我们的 debug 签名，与同事 keystore 包不兼容——以后若换同事包需再次走卸装回灌流程（或统一用我们构建）。
+
+
 ## 2026-09-23 S65：回声纪元守卫——盲窗回灌滤「我在」回声（「唤醒后听到我在就结束监听」根因修复）
 
 **用户报障**：唤醒后板子应「我在」，随即监听结束（假对话轮抢走聆听窗）。**根因（测试板 10:49 三轮打断重唤醒 3/3 复现 + 代码/pcap 双实锤）**：打断播报场景重唤醒时，S40 盲窗缓冲内是「旧 TTS 残声 + wozai『我在』回声」（maxLevel 0.66-0.99）——wozai 播完后回灌 VAD，此时 NLMS 因参考过期（`now()-lastRefAt > REF_FRESH_MS=400ms` 直通零消除，遥测 `inRms≈outRms` 实锤）回声全额进 VAD → 判出伪 utterance（活块 `vad diag level=0.0007` 全静却 96ms 后报 1.2s 语音）→ ASR 转出「告诉我我在。」系假轮。IDLE 唤醒幸免（盲窗仅唤醒词尾+弱回声，不过判起线）。

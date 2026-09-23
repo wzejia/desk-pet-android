@@ -53,9 +53,9 @@ M1（悬浮桌宠本体）与「助手化」大切片（S0-S8）均已收口；�
 - **S50~S65 已全部收口并全合 main**（代码至 `1723f59`，656 绿；文档收口提交在其上）：语音链噪声域加固 + 多唤醒词 + 关键词治理
   + **S65 回声纪元守卫**（盲窗回灌滤「我在」回声；s54 分支/worktree 已清场）。逐票速览见 `PROGRESS.md` 状态段。
 - **关键词现状**：唤醒词=小朵小朵/你好小朵/小度小度；打断词已全禁（S63/S64）——打断走唤醒词（S12 链路）或双击。
-- **两板矩阵**：测试机=desk-pet S65（b2df043c，⚠️ prefs 事故重建后**待重填 password+三模态 platform**）
-  +mijijia xiaoduo 头；生产板=desk-pet S63+**mijijia 同事 replacement-skin 包（无 MCP 联动链，
-  恢复需刷 xiaoduo 包待用户确认）**。
+- **两板矩阵（2026-09-23 深夜，双板同版）**：测试机=desk-pet S65（b2df043c，⚠️ prefs 待重填 password+三模态 platform）
+  +mijijia xiaoduo 1ef8614（fb528b1e）；生产板=desk-pet S65（b2df043c）+ mijijia xiaoduo 1ef8614（fb528b1e）
+  ——MCP 联动链生产板实锤可用。生产板 mijijia 现为我们的 debug 签名（与同事包不兼容，换包需卸装回灌）。
 - **平台注意**：10.0.18.166 平台曾出现 chatAgent 故障致语音轮 SSE 断流（HTTP 200+控制事件后 ~2.2s
   空手关流）——**切换 Agent 即恢复**；全案（含双线对照/pktmon/tcpdump 方法论）见 `docs/solutions/workflow-issues/platform-sse-zero-chars-server-side-diagnosis.md`。
 - 双板 adb：`C:/platform-tools/adb.exe`（SDK E 盘 adb 为历史路径）；MSYS 下 install/push 本地路径须 `E:/` 风格；

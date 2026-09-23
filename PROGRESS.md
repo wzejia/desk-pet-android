@@ -10,11 +10,12 @@ S61 好了阈值 0.5 → S62 首页导航（mijijia 同票）→ S63/S64 打断�
 
 **合并状态**：S54~S64 已合 main（aedee33，652 绿）；S65 直推 main（2a09d44+1723f59，656 绿）；s54 分支/worktree 已清场。
 
-**两板运行矩阵（2026-09-23 晚）**：测试机 192.168.137.76 = desk-pet S65（b2df043c）⚠️ prefs 事故重建后**待用户重填**（password + 三模态切回 platform）+ mijijia xiaoduo 头
-（MCP 链完整已验证）；生产板 10.0.14.18 = desk-pet S63（c6ec4721，好了/停下仍在）+ **mijijia 同事 replacement-skin
-包（无 MCP 链，弹窗 Invalid request 实锤，恢复=刷 xiaoduo 包待确认）**。
+**两板运行矩阵（2026-09-23 深夜，双板同版）**：测试机 192.168.137.76 = desk-pet S65（b2df043c）+ mijijia xiaoduo 1ef8614
+（fb528b1e，MCP 链完整）；生产板 10.0.14.18 = **desk-pet S65（b2df043c，双引擎加载无 FATAL）+ mijijia xiaoduo
+1ef8614（fb528b1e，同事包已换、db 三件套+prefs 字节级回灌、MCP 链 c_archive_query 双接口实锤）**——
+⚠️ 测试机 prefs 仍待用户重填（password + 三模态 platform）。生产板 mijijia 现为我们的 debug 签名（与同事包不兼容，换包需卸装回灌）。
 
-**挂账**：①S54 验收清单（Temp/TEST-S54-shout-acceptance.md）未跑（分支已合，可随时补跑）；②生产板双包升级待确认；
+**挂账**：①S54 验收清单（Temp/TEST-S54-shout-acceptance.md）未跑（分支已合，可随时补跑）；②✅ 生产板双包升级（09-23 晚完成，见 DEV_LOG）；
 ③mijijia tips⑧「停下」文案过时；④底噪 0.19 物理来源未明（对照实验未做）；⑤S55 快语速取证；⑥生产板语音自启观察；
 ⑦**测试机 prefs 重填**（password + 三模态 platform——不填则走云端/登录失败，事故见 solutions/workflow-issues/adb-run-as-prefs-write-must-verify.md）；
 ⑧**平台 chatAgent 故障**已由平台侧切 Agent 恢复（语音轮大面积 SSE 断流根因，全案见 solutions/workflow-issues/platform-sse-zero-chars-server-side-diagnosis.md）。
