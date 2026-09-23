@@ -25,6 +25,8 @@ import org.junit.Test
  * - SPEAKING(wozai) 期块进盲区缓冲（S12 KWS 实时解码不变）；
  * - LISTENING 期捕获早于接缝水位（vad.start 瞬间）的块改道缓冲，不直灌 VAD；
  * - 接缝后首个块触发回灌（FIFO 时序完整），回灌经 NLMS 喂 VAD 不喂 kwsSink；
+ *   S65 起 echo-era 截止线收窄：wozai 播放期捕获的块丢弃（回声纪元守卫，
+ *   详见 VoiceSessionManagerS65EchoEraGuardTest）；
  * - 按住/多轮路径零挂账零行为变更；cancel 清缓冲清挂账。
  *
  * 变异锚（票据点名）：
@@ -129,8 +131,8 @@ class VoiceSessionManagerS40BlindWindowTest {
         assertTrue(ack.playStarted.await(2, TimeUnit.SECONDS))
         assertEquals(VoiceStateRouter.State.SPEAKING, mgr.state)
 
-        mgr.routeBlockForTest(nowStamped(tone(4000)))
-        mgr.routeBlockForTest(nowStamped(tone(4000)))
+        mgr.routeBlockForTest(StampedBlock(tone(4000), System.nanoTime() - 1_000_000_000L))
+        mgr.routeBlockForTest(StampedBlock(tone(4000), System.nanoTime() - 1_000_000_000L))
 
         assertEquals("SPEAKING(wozai) 期块进盲区缓冲（S12 KWS 实时解码不变）", 2, mgr.blindBufferSizeForTest)
         assertEquals("KWS 分支照旧实时喂（唤醒打断唤醒可达性不回退）", 2, kwsFed)
@@ -140,11 +142,11 @@ class VoiceSessionManagerS40BlindWindowTest {
         assertEquals(VoiceStateRouter.State.LISTENING, mgr.state)
         assertTrue("wozai 播完挂账待回灌", mgr.pendingBlindBackfillForTest)
 
-        // 接缝后首块：触发回灌（缓冲 2 响块 → aboveTicks=2）→ 活响块 aboveTicks=3 判起
+        // 接缝后首块：触发回灌 —— S65：播放期捕获的 2 响块属回声纪元，被丢弃不进 VAD
         mgr.routeBlockForTest(nowStamped(tone(4000)))
         assertEquals("回灌后缓冲清空（恰好一次）", 0, mgr.blindBufferSizeForTest)
         assertFalse(mgr.pendingBlindBackfillForTest)
-        assertTrue(logs.any { it.contains("S40 blind-window backfill: 2 blocks") })
+        assertTrue("回声纪元块丢弃留痕（S65）", logs.any { it.contains("S65 echo-era dropped 2") })
     }
 
     @Test
@@ -171,21 +173,16 @@ class VoiceSessionManagerS40BlindWindowTest {
         assertEquals("陈块改道缓冲，不直灌 VAD", 3, mgr.blindBufferSizeForTest)
         assertEquals(VoiceStateRouter.State.LISTENING, mgr.state)
 
-        // 接缝后首块触发回灌：3 响块判起 → 活静音块×SILENCE_END_TICKS 判停（S50 800ms）→ S51 续听窗挂起
+        // 接缝后首块触发回灌（S65）：ack 时代块捕获早于 echo-era 截止线 → 丢弃，VAD 零响块输入
         mgr.routeBlockForTest(nowStamped(silence()))
-        repeat(VadDetector.SILENCE_END_TICKS - 1) { mgr.routeBlockForTest(nowStamped(silence())) }
-        assertEquals("判停后进 S51 续听窗（状态仍 LISTENING 不即派发）", VoiceStateRouter.State.LISTENING, mgr.state)
-        assertTrue(logs.any { it.contains("S40 blind-window backfill: 3 blocks") })
-        assertTrue(logs.any { it.contains("S51 continuation hold") })
-        // 续听窗耗尽（再 CONTINUATION_TICKS 静音块）→ 合并派发 → utterance 进管线
-        repeat(VoiceSessionManager.CONTINUATION_TICKS) { mgr.routeBlockForTest(nowStamped(silence())) }
-        assertEquals("续听窗耗尽派发 → utterance 进管线（盲区语音找回）", VoiceStateRouter.State.PROCESSING, mgr.state)
+        repeat(VadDetector.SILENCE_END_TICKS + VoiceSessionManager.CONTINUATION_TICKS) { mgr.routeBlockForTest(nowStamped(silence())) }
+        assertEquals("回声纪元块不得产出伪轮（修复前：回灌判起→S51 hold→派发 PROCESSING）", VoiceStateRouter.State.LISTENING, mgr.state)
+        assertTrue("丢弃数留痕", logs.any { it.contains("S65 echo-era dropped 3") })
+        assertFalse("回声块不进 VAD 判起", logs.any { it.contains("S51 continuation hold") })
         // 回灌块不喂 kwsSink（KWS 已实时解过，双喂恐二次命中重唤醒环）；活块 S33 旁路照旧
-        // （活静音块共 16：判停 6 + 续听窗 10）→ 3（ack 期）+ 16（活块旁路）= 19；
-        // 若回灌双喂应为 22
         assertEquals(
-            "kwsSink 计数 = ack 期 3 + 活块（判停 ${VadDetector.SILENCE_END_TICKS} + 续听窗 ${VoiceSessionManager.CONTINUATION_TICKS}）（回灌 3 块不双喂）",
-            3 + VadDetector.SILENCE_END_TICKS + VoiceSessionManager.CONTINUATION_TICKS, kwsFed,
+            "kwsSink 计数 = ack 期 3 + 活块（首块 1 + 判停余 ${VadDetector.SILENCE_END_TICKS} + 续听窗 ${VoiceSessionManager.CONTINUATION_TICKS}）（回灌 3 块被丢不双喂）",
+            3 + 1 + VadDetector.SILENCE_END_TICKS + VoiceSessionManager.CONTINUATION_TICKS, kwsFed,
         )
     }
 
