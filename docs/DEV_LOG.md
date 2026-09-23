@@ -1,6 +1,20 @@
 # 小朵 Android 开发日志
 
 
+## 2026-09-23 S64：禁用打断词组（好了/停下，keywords.txt 删行，仅测试机）
+
+**用户拍板**：禁用打断词。**处置（沿 S63 先例）**：keywords.txt 删 `h ǎo l e @0.5 @好了` 与 `t íng x ià @停下` 两行（剩 3 行纯唤醒组）；`INTERRUPT_WORDS` 保留为防御性墓碑（路由语义照旧，引擎不再识别）。**打断能力未消失**：唤醒组（小朵小朵/你好小朵/小度小度）在 SPEAKING/PROCESSING 命中即打断（S12 链路），双击打断亦在——用户要打断播报说唤醒词即可。复活流程：加回 keywords.txt 行 + 拍板。
+
+**测试锚零改动**（路由行为未变，652 绿）。**部署**：遵守「编译后不上生产机」约束，仅测试机（APK `8e5ce3b0`）；生产板仍跑 S63 版（含好了@0.5/停下）。**挂账**：mijijia tips⑧ 文案「让我停：说「小朵小朵」或「停下」」中「停下」表述已过时（需产品确认新文案，随下次 mijijia 刷包同步）。
+
+```evidence
+verify_cmd: gradlew testDebugUnitTest（652 绿）；assembleDebug（8e5ce3b0，keywords.txt 3 行）；测试机 install -r Success + capture start + 0 FATAL
+verify_claim: 好了/停下不再被 KWS 识别；唤醒词打断（S12）与双击打断不变；唤醒组三词不受影响
+files_touched: [app/src/main/assets/kws-model/keywords.txt, app/src/main/java/com/xiaoduo/deskpet/voice/VoiceStateRouter.kt, docs/DEV_LOG.md]
+```
+
+
+
 ## 2026-09-21 S63：禁用「停」打断词（keywords.txt 删行，SPIKE_WORDS 留墓碑，双板已更）
 
 **用户拍板**：禁用「停」。**处置**：keywords.txt 删 `t íng @0.5 @停` 行（引擎不再识别，剩 5 词）；`SPIKE_WORDS` 保留为防御性墓碑（若日后再加回引擎行，路由仍恒 DROP 待转正）；VoiceStateRouter/VoiceForegroundService 两处 KDoc 记录禁用原因（单音节误报体质，噪声/连续语流易越线——与 S61「好了」误触发同族，单字更甚）。复活/转正流程不变：真机双合格 + 用户拍板。
