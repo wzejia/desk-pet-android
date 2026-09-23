@@ -9,7 +9,7 @@
 
 **新增测试 4 个（656 绿，+4）**：S65EchoEraGuardTest（回声纪元块丢弃不产伪轮 / delay 窗尾部迟到块仍回灌，变异验证：删过滤主用例红）；WakeBlindWindowBufferTest +drainFrom 边界 2 例；S40 用例 1/2 按新语义重写。
 
-**顺带排障大发现（详见 solutions/workflow-issues/platform-sse-...）**：排障期间板上 run 请求大面积断流（`SSE 断流 produced 0 chars`，HTTP 200+控制事件后 ~2.2s 关流）**定案为平台 chatAgent 故障**——切换 Agent 即恢复；板端代码全程无罪（PC 同期同 token 直连成功、聊天 UI 同源同断、S65 改动不碰网络栈）。**取证明细与事故教训**（adb 写 prefs 必须读回校验；MSYS 路径转换会把设备路径转成 `C:/Program Files/Git/...`）见同日 solutions 两条。
+**顺带排障大发现（详见 solutions/workflow-issues/platform-sse-zero-chars-server-side-diagnosis.md）**：排障期间板上 run 请求大面积断流（`SSE 断流 produced 0 chars`，HTTP 200+控制事件后 ~2.2s 关流）**定案为平台 chatAgent 故障**——切换 Agent 即恢复；板端代码全程无罪（PC 同期同 token 直连成功、聊天 UI 同源同断、S65 改动不碰网络栈）。**取证明细与事故教训**（adb 写 prefs 必须读回校验；MSYS 路径转换会把设备路径转成 `C:/Program Files/Git/...`）见同日 solutions 两条。
 
 ```evidence
 verify_cmd: gradlew testDebugUnitTest（656 绿，+4：S65 2 例 + buffer drainFrom 2 例）；assembleDebug（APK b2df043c）；测试机 192.168.137.76 install -r Success
