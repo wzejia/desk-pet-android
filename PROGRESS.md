@@ -11,14 +11,20 @@ S61 好了阈值 0.5 → S62 首页导航（mijijia 同票）→ S63/S64 打断�
 **合并状态**：S54~S64 已合 main（aedee33，652 绿）；S65 直推 main（2a09d44+1723f59，656 绿）；s54 分支/worktree 已清场。
 
 **两板运行矩阵（2026-09-23 深夜，双板同版）**：测试机 192.168.137.76 = desk-pet S65（b2df043c）+ mijijia xiaoduo 1ef8614
-（fb528b1e，MCP 链完整）；生产板 10.0.14.18 = **desk-pet S65（b2df043c，双引擎加载无 FATAL）+ mijijia xiaoduo
-1ef8614（fb528b1e，同事包已换、db 三件套+prefs 字节级回灌、MCP 链 c_archive_query 双接口实锤）**——
+（fb528b1e，MCP 链完整）；生产板 10.0.14.18 = **desk-pet S67c（f76ce9bc，663 绿）+ mijijia S67d（79bcddе6）**——
+两板四包全部同版（09-24，S66 弹窗即时化 + S67 同窗追加/去重 + S67b 同轮不误杀 + S67c 回合级 ID + S67d 首帧定宽，真机验证通过）；
 ⚠️ 测试机 prefs 仍待用户重填（password + 三模态 platform）。生产板 mijijia 现为我们的 debug 签名（与同事包不兼容，换包需卸装回灌）。
 
-**挂账**：①S54 验收清单（Temp/TEST-S54-shout-acceptance.md）未跑（分支已合，可随时补跑）；②✅ 生产板双包升级（09-23 晚完成，见 DEV_LOG）；
-③mijijia tips⑧「停下」文案过时；④底噪 0.19 物理来源未明（对照实验未做）；⑤S55 快语速取证；⑥生产板语音自启观察；
-⑦**测试机 prefs 重填**（password + 三模态 platform——不填则走云端/登录失败，事故见 solutions/workflow-issues/adb-run-as-prefs-write-must-verify.md）；
-⑧**平台 chatAgent 故障**已由平台侧切 Agent 恢复（语音轮大面积 SSE 断流根因，全案见 solutions/workflow-issues/platform-sse-zero-chars-server-side-diagnosis.md）。
+**挂账**：①S54 验收清单（Temp/TEST-S54-shout-acceptance.md）未跑（分支已合，可随时补跑）；②✅ 生产板双包升级（09-23 晚完成）；③mijijia tips⑧「停下」文案过时；④底噪 0.19 物理来源未明（对照实验未做）；⑤S55 快语速取证；⑥生产板语音自启观察；⑦**测试机 prefs 重填**（password + 三模态 platform——不填则走云端/登录失败，事故见 solutions/workflow-issues/adb-run-as-prefs-write-must-verify.md）；⑧**平台 chatAgent 故障**已由平台侧切 Agent 恢复（语音轮大面积 SSE 断流根因，全案见 solutions/workflow-issues/platform-sse-zero-chars-server-side-diagnosis.md）；⑨**S66/S67 全链真机验证通过**（09-24：结果卡即时弹、同句多 run 同窗追加、新句换窗、首帧定宽，用户确认）；⑩同轮第二 START 的 rawEvent 缺 args（args=null，不影响弹窗，影响后续借还按键定位，待查平台事件形态）。
+
+## 历史：S66/S67 MCP 结果卡即时化与多结果同窗追加 ✅ 收口（2026-09-24，663 绿）
+
+- **S66**：转发时机从 run 收尾提前到 TOOL_CALL_RESULT 到达即回调（用户报弹窗延迟≈30s：首 token 5.3s + 1079 字流式 + 播完才弹）；移除收尾二次回吐防双发。真机验收通过。
+- **S67**：S66 后后到结果整体替换先到（mcpUirresult → McpResultDialog.updateContent）→ 弹窗区块化 + 去重（result 相等）+ 新回合整窗重置（grilling 八问定案 + HTML 原型沟通）。
+- **S67b**：真机报「两次调用只见一条」——板端日志实锤 S53c dismissExisting 被同轮第二个 START 误触发；mcpUirsync 带 runId、runId 变化才让位。
+- **S67c**：平台把复合查询拆**多个 run**（日志：项目/合同两个 runId + attempt_2 重跑）——run 级 ID 失效，升级「说话回合 ID」（u_<millis>，每句一次），同句追加、新句换窗；mijijia 端零改动。
+- **S67d**：弹窗首帧铺满屏闪跳——宽度设置原在 onResume 的 view.post（下一帧才生效），提前到 onStart 同步执行；像素验证 692px/1080px 非铺满。
+- **证据**：mijijia 仓 DEV_LOG + `E:/mjj/s67*.png` 截图组；工单 `.scratch`（mijijia 仓）s67-multi-result-popup/issues/01-03。
 
 ## 历史：S49 语音指示泡（聆听声纹/思考三点）✅ 代码收口 + 主链板端实证（2026-09-18，627 绿）
 

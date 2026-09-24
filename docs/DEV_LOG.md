@@ -1,6 +1,20 @@
 # 小朵 Android 开发日志
 
 
+## 2026-09-24 S67b/S67c：轮次边界升级——同轮 START 不误杀、回合级 ID 同句追加
+
+**S67b（同轮 START 误杀）**：S67 上线后真机仍报「两次调用只见一条」。板端日志实锤 16:14 轮时序：RESULT#1 弹卡（.863）→ **同轮**第二个工具 START 的 mcpUiSync（.929）触发 S53c dismissExisting 把卡关了 → RESULT#2 新建单区块卡。修复：`mcpUiSync` 体带 runId，密集架端 runId 变化才让位；`onToolCallEvent` 签名扩 (tool, runId) 贯穿四层；+2 测试。
+
+**S67c（回合级 ID）**：用户复测仍只见一条——日志再实锤：平台把复合查询「查A和B」拆成**多个 run**（16:35:29 项目 + 16:35:39 合同，runId 各异且 attempt 递增 `_2`），run 级 ID 把同句第二 run 误判为新对话。修复：`AguiClient.chat/runOnce` 增 `roundId` 参数（调用方生成，`u_<millis>` 每句一次），`onToolCallEvent` 注入值与 `ToolCallOutcome.runId` 改用 roundId（内部 runId 仍留日志）；VoiceSessionManager.voiceChat / ChatViewModel 每回合生成。mijijia 端零改动（字段同名，粒度变粗）。
+
+**验收**：真机「查询项目档案和合同档案」→ 一个弹窗两区块全显（用户确认）；监听日志 `u_1790240529462` 同回合 2×START + 2×RESULT 全链到达。
+
+```evidence
+verify_cmd: gradlew testDebugUnitTest（663 绿）；实时 logcat 监听（E:/mjj/s67c_live.log 机制）；双板 install -r
+verify_claim: 同句跨 run 结果同窗追加；新句 START 让位旧卡（用户确认关闭逻辑保真）
+files_touched: [app/src/main/java/com/xiaoduo/deskpet/agui/AguiClient.kt, app/src/main/java/com/xiaoduo/deskpet/voice/VoiceSessionManager.kt, app/src/main/java/com/xiaoduo/deskpet/cloud/TextChatRouter.kt, app/src/main/java/com/xiaoduo/deskpet/chat/ChatViewModel.kt]
+```
+
 ## 2026-09-24 S67：mcpUiResult 携带 runId（密集架弹窗同轮追加/去重、跨轮重置的轮次边界）
 
 **背景**：S66 后每条工具结果即时转发，但密集架弹窗「后到替换先到」——同轮两次 MCP 查询只见最后一条。grilling 八问定案：弹窗侧改造（mijijia 仓）+ 本仓仅在 `mcpUiResult` 体加 `runId` 作轮次边界（同 runId 追加/去重，新 runId 整窗重置）。
