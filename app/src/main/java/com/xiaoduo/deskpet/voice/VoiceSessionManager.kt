@@ -111,6 +111,9 @@ class VoiceSessionManager(
 
     private fun voiceChat(stripped: String, onDelta: (String) -> Unit): AguiClient.ChatResult {
         turnSawToolCall.set(false) // S20：每轮归零
+        // S67c：说话回合 ID——每句生成一次，句内多个平台 run 共享；密集架端凭它区分
+        // 「新对话让位」与「同句跨 run 追加」（runId 是 run 级的，平台把复合查询拆多 run，会误判）
+        val roundId = "u_${System.currentTimeMillis()}"
         // S37（用户拍板 2026-09-11）：语音轮平台 thread 跟随当前文字会话——
         // 「语音轮与文字轮是同一会话的不同输入方式」的平台侧兑现。null/空白回退
         // default（纯悬浮窗无会话兕底，行为同旧版）。
@@ -120,6 +123,7 @@ class VoiceSessionManager(
             stripped,
             onDelta = onDelta,
             threadKey = threadKey,
+            roundId = roundId,
             onToolCallEvent = { name, runId ->
                 turnSawToolCall.set(true)
                 logger("MCP tool call seen (TOOL_CALL_START) name=$name runId=$runId")
@@ -136,6 +140,7 @@ class VoiceSessionManager(
             stripped,
             onDelta = onDelta,
             threadKey = threadKey,
+            roundId = roundId,
             onToolCallEvent = { name, runId ->
                 turnSawToolCall.set(true)
                 logger("MCP tool call seen (TOOL_CALL_START) name=$name runId=$runId")

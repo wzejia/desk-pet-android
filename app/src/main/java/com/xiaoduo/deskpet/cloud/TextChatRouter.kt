@@ -45,6 +45,8 @@ class TextChatRouter(
         onToolCallEvent: (String, String) -> Unit = { _, _ -> },
         /** S43 文字轮补接：run 收尾回吐最后一次工具结果（密集架结果卡；云端路恒 null）。 */
         onToolCallOutcome: (AguiSseConsumer.ToolCallOutcome?) -> Unit = {},
+        /** S67c：说话回合 ID（每次发言生成；同句跨 run 共享，密集架端追加/让位判定用）。 */
+        roundId: String = "",
     ): AguiClient.ChatResult {
         if (!llmIsCloud()) {
             return platformClient.chat(
@@ -56,6 +58,7 @@ class TextChatRouter(
                 onDelta = onDelta,
                 onToolCallEvent = onToolCallEvent,
                 onToolCallOutcome = onToolCallOutcome,
+                roundId = roundId,
             )
         }
         if (fileRefs.isNotEmpty()) {

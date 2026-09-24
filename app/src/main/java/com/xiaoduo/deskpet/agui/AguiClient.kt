@@ -207,8 +207,11 @@ class AguiClient(
         fileRefs: List<Pair<String, String>> = emptyList(),
         onDelta: (String) -> Unit = {},
         /** S20/S41：MCP 工具调用回调（TOOL_CALL_START 到达即触发，早于最终文本），
-         *  透传 toolCallName + runId（S20 静音标记 + S41 密集架动画联动桥 + S67b 轮次让位判定）。 */
+         *  透传 toolCallName + roundId（S20 静音标记 + S41 密集架动画联动桥 + S67b 轮次让位判定）。 */
         onToolCallEvent: (String, String) -> Unit = { _, _ -> },
+        /** S67c：说话回合 ID（调用方每回合生成一次；同一句话触发的多个平台 run 共享，
+         *  密集架端据此区分「新对话让位」与「同句跨 run 追加」；空则退回内部 runId）。 */
+        roundId: String = "",
         /** S43：run 正常收尾后回吐本轮最后一次工具结果（无结果轮为 null；断流/空 run 不回吐）。 */
         onToolCallOutcome: (AguiSseConsumer.ToolCallOutcome?) -> Unit = {},
     ): ChatResult {
@@ -235,7 +238,7 @@ class AguiClient(
         var attempt = 0
         while (attempt < MAX_ATTEMPTS) {
             attempt++
-            when (val r = runOnce(token, threadId, msgId, attempt, content, onDelta, onToolCallEvent, onToolCallOutcome)) {
+            when (val r = runOnce(token, threadId, msgId, attempt, content, onDelta, onToolCallEvent, onToolCallOutcome, roundId)) {
                 is AttemptResult.Success ->
                     return ChatResult.Success(r.text, r.firstTokenLatencyMs, attempt)
                 AttemptResult.Empty ->
@@ -708,6 +711,7 @@ class AguiClient(
         onDelta: (String) -> Unit,
         onToolCallEvent: (String, String) -> Unit = { _, _ -> },
         onToolCallOutcome: (AguiSseConsumer.ToolCallOutcome?) -> Unit = {},
+        roundId: String = "",
     ): AttemptResult {
         val runId = "deskpet_run_${clock()}_$attempt"
         val payload = JSONObject()
@@ -746,8 +750,8 @@ class AguiClient(
         // run 收尾不再二次回吐（即时转发已等价覆盖「多结果轮取最后一次」——覆盖式语义由下游承接）
         val consumer = AguiSseConsumer(
             onDelta = onDelta,
-            onToolCallEvent = { tool -> onToolCallEvent(tool, runId) }, // S67b：轮次边界随 START 下发
-            onToolCallResult = { oc -> onToolCallOutcome(oc.copy(runId = runId)) }, // S67：轮次边界随体转发
+            onToolCallEvent = { tool -> onToolCallEvent(tool, roundId) }, // S67c：回合级边界随 START 下发
+            onToolCallResult = { oc -> onToolCallOutcome(oc.copy(runId = roundId)) }, // S67c：回合级边界随体下发
         )
         try {
             http.newCall(req).execute().use { resp ->

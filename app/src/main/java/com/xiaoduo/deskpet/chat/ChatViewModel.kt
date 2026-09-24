@@ -774,6 +774,7 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
                     messages = _messages.value,
                     userText = userText,
                     wireId = wireId,
+                    roundId = "u_${System.currentTimeMillis()}", // S67c：每次发言一个回合 ID
                     threadKey = session.id,
                     threadName = threadName,
                     fileRefs = fileRefs,
