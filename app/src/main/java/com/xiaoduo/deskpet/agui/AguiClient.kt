@@ -747,7 +747,7 @@ class AguiClient(
         val consumer = AguiSseConsumer(
             onDelta = onDelta,
             onToolCallEvent = onToolCallEvent,
-            onToolCallResult = { oc -> onToolCallOutcome(oc) },
+            onToolCallResult = { oc -> onToolCallOutcome(oc.copy(runId = runId)) }, // S67：轮次边界随体转发
         )
         try {
             http.newCall(req).execute().use { resp ->

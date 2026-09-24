@@ -40,8 +40,15 @@ class AguiSseConsumer(
 
     /** S43：本轮最后一次工具调用的结果（SSE 实证：TOOL_CALL_START 顶层带 toolCallId/toolCallName
      *  与 rawEvent 内完整 args；TOOL_CALL_RESULT 顶层带 toolCallId/content。多结果轮取最后一条，
-     *  平台内部澄清轮次自然被覆盖，密集架侧结果卡只看到最终结果）。 */
-    data class ToolCallOutcome(val toolCallName: String, val content: String, val argsJson: String?)
+     *  平台内部澄清轮次自然被覆盖，密集架侧结果卡只看到最终结果）。
+     *  S67：runId 由客户端层（AguiClient）注入，consumer 层不填（默认空串=旧语义）；
+     *  密集架弹窗据此分组：同 runId 追加/去重，新 runId 整窗重置。 */
+    data class ToolCallOutcome(
+        val toolCallName: String,
+        val content: String,
+        val argsJson: String?,
+        val runId: String = "",
+    )
 
     private val accumulated = StringBuilder()
     private var sawRunFinished = false

@@ -67,15 +67,17 @@ object ShelfMcpBridge {
      * S43：结果卡转发体 `{"Op":"mcpUiResult","tool":..,"result":..,"args":..}`。
      * result/args 是平台原文（result 为工具结果的 JSON 字符串），经 org.json 转义嵌套——
      * 不可用字符串模板拼接（content 内含引号会产出非法 JSON）。
+     * S67：runId 非空时带上（弹窗按轮次分组：同 runId 追加/去重，新 runId 整窗重置）；空则不带该键。
      * 未知工具 / 空 result → null：调用方不发请求。
      */
-    fun resultBodyFor(tool: String, content: String, argsJson: String? = null): String? {
+    fun resultBodyFor(tool: String, content: String, argsJson: String? = null, runId: String = ""): String? {
         if (tool !in SYNCED_TOOLS || content.isBlank()) return null
         val body = org.json.JSONObject()
             .put("Op", "mcpUiResult")
             .put("tool", tool)
             .put("result", content)
         if (!argsJson.isNullOrBlank()) body.put("args", argsJson)
+        if (runId.isNotBlank()) body.put("runId", runId)
         return body.toString()
     }
 
@@ -110,9 +112,9 @@ object ShelfMcpBridge {
             }
         }
 
-        /** S43：结果卡转发（fire-and-forget，守卫口径同 [syncAsync]）。 */
-        fun resultAsync(tool: String, content: String, argsJson: String? = null) {
-            postAsync(resultBodyFor(tool, content, argsJson) ?: return, tool, "result")
+        /** S43：结果卡转发（fire-and-forget，守卫口径同 [syncAsync]）；S67：runId 随体转发 */
+        fun resultAsync(tool: String, content: String, argsJson: String? = null, runId: String = "") {
+            postAsync(resultBodyFor(tool, content, argsJson, runId) ?: return, tool, "result")
         }
 
         private fun postAsync(body: String, tool: String, kind: String) {

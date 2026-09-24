@@ -178,7 +178,7 @@ object VoiceClientFactory {
                 shelfMcpSync = { tool -> shelfMcpClient(app).syncAsync(tool) },
                 // S43：结果卡转发（run 收尾最后一次工具结果 → POST mcpUiResult，守卫同上）
                 shelfMcpOutcome = { oc ->
-                    shelfMcpClient(app).resultAsync(oc.toolCallName, oc.content, oc.argsJson)
+                    shelfMcpClient(app).resultAsync(oc.toolCallName, oc.content, oc.argsJson, oc.runId) // S67：轮次边界
                 },
             ).also { session = it }
         }

@@ -782,7 +782,7 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
                     onToolCallEvent = { tool -> shelfMcpClient.syncAsync(tool) },
                     // S43 文字轮补接：最后一次工具结果 → 密集架结果卡
                     onToolCallOutcome = { oc ->
-                        oc?.let { shelfMcpClient.resultAsync(it.toolCallName, it.content, it.argsJson) }
+                        oc?.let { shelfMcpClient.resultAsync(it.toolCallName, it.content, it.argsJson, it.runId) } // S67：轮次边界
                     },
                 )
                 if (myEpoch != turnEpoch) return@launch // 已被打断：结果不落盘不改相位

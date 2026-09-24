@@ -167,6 +167,24 @@ class ShelfMcpBridgeTest {
         assertEquals(false, j.has("args"))
     }
 
+    /** S67-1：runId 非空 → body 带 runId（弹窗按轮次分组：同 runId 追加/去重，新 runId 重置） */
+    @Test
+    fun `result body carries runId when present`() {
+        val body = ShelfMcpBridge.resultBodyFor(
+            "c_archive_query", "{\"status\":\"success\"}", null, "run-abc-1"
+        )
+        assertEquals("run-abc-1", org.json.JSONObject(requireNotNull(body)).getString("runId"))
+    }
+
+    /** S67-2：runId 缺省/空串 → 不带该键（向后兼容旧弹窗） */
+    @Test
+    fun `result body omits runId when absent`() {
+        val j = org.json.JSONObject(requireNotNull(ShelfMcpBridge.resultBodyFor("archive_return", "ok")))
+        assertEquals(false, j.has("runId"))
+        val j2 = org.json.JSONObject(requireNotNull(ShelfMcpBridge.resultBodyFor("archive_return", "ok", null, "")))
+        assertEquals(false, j2.has("runId"))
+    }
+
     /** S43-3：Client.resultAsync 真实发出 POST，路径/Content-Type 与 sync 同形态 */
     @Test
     fun `client posts result to mjj web api`() {
