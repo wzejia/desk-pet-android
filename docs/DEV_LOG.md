@@ -1,6 +1,20 @@
 # 小朵 Android 开发日志
 
 
+## 2026-09-24 S68/S68b：弹窗区块参数摘要 + 并行 tool_calls 登记(SSE 取证)
+
+**S68(Q1-B,用户从四方案原型中选定)**:同工具多区块标题全同无法区分。区块头追加 keywordOf(args) 参数摘要——「查询结果 ·「项目档案」」;args 缺失退化为现状标题。mijijia 端 makeBlockHead 单函数改动;8849 冒烟 OCR 验证两区块摘要清晰。
+
+**S68b(Q2 调研,取证实锤)**:测试板复测第二区块仍无摘要。desk-pet 加 SSE 原始行调试日志(TOOL_CALL_START/RESULT 截断 1200 字符),一次复测即取证:**平台把并行工具调用装进同一条 START 的 rawEvent.tool_calls 数组([0]=项目 [1]=合同),顶层 toolCallId 只对应 [0]**——extractArgs 只取 [0],[1] 的 id 从未登记,args=null。另夹 on_tool_end 形态 START(rawEvent 无 tool_calls)会以 null 覆盖登记。修复:START 分支遍历 tool_calls 全元素登记 id→name/args;null 不覆盖已有登记。+2 测试(按取证真实形态构造),665 绿。
+
+**注**:SSE 原始行日志(截断 1200 字符)保留在 runOnce 常驻——量小(每轮 TOOL_CALL 各 1-2 条),对平台形态类排障价值高。
+
+```evidence
+verify_cmd: gradlew testDebugUnitTest（665 绿，+2）；测试板真机（17:23 SSE 取证）+ 8849 冒烟 OCR（s68.png）
+verify_claim: 并行 tool_calls 每个 id 都登记 args；on_tool_end 不覆盖；区块头摘要区分两区块
+files_touched: [app/src/main/java/com/xiaoduo/deskpet/agui/AguiSseConsumer.kt, app/src/main/java/com/xiaoduo/deskpet/agui/AguiClient.kt, app/src/test/java/com/xiaoduo/deskpet/agui/AguiSseConsumerTest.kt]
+```
+
 ## 2026-09-24 S67b/S67c：轮次边界升级——同轮 START 不误杀、回合级 ID 同句追加
 
 **S67b（同轮 START 误杀）**：S67 上线后真机仍报「两次调用只见一条」。板端日志实锤 16:14 轮时序：RESULT#1 弹卡（.863）→ **同轮**第二个工具 START 的 mcpUiSync（.929）触发 S53c dismissExisting 把卡关了 → RESULT#2 新建单区块卡。修复：`mcpUiSync` 体带 runId，密集架端 runId 变化才让位；`onToolCallEvent` 签名扩 (tool, runId) 贯穿四层；+2 测试。
