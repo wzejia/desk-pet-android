@@ -15,7 +15,7 @@ S61 好了阈值 0.5 → S62 首页导航（mijijia 同票）→ S63/S64 打断�
 两板四包全部同版（09-24，S66 弹窗即时化 + S67 同窗追加/去重 + S67b 同轮不误杀 + S67c 回合级 ID + S67d 首帧定宽，真机验证通过）；
 ⚠️ 测试机 prefs 仍待用户重填（password + 三模态 platform）。生产板 mijijia 现为我们的 debug 签名（与同事包不兼容，换包需卸装回灌）。
 
-**挂账**：①S54 验收清单（Temp/TEST-S54-shout-acceptance.md）未跑（分支已合，可随时补跑）；②✅ 生产板双包升级（09-23 晚完成）；③mijijia tips⑧「停下」文案过时；④底噪 0.19 物理来源未明（对照实验未做）；⑤S55 快语速取证；⑥生产板语音自启观察；⑦**测试机 prefs 重填**（password + 三模态 platform——不填则走云端/登录失败，事故见 solutions/workflow-issues/adb-run-as-prefs-write-must-verify.md）；⑧**平台 chatAgent 故障**已由平台侧切 Agent 恢复（语音轮大面积 SSE 断流根因，全案见 solutions/workflow-issues/platform-sse-zero-chars-server-side-diagnosis.md）；⑨**S66/S67 全链真机验证通过**（09-24：结果卡即时弹、同句多 run 同窗追加、新句换窗、首帧定宽，用户确认）；⑩✅ **同轮第二调用 args=null 已修**（S68b，09-24：平台并行调用装在同条 START 的 rawEvent.tool_calls 数组、顶层 id 只对应 [0]——遍历全数组登记即可；SSE 取证日志常驻）。
+**挂账**：①✅ S54 验收清单**归档不补跑**（用户拍板 09-24；清单存档 Temp/TEST-S54-shout-acceptance.md，多唤醒/打断词日常使用即持续回归）；②✅ 生产板双包升级（09-23 晚完成）；③mijijia tips⑧「停下」文案过时；④底噪 0.19 物理来源未明（对照实验未做）；⑤S55 快语速取证；⑥生产板语音自启观察；⑦**测试机 prefs 重填**（password + 三模态 platform——不填则走云端/登录失败，事故见 solutions/workflow-issues/adb-run-as-prefs-write-must-verify.md）；⑧**平台 chatAgent 故障**已由平台侧切 Agent 恢复（语音轮大面积 SSE 断流根因，全案见 solutions/workflow-issues/platform-sse-zero-chars-server-side-diagnosis.md）；⑨**S66/S67 全链真机验证通过**（09-24：结果卡即时弹、同句多 run 同窗追加、新句换窗、首帧定宽，用户确认）；⑩✅ **同轮第二调用 args=null 已修**（S68b，09-24：平台并行调用装在同条 START 的 rawEvent.tool_calls 数组、顶层 id 只对应 [0]——遍历全数组登记即可；SSE 取证日志常驻）。
 
 ## 历史：S68 弹窗区块参数摘要 + 并行 tool_calls 登记 ✅ 收口（2026-09-24，665 绿）
 
