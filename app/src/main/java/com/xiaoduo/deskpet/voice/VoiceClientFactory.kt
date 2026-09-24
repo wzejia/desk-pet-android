@@ -175,7 +175,7 @@ object VoiceClientFactory {
                 },
                 // S41：密集架 MCP 动画联动桥（TOOL_CALL_START 工具名 → POST mcpUiSync；
                 // baseUrl 每次调用现读 Prefs，改设置即时生效；失败只记日志不拖管线）
-                shelfMcpSync = { tool -> shelfMcpClient(app).syncAsync(tool) },
+                shelfMcpSync = { tool, runId -> shelfMcpClient(app).syncAsync(tool, runId) },
                 // S43：结果卡转发（run 收尾最后一次工具结果 → POST mcpUiResult，守卫同上）
                 shelfMcpOutcome = { oc ->
                     shelfMcpClient(app).resultAsync(oc.toolCallName, oc.content, oc.argsJson, oc.runId) // S67：轮次边界

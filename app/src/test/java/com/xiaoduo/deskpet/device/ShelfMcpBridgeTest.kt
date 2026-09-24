@@ -176,6 +176,22 @@ class ShelfMcpBridgeTest {
         assertEquals("run-abc-1", org.json.JSONObject(requireNotNull(body)).getString("runId"))
     }
 
+    /** S67b-1：sync 体 runId 非空带该键（密集架凭它区分新轮 START/同轮 START，防误杀第一张结果卡） */
+    @Test
+    fun `sync body carries runId when present`() {
+        assertEquals(
+            """{"Op":"mcpUiSync","tool":"mjj_move","runId":"run-x-1"}""",
+            ShelfMcpBridge.callFor("mjj_move", "run-x-1"),
+        )
+    }
+
+    /** S67b-2：sync 体 runId 缺省 → 逐字现状体（向后兼容旧密集架端） */
+    @Test
+    fun `sync body omits runId when absent`() {
+        assertEquals("""{"Op":"mcpUiSync","tool":"mjj_move"}""", ShelfMcpBridge.callFor("mjj_move"))
+        assertEquals("""{"Op":"mcpUiSync","tool":"mjj_move"}""", ShelfMcpBridge.callFor("mjj_move", ""))
+    }
+
     /** S67-2：runId 缺省/空串 → 不带该键（向后兼容旧弹窗） */
     @Test
     fun `result body omits runId when absent`() {

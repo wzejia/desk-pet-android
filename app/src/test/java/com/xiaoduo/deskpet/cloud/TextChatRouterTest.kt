@@ -265,7 +265,7 @@ class TextChatRouterTest {
             threadName = "标题",
             fileRefs = emptyList(),
             onDelta = {},
-            onToolCallEvent = { names.add(it) },
+            onToolCallEvent = { name, _ -> names.add(name) },
         )
 
         assertTrue(result is AguiClient.ChatResult.Success)

@@ -207,8 +207,8 @@ class AguiClient(
         fileRefs: List<Pair<String, String>> = emptyList(),
         onDelta: (String) -> Unit = {},
         /** S20/S41：MCP 工具调用回调（TOOL_CALL_START 到达即触发，早于最终文本），
-         *  透传 toolCallName（S20 静音标记 + S41 密集架动画联动桥）。 */
-        onToolCallEvent: (String) -> Unit = {},
+         *  透传 toolCallName + runId（S20 静音标记 + S41 密集架动画联动桥 + S67b 轮次让位判定）。 */
+        onToolCallEvent: (String, String) -> Unit = { _, _ -> },
         /** S43：run 正常收尾后回吐本轮最后一次工具结果（无结果轮为 null；断流/空 run 不回吐）。 */
         onToolCallOutcome: (AguiSseConsumer.ToolCallOutcome?) -> Unit = {},
     ): ChatResult {
@@ -706,7 +706,7 @@ class AguiClient(
         attempt: Int,
         content: String,
         onDelta: (String) -> Unit,
-        onToolCallEvent: (String) -> Unit = {},
+        onToolCallEvent: (String, String) -> Unit = { _, _ -> },
         onToolCallOutcome: (AguiSseConsumer.ToolCallOutcome?) -> Unit = {},
     ): AttemptResult {
         val runId = "deskpet_run_${clock()}_$attempt"
@@ -746,7 +746,7 @@ class AguiClient(
         // run 收尾不再二次回吐（即时转发已等价覆盖「多结果轮取最后一次」——覆盖式语义由下游承接）
         val consumer = AguiSseConsumer(
             onDelta = onDelta,
-            onToolCallEvent = onToolCallEvent,
+            onToolCallEvent = { tool -> onToolCallEvent(tool, runId) }, // S67b：轮次边界随 START 下发
             onToolCallResult = { oc -> onToolCallOutcome(oc.copy(runId = runId)) }, // S67：轮次边界随体转发
         )
         try {

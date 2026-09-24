@@ -84,7 +84,7 @@ class VoiceSessionManager(
     // S41 密集架 MCP 动画联动：TOOL_CALL_START 透传工具名（默认 no-op；工厂装配
     // ShelfMcpBridge.Client）。未知工具由桥内 callFor 过滤，此处无脑转发；
     // S20 静音标记语义不动（任何 TOOL_CALL_START 含空名都置位 turnSawToolCall）。
-    private val shelfMcpSync: (String) -> Unit = {},
+    private val shelfMcpSync: (String, String) -> Unit = { _, _ -> },
     // S43 密集架结果卡：run 收尾回吐最后一次工具结果（默认 no-op；工厂装配桥 resultAsync；
     // 无结果轮/断流/空 run 不回调——结果卡只增强不重放）。
     private val shelfMcpOutcome: (AguiSseConsumer.ToolCallOutcome) -> Unit = {},
@@ -120,10 +120,10 @@ class VoiceSessionManager(
             stripped,
             onDelta = onDelta,
             threadKey = threadKey,
-            onToolCallEvent = { name ->
+            onToolCallEvent = { name, runId ->
                 turnSawToolCall.set(true)
-                logger("MCP tool call seen (TOOL_CALL_START) name=$name")
-                shelfMcpSync(name) // S41：密集架动画联动（桥内过滤未知工具，失败只记日志）
+                logger("MCP tool call seen (TOOL_CALL_START) name=$name runId=$runId")
+                shelfMcpSync(name, runId) // S41：动画联动；S67b：runId 供密集架判定同轮 START 不让位旧卡
             },
             onToolCallOutcome = { oc ->
                 oc?.let {
@@ -136,10 +136,10 @@ class VoiceSessionManager(
             stripped,
             onDelta = onDelta,
             threadKey = threadKey,
-            onToolCallEvent = { name ->
+            onToolCallEvent = { name, runId ->
                 turnSawToolCall.set(true)
-                logger("MCP tool call seen (TOOL_CALL_START) name=$name")
-                shelfMcpSync(name)
+                logger("MCP tool call seen (TOOL_CALL_START) name=$name runId=$runId")
+                shelfMcpSync(name, runId)
             },
             onToolCallOutcome = { oc ->
                 oc?.let {

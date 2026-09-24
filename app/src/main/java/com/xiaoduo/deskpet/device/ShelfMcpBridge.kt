@@ -49,9 +49,13 @@ object ShelfMcpBridge {
     /**
      * 工具名 → mcpUiSync 请求体（逐字 JSON；名字全部出自 [SYNCED_TOOLS] 白名单，
      * 无转义/注入风险）。未知工具（含空串、非本 Agent 工具）→ null：调用方不发请求。
-     */
-    fun callFor(tool: String): String? =
-        if (tool in SYNCED_TOOLS) """{"Op":"mcpUiSync","tool":"$tool"}""" else null
+     * S67b：runId 非空时带上（密集架端凭它区分「新一轮 START（旧卡让位）」与「同轮第二个
+     * 工具 START（旧卡保留，否则同轮第一条结果刚弹就被误杀）」）；空则不带（向后兼容）。 */
+    fun callFor(tool: String, runId: String = ""): String? {
+        if (tool !in SYNCED_TOOLS) return null
+        return if (runId.isBlank()) """{"Op":"mcpUiSync","tool":"$tool"}"""
+               else """{"Op":"mcpUiSync","tool":"$tool","runId":"$runId"}"""
+    }
 
     /** S46 允许本地导航的密集架页面（白名单防注入；page 拼进逐字 JSON）。 */
     val NAVIGATE_PAGES: Set<String> = setOf("borrow", "return", "inventory", "home") // S62 += home
@@ -90,8 +94,9 @@ object ShelfMcpBridge {
         private val http: OkHttpClient = defaultHttp(),
         private val logger: (String) -> Unit = {},
     ) {
-        fun syncAsync(tool: String) {
-            postAsync(callFor(tool) ?: return, tool, "sync")
+        /** S41：密集架动画同步；S67b：runId 随体转发（弹窗让位判定用，见 [callFor]） */
+        fun syncAsync(tool: String, runId: String = "") {
+            postAsync(callFor(tool, runId) ?: return, tool, "sync")
         }
 
         /** S46：密集架页面导航（**同步** POST，须在 IO 线程调用；true=2xx）。

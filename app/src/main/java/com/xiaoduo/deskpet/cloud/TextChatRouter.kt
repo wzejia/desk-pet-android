@@ -40,9 +40,9 @@ class TextChatRouter(
         threadName: String?,
         fileRefs: List<Pair<String, String>>,
         onDelta: (String) -> Unit,
-        /** S41 文字轮补接：TOOL_CALL_START 透传 toolCallName（密集架动画联动桥；
+        /** S41 文字轮补接：TOOL_CALL_START 透传 toolCallName + runId（密集架动画联动桥；
          *  云端路无 MCP，恒不触发）。 */
-        onToolCallEvent: (String) -> Unit = {},
+        onToolCallEvent: (String, String) -> Unit = { _, _ -> },
         /** S43 文字轮补接：run 收尾回吐最后一次工具结果（密集架结果卡；云端路恒 null）。 */
         onToolCallOutcome: (AguiSseConsumer.ToolCallOutcome?) -> Unit = {},
     ): AguiClient.ChatResult {

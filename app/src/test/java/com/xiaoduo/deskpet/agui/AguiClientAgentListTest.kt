@@ -225,7 +225,7 @@ class AguiClientAgentListTest {
         )
         val result = client(cache, threads).chat(
             "你好",
-            onToolCallEvent = { fired++ },
+            onToolCallEvent = { _, _ -> fired++ },
         )
         println("result=$result fired=$fired")
         org.junit.Assert.assertEquals(1, fired)
@@ -249,7 +249,7 @@ class AguiClientAgentListTest {
         )
         val result = client(cache, threads).chat(
             "打开1号密集架",
-            onToolCallEvent = { names.add(it) },
+            onToolCallEvent = { name, _ -> names.add(name) },
         )
         org.junit.Assert.assertTrue(result is AguiClient.ChatResult.Success)
         org.junit.Assert.assertEquals(listOf("mjj_move"), names)

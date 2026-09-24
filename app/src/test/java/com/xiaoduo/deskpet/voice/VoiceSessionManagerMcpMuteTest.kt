@@ -107,7 +107,7 @@ class VoiceSessionManagerMcpMuteTest {
             speakMcpResultProvider = { speakMcp },
             rewakeAfterToolCallProvider = { rewakeAfterTool },
             // S41：密集架联动桥挂点（测试用记录器替代真实 HTTP 桥）
-            shelfMcpSync = { tool -> shelfSync?.add(tool) },
+            shelfMcpSync = { tool, _ -> shelfSync?.add(tool) },
         ).also { it.transcriptSink = sink }
     }
 

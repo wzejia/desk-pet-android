@@ -779,7 +779,7 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
                     fileRefs = fileRefs,
                     onDelta = onDelta,
                     // S41 文字轮补接：TOOL_CALL_START 工具名 → 密集架动画联动桥
-                    onToolCallEvent = { tool -> shelfMcpClient.syncAsync(tool) },
+                    onToolCallEvent = { tool, runId -> shelfMcpClient.syncAsync(tool, runId) },
                     // S43 文字轮补接：最后一次工具结果 → 密集架结果卡
                     onToolCallOutcome = { oc ->
                         oc?.let { shelfMcpClient.resultAsync(it.toolCallName, it.content, it.argsJson, it.runId) } // S67：轮次边界
