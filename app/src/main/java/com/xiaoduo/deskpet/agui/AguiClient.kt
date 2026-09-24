@@ -769,6 +769,10 @@ class AguiClient(
                         firstTokenMs = clock() - startMs
                         logger("first token (TEXT_MESSAGE_START) at ${firstTokenMs}ms runId=$runId")
                     }
+                    // S68 调研：落 TOOL_CALL 事件原文（截断），取证平台第二个 START 的 rawEvent/args 形态
+                    if (line.contains("TOOL_CALL_START") || line.contains("TOOL_CALL_RESULT")) {
+                        logger("SSE raw: ${line.take(1200)}")
+                    }
                     consumer.feedLine(line)
                 }
             }
