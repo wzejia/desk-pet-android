@@ -1,6 +1,20 @@
 # 小朵 Android 开发日志
 
 
+## 2026-09-24 S67：mcpUiResult 携带 runId（密集架弹窗同轮追加/去重、跨轮重置的轮次边界）
+
+**背景**：S66 后每条工具结果即时转发，但密集架弹窗「后到替换先到」——同轮两次 MCP 查询只见最后一条。grilling 八问定案：弹窗侧改造（mijijia 仓）+ 本仓仅在 `mcpUiResult` 体加 `runId` 作轮次边界（同 runId 追加/去重，新 runId 整窗重置）。
+
+**实现**：`ToolCallOutcome` 加 `runId`（默认空串，consumer 层不填）；`AguiClient.runOnce` 即时回调处 `copy(runId=)` 注入；`ShelfMcpBridge.resultBodyFor/resultAsync` 加参（空则不带该键，向后兼容旧弹窗）；语音/文字两调用点传 `oc.runId`。+2 测试（661 绿；1 例 ASR 时序 flaky 重跑绿，与改动无接触面）。
+
+**验收**：mijijia APK `e6523ef` 8849 冒烟四连 + 截图 OCR（追加 2 区块/去重/重置全过，见 mijijia 仓 DEV_LOG）；双板已部署 desk-pet `44f5adee` + mijijia `e6523ef`。
+
+```evidence
+verify_cmd: gradlew testDebugUnitTest（661 绿，+2）；assembleDebug（APK 44f5adee）；双板 install -r Success
+verify_claim: runId 非空进体/空不进体；两调用点（语音/文字）均携带轮次边界
+files_touched: [app/src/main/java/com/xiaoduo/deskpet/agui/AguiSseConsumer.kt, app/src/main/java/com/xiaoduo/deskpet/agui/AguiClient.kt, app/src/main/java/com/xiaoduo/deskpet/device/ShelfMcpBridge.kt, app/src/main/java/com/xiaoduo/deskpet/voice/VoiceClientFactory.kt, app/src/main/java/com/xiaoduo/deskpet/chat/ChatViewModel.kt, app/src/test/java/com/xiaoduo/deskpet/device/ShelfMcpBridgeTest.kt]
+```
+
 ## 2026-09-24 S66：MCP 结果卡即时弹窗（转发时机从 run 收尾提前到结果到达，「弹窗延迟高」修复）
 
 **用户报障**：生产板喊「查找所有项目档案」，回答调了 MCP 但结果卡弹窗延迟高（实测日志：转发在 `RUN_FINISHED` 后 29ms——不慢，而是 S43 设计上「run 正常收尾后才回吐最后一次工具结果」，弹窗要等首 token 5.3s + 1079 字长回复全部流出后才出现，延迟≈30s）。
