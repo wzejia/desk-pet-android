@@ -267,4 +267,47 @@ class AguiSseConsumerTest {
         assertEquals(null, oc?.argsJson)
         assertEquals("{\"status\":\"success\"}", oc?.content)
     }
+
+    /** S65-T1：工具结果到达即触发即时回调（不等流结束；弹窗与 TTS 并行的消费器侧基础） */
+    @Test
+    fun `tool result fires instant callback on arrival`() {
+        val seen = mutableListOf<AguiSseConsumer.ToolCallOutcome>()
+        val c = AguiSseConsumer(onToolCallResult = { seen.add(it) })
+        c.feedLine("""data: {"type":"TOOL_CALL_START","toolCallId":"t1","toolCallName":"c_archive_query","rawEvent":{"event":"on_chat_model_stream","data":{"chunk":{"type":"AIMessageChunk","tool_calls":[{"name":"c_archive_query","args":{"query":"查找所有项目档案"},"type":"tool_call"}]}}}}""")
+        c.feedLine("""data: {"type":"TOOL_CALL_RESULT","toolCallId":"t1","content":"{\"status\":\"success\"}"}""")
+        assertEquals(1, seen.size)
+        assertEquals("c_archive_query", seen[0].toolCallName)
+        assertEquals("{\"status\":\"success\"}", seen[0].content)
+        assertTrue(seen[0].argsJson?.contains("查找所有项目档案") == true)
+    }
+
+    /** S65-T1：多结果轮每次结果各触发一次即时回调，顺序与到达序一致 */
+    @Test
+    fun `multiple results fire instant callbacks in arrival order`() {
+        val seen = mutableListOf<AguiSseConsumer.ToolCallOutcome>()
+        val c = AguiSseConsumer(onToolCallResult = { seen.add(it) })
+        c.feedLine("data: {\"type\":\"TOOL_CALL_START\",\"toolCallId\":\"a\",\"toolCallName\":\"c_archive_query\"}")
+        c.feedLine("data: {\"type\":\"TOOL_CALL_RESULT\",\"toolCallId\":\"a\",\"content\":\"first\"}")
+        c.feedLine("data: {\"type\":\"TOOL_CALL_START\",\"toolCallId\":\"b\",\"toolCallName\":\"mjj_move\"}")
+        c.feedLine("data: {\"type\":\"TOOL_CALL_RESULT\",\"toolCallId\":\"b\",\"content\":\"second\"}")
+        assertEquals(2, seen.size)
+        assertEquals("c_archive_query", seen[0].toolCallName)
+        assertEquals("first", seen[0].content)
+        assertEquals("mjj_move", seen[1].toolCallName)
+        assertEquals("second", seen[1].content)
+    }
+
+    /** S65-T1：无结果轮零即时回调；缺 START 的 RESULT 对齐收尾取出语义（name 空串照常回调） */
+    @Test
+    fun `no result zero callback and orphan result keeps blank name`() {
+        val seen = mutableListOf<AguiSseConsumer.ToolCallOutcome>()
+        val c = AguiSseConsumer(onToolCallResult = { seen.add(it) })
+        c.feedLine("data: {\"type\":\"TEXT_MESSAGE_CONTENT\",\"delta\":\"你好\"}")
+        c.feedLine("data: {\"type\":\"RUN_FINISHED\",\"runId\":\"r\"}")
+        assertEquals(0, seen.size)
+        c.feedLine("data: {\"type\":\"TOOL_CALL_RESULT\",\"toolCallId\":\"x\",\"content\":\"late\"}")
+        assertEquals(1, seen.size)
+        assertEquals("", seen[0].toolCallName)
+        assertEquals("late", seen[0].content)
+    }
 }

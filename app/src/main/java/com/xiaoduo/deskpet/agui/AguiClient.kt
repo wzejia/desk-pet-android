@@ -742,7 +742,13 @@ class AguiClient(
 
         val startMs = clock()
         var firstTokenMs: Long? = null
-        val consumer = AguiSseConsumer(onDelta = onDelta, onToolCallEvent = onToolCallEvent)
+        // S66：onToolCallResult 即时回吐（每次结果到达即转发，弹窗与 TTS 并行）；
+        // run 收尾不再二次回吐（即时转发已等价覆盖「多结果轮取最后一次」——覆盖式语义由下游承接）
+        val consumer = AguiSseConsumer(
+            onDelta = onDelta,
+            onToolCallEvent = onToolCallEvent,
+            onToolCallResult = { oc -> onToolCallOutcome(oc) },
+        )
         try {
             http.newCall(req).execute().use { resp ->
                 if (resp.code == 401 || resp.code == 403) {
@@ -768,7 +774,7 @@ class AguiClient(
         return when (val r = consumer.finish()) {
             is AguiSseConsumer.RunResult.Success -> {
                 logger("RUN_FINISHED ok, reply ${r.text.length} chars, runId=$runId")
-                onToolCallOutcome(consumer.takeToolCallOutcome()) // S43：run 收尾回吐最后工具结果
+                // S66：工具结果已在到达时即时回吐，收尾不再二次转发（防双发）
                 AttemptResult.Success(r.text, firstTokenMs)
             }
             AguiSseConsumer.RunResult.EmptyRun -> AttemptResult.Empty

@@ -22,6 +22,9 @@ class AguiSseConsumer(
     /** S20/S41：TOOL_CALL_START 触发，透传 toolCallName（S20 静音标记源 + S41 密集架
      *  动画联动桥工具名源；每轮可多次调用，调用方自幂等；缺名字段时为 ""）。 */
     private val onToolCallEvent: (String) -> Unit = {},
+    /** S66：TOOL_CALL_RESULT 到达即回调（不等流结束）——结果卡与 TTS 播报并行的消费器侧
+     *  基础；每次结果各回调一次（覆盖式语义由下游承接），name 缺失对齐收尾取出语义（空串）。 */
+    private val onToolCallResult: (ToolCallOutcome) -> Unit = {},
 ) {
 
     sealed interface RunResult {
@@ -89,6 +92,15 @@ class AguiSseConsumer(
                     lastResultId = id
                     lastResultContent = json.optString("content", "")
                 }
+                // S66：即时回调（不等流结束）——结果卡转发时机从 run 收尾提前到结果到达；
+                // name/args 经 toolCallId 查 START 期登记，缺失对齐收尾取出语义（name 空串/args null）
+                onToolCallResult(
+                    ToolCallOutcome(
+                        toolCallName = toolCallNames[id].orEmpty(),
+                        content = json.optString("content", ""),
+                        argsJson = toolCallArgs[id],
+                    )
+                )
             }
             "RUN_FINISHED" -> sawRunFinished = true
             // RUN_STARTED / RAW / STEP_STARTED / TEXT_MESSAGE_START/END 等一律忽略（#24）

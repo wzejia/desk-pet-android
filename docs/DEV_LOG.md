@@ -1,6 +1,21 @@
 # 小朵 Android 开发日志
 
 
+## 2026-09-24 S66：MCP 结果卡即时弹窗（转发时机从 run 收尾提前到结果到达，「弹窗延迟高」修复）
+
+**用户报障**：生产板喊「查找所有项目档案」，回答调了 MCP 但结果卡弹窗延迟高（实测日志：转发在 `RUN_FINISHED` 后 29ms——不慢，而是 S43 设计上「run 正常收尾后才回吐最后一次工具结果」，弹窗要等首 token 5.3s + 1079 字长回复全部流出后才出现，延迟≈30s）。
+
+**修复（S66，工单 01/02/03 见 `.scratch/s43-early-tool-result/issues/`）**：①消费器 `TOOL_CALL_RESULT` 事件到达即回调 `onToolCallResult`（name/args 经 toolCallId 查 START 期登记，缺失对齐收尾语义：name 空串/args null）；②客户端接线即时回吐，**移除 run 收尾二次回吐**（防双发；即时转发以覆盖式等价实现 S43「多结果轮取最后一次」）。语音/文字两轮同改；密集架桥多次转发呈覆盖式更新（弹窗自然被最后一次结果覆盖）。
+
+**验收（测试板真机）**：「查找所有项目档案」结果卡提前至与 TTS 播报并行出现 ✓；全量 659 绿（+3 消费器即时回调用例）；生产板同包部署。**语义保持**：无结果轮零转发、断流已转发结果不撤回、纯聊天轮不变、工具轮「re-wake required」不变。
+
+```evidence
+verify_cmd: gradlew testDebugUnitTest（659 绿，+3）；assembleDebug（APK ad650aca）；双板 install -r Success；测试板真机验收（弹窗与播报并行）
+verify_claim: 工具结果到达即弹窗（不再等 run 收尾）；多结果轮覆盖式更新；无工具轮/断流语义不变
+files_touched: [app/src/main/java/com/xiaoduo/deskpet/agui/AguiSseConsumer.kt, app/src/main/java/com/xiaoduo/deskpet/agui/AguiClient.kt, app/src/test/java/com/xiaoduo/deskpet/agui/AguiSseConsumerTest.kt, docs/DEV_LOG.md]
+```
+
+
 ## 2026-09-23 双板部署 S65：生产板 S63→S65 + 两板 mijijia 统一到 xiaoduo 1ef8614
 
 **用户拍板推新包**。测试机 desk-pet 已是 S65（11:07 部署），本次将两板统一到「desk-pet main S65 + mijijia xiaoduo 1ef8614」。
