@@ -89,7 +89,32 @@ class AguiSseConsumer(
                 val id = json.optString("toolCallId", "")
                 if (id.isNotEmpty()) {
                     toolCallNames[id] = name
-                    toolCallArgs[id] = extractArgs(json)
+                    val args = extractArgs(json)
+                    // S68b：null 不覆盖已有登记——on_tool_end 形态的 START 无 tool_calls，
+                    // 若同 id 已在并行数组里登记过 args，不能被抹掉
+                    if (args != null || !toolCallArgs.containsKey(id)) toolCallArgs[id] = args
+                }
+                // S68b：并行工具调用——平台把多个 tool_call 放进同一条 START 的 rawEvent 数组
+                //（SSE 取证 17:23：tool_calls[0]=项目 [1]=合同，顶层 toolCallId 只对应 [0]），
+                // 只登记 [0] 会让其余元素的 RESULT 查不到 args → 弹窗区块无参数摘要
+                val calls = runCatching {
+                    json.optJSONObject("rawEvent")?.optJSONObject("data")?.optJSONObject("chunk")
+                        ?.optJSONArray("tool_calls")
+                }.getOrNull()
+                if (calls != null) {
+                    for (i in 0 until calls.length()) {
+                        val c = calls.optJSONObject(i) ?: continue
+                        val cid = c.optString("id", "")
+                        if (cid.isEmpty() || cid == id) continue
+                        toolCallNames[cid] = c.optString("name", name)
+                        val a = c.opt("args")
+                        toolCallArgs[cid] = when (a) {
+                            is JSONObject -> a.toString()
+                            is org.json.JSONArray -> a.toString()
+                            is String -> a.takeIf { it.isNotBlank() }
+                            else -> null
+                        }
+                    }
                 }
             }
             "TOOL_CALL_RESULT" -> {

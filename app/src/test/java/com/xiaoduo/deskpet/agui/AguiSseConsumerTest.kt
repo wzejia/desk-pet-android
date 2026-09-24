@@ -310,4 +310,30 @@ class AguiSseConsumerTest {
         assertEquals("", seen[0].toolCallName)
         assertEquals("late", seen[0].content)
     }
+
+    /** S68b-1：平台并行工具调用——一条 START 的 rawEvent.tool_calls 数组含多个调用
+     *  （真实 SSE 形态，17:23 取证：顶层 toolCallId 只对应 [0]），每个 id 都要登记 args，
+     *  否则 [1] 的 RESULT 查不到 args → 弹窗区块无参数摘要 */
+    @Test
+    fun `parallel tool_calls in one START register args for every id`() {
+        val c = AguiSseConsumer()
+        c.feedLine("""data: {"type":"TOOL_CALL_START","toolCallId":"id-a","toolCallName":"c_archive_query","rawEvent":{"event":"on_chat_model_stream","data":{"chunk":{"tool_calls":[{"name":"c_archive_query","args":{"query":"查询项目档案"},"id":"id-a"},{"name":"c_archive_query","args":{"query":"查询合同档案"},"id":"id-b"}]}}}}""")
+        c.feedLine("""data: {"type":"TOOL_CALL_RESULT","toolCallId":"id-b","content":"{\"status\":\"success\"}"}""")
+        c.feedLine("""data: {"type":"RUN_FINISHED","runId":"r"}""")
+        val oc = c.takeToolCallOutcome()
+        assertEquals("c_archive_query", oc?.toolCallName)
+        assertTrue(oc?.argsJson?.contains("查询合同档案") == true)
+    }
+
+    /** S68b-2：on_tool_end 形态的 START（rawEvent 无 tool_calls）不得抹掉已登记的 args */
+    @Test
+    fun `on_tool_end shaped START does not clobber registered args`() {
+        val c = AguiSseConsumer()
+        c.feedLine("""data: {"type":"TOOL_CALL_START","toolCallId":"id-b","toolCallName":"c_archive_query","rawEvent":{"event":"on_chat_model_stream","data":{"chunk":{"tool_calls":[{"name":"c_archive_query","args":{"query":"查询合同档案"},"id":"id-b"}]}}}}""")
+        c.feedLine("""data: {"type":"TOOL_CALL_START","toolCallId":"id-b","toolCallName":"c_archive_query","rawEvent":{"event":"on_tool_end","data":{"output":{"content":"{}"}}}}""")
+        c.feedLine("""data: {"type":"TOOL_CALL_RESULT","toolCallId":"id-b","content":"{}"}""")
+        c.feedLine("""data: {"type":"RUN_FINISHED","runId":"r"}""")
+        val oc = c.takeToolCallOutcome()
+        assertTrue(oc?.argsJson?.contains("查询合同档案") == true)
+    }
 }
