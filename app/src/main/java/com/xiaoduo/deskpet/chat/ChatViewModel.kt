@@ -179,10 +179,20 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
                 private val rawBuffer = StringBuilder()
 
                 override fun onUserUtterance(text: String) {
+                    // DATA-3：文字轮在途即拒——防语音/文字双写者对 _messages 交错 RMW
+                    // 后写整体覆盖先写（拒入方向安全：用户可再说一遍，历史数据不被覆盖）
+                    if (TurnGateRules.textTurnInFlight(
+                            _phase.value == Phase.SENDING,
+                            _phase.value == Phase.STREAMING,
+                        )
+                    ) {
+                        PetLogger.w(TAG, "voice utterance dropped: text turn in flight (phase=${_phase.value})")
+                        return
+                    }
+                    _voiceActive.value = true // 守卫窗口尽早开启（缩小与主线程 send 的 TOCTOU）
                     // S48 惰性超时轮转：与文字轮同规则（置守卫窗前调用，rotate 内部不查 busy）。
                     // 轮转后下方 _currentSession.value 拿到新会话，本轮消息入新会话/新 thread。
                     rotateSessionIfIdle()
-                    _voiceActive.value = true // 守卫窗口开启（done|error 的 endTurn 关闭）
                     val session = _currentSession.value ?: return
                     val userMsg = ChatMessage(
                         newId(),
