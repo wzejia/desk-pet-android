@@ -59,6 +59,15 @@ class VoicePlayer {
     private var streamTrack: AudioTrack? = null
     private var streamWrittenFrames = 0L
 
+    /**
+     * CONC-3：流式生命周期锁。streamTrack/streamWrittenFrames（非 volatile Long）由 IO
+     * 线程 play()/finish() 写，stop()/reset() 可来自 UI/会话线程——无锁并发下：双
+     * AudioTrack（泄漏一个）、写已 release 轨道抛 ISE、drainUntil 空转 wall-clock 死线、
+     * 32 位域 Long 撕裂。建轨/记账/释放三类转换点收进同一把锁；阻塞写（writeAll/drain）
+     * 在锁外（不背锁做慢 IO），写完回锁内带身份复核记账（轨已换主则弃记）。
+     */
+    private val streamLock = Any()
+
     /** 打断在途播放（幂等；未在播仅置标志——开播即查，先于 cancel 的 stop 也生效）。 */
     fun stop() {
         stopped = true
@@ -92,31 +101,38 @@ class VoicePlayer {
      *  阻塞背压（缓冲满则 write 阻塞）。stopped 或写失败抛 IOException。 */
     @Throws(IOException::class)
     fun play(pcm: ByteArray) {
-        var track = streamTrack
-        if (track == null) {
-            if (stopped) throw IOException("stopped")
-            val minBuf = AudioTrack.getMinBufferSize(
-                SR, AudioFormat.CHANNEL_OUT_MONO, AudioFormat.ENCODING_PCM_16BIT,
-            )
-            track = buildTrack(maxOf(minBuf, STREAM_BUF_BYTES))
-            streamTrack = track
-            activeTrack = track
-            streamWrittenFrames = 0
-            track.play()
-            startRefPacer(track)
+        val track: AudioTrack = synchronized(streamLock) {
+            streamTrack ?: run {
+                if (stopped) throw IOException("stopped")
+                val minBuf = AudioTrack.getMinBufferSize(
+                    SR, AudioFormat.CHANNEL_OUT_MONO, AudioFormat.ENCODING_PCM_16BIT,
+                )
+                val t = buildTrack(maxOf(minBuf, STREAM_BUF_BYTES))
+                streamTrack = t
+                activeTrack = t
+                streamWrittenFrames = 0
+                t.play()
+                startRefPacer(t)
+                t
+            }
         }
         writeAll(track, pcm)
-        streamWrittenFrames += pcm.size / 2
+        synchronized(streamLock) {
+            if (streamTrack === track) streamWrittenFrames += pcm.size / 2
+        }
     }
 
     /** 收尾：等所有已写帧播完 + 0.05s 余量再释放（整轮 TTS 结束调）。幂等（无 track 即返回）。 */
     @Throws(IOException::class)
     fun finish() {
-        val track = streamTrack ?: return
+        val (track, written) = synchronized(streamLock) {
+            val t = streamTrack ?: return
+            t to streamWrittenFrames
+        }
         try {
-            drainUntil(track, streamWrittenFrames)
+            drainUntil(track, written)
             Thread.sleep(TAIL_MS)
-            PetLogger.d(TAG, "stream played $streamWrittenFrames frames @24k")
+            PetLogger.d(TAG, "stream played $written frames @24k")
         } finally {
             releaseStream()
         }
@@ -126,13 +142,15 @@ class VoicePlayer {
     fun reset() = releaseStream()
 
     private fun releaseStream() {
-        stopRefPacer()
-        val track = streamTrack ?: return
-        streamTrack = null
-        if (activeTrack === track) activeTrack = null
-        runCatching { track.stop() }
-        track.release()
-        streamWrittenFrames = 0
+        synchronized(streamLock) {
+            stopRefPacer()
+            val track = streamTrack ?: return
+            streamTrack = null
+            if (activeTrack === track) activeTrack = null
+            runCatching { track.stop() }
+            track.release()
+            streamWrittenFrames = 0
+        }
     }
 
     // ---------------- S23 参考配速器 ----------------
@@ -141,20 +159,12 @@ class VoicePlayer {
         if (referenceListener == null || refPacerRunning) return
         refPacerRunning = true
         refPacer = Thread({
-            var lastHead = 0
-            var alive = true
-            while (refPacerRunning && alive) {
-                val head = runCatching { track.playbackHeadPosition }.getOrElse {
-                    alive = false
-                    0
-                }
-                val newFrames = head - lastHead // int 差天然 mod 2^32（24k 回卷周期 ~24h）
-                if (alive && newFrames > 0) {
-                    lastHead = head
-                    drainRefPending(newFrames * 2)
-                }
-                Thread.sleep(10)
-            }
+            // CONC-4：任何退出路径（playbackHeadPosition 抛 / sleep 中断 / running 翻 false）
+            // 都必须清 refPacerRunning——否则线程死了标志还挂着，startRefPacer 永远早退，
+            // refPending 无界增长（~48KB/s）且 AEC 参考静默死亡（NLMS 退化复发）。
+            val normal = runCatching { refPacerLoop({ refPacerRunning }, { refPacerRunning = it }, { track.playbackHeadPosition }, ::drainRefPending) { Thread.sleep(10) } }
+                .getOrElse { false }
+            if (!normal) PetLogger.w(TAG, "ref-pacer 异常退出（头位置抛/中断），running 标志已清，下次 play 可重启")
         }, "ref-pacer").apply {
             isDaemon = true
             priority = Thread.MIN_PRIORITY // S25b：音频后台线程不得与 UI 主线程同级抢 CPU（同 kws-decode）
@@ -259,5 +269,40 @@ class VoicePlayer {
         private const val STREAM_BUF_BYTES = 48_000
 
         private val SR get() = RevealScheduler.TTS_SAMPLE_RATE
+    }
+}
+
+/**
+ * 参考配速循环（纯逻辑，JVM 可测；CONC-4）：每 [sleep] 一步查 [trackHead] 推进参考推送，
+ * 直到 [running] 翻 false。返回 true=正常退出（running 翻 false），false=异常退出
+ * （trackHead 抛 / sleep 中断）。**任何退出路径都必须经 [setRunning] 清 running 标志**——
+ * 线程可以死，标志不能留（残留标志 = startRefPacer 永远早退 = 参考死亡 + refPending 无界）。
+ */
+internal fun refPacerLoop(
+    running: () -> Boolean,
+    setRunning: (Boolean) -> Unit,
+    trackHead: () -> Int,
+    drain: (Int) -> Unit,
+    sleep: () -> Unit,
+): Boolean {
+    setRunning(true)
+    try {
+        var lastHead = 0
+        while (running()) {
+            val head = try {
+                trackHead()
+            } catch (t: Throwable) {
+                return false // 轨已 release：退出，finally 清标志（线程体记日志）
+            }
+            val newFrames = head - lastHead // int 差天然 mod 2^32（24k 回卷周期 ~24h）
+            if (newFrames > 0) {
+                lastHead = head
+                drain(newFrames * 2)
+            }
+            sleep() // 中断向上抛 → finally 清标志
+        }
+        return true
+    } finally {
+        setRunning(false)
     }
 }
