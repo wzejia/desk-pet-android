@@ -407,13 +407,20 @@ private fun AgentPicker(context: Context) {
         loading = true
         error = null
         scope.launch(Dispatchers.IO) {
-            val result = AguiClientFactory.create(context).listAgents()
+            // ROB-13：非取消异常收敛为错误态复位 loading（原样逸出会顶穿组合且 loading 卡 true）
+            val outcome = guardedUi { AguiClientFactory.create(context).listAgents() }
             withContext(Dispatchers.Main) {
-                loading = false
-                when (result) {
-                    is AguiClient.AgentListResult.Ok -> agents = result.agents
-                    is AguiClient.AgentListResult.Error -> error = result.message
+                when (outcome) {
+                    is UiOutcome.Ok -> when (val result = outcome.value) {
+                        is AguiClient.AgentListResult.Ok -> agents = result.agents
+                        is AguiClient.AgentListResult.Error -> error = result.message
+                    }
+                    is UiOutcome.Failed -> {
+                        PetLogger.e("Settings", "agent list crashed: ${outcome.error.message}", outcome.error)
+                        error = outcome.error.message ?: "未知错误"
+                    }
                 }
+                loading = false
             }
         }
     }
@@ -753,28 +760,37 @@ private fun LinkSelfCheck(context: Context) {
                 status = "自检开始…"
                 PetLogger.i("SelfCheck", "link self-check start")
                 scope.launch {
-                    val result = withContext(Dispatchers.IO) {
-                        AguiClientFactory.create(
-                            context,
-                            logger = { msg ->
-                                PetLogger.i("AguiClient", msg)
-                                status = msg // Compose snapshot state 跨线程写安全
-                            },
-                        ).chat("你好")
-                    }
-                    status = when (result) {
-                        is AguiClient.ChatResult.Success -> {
-                            val latency = result.firstTokenLatencyMs?.let { "${it}ms" } ?: "未知"
-                            PetLogger.i(
-                                "SelfCheck",
-                                "self-check ok, firstToken=$latency, reply=${result.text.length} chars, attempts=${result.attempts}",
-                            )
-                            PetLogger.i("SelfCheck", "reply full text: ${result.text}")
-                            "成功：首 token $latency，回复 ${result.text.length} 字（尝试 ${result.attempts} 次）"
+                    // ROB-13：自检任何异常收敛为失败终态复位 running（防按钮永久禁用）
+                    val outcome = guardedUi {
+                        withContext(Dispatchers.IO) {
+                            AguiClientFactory.create(
+                                context,
+                                logger = { msg ->
+                                    PetLogger.i("AguiClient", msg)
+                                    status = msg // Compose snapshot state 跨线程写安全
+                                },
+                            ).chat("你好")
                         }
-                        is AguiClient.ChatResult.Error -> {
-                            PetLogger.e("SelfCheck", "self-check failed: ${result.message}")
-                            "失败：${result.message}"
+                    }
+                    status = when (outcome) {
+                        is UiOutcome.Ok -> when (val result = outcome.value) {
+                            is AguiClient.ChatResult.Success -> {
+                                val latency = result.firstTokenLatencyMs?.let { "${it}ms" } ?: "未知"
+                                PetLogger.i(
+                                    "SelfCheck",
+                                    "self-check ok, firstToken=$latency, reply=${result.text.length} chars, attempts=${result.attempts}",
+                                )
+                                PetLogger.i("SelfCheck", "reply full text: ${result.text}")
+                                "成功：首 token $latency，回复 ${result.text.length} 字（尝试 ${result.attempts} 次）"
+                            }
+                            is AguiClient.ChatResult.Error -> {
+                                PetLogger.e("SelfCheck", "self-check failed: ${result.message}")
+                                "失败：${result.message}"
+                            }
+                        }
+                        is UiOutcome.Failed -> {
+                            PetLogger.e("SelfCheck", "self-check crashed: ${outcome.error.message}", outcome.error)
+                            "失败：${outcome.error.message ?: "未知错误"}"
                         }
                     }
                     running = false
@@ -990,23 +1006,30 @@ private fun KwsCalibration(context: Context, onGateWritten: (Float) -> Unit) {
                 running = true
                 report = "采集中…请保持环境安静 5 秒"
                 scope.launch {
-                    val rmsValues = collectAmbientRms(context, CALIBRATION_SECONDS)
-                    if (rmsValues.isEmpty()) {
-                        report = "未采到音频（检查麦克风权限或占用）"
-                    } else {
-                        val stats = EnergyGate.statsOf(rmsValues)
-                        val s = EnergyGate.suggestThreshold(stats)
-                        suggested = s
-                        // S18：VAD 说话阈值同步建议（板子噪声底骑 0.05 线致判停失效）
-                        val vadLevel = EnergyGate.suggestVadSpeechLevel(stats)
-                        suggestedVad = vadLevel
-                        report = "样本 ${stats.count} 块：中位 %.4f / p95 %.4f / 峰值 %.4f → 建议 %.3f"
-                            .format(stats.median, stats.p95, stats.max, s, vadLevel)
-                        PetLogger.i(
-                            "Settings",
-                            "kws calibration: n=${stats.count} median=${stats.median} " +
-                                "p95=${stats.p95} max=${stats.max} suggest=$s vad=$vadLevel",
-                        )
+                    // ROB-13：校准任何异常收敛为失败报告复位 running（防按钮永久禁用）
+                    val outcome = guardedUi {
+                        val rmsValues = collectAmbientRms(context, CALIBRATION_SECONDS)
+                        if (rmsValues.isEmpty()) {
+                            report = "未采到音频（检查麦克风权限或占用）"
+                        } else {
+                            val stats = EnergyGate.statsOf(rmsValues)
+                            val s = EnergyGate.suggestThreshold(stats)
+                            suggested = s
+                            // S18：VAD 说话阈值同步建议（板子噪声底骑 0.05 线致判停失效）
+                            val vadLevel = EnergyGate.suggestVadSpeechLevel(stats)
+                            suggestedVad = vadLevel
+                            report = "样本 ${stats.count} 块：中位 %.4f / p95 %.4f / 峰值 %.4f → 建议 %.3f"
+                                .format(stats.median, stats.p95, stats.max, s, vadLevel)
+                            PetLogger.i(
+                                "Settings",
+                                "kws calibration: n=${stats.count} median=${stats.median} " +
+                                    "p95=${stats.p95} max=${stats.max} suggest=$s vad=$vadLevel",
+                            )
+                        }
+                    }
+                    if (outcome is UiOutcome.Failed) {
+                        PetLogger.e("Settings", "kws calibration crashed: ${outcome.error.message}", outcome.error)
+                        report = "校准失败：${outcome.error.message ?: "未知错误"}"
                     }
                     running = false
                 }
