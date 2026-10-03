@@ -1,0 +1,7 @@
+[ocr] full-scan: 1 file(s) discovered, reviewing 1 in E:\desk-pet-android
+[ocr] estimated cost: ~1 file(s), est. 207K input + 5K output ≈ 213K total tokens (rough; actual reported after run)
+[ocr] scan dispatch: 1 batch(es) by by-language strategy
+[ocr] No tool calls parsed for app/src/main/java/com/xiaoduo/deskpet/voice/VoiceSessionManager.kt, retrying...
+[ocr] Scan subtask error for app/src/main/java/com/xiaoduo/deskpet/voice/VoiceSessionManager.kt (batch #0): LLM completion error: context deadline exceeded
+[ocr] Session: 0d129a7c-27ce-492d-84ae-72cf7bac6af8 (retry with: --resume 0d129a7c-27ce-492d-84ae-72cf7bac6af8)
+Error: scan failed: all 1 file scan(s) failed — check your LLM configuration and API key

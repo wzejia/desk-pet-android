@@ -1,0 +1,10 @@
+app/src/main/java/com/xiaoduo/deskpet/PetOverlayService.kt
+app/src/main/java/com/xiaoduo/deskpet/device/DeviceIntentMatcher.kt
+app/src/main/java/com/xiaoduo/deskpet/pet/EdgeDock.kt
+app/src/main/java/com/xiaoduo/deskpet/pet/FrameAnimator.kt
+app/src/main/java/com/xiaoduo/deskpet/pet/OverlayClamp.kt
+app/src/main/java/com/xiaoduo/deskpet/pet/PetFrameTable.kt
+app/src/main/java/com/xiaoduo/deskpet/util/AppLauncher.kt
+app/src/main/java/com/xiaoduo/deskpet/util/PetLogger.kt
+app/src/main/java/com/xiaoduo/deskpet/util/PrefContract.kt
+app/src/main/java/com/xiaoduo/deskpet/util/TapGesture.kt

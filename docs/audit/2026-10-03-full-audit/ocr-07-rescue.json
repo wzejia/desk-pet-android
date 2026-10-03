@@ -1,0 +1,108 @@
+{
+  "status": "success",
+  "llm": {
+    "provider": "zhipu-cc",
+    "model": "glm-5.3-flash"
+  },
+  "summary": {
+    "files_reviewed": 1,
+    "comments": 7,
+    "total_tokens": 62192,
+    "input_tokens": 49451,
+    "output_tokens": 12741,
+    "cache_read_tokens": 5888,
+    "elapsed": "4m47s"
+  },
+  "tool_calls": {
+    "total": 5,
+    "by_tool": {
+      "code_comment": 1,
+      "code_search": 2,
+      "file_find": 1,
+      "file_read": 1
+    },
+    "failure": 0,
+    "failure_by_tool": {},
+    "failure_details": []
+  },
+  "comments": [
+    {
+      "path": "app/src/main/java/com/xiaoduo/deskpet/ui/overlay/OverlayMenu.kt",
+      "content": "PopupWindow is shown from a WindowManager overlay anchor with no attachment/token check and no error handling. If the overlay is concurrently hidden or its window token is invalidated (e.g. teardown racing with the long-press, multi-window transition), showAsDropDown throws WindowManager.BadTokenException and crashes the process. Guard with anchor.isAttachedToWindow and wrap the show call in try/catch; consider a setOnDismissListener if any caller-side cleanup is added later.",
+      "suggestion_code": "        val xoff = anchorLoc[0].coerceIn(0, (screenW - popupW).coerceAtLeast(0)) - anchorLoc[0]\n        if (!anchor.isAttachedToWindow) return\n        try {\n            popup.showAsDropDown(anchor, xoff, yoff)\n        } catch (_: WindowManager.BadTokenException) {\n            // 锚点窗口 token 已失效（悬浮窗被并发隐藏/多窗切换），放弃弹出避免崩溃\n        }",
+      "existing_code": "        val xoff = anchorLoc[0].coerceIn(0, (screenW - popupW).coerceAtLeast(0)) - anchorLoc[0]\n        popup.showAsDropDown(anchor, xoff, yoff)",
+      "start_line": 179,
+      "end_line": 180,
+      "thinking": "Confirmed:\n- Theme.kt exists at `app/src/main/java/com/xiaoduo/deskpet/ui/theme/Theme.kt` — the palette duplication claim is grounded.\n- Caller `PetOverlayService.showMenu` — anchor is the overlay view attached via WindowManager from a Service. The `onToggleVoice` callback writes Prefs synchronously and returns newState — so return-value semantics currently work, but the toggle is still snapshot-based; popup stays open intentionally. The stale-state comment is lower severity. The BadTokenException risk for a WindowManager-attached overlay anchor remains a real defensive concern.\n\nI have enough evidence. Now batch all comments in a single code_comment call, then task_done.",
+      "category": "bug",
+      "severity": "high"
+    },
+    {
+      "path": "app/src/main/java/com/xiaoduo/deskpet/ui/overlay/OverlayMenu.kt",
+      "content": "Vertical placement has no fallback when neither side fits: if roomBelow \u003c popupH and anchorLoc[1] \u003c popupH (anchor near top), yoff stays 0 and the menu bottom is clipped off-screen. Also screenH comes from displayMetrics.heightPixels, which ignores status/nav bar insets and cutouts, so \"fits below\" can be misjudged at screen edges. Clamp the popup's absolute top edge into [0, screenH - popupH] as a defensive fallback (horizontal already does this via coerceIn).",
+      "suggestion_code": "        val roomBelow = screenH - (anchorLoc[1] + anchor.height)\n        val yoff = if (roomBelow \u003c popupH \u0026\u0026 anchorLoc[1] \u003e= popupH) -(anchor.height + popupH) else 0\n        // 兜底钳位：两侧都放不下时把 popup 顶缘钳回屏内，避免裁出屏\n        val anchorBottom = anchorLoc[1] + anchor.height\n        val yoffClamped = (anchorBottom + yoff).coerceIn(0, (screenH - popupH).coerceAtLeast(0)) - anchorBottom",
+      "existing_code": "        val roomBelow = screenH - (anchorLoc[1] + anchor.height)\n        val yoff = if (roomBelow \u003c popupH \u0026\u0026 anchorLoc[1] \u003e= popupH) -(anchor.height + popupH) else 0",
+      "start_line": 174,
+      "end_line": 175,
+      "thinking": "Confirmed:\n- Theme.kt exists at `app/src/main/java/com/xiaoduo/deskpet/ui/theme/Theme.kt` — the palette duplication claim is grounded.\n- Caller `PetOverlayService.showMenu` — anchor is the overlay view attached via WindowManager from a Service. The `onToggleVoice` callback writes Prefs synchronously and returns newState — so return-value semantics currently work, but the toggle is still snapshot-based; popup stays open intentionally. The stale-state comment is lower severity. The BadTokenException risk for a WindowManager-attached overlay anchor remains a real defensive concern.\n\nI have enough evidence. Now batch all comments in a single code_comment call, then task_done.",
+      "category": "bug",
+      "severity": "medium"
+    },
+    {
+      "path": "app/src/main/java/com/xiaoduo/deskpet/ui/overlay/OverlayMenu.kt",
+      "content": "The voice indicator is built from a snapshot (voiceEnabled) and afterwards updated solely from onToggleVoice()'s return value. If the underlying toggle doesn't actually change state (or changes elsewhere while the popup stays open), the dot shows a stale/wrong state and the open popup offers no refresh path. Make the failure/explicit-state contract explicit (e.g. callback returns the authoritative new state or a Result\u003cBoolean\u003e) and derive the dot from it; the current \"return new state\" contract is also implicit for future callers.",
+      "suggestion_code": "        voiceRow.setOnClickListener {\n            // 回调返回权威新状态（含失败语义），点色只依据返回值，不接受隐式快照\n            voiceDot.background = stateDot(onToggleVoice())\n        }",
+      "existing_code": "        voiceRow.setOnClickListener {\n            voiceDot.background = stateDot(onToggleVoice())\n        }",
+      "start_line": 153,
+      "end_line": 155,
+      "thinking": "Confirmed:\n- Theme.kt exists at `app/src/main/java/com/xiaoduo/deskpet/ui/theme/Theme.kt` — the palette duplication claim is grounded.\n- Caller `PetOverlayService.showMenu` — anchor is the overlay view attached via WindowManager from a Service. The `onToggleVoice` callback writes Prefs synchronously and returns newState — so return-value semantics currently work, but the toggle is still snapshot-based; popup stays open intentionally. The stale-state comment is lower severity. The BadTokenException risk for a WindowManager-attached overlay anchor remains a real defensive concern.\n\nI have enough evidence. Now batch all comments in a single code_comment call, then task_done.",
+      "category": "bug",
+      "severity": "low"
+    },
+    {
+      "path": "app/src/main/java/com/xiaoduo/deskpet/ui/overlay/OverlayMenu.kt",
+      "content": "The Theme.kt palette is duplicated as hard-coded ARGB literals here (the KDoc even documents the alignment-by-hand). Any color change in ui/theme/Theme.kt silently desyncs this menu. Extract these values (plus DOT_ON_COLOR and the 16dp corner radius) as named constants in the shared theme object and reference the single source of truth.",
+      "suggestion_code": "        // 与 ui/theme/Theme.kt 单源对齐：从主题对象取色，避免双份 ARGB 漂移\n        val bgColor = if (dark) Theme.SURFACE_VARIANT else Theme.SURFACE\n        val textColor = if (dark) Theme.ON_SURFACE_VARIANT else Theme.ON_SURFACE\n        val dividerColor = if (dark) Theme.OUTLINE_VARIANT else Theme.OUTLINE",
+      "existing_code": "        val bgColor = if (dark) 0xFF171717.toInt() else 0xFFFFFFFF.toInt()\n        val textColor = if (dark) 0xFFF5F5F5.toInt() else 0xFF0D0D0D.toInt()\n        val dividerColor = if (dark) 0xFF2E2E2E.toInt() else 0xFFE5E5E5.toInt()",
+      "start_line": 48,
+      "end_line": 50,
+      "thinking": "Confirmed:\n- Theme.kt exists at `app/src/main/java/com/xiaoduo/deskpet/ui/theme/Theme.kt` — the palette duplication claim is grounded.\n- Caller `PetOverlayService.showMenu` — anchor is the overlay view attached via WindowManager from a Service. The `onToggleVoice` callback writes Prefs synchronously and returns newState — so return-value semantics currently work, but the toggle is still snapshot-based; popup stays open intentionally. The stale-state comment is lower severity. The BadTokenException risk for a WindowManager-attached overlay anchor remains a real defensive concern.\n\nI have enough evidence. Now batch all comments in a single code_comment call, then task_done.",
+      "category": "maintainability",
+      "severity": "medium"
+    },
+    {
+      "path": "app/src/main/java/com/xiaoduo/deskpet/ui/overlay/OverlayMenu.kt",
+      "content": "All menu labels (\"打开 App\", \"打开密集架\", \"打断\", \"创建新会话\", \"语音开关\", \"隐藏悬浮窗\") are hard-coded Chinese literals in code instead of string resources. Move them to res/values/strings.xml (resolved via context.getString) so they participate in review consistency, reuse, and any future localization.",
+      "suggestion_code": "        row(context.getString(R.string.menu_open_app)).also {\n            it.setOnClickListener { popup.dismiss(); onOpenApp() }",
+      "existing_code": "        row(\"打开 App\").also {\n            it.setOnClickListener { popup.dismiss(); onOpenApp() }",
+      "start_line": 91,
+      "end_line": 92,
+      "thinking": "Confirmed:\n- Theme.kt exists at `app/src/main/java/com/xiaoduo/deskpet/ui/theme/Theme.kt` — the palette duplication claim is grounded.\n- Caller `PetOverlayService.showMenu` — anchor is the overlay view attached via WindowManager from a Service. The `onToggleVoice` callback writes Prefs synchronously and returns newState — so return-value semantics currently work, but the toggle is still snapshot-based; popup stays open intentionally. The stale-state comment is lower severity. The BadTokenException risk for a WindowManager-attached overlay anchor remains a real defensive concern.\n\nI have enough evidence. Now batch all comments in a single code_comment call, then task_done.",
+      "category": "maintainability",
+      "severity": "low"
+    },
+    {
+      "path": "app/src/main/java/com/xiaoduo/deskpet/ui/overlay/OverlayMenu.kt",
+      "content": "Header KDoc is stale: it still describes a four-item menu including the removed 「查看最近一轮」/canViewLastRound entry. The actual menu now has six items (打开 App / 打开密集架 / 打断 / 创建新会话 / 语音开关 / 隐藏悬浮窗) after S27/S48/S10 changes. Update the summary so readers aren't misled about the file's behavior.",
+      "suggestion_code": " * 长按菜单：PopupWindow 六项--打开 App / 打开密集架 / 打断 / 创建新会话 / 语音开关 / 隐藏悬浮窗。",
+      "existing_code": " * 长按菜单（KD15）：PopupWindow 四项--打开 App / 查看最近一轮 / 语音开关 / 隐藏悬浮窗。",
+      "start_line": 15,
+      "end_line": 15,
+      "thinking": "Confirmed:\n- Theme.kt exists at `app/src/main/java/com/xiaoduo/deskpet/ui/theme/Theme.kt` — the palette duplication claim is grounded.\n- Caller `PetOverlayService.showMenu` — anchor is the overlay view attached via WindowManager from a Service. The `onToggleVoice` callback writes Prefs synchronously and returns newState — so return-value semantics currently work, but the toggle is still snapshot-based; popup stays open intentionally. The stale-state comment is lower severity. The BadTokenException risk for a WindowManager-attached overlay anchor remains a real defensive concern.\n\nI have enough evidence. Now batch all comments in a single code_comment call, then task_done.",
+      "category": "documentation",
+      "severity": "low"
+    },
+    {
+      "path": "app/src/main/java/com/xiaoduo/deskpet/ui/overlay/OverlayMenu.kt",
+      "content": "(MENU_WIDTH_DP * dp).toInt() is computed twice — once for the PopupWindow width here and again as popupW below. Hoist popupW above the PopupWindow construction and reuse it, so the popup width and the horizontal-clamp math can never drift apart.",
+      "suggestion_code": "        val popupW = (MENU_WIDTH_DP * dp).toInt() // 固定宽：避免 MATCH_PARENT 子行把 WRAP_CONTENT 撑满屏\n        val popup = PopupWindow(\n            menu,\n            popupW,",
+      "existing_code": "        val popup = PopupWindow(\n            menu,\n            (MENU_WIDTH_DP * dp).toInt(), // 固定宽：避免 MATCH_PARENT 子行把 WRAP_CONTENT 撑满屏",
+      "start_line": 81,
+      "end_line": 83,
+      "thinking": "Confirmed:\n- Theme.kt exists at `app/src/main/java/com/xiaoduo/deskpet/ui/theme/Theme.kt` — the palette duplication claim is grounded.\n- Caller `PetOverlayService.showMenu` — anchor is the overlay view attached via WindowManager from a Service. The `onToggleVoice` callback writes Prefs synchronously and returns newState — so return-value semantics currently work, but the toggle is still snapshot-based; popup stays open intentionally. The stale-state comment is lower severity. The BadTokenException risk for a WindowManager-attached overlay anchor remains a real defensive concern.\n\nI have enough evidence. Now batch all comments in a single code_comment call, then task_done.",
+      "category": "style",
+      "severity": "low"
+    }
+  ],
+  "session_id": "f66f1a92-aa18-4a1b-9ef9-5289041d8414"
+}

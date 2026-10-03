@@ -1,0 +1,6 @@
+[ocr] full-scan: 1 file(s) discovered, reviewing 1 in E:\desk-pet-android
+[ocr] estimated cost: ~1 file(s), est. 58K input + 5K output ≈ 63K total tokens (rough; actual reported after run)
+[ocr] scan dispatch: 1 batch(es) by by-language strategy
+[ocr] Scan subtask error for app/src/main/java/com/xiaoduo/deskpet/ui/overlay/BubbleTextStrip.kt (batch #0): LLM completion error: context deadline exceeded
+[ocr] Session: 05ad136d-33b2-4d01-8c83-3e86cb51779f (retry with: --resume 05ad136d-33b2-4d01-8c83-3e86cb51779f)
+Error: scan failed: all 1 file scan(s) failed — check your LLM configuration and API key

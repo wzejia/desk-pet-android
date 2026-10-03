@@ -1,0 +1,41 @@
+{
+  "documentType": "codex-security.scan-manifest",
+  "scan": {
+    "artifacts": [
+      {
+        "mediaType": "application/json",
+        "path": "findings.json",
+        "sha256": "e0cf111a7dbd76f2f24a490a2414697be12586b97a7f4922c10da2d17d564cd1"
+      },
+      {
+        "mediaType": "application/json",
+        "path": "coverage.json",
+        "sha256": "7eb7919ad638c82099b63298eeed0fa074b64277620bbd7b7a0c1a483be7130f"
+      }
+    ],
+    "completedAt": "2026-10-02T22:39:58.643040Z",
+    "coverageRef": "coverage.json",
+    "findingsRef": "findings.json",
+    "id": "3aedab54-1c4d-4fe4-8bb4-b30f9beba62d",
+    "producer": {
+      "name": "codex-security-plugin",
+      "version": "0.1.15"
+    },
+    "scope": {
+      "excludePaths": [],
+      "includePaths": [
+        "."
+      ]
+    },
+    "sealedAt": "2026-10-02T22:39:58.643040Z",
+    "startedAt": "2026-10-02T21:42:53.914863Z",
+    "status": "completed",
+    "target": {
+      "displayName": "src",
+      "kind": "git_revision",
+      "revision": "5ee8e2098c9e2d0f70f9d26ff2585b9a893a8e9e",
+      "targetId": "target_sha256_a2d18c0358afd7dceb4ecf75718a74de5541f7b343b0e92b7a29be69ae39cd42"
+    }
+  },
+  "schemaVersion": "1.0"
+}

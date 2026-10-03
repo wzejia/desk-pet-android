@@ -1,5 +1,14 @@
 # 小朵 Android M1 进度
 
+## 状态：全量代码审计 + P2 修复工程 ✅ 完成（2026-10-03，审计 P1=0/P2=43/P3=410；修复 40 条处置毕，集成 752 绿）
+
+- **审计**：双通道机扫（ocr 100/105 文件 462 条 + codex 全仓 215 文件 5 条）+ 双路人工（兜底 5 文件 + 非代码面）→ **P1=0 / P2=43 / P3=410**；风险集中「分发形态」三件套（debug 签名 + BuildConfig 明文密钥 + TLS 内网白名单旁路），打包成一个安全决策待拍板。产物 `docs/audit/2026-10-03-full-audit/`（入口 README.md）。
+- **修复**（领导令：修除分发形态外全部 P2）：40 条三路子智能体并行修（worktree af-voice/af-ui/af-misc，TDD，跨包文件冲突 0）→ 集成 af-integration（37 修 + 2 证伪〔ROB-16 管理者实测仲裁 / SEC-6 runId 客户端生成实锤〕+ SEC-3 部分）+ FUNC-5 跨包接线，独立评审无 P1。**集成终验 752 绿 / skipped 0 / failures 0**（基线 665，+87 新测试）。
+- **待拍板**：①SEC-2 登录切 443 反代（一行，需部署事实）；②SEC-3 EncryptedSharedPreferences 迁移（新依赖报批）；③createSession 崩溃 vs 降级口径；④af-integration 是否合 main；⑤分发形态三件套决策。处置全账见 `docs/audit/2026-10-03-full-audit/fix-phase-dispositions.md`。
+- 工作区状态：main 未动（5ee8e20）；af-* 分支含全部修复；主仓未提交变更=审计目录 + PROGRESS/DEV_LOG/implementation-notes 文档。
+
+
+
 ## 状态：S50~S65 语音链噪声域加固 + 关键词治理 ✅ 已全合 main（2026-09-23，656 绿，代码至 1723f59，文档收口在其上）
 
 **S50~S65 速览**（细节见 DEV_LOG 对应条目）：S50 弱音节判停拆线 → S51 续听窗（S55 后窗=1，09-23 拍板维持）→

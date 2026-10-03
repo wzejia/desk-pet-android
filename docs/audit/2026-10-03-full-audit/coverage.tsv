@@ -1,0 +1,106 @@
+path	comment_count	batches	errors
+app/src/main/java/com/xiaoduo/deskpet/App.kt	2	05-util-device-pet-root	
+app/src/main/java/com/xiaoduo/deskpet/MainActivity.kt	4	05-util-device-pet-root	
+app/src/main/java/com/xiaoduo/deskpet/PetOverlayService.kt	8	06-recovery	05-util-device-pet-root
+app/src/main/java/com/xiaoduo/deskpet/VoiceForegroundService.kt	5	05-util-device-pet-root	
+app/src/main/java/com/xiaoduo/deskpet/agui/AguiClient.kt	7	06-recovery	04-agui-net
+app/src/main/java/com/xiaoduo/deskpet/agui/AguiClientFactory.kt	5	04-agui-net	
+app/src/main/java/com/xiaoduo/deskpet/agui/AguiSseConsumer.kt	5	04-agui-net	
+app/src/main/java/com/xiaoduo/deskpet/agui/FileMeta.kt	3	04-agui-net	
+app/src/main/java/com/xiaoduo/deskpet/chat/ChatHistoryCodec.kt	4	06-recovery	03-chat-cloud
+app/src/main/java/com/xiaoduo/deskpet/chat/ChatMessage.kt	4	03-chat-cloud	
+app/src/main/java/com/xiaoduo/deskpet/chat/ChatSession.kt	2	03-chat-cloud	03-chat-cloud
+app/src/main/java/com/xiaoduo/deskpet/chat/ChatStore.kt	10	03-chat-cloud	
+app/src/main/java/com/xiaoduo/deskpet/chat/ChatTurnLogic.kt	6	06-recovery	03-chat-cloud
+app/src/main/java/com/xiaoduo/deskpet/chat/ChatViewModel.kt	8	03-chat-cloud	
+app/src/main/java/com/xiaoduo/deskpet/chat/DeviceTurnRules.kt	1	03-chat-cloud	
+app/src/main/java/com/xiaoduo/deskpet/chat/FileListRules.kt	2	06-recovery	03-chat-cloud
+app/src/main/java/com/xiaoduo/deskpet/chat/FunctionKeyLogic.kt	2	06-recovery	03-chat-cloud
+app/src/main/java/com/xiaoduo/deskpet/chat/MarkdownRenderer.kt	0		03-chat-cloud,06-recovery
+app/src/main/java/com/xiaoduo/deskpet/chat/SessionIndexCodec.kt	6	06-recovery	03-chat-cloud
+app/src/main/java/com/xiaoduo/deskpet/chat/SessionRules.kt	3	03-chat-cloud	
+app/src/main/java/com/xiaoduo/deskpet/chat/SessionSearch.kt	4	03-chat-cloud	
+app/src/main/java/com/xiaoduo/deskpet/chat/SuggestedQuestions.kt	3	06-recovery	03-chat-cloud
+app/src/main/java/com/xiaoduo/deskpet/chat/ThinkCleaner.kt	3	06-recovery	03-chat-cloud
+app/src/main/java/com/xiaoduo/deskpet/cloud/AliyunAsrClient.kt	8	06-recovery	03-chat-cloud
+app/src/main/java/com/xiaoduo/deskpet/cloud/AliyunTtsClient.kt	7	06-recovery	03-chat-cloud
+app/src/main/java/com/xiaoduo/deskpet/cloud/CloudClientFactory.kt	5	06-recovery	03-chat-cloud
+app/src/main/java/com/xiaoduo/deskpet/cloud/OpenAIAsrClient.kt	3	03-chat-cloud	
+app/src/main/java/com/xiaoduo/deskpet/cloud/OpenAIChatClient.kt	9	03-chat-cloud	
+app/src/main/java/com/xiaoduo/deskpet/cloud/OpenAITtsClient.kt	3	03-chat-cloud	
+app/src/main/java/com/xiaoduo/deskpet/cloud/TextChatRouter.kt	3	03-chat-cloud	
+app/src/main/java/com/xiaoduo/deskpet/cloud/VolcengineAsrClient.kt	0		03-chat-cloud,06-recovery
+app/src/main/java/com/xiaoduo/deskpet/cloud/VolcengineTtsClient.kt	3	03-chat-cloud	
+app/src/main/java/com/xiaoduo/deskpet/device/DeviceClient.kt	7	05-util-device-pet-root	
+app/src/main/java/com/xiaoduo/deskpet/device/DeviceIntentMatcher.kt	6	06-recovery	05-util-device-pet-root
+app/src/main/java/com/xiaoduo/deskpet/device/ShelfMcpBridge.kt	4	05-util-device-pet-root	
+app/src/main/java/com/xiaoduo/deskpet/device/ShelfNavIntentMatcher.kt	4	05-util-device-pet-root	
+app/src/main/java/com/xiaoduo/deskpet/net/HttpClients.kt	6	04-agui-net	
+app/src/main/java/com/xiaoduo/deskpet/net/NetConfig.kt	7	04-agui-net	
+app/src/main/java/com/xiaoduo/deskpet/net/TokenStore.kt	5	04-agui-net	
+app/src/main/java/com/xiaoduo/deskpet/net/TtsVoiceDefaults.kt	2	04-agui-net	
+app/src/main/java/com/xiaoduo/deskpet/pet/EdgeDock.kt	5	06-recovery	05-util-device-pet-root
+app/src/main/java/com/xiaoduo/deskpet/pet/FrameAnimator.kt	5	06-recovery	05-util-device-pet-root
+app/src/main/java/com/xiaoduo/deskpet/pet/OverlayClamp.kt	4	06-recovery	05-util-device-pet-root
+app/src/main/java/com/xiaoduo/deskpet/pet/PetFrameTable.kt	4	06-recovery	05-util-device-pet-root
+app/src/main/java/com/xiaoduo/deskpet/ui/FullscreenVoiceLayout.kt	4	02-ui	
+app/src/main/java/com/xiaoduo/deskpet/ui/PetView.kt	5	06-recovery	02-ui
+app/src/main/java/com/xiaoduo/deskpet/ui/components/MarkdownContent.kt	7	06-recovery	02-ui
+app/src/main/java/com/xiaoduo/deskpet/ui/icons/AppIcons.kt	4	06-recovery	02-ui
+app/src/main/java/com/xiaoduo/deskpet/ui/navigation/AppNavHost.kt	5	06-recovery	02-ui
+app/src/main/java/com/xiaoduo/deskpet/ui/overlay/BubbleOwnership.kt	3	02-ui	
+app/src/main/java/com/xiaoduo/deskpet/ui/overlay/BubbleScrollPolicy.kt	3	02-ui	
+app/src/main/java/com/xiaoduo/deskpet/ui/overlay/BubbleTextStrip.kt	0		02-ui,06-recovery
+app/src/main/java/com/xiaoduo/deskpet/ui/overlay/BubbleView.kt	5	02-ui	02-ui
+app/src/main/java/com/xiaoduo/deskpet/ui/overlay/DebugBubbleReceiver.kt	4	06-recovery	02-ui
+app/src/main/java/com/xiaoduo/deskpet/ui/overlay/OverlayMenu.kt	7	07-rescue	02-ui,06-recovery
+app/src/main/java/com/xiaoduo/deskpet/ui/overlay/VoiceIndicatorModel.kt	5	02-ui	
+app/src/main/java/com/xiaoduo/deskpet/ui/overlay/VoiceIndicatorView.kt	4	02-ui	
+app/src/main/java/com/xiaoduo/deskpet/ui/screens/AecSpikeSection.kt	2	06-recovery	02-ui
+app/src/main/java/com/xiaoduo/deskpet/ui/screens/ChatScreen.kt	7	06-recovery	02-ui
+app/src/main/java/com/xiaoduo/deskpet/ui/screens/FullscreenVoiceScreen.kt	6	02-ui	
+app/src/main/java/com/xiaoduo/deskpet/ui/screens/InputBar.kt	7	06-recovery	02-ui
+app/src/main/java/com/xiaoduo/deskpet/ui/screens/PermissionScreen.kt	3	06-recovery	02-ui
+app/src/main/java/com/xiaoduo/deskpet/ui/screens/SessionDrawer.kt	7	06-recovery	02-ui
+app/src/main/java/com/xiaoduo/deskpet/ui/screens/SettingsScreen.kt	6	02-ui	
+app/src/main/java/com/xiaoduo/deskpet/ui/theme/Theme.kt	3	06-recovery	02-ui
+app/src/main/java/com/xiaoduo/deskpet/util/AppLauncher.kt	5	06-recovery	05-util-device-pet-root
+app/src/main/java/com/xiaoduo/deskpet/util/CrashReporter.kt	5	05-util-device-pet-root	
+app/src/main/java/com/xiaoduo/deskpet/util/LogRotator.kt	5	05-util-device-pet-root	
+app/src/main/java/com/xiaoduo/deskpet/util/NavInsetPolicy.kt	3	05-util-device-pet-root	
+app/src/main/java/com/xiaoduo/deskpet/util/PetLogger.kt	5	06-recovery	05-util-device-pet-root
+app/src/main/java/com/xiaoduo/deskpet/util/PrefContract.kt	5	06-recovery	05-util-device-pet-root
+app/src/main/java/com/xiaoduo/deskpet/util/Prefs.kt	4	05-util-device-pet-root	
+app/src/main/java/com/xiaoduo/deskpet/util/TapGesture.kt	1	06-recovery	05-util-device-pet-root
+app/src/main/java/com/xiaoduo/deskpet/voice/AmbientCalibrator.kt	6	06-recovery	01-voice
+app/src/main/java/com/xiaoduo/deskpet/voice/AsrClient.kt	4	06-recovery	01-voice
+app/src/main/java/com/xiaoduo/deskpet/voice/AudioCapture.kt	6	01-voice	
+app/src/main/java/com/xiaoduo/deskpet/voice/AudioProbe.kt	3	01-voice	
+app/src/main/java/com/xiaoduo/deskpet/voice/BubbleHidePolicy.kt	2	01-voice	
+app/src/main/java/com/xiaoduo/deskpet/voice/DynamicWakeAck.kt	3	01-voice	01-voice
+app/src/main/java/com/xiaoduo/deskpet/voice/EnergyGate.kt	5	01-voice	
+app/src/main/java/com/xiaoduo/deskpet/voice/KwsCore.kt	8	01-voice	
+app/src/main/java/com/xiaoduo/deskpet/voice/KwsDefaults.kt	2	06-recovery	01-voice
+app/src/main/java/com/xiaoduo/deskpet/voice/KwsEngine.kt	3	06-recovery	01-voice
+app/src/main/java/com/xiaoduo/deskpet/voice/ListeningHintPolicy.kt	2	06-recovery	01-voice
+app/src/main/java/com/xiaoduo/deskpet/voice/NlmsEchoCanceller.kt	0		01-voice,06-recovery
+app/src/main/java/com/xiaoduo/deskpet/voice/PrefetchBackoff.kt	4	06-recovery	01-voice
+app/src/main/java/com/xiaoduo/deskpet/voice/ReplyCarrier.kt	4	06-recovery	01-voice
+app/src/main/java/com/xiaoduo/deskpet/voice/RevealScheduler.kt	4	06-recovery	01-voice
+app/src/main/java/com/xiaoduo/deskpet/voice/SentenceSplitter.kt	5	06-recovery	01-voice
+app/src/main/java/com/xiaoduo/deskpet/voice/StampedBlock.kt	4	06-recovery	01-voice
+app/src/main/java/com/xiaoduo/deskpet/voice/TtsClient.kt	6	06-recovery	01-voice
+app/src/main/java/com/xiaoduo/deskpet/voice/TtsSanitizer.kt	3	01-voice	
+app/src/main/java/com/xiaoduo/deskpet/voice/VadDetector.kt	4	06-recovery	01-voice
+app/src/main/java/com/xiaoduo/deskpet/voice/VadSeamPolicy.kt	2	01-voice	
+app/src/main/java/com/xiaoduo/deskpet/voice/VoiceClientFactory.kt	6	01-voice	
+app/src/main/java/com/xiaoduo/deskpet/voice/VoicePlayer.kt	8	06-recovery	01-voice
+app/src/main/java/com/xiaoduo/deskpet/voice/VoiceSessionManager.kt	0		01-voice,06-recovery
+app/src/main/java/com/xiaoduo/deskpet/voice/VoiceStateRouter.kt	5	01-voice	
+app/src/main/java/com/xiaoduo/deskpet/voice/WakeAckAudio.kt	4	01-voice	
+app/src/main/java/com/xiaoduo/deskpet/voice/WakeAckCacheStore.kt	7	06-recovery	01-voice
+app/src/main/java/com/xiaoduo/deskpet/voice/WakeAckPrefetcher.kt	5	06-recovery	01-voice
+app/src/main/java/com/xiaoduo/deskpet/voice/WakeAckResolver.kt	6	06-recovery	01-voice
+app/src/main/java/com/xiaoduo/deskpet/voice/WakeAckSelector.kt	4	01-voice	
+app/src/main/java/com/xiaoduo/deskpet/voice/WakeBlindWindowBuffer.kt	6	06-recovery	01-voice
+app/src/main/java/com/xiaoduo/deskpet/voice/WavCodec.kt	4	01-voice	

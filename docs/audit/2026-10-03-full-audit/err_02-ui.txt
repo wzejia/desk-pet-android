@@ -1,0 +1,14 @@
+app/src/main/java/com/xiaoduo/deskpet/ui/PetView.kt
+app/src/main/java/com/xiaoduo/deskpet/ui/components/MarkdownContent.kt
+app/src/main/java/com/xiaoduo/deskpet/ui/icons/AppIcons.kt
+app/src/main/java/com/xiaoduo/deskpet/ui/navigation/AppNavHost.kt
+app/src/main/java/com/xiaoduo/deskpet/ui/overlay/BubbleTextStrip.kt
+app/src/main/java/com/xiaoduo/deskpet/ui/overlay/BubbleView.kt
+app/src/main/java/com/xiaoduo/deskpet/ui/overlay/DebugBubbleReceiver.kt
+app/src/main/java/com/xiaoduo/deskpet/ui/overlay/OverlayMenu.kt
+app/src/main/java/com/xiaoduo/deskpet/ui/screens/AecSpikeSection.kt
+app/src/main/java/com/xiaoduo/deskpet/ui/screens/ChatScreen.kt
+app/src/main/java/com/xiaoduo/deskpet/ui/screens/InputBar.kt
+app/src/main/java/com/xiaoduo/deskpet/ui/screens/PermissionScreen.kt
+app/src/main/java/com/xiaoduo/deskpet/ui/screens/SessionDrawer.kt
+app/src/main/java/com/xiaoduo/deskpet/ui/theme/Theme.kt

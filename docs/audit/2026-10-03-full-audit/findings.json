@@ -1,0 +1,340 @@
+{
+  "documentType": "codex-security.findings",
+  "findings": [
+    {
+      "attackPath": {
+        "dataflow": "Source: OkHttp TLS handshake to platform 443 (AG-UI SSE, upload, login-adjacent calls). Transform: WhitelistTrustManager.checkServerTrusted returns immediately when socket/engine peer IP is in TRUSTED_HOSTS; hostnameVerifier returns true for whitelisted host strings. Sink: OkHttp session established with attacker-supplied certificate; Bearer token, chat/TTS content, and uploaded bytes flow through the attacker.",
+        "reachability": "Attacker on the same LAN segment (ARP spoofing 10.0.18.166) receives the connection because OkHttp is pinned to Proxy.NO_PROXY; the socket peer address still reads 10.0.18.166, so the whitelist matches and any self-signed attacker certificate is accepted with no prompt or pin check."
+      },
+      "confidence": {
+        "level": "high",
+        "rationale": "Bypass conditions are unconditional in code and the full source-to-sink chain was traced line-by-line."
+      },
+      "extensions": {
+        "candidate_id": "candidate-892860315d5c1c76"
+      },
+      "findingId": "csf_aa8a1eca8c4df587b2e04f2a",
+      "fingerprints": {
+        "algorithm": "codex-security/v1",
+        "primary": "codex-security/v1:sha256:f0107561b897be631966219b3b6c9bc32499d374948c8d467317faaa55877ecb"
+      },
+      "identity": {
+        "anchor": "whitelist-trustmanager-accepts-any-certificate"
+      },
+      "locations": [
+        {
+          "path": "main/java/com/xiaoduo/deskpet/net/HttpClients.kt",
+          "role": "evidence",
+          "startLine": 25
+        },
+        {
+          "endLine": 49,
+          "path": "main/java/com/xiaoduo/deskpet/net/HttpClients.kt",
+          "role": "root_control",
+          "startLine": 47
+        },
+        {
+          "endLine": 88,
+          "path": "main/java/com/xiaoduo/deskpet/net/HttpClients.kt",
+          "role": "sink",
+          "startLine": 78
+        }
+      ],
+      "occurrenceId": "occ_4dfe87e30a51aa602119be92",
+      "provenance": {
+        "source": "local_plugin"
+      },
+      "remediation": "Replace the early-return in WhitelistTrustManager.checkServerTrusted with pinning: bundle the expected self-signed certificate (or its SPKI SHA-256) for each whitelisted IP and compare the leaf certificate before accepting; keep the default TrustManager for all other hosts and remove the hostnameVerifier bypass (verify the expected IP/CN mapping instead). Add a unit test asserting a mismatched certificate for 10.0.18.166 fails the handshake.",
+      "remediationTests": [
+        "Handshake against a MockWebServer presenting an unrelated self-signed certificate while the client targets a whitelisted host must fail."
+      ],
+      "rootCause": "The convenience feature 'trust self-signed certs for intranet hosts' was implemented as 'skip all validation for whitelisted IPs' instead of pinning the expected certificate, collapsing both certificate-chain validation and hostname verification to no-ops for the primary server channel.",
+      "ruleId": "tls-certificate-validation-bypass",
+      "severity": {
+        "level": "high"
+      },
+      "summary": "The custom X509ExtendedTrustManager accepts any certificate for the three whitelisted intranet IPs and the hostname verifier is bypassed for them, so an on-path LAN attacker can impersonate the platform 443 endpoint, intercept bearer tokens and uploaded files, and inject SSE/TTS content.",
+      "taxonomy": {
+        "category": "tls-validation",
+        "cwe": [
+          "CWE-295"
+        ]
+      },
+      "title": "TLS certificate validation bypassed for whitelisted intranet hosts",
+      "validation": {
+        "conclusion": "confirmed",
+        "counterevidence": "Endpoints are fixed intranet IPs and the deployment is documented as intranet-only; this bounds exposure to LAN-adjacent attackers but does not defeat the finding because the threat model explicitly includes on-path LAN attackers.",
+        "evidence": "HttpClients.kt:79 and 85 return before delegate.checkServerTrusted for whitelisted peer addresses; lines 47-49 hostnameVerifier short-circuits to true for TRUSTED_HOSTS; the shared client carries Authorization: Bearer headers (AguiClient.kt:742, AguiClient.kt:665) over this channel.",
+        "method": "Static source-to-sink trace of the full OkHttp TLS configuration in HttpClients.create() and every consumer of HttpClients.shared."
+      }
+    },
+    {
+      "attackPath": {
+        "dataflow": "Source: NetConfig.DEFAULT_PLATFORM_BASE = http://10.0.18.166:8080. Transform: NetEndpoints.loginUrl appends /login without scheme upgrade; AguiClient.login builds {username,password} JSON and POSTs via the shared cleartext-permitted OkHttp client. Sink: credentials transmitted in plaintext on every login and every ~25-minute token refresh.",
+        "reachability": "Any passive observer on the device LAN segment (managed-switch mirror port, rogue AP, ARP-spoofed host) captures the POST body directly; no TLS downgrade is needed because the connection is cleartext end to end."
+      },
+      "confidence": {
+        "level": "high",
+        "rationale": "Default constant, cleartext allowlist, and the exact POST body are directly verified in source; behavior is deterministic."
+      },
+      "extensions": {
+        "candidate_id": "candidate-b994bbefc24e7bae"
+      },
+      "findingId": "csf_730c1387dff299941c8c577b",
+      "fingerprints": {
+        "algorithm": "codex-security/v1",
+        "primary": "codex-security/v1:sha256:1621ae97ca931633ceaebe055c171307ad76ace61be7be8b59f63161d48cef9a"
+      },
+      "identity": {
+        "anchor": "platform-login-over-cleartext-http"
+      },
+      "locations": [
+        {
+          "endLine": 11,
+          "path": "main/res/xml/network_security_config.xml",
+          "role": "evidence",
+          "startLine": 7
+        },
+        {
+          "path": "main/java/com/xiaoduo/deskpet/net/NetConfig.kt",
+          "role": "source",
+          "startLine": 90
+        },
+        {
+          "endLine": 296,
+          "path": "main/java/com/xiaoduo/deskpet/agui/AguiClient.kt",
+          "role": "sink",
+          "startLine": 283
+        }
+      ],
+      "occurrenceId": "occ_aa0c73ac7f072ba70ca9078d",
+      "provenance": {
+        "source": "local_plugin"
+      },
+      "remediation": "Serve login over the existing 443 reverse proxy (e.g. POST https://{host}/ai-server/auth/login) and switch NetEndpoints.loginUrl to derive the https:// URL from the platform host exactly as agentStreamUrl already does; if :8080 must remain for legacy devices, gate cleartext login behind an explicit settings opt-in and stop re-sending the password by extending token refresh.",
+      "remediationTests": [
+        "Contract test asserting loginUrl() starts with https:// whenever platformBase host is set."
+      ],
+      "rootCause": "Only the agent-stream endpoint was migrated behind the 443 self-signed reverse proxy; the login endpoint kept the original intranet HTTP :8080 contract, so the most sensitive request in the app is the only one that never upgrades to TLS.",
+      "ruleId": "cleartext-credential-transmission",
+      "severity": {
+        "level": "medium"
+      },
+      "summary": "The platform account and password are POSTed as JSON over cleartext HTTP by default (http://10.0.18.166:8080), and the ~25-minute token expiry re-sends the password on every re-login, letting a passive on-path attacker harvest the admin credentials.",
+      "taxonomy": {
+        "category": "cleartext-transport",
+        "cwe": [
+          "CWE-319"
+        ]
+      },
+      "title": "Platform login sends account and password over cleartext HTTP",
+      "validation": {
+        "conclusion": "confirmed",
+        "counterevidence": "Deployment docs treat 10.0.18.166 as intranet-only and the platform may not offer TLS on :8080 at all (server-side constraint outside this repository); this bounds impact to the intranet threat model rather than eliminating it.",
+        "evidence": "NetConfig.kt:90 default base is http://; network_security_config.xml:7-11 explicitly permits cleartext to 10.0.18.166; AguiClient.kt:283-296 sends the credential body on every fresh login; TokenPolicy.TTL_MS = 25min forces periodic re-login.",
+        "method": "Static trace of the login flow from NetConfig defaults through NetEndpoints.loginUrl to the OkHttp POST, cross-checked against network_security_config.xml."
+      }
+    },
+    {
+      "attackPath": {
+        "dataflow": "Source: user-entered account/password/API keys plus the platform bearer token after login. Transform: NetConfig.saveAll writes them as plaintext strings into the xiaoduo_net preferences file; BuildConfig constants embed build-time cloud keys into the APK DEX/resources. Sink: on-disk XML in the app sandbox and statically extractable constants in any distributed APK.",
+        "reachability": "Rooted device or brief local access reads the preferences XML directly; anyone holding a distributed APK extracts the built-in keys by static analysis; allowBackup=false blocks only the cloud-backup path."
+      },
+      "confidence": {
+        "level": "high",
+        "rationale": "Storage calls and BuildConfig wiring are direct, grep-verified facts; exposure follows from standard Android platform properties."
+      },
+      "extensions": {
+        "candidate_id": "candidate-2f70cd165037d766"
+      },
+      "findingId": "csf_576d49d528e66bcf6b6ca3c3",
+      "fingerprints": {
+        "algorithm": "codex-security/v1",
+        "primary": "codex-security/v1:sha256:5f33987f92fe0f8338656e81c8dbbf26075ba964729f551552950c345f9ff149"
+      },
+      "identity": {
+        "anchor": "netconfig-preferences-and-buildconfig-keys"
+      },
+      "locations": [
+        {
+          "endLine": 105,
+          "path": "main/java/com/xiaoduo/deskpet/net/NetConfig.kt",
+          "role": "source",
+          "startLine": 103
+        },
+        {
+          "endLine": 263,
+          "path": "main/java/com/xiaoduo/deskpet/net/NetConfig.kt",
+          "role": "sink",
+          "startLine": 236
+        },
+        {
+          "endLine": 45,
+          "path": "main/java/com/xiaoduo/deskpet/net/TokenStore.kt",
+          "role": "sink",
+          "startLine": 43
+        }
+      ],
+      "occurrenceId": "occ_e9948e07b7973e0573182471",
+      "provenance": {
+        "source": "local_plugin"
+      },
+      "remediation": "Move secrets to Android Keystore-backed storage (e.g. EncryptedSharedPreferences or Jetpack Security) for password, token, and API keys; remove the BuildConfig-baked key fallback and require per-device key entry (or a backend-issued short-lived token); if a bundled key is unavoidable, scope it to a least-privilege proxy key.",
+      "remediationTests": [
+        "Round-trip test: values written through NetConfig saveAll read back through the Keystore-backed store; grep-style contract test asserting no secret keys are written to plain SharedPreferences."
+      ],
+      "rootCause": "Secrets were treated as ordinary settings: the same SharedPreferences file that stores endpoint URLs also stores the password, bearer token, and vendor API keys, and a build-time convenience injects fallback keys as compile-time constants.",
+      "ruleId": "plaintext-credential-storage",
+      "severity": {
+        "level": "medium"
+      },
+      "summary": "Account password, platform bearer token, and cloud API keys (OpenAI/Aliyun/Volcengine) are persisted in plaintext SharedPreferences, and BuildConfig-injected API keys are packaged into the APK where static extraction recovers them.",
+      "taxonomy": {
+        "category": "insecure-storage",
+        "cwe": [
+          "CWE-312",
+          "CWE-798"
+        ]
+      },
+      "title": "Credentials and API keys stored in plaintext and packaged into the APK",
+      "validation": {
+        "conclusion": "confirmed",
+        "counterevidence": "allowBackup=false and MODE_PRIVATE sandboxing reduce primary exposure to rooted devices; BUILTIN_* keys are blank unless the build injected secrets/cloud.properties, so packaged-key impact is conditional on the analyzed artifact \u2014 the unconditional plaintext storage path remains a real weakness.",
+        "evidence": "NetConfig.kt:236-263 writes KEY_PASSWORD/KEY_CLOUD_KEY/KEY_VOLC_SPEECH_KEY/KEY_ALIYUN_SPEECH_KEY as plaintext; TokenStore.kt:45 persists the token plaintext; NetConfig.kt:103-105 reads BuildConfig.CLOUD_KEY/ALIYUN_SPEECH_KEY/VOLC_SPEECH_KEY; repo-wide grep found no EncryptedSharedPreferences or Keystore usage.",
+        "method": "Repo-wide storage-path grep plus Android API surface check for Keystore/EncryptedSharedPreferences."
+      }
+    },
+    {
+      "attackPath": {
+        "dataflow": "Source: uncaught exception stack traces (potentially containing endpoint URLs, file names, or user data in exception messages). Transform: CrashReporter.writeCrash appends them to files/logs/crash-<day>.log; LogRotator nameRegex only matches xiaoduo-<date>.log so neither PetLogger startup cleanup nor the export allowlist ever sees the crash files. Sink: unbounded accumulation of sensitive stack traces in the FileProvider-shared logs/ directory.",
+        "reachability": "Every crash appends a file that is never deleted for the lifetime of the app installation; on long-lived kiosk boards (the primary deployment target) this grows without bound and retains old crash content indefinitely."
+      },
+      "confidence": {
+        "level": "high",
+        "rationale": "The filename-prefix mismatch is mechanically verifiable across CrashReporter/LogRotator/PetLogger; no other cleanup path exists."
+      },
+      "extensions": {
+        "candidate_id": "candidate-c6336a896b504f67"
+      },
+      "findingId": "csf_fc967e8443c6790ca07aad62",
+      "fingerprints": {
+        "algorithm": "codex-security/v1",
+        "primary": "codex-security/v1:sha256:497f04bc08dbd0e308c839aa3a0db56923d184768ea8e8bc0de496a5033bea1e"
+      },
+      "identity": {
+        "anchor": "crash-log-files-bypass-rotation-filter"
+      },
+      "locations": [
+        {
+          "endLine": 28,
+          "path": "main/java/com/xiaoduo/deskpet/util/LogRotator.kt",
+          "role": "root_control",
+          "startLine": 21
+        },
+        {
+          "endLine": 47,
+          "path": "main/java/com/xiaoduo/deskpet/util/CrashReporter.kt",
+          "role": "sink",
+          "startLine": 40
+        },
+        {
+          "endLine": 33,
+          "path": "main/java/com/xiaoduo/deskpet/util/PetLogger.kt",
+          "role": "evidence",
+          "startLine": 29
+        }
+      ],
+      "occurrenceId": "occ_1a167b5433f059d09dfa5657",
+      "provenance": {
+        "source": "local_plugin"
+      },
+      "remediation": "Extend LogRotator (or add a sibling filter) to recognize crash-<date>.log and include those files in expiredFiles cleanup with their own retention window; alternatively have CrashReporter reuse the xiaoduo-<date>.log naming with a marker line, so a single filter governs rotation, cleanup, and export.",
+      "remediationTests": [
+        "Unit test: expiredFiles([crash-2020-01-01.log], today) returns the stale crash file; integration test: simulated crash logs are deleted after KEEP_DAYS."
+      ],
+      "rootCause": "CrashReporter was added later with its own crash- prefix, but the retention policy stayed anchored to the xiaoduo-*.log name pattern, so the two filename conventions never reunited under one cleanup rule.",
+      "ruleId": "unbounded-crash-log-retention",
+      "severity": {
+        "level": "low"
+      },
+      "summary": "Crash logs are written as crash-YYYY-MM-DD.log but rotation, cleanup, and export filters only match xiaoduo-*.log, so stack traces accumulate indefinitely in the app logs directory (which is also the FileProvider root).",
+      "taxonomy": {
+        "category": "log-retention",
+        "cwe": [
+          "CWE-459"
+        ]
+      },
+      "title": "Crash logs exempt from rotation and cleanup accumulate unbounded",
+      "validation": {
+        "conclusion": "confirmed",
+        "counterevidence": "The files remain app-private and the share sheet filters them out, so the practical impact is unbounded growth and indefinite retention rather than direct disclosure; severity is low but the flaw is deterministic.",
+        "evidence": "CrashReporter.kt:17 PREFIX=crash- and :38 crashFileFor builds crash-<day>.log; LogRotator.kt:21 regex matches only xiaoduo-<date>.log; PetLogger.kt:29-33 cleanup and :41-47 logFiles() both filter through that regex; file_paths.xml exposes logs/ to FileProvider.",
+        "method": "Filename-convention mismatch traced across CrashReporter, LogRotator, PetLogger, and file_paths.xml."
+      }
+    },
+    {
+      "attackPath": {
+        "dataflow": "Source: any co-installed app broadcasts com.xiaoduo.deskpet.DEBUG_BUBBLE[_APPEND|_HIDE] with a text extra. Transform: the receiver checks only ApplicationInfo.FLAG_DEBUGGABLE, then claims a DEBUG-owner bubble round and forwards the extra to PetOverlayService.showBubble. Sink: attacker-controlled text rendered in the SYSTEM_ALERT_WINDOW bubble above other apps (debug builds).",
+        "reachability": "On debug builds (the project's standard internal test artifacts) any app can trigger this with one broadcast and no permissions; release builds return before any action, so impact is confined to debuggable installations."
+      },
+      "confidence": {
+        "level": "medium",
+        "rationale": "Code behavior is certain, but impact requires a debuggable build in the field plus a malicious co-installed app."
+      },
+      "extensions": {
+        "candidate_id": "candidate-d94011af437600be"
+      },
+      "findingId": "csf_bae33759473bf7b2ac40378b",
+      "fingerprints": {
+        "algorithm": "codex-security/v1",
+        "primary": "codex-security/v1:sha256:d9f050f73292339c0f88fcc3e94c073d5d724449e684e7e745aecb95955cfff3"
+      },
+      "identity": {
+        "anchor": "debugbubble-receiver-exported-without-permission"
+      },
+      "locations": [
+        {
+          "endLine": 26,
+          "path": "main/java/com/xiaoduo/deskpet/ui/overlay/DebugBubbleReceiver.kt",
+          "role": "root_control",
+          "startLine": 24
+        },
+        {
+          "endLine": 65,
+          "path": "main/AndroidManifest.xml",
+          "role": "sink",
+          "startLine": 57
+        }
+      ],
+      "occurrenceId": "occ_a5c052b273f46e4ea3fb8cc3",
+      "provenance": {
+        "source": "local_plugin"
+      },
+      "remediation": "Set android:exported=\"false\" on the receiver for release builds (manifest placeholders or a debug-only manifest overlay), or add a signature-level custom permission to the intent filter; keep the adb (shell) path working by registering the receiver in debug-only source instead of the main manifest.",
+      "remediationTests": [
+        "Robolectric test: broadcast from a non-debug application context is dropped; instrumented test: release build ignores DEBUG_BUBBLE actions."
+      ],
+      "rootCause": "ColorOS cannot deliver shell broadcasts to non-exported receivers, so the debug affordance was exported in the main manifest for all builds and the release safety was delegated entirely to a runtime FLAG_DEBUGGABLE check instead of manifest-level separation.",
+      "ruleId": "exported-debug-component",
+      "severity": {
+        "level": "low"
+      },
+      "summary": "DebugBubbleReceiver is exported with no permission; in debug builds any co-installed app can drive the SYSTEM_ALERT_WINDOW bubble with arbitrary text, and release builds are protected only by the runtime FLAG_DEBUGGABLE guard.",
+      "taxonomy": {
+        "category": "component-exposure",
+        "cwe": [
+          "CWE-926"
+        ]
+      },
+      "title": "Exported debug bubble receiver guarded only by FLAG_DEBUGGABLE",
+      "validation": {
+        "conclusion": "confirmed",
+        "counterevidence": "The guard fully protects release builds and the manifest documents the export as a deliberate ColorOS shell-broadcast affordance \u2014 accepted-risk counterevidence that narrows impact to debug distributions but does not close the debug-build attack path.",
+        "evidence": "AndroidManifest.xml:57-65 declares the receiver exported with three custom actions and no permission; DebugBubbleReceiver.kt:24 FLAG_DEBUGGABLE early-return is the only caller check; text flows to svc.showBubble(BubbleOwner.DEBUG, ...).",
+        "method": "Manifest export posture plus receiver guard and overlay sink trace."
+      }
+    }
+  ],
+  "scanId": "3aedab54-1c4d-4fe4-8bb4-b30f9beba62d",
+  "schemaVersion": "1.0"
+}

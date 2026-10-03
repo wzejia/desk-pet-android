@@ -1,0 +1,6 @@
+[ocr] full-scan: 1 file(s) discovered, reviewing 1 in E:\desk-pet-android
+[ocr] estimated cost: ~1 file(s), est. 43K input + 5K output ≈ 49K total tokens (rough; actual reported after run)
+[ocr] scan dispatch: 1 batch(es) by by-language strategy
+[ocr] Scan subtask error for app/src/main/java/com/xiaoduo/deskpet/chat/MarkdownRenderer.kt (batch #0): LLM completion error: context deadline exceeded
+[ocr] Session: 9d3403c6-bc57-463d-9a5d-84e8ed3555e4 (retry with: --resume 9d3403c6-bc57-463d-9a5d-84e8ed3555e4)
+Error: scan failed: all 1 file scan(s) failed — check your LLM configuration and API key

@@ -1,0 +1,138 @@
+{
+  "completeness": "complete",
+  "deferred": [],
+  "documentType": "codex-security.coverage",
+  "excludePaths": [],
+  "explicitExclusions": [],
+  "includePaths": [
+    "."
+  ],
+  "inventoryStrategy": "repository",
+  "mode": "repository",
+  "openQuestions": [
+    {
+      "followUpPrompt": "Review network segmentation for 10.0.18.166/97/24 and decide whether the WhitelistTrustManager can be replaced with SPKI pinning.",
+      "question": "Confirm whether production deployments segment 10.0.18.x from user Wi-Fi; the TLS whitelist bypass and cleartext login severity both hinge on realistic LAN attacker access."
+    },
+    {
+      "followUpPrompt": "Inventory distributed APKs for embedded CLOUD_KEY/ALIYUN/VOLC values and rotate any that shipped.",
+      "question": "Determine which release artifacts embed non-empty BuildConfig cloud keys (secrets/cloud.properties) so key rotation can be scoped."
+    }
+  ],
+  "scanId": "3aedab54-1c4d-4fe4-8bb4-b30f9beba62d",
+  "schemaVersion": "1.0",
+  "surfaces": [
+    {
+      "disposition": "reported",
+      "id": "surface_tls_trust",
+      "label": "TLS trust and 443 transport (HttpClients, AG-UI stream, upload)",
+      "notes": "WhitelistTrustManager accepts any certificate for whitelisted IPs; hostname verification skipped (candidate-892860315d5c1c76).",
+      "receiptRefs": [],
+      "riskArea": "Transport security"
+    },
+    {
+      "disposition": "reported",
+      "id": "surface_login_transport",
+      "label": "Platform login transport",
+      "notes": "Password POSTed over cleartext HTTP by default; cleartext allowed for 10.0.18.166 (candidate-b994bbefc24e7bae).",
+      "receiptRefs": [],
+      "riskArea": "Transport security"
+    },
+    {
+      "disposition": "reported",
+      "id": "surface_secret_storage",
+      "label": "Credential and key storage",
+      "notes": "Password/token/API keys in plaintext SharedPreferences; BuildConfig-injected keys packaged into APK (candidate-2f70cd165037d766).",
+      "receiptRefs": [],
+      "riskArea": "Secrets at rest"
+    },
+    {
+      "disposition": "reported",
+      "id": "surface_log_retention",
+      "label": "Logging and crash retention",
+      "notes": "crash-*.log bypasses xiaoduo-*.log-only rotation/cleanup/export filters; unbounded retention (candidate-c6336a896b504f67).",
+      "receiptRefs": [],
+      "riskArea": "Sensitive data lifecycle"
+    },
+    {
+      "disposition": "reported",
+      "id": "surface_exported_components",
+      "label": "Exported components",
+      "notes": "DebugBubbleReceiver exported without permission; FLAG_DEBUGGABLE guard protects release only (candidate-d94011af437600be).",
+      "receiptRefs": [],
+      "riskArea": "Attack surface"
+    },
+    {
+      "disposition": "rejected",
+      "id": "surface_device_bridge",
+      "label": "Device skills and shelf MCP bridge",
+      "notes": "Device commands route through conservative whitelisted intent matchers; the latent runId JSON-template weakness (candidate-a324a24d57ae03c6) was suppressed: runId is client-generated and tools are whitelisted.",
+      "receiptRefs": [],
+      "riskArea": "Physical device control"
+    },
+    {
+      "disposition": "no_issue_found",
+      "id": "surface_agui",
+      "label": "AG-UI client, SSE consumer, file upload",
+      "notes": "Token never logged; SSE parsed defensively; upload bounded to 20MB; error envelopes truncated.",
+      "receiptRefs": [],
+      "riskArea": "Server communication"
+    },
+    {
+      "disposition": "no_issue_found",
+      "id": "surface_cloud_clients",
+      "label": "Cloud ASR/TTS/LLM clients (OpenAI/Aliyun/Volcengine)",
+      "notes": "Keys sent only in headers, never logged; timeouts bounded; malformed responses handled without crashes.",
+      "receiptRefs": [],
+      "riskArea": "Server communication"
+    },
+    {
+      "disposition": "no_issue_found",
+      "id": "surface_chat",
+      "label": "Chat codecs, session store, view model and screens",
+      "notes": "Corrupt JSON degrades safely; busy/epoch guards prevent cross-session writes; no link/URI handling in message rendering.",
+      "receiptRefs": [],
+      "riskArea": "Data integrity / UI"
+    },
+    {
+      "disposition": "no_issue_found",
+      "id": "surface_markdown",
+      "label": "Markdown and bubble rendering",
+      "notes": "Server text rendered as styled plain text only (bold/italic/code spans); no Linkify, WebView, URI launch, or clickable-link surface found repo-wide.",
+      "receiptRefs": [],
+      "riskArea": "Content injection"
+    },
+    {
+      "disposition": "no_issue_found",
+      "id": "surface_voice_pipeline",
+      "label": "Voice pipeline (VAD, KWS, ASR/TTS session, wake-ack cache)",
+      "notes": "WAV parsing bounds-checked; buffers bounded (DROP_OLDEST/deques); cache file names sanitized+hashed; no transcript logging.",
+      "receiptRefs": [],
+      "riskArea": "Parser robustness"
+    },
+    {
+      "disposition": "no_issue_found",
+      "id": "surface_utilities",
+      "label": "General utilities (prefs, logger, app launcher, gestures)",
+      "notes": "No secrets in logs (repo-wide grep); launcher targets user-configured packages; rotation logic clean for its own file class.",
+      "receiptRefs": [],
+      "riskArea": "Hardening"
+    },
+    {
+      "disposition": "not_applicable",
+      "id": "surface_assets",
+      "label": "Bundled binary assets (ONNX models, WAV, PNG/WebP)",
+      "notes": "17 binary assets verified as standard-format data via header/chunk inspection; no executable content; consumed by fixed asset paths.",
+      "receiptRefs": [],
+      "riskArea": "Data assets"
+    },
+    {
+      "disposition": "no_issue_found",
+      "id": "surface_tests",
+      "label": "Test source set (84 files + fixtures)",
+      "notes": "Unit tests lock down reviewed logic; only dummy credentials in test fixtures; parity WAVs are well-formed test data.",
+      "receiptRefs": [],
+      "riskArea": "Quality gates"
+    }
+  ]
+}

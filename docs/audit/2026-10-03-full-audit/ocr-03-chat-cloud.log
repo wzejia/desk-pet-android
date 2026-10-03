@@ -1,0 +1,179 @@
+[ocr] full-scan: 24 file(s) discovered, reviewing 24 in E:\desk-pet-android
+[ocr] estimated cost: ~24 file(s), est. 676K input + 129K output ≈ 804K total tokens (rough; actual reported after run)
+[ocr] scan dispatch: 1 batch(es) by by-language strategy
+[ocr] scan plan failed for app/src/main/java/com/xiaoduo/deskpet/chat/FileListRules.kt: POST "http://127.0.0.1:18924/v1/messages": 429 Too Many Requests (Request-ID: 2026100301204392e4d37b3f7c4f0f) {"type":"error","error":{"type":"rate_limit_error","code":"1302","message":"[1302][您的账户已达到速率限制，请您控制请求频率][2026100301204392e4d37b3f7c4f0f]"},"request_id":"2026100301204392e4d37b3f7c4f0f"} (falling back to plan-less)
+[ocr] Scan subtask error for app/src/main/java/com/xiaoduo/deskpet/chat/FileListRules.kt (batch #0): LLM completion error: POST "http://127.0.0.1:18924/v1/messages": 429 Too Many Requests (Request-ID: 202610030120594bc5d2e10a53411d) {"type":"error","error":{"type":"rate_limit_error","code":"1302","message":"[1302][您的账户已达到速率限制，请您控制请求频率][202610030120594bc5d2e10a53411d]"},"request_id":"202610030120594bc5d2e10a53411d"}
+[ocr] scan plan failed for app/src/main/java/com/xiaoduo/deskpet/chat/FunctionKeyLogic.kt: POST "http://127.0.0.1:18924/v1/messages": 429 Too Many Requests (Request-ID: 20261003012115244b0c3e0e834ff4) {"type":"error","error":{"type":"rate_limit_error","code":"1302","message":"[1302][您的账户已达到速率限制，请您控制请求频率][20261003012115244b0c3e0e834ff4]"},"request_id":"20261003012115244b0c3e0e834ff4"} (falling back to plan-less)
+[ocr] Scan subtask error for app/src/main/java/com/xiaoduo/deskpet/chat/FunctionKeyLogic.kt (batch #0): LLM completion error: POST "http://127.0.0.1:18924/v1/messages": 429 Too Many Requests (Request-ID: 20261003012131ab6c87857371441c) {"type":"error","error":{"type":"rate_limit_error","code":"1302","message":"[1302][您的账户已达到速率限制，请您控制请求频率][20261003012131ab6c87857371441c]"},"request_id":"20261003012131ab6c87857371441c"}
+[ocr]   ▶ code_search search_text=deviceIntentOrNull
+[ocr]   ✔ code_search (50ms)
+[ocr]   ▶ code_search use_perl_regexp=true search_text=(object|class) DeviceIntentMatcher
+[ocr]   ✔ code_search (65ms)
+[ocr]   ▶ file_read start_line=440 end_line=500
+[ocr]   ✔ file_read (0s)
+[ocr]   ▶ file_read end_line=80 start_line=1
+[ocr]   ✔ file_read (0s)
+[ocr] scan plan failed for app/src/main/java/com/xiaoduo/deskpet/chat/MarkdownRenderer.kt: POST "http://127.0.0.1:18924/v1/messages": 429 Too Many Requests (Request-ID: 202610030121473e883136f98444ae) {"type":"error","error":{"type":"rate_limit_error","code":"1302","message":"[1302][您的账户已达到速率限制，请您控制请求频率][202610030121473e883136f98444ae]"},"request_id":"202610030121473e883136f98444ae"} (falling back to plan-less)
+[ocr]   ▶ code_search search_text=fun deviceBaseUrl
+[ocr]   ✔ code_search (53ms)
+[ocr]   ▶ file_read end_line=235 start_line=205
+[ocr]   ✔ file_read (1ms)
+[ocr] Scan subtask error for app/src/main/java/com/xiaoduo/deskpet/chat/MarkdownRenderer.kt (batch #0): LLM completion error: POST "http://127.0.0.1:18924/v1/messages": 429 Too Many Requests (Request-ID: 2026100301220389e22cb6b6a94a15) {"type":"error","error":{"type":"rate_limit_error","code":"1302","message":"[1302][您的账户已达到速率限制，请您控制请求频率][2026100301220389e22cb6b6a94a15]"},"request_id":"2026100301220389e22cb6b6a94a15"}
+[ocr] scan plan failed for app/src/main/java/com/xiaoduo/deskpet/chat/SessionIndexCodec.kt: POST "http://127.0.0.1:18924/v1/messages": 429 Too Many Requests (Request-ID: 20261003012220e8a756b954bb475f) {"type":"error","error":{"type":"rate_limit_error","code":"1302","message":"[1302][您的账户已达到速率限制，请您控制请求频率][20261003012220e8a756b954bb475f]"},"request_id":"20261003012220e8a756b954bb475f"} (falling back to plan-less)
+[ocr] Scan subtask error for app/src/main/java/com/xiaoduo/deskpet/chat/SessionIndexCodec.kt (batch #0): LLM completion error: POST "http://127.0.0.1:18924/v1/messages": 429 Too Many Requests (Request-ID: 2026100301223771db7c4a1786407c) {"type":"error","error":{"type":"rate_limit_error","code":"1302","message":"[1302][您的账户已达到速率限制，请您控制请求频率][2026100301223771db7c4a1786407c]"},"request_id":"2026100301223771db7c4a1786407c"}
+[ocr]   ▶ file_find query_name=ChatHistoryCodec
+[ocr]   ✔ file_find (17ms)
+[ocr]   ▶ code_search search_text=wireId
+[ocr]   ✔ code_search (60ms)
+[ocr]   ▶ code_search search_text=STREAMING|SENDING use_perl_regexp=true
+[ocr]   ✔ code_search (74ms)
+[ocr]   ▶ code_comment
+[ocr]   ✔ code_comment (0s)
+[ocr]   ▶ code_search search_text=deriveTitle
+[ocr]   ✔ code_search (51ms)
+[ocr]   ▶ code_search search_text=titleManual
+[ocr]   ✔ code_search (49ms)
+[ocr]   ▶ file_read
+[ocr]   ✔ file_read (1ms)
+[ocr]   ▶ code_search search_text=fromWire
+[ocr]   ✔ code_search (55ms)
+[ocr]   ▶ code_search search_text=ChatTurnLogic|applyDelta use_perl_regexp=true
+[ocr]   ✔ code_search (53ms)
+[ocr]   ▶ code_search search_text=fun clean
+[ocr]   ✔ code_search (58ms)
+[ocr]   ▶ file_read end_line=240 start_line=140
+[ocr]   ✔ file_read (1ms)
+[ocr]   ▶ file_read
+[ocr]   ✔ file_read (1ms)
+[ocr] Scan subtask error for app/src/main/java/com/xiaoduo/deskpet/chat/ChatTurnLogic.kt (batch #0): LLM completion error: POST "http://127.0.0.1:18924/v1/messages": 429 Too Many Requests (Request-ID: 20261003012324b5cfcb7011a54e70) {"type":"error","error":{"type":"rate_limit_error","code":"1302","message":"[1302][您的账户已达到速率限制，请您控制请求频率][20261003012324b5cfcb7011a54e70]"},"request_id":"20261003012324b5cfcb7011a54e70"}
+[ocr]   ▶ code_comment
+[ocr]   ✔ code_comment (0s)
+[ocr]   ▶ file_find query_name=ChatMessage
+[ocr]   ✔ file_find (15ms)
+[ocr]   ▶ code_search search_text=fromWire
+[ocr]   ✔ code_search (52ms)
+[ocr] Scan subtask error for app/src/main/java/com/xiaoduo/deskpet/chat/ChatSession.kt (batch #0): LLM completion error: POST "http://127.0.0.1:18924/v1/messages": 429 Too Many Requests (Request-ID: 2026100301234289d4bfcc827d4cc8) {"type":"error","error":{"type":"rate_limit_error","code":"1302","message":"[1302][您的账户已达到速率限制，请您控制请求频率][2026100301234289d4bfcc827d4cc8]"},"request_id":"2026100301234289d4bfcc827d4cc8"}
+[ocr]   ▶ file_read
+[ocr]   ✔ file_read (1ms)
+[ocr]   ▶ code_search file_patterns=[app/src/main/java/com/xiaoduo/deskpet/chat/] search_text=ChatHistoryCodec|decode\(|Status\.ERROR
+[ocr]   ✔ code_search (17ms)
+[ocr] scan plan failed for app/src/main/java/com/xiaoduo/deskpet/chat/ThinkCleaner.kt: POST "http://127.0.0.1:18924/v1/messages": 429 Too Many Requests (Request-ID: 20261003012359189ed9aa3bf34c8c) {"type":"error","error":{"type":"rate_limit_error","code":"1302","message":"[1302][您的账户已达到速率限制，请您控制请求频率][20261003012359189ed9aa3bf34c8c]"},"request_id":"20261003012359189ed9aa3bf34c8c"} (falling back to plan-less)
+[ocr] Scan subtask error for app/src/main/java/com/xiaoduo/deskpet/chat/ThinkCleaner.kt (batch #0): LLM completion error: POST "http://127.0.0.1:18924/v1/messages": 429 Too Many Requests (Request-ID: 20261003012416c6ce378d05764f5f) {"type":"error","error":{"type":"rate_limit_error","code":"1302","message":"[1302][您的账户已达到速率限制，请您控制请求频率][20261003012416c6ce378d05764f5f]"},"request_id":"20261003012416c6ce378d05764f5f"}
+[ocr] scan plan failed for app/src/main/java/com/xiaoduo/deskpet/cloud/AliyunAsrClient.kt: POST "http://127.0.0.1:18924/v1/messages": 429 Too Many Requests (Request-ID: 20261003012433df34cec85eb34829) {"type":"error","error":{"type":"rate_limit_error","code":"1302","message":"[1302][您的账户已达到速率限制，请您控制请求频率][20261003012433df34cec85eb34829]"},"request_id":"20261003012433df34cec85eb34829"} (falling back to plan-less)
+[ocr]   ▶ code_search search_text=ChatHistoryCodec\.
+[ocr] Scan subtask error for app/src/main/java/com/xiaoduo/deskpet/cloud/AliyunAsrClient.kt (batch #0): LLM completion error: POST "http://127.0.0.1:18924/v1/messages": 429 Too Many Requests (Request-ID: 202610030124491c0c389b70a14514) {"type":"error","error":{"type":"rate_limit_error","code":"1302","message":"[1302][您的账户已达到速率限制，请您控制请求频率][202610030124491c0c389b70a14514]"},"request_id":"202610030124491c0c389b70a14514"}
+[ocr]   ✔ code_search (64ms)
+[ocr]   ▶ code_search search_text=shouldRotateForIdle|currentAfterDelete use_perl_regexp=true
+[ocr]   ✔ code_search (78ms)
+[ocr]   ▶ code_search file_patterns=[*.kt] search_text=class ChatSession
+[ocr]   ✔ code_search (16ms)
+[ocr]   ▶ code_search file_patterns=[*.kt] search_text=object SessionIndexCodec
+[ocr]   ✔ code_search (16ms)
+[ocr]   ▶ code_search file_patterns=[*.kt] search_text=fun decode
+[ocr]   ✔ code_search (15ms)
+[ocr]   ▶ file_read end_line=60 start_line=1
+[ocr]   ✔ file_read (1ms)
+[ocr]   ▶ file_read end_line=30 start_line=1
+[ocr]   ✔ file_read (1ms)
+[ocr]   ▶ file_read end_line=625 start_line=595
+[ocr]   ✔ file_read (0s)
+[ocr] Scan subtask error for app/src/main/java/com/xiaoduo/deskpet/chat/ChatHistoryCodec.kt (batch #0): LLM completion error: POST "http://127.0.0.1:18924/v1/messages": 429 Too Many Requests (Request-ID: 202610030125067f69cd182a8e40a0) {"type":"error","error":{"type":"rate_limit_error","code":"1302","message":"[1302][您的账户已达到速率限制，请您控制请求频率][202610030125067f69cd182a8e40a0]"},"request_id":"202610030125067f69cd182a8e40a0"}
+[ocr]   ▶ code_search search_text=class (ChatSession|ChatMessage)\b use_perl_regexp=true
+[ocr]   ✔ code_search (48ms)
+[ocr]   ▶ code_search search_text=SessionSearch.search
+[ocr]   ✔ code_search (65ms)
+[ocr]   ▶ code_search search_text=SuggestedQuestions
+[ocr]   ✔ code_search (67ms)
+[ocr]   ▶ file_read end_line=40 start_line=1
+[ocr]   ✔ file_read (1ms)
+[ocr]   ▶ file_read end_line=40 start_line=1
+[ocr]   ✔ file_read (1ms)
+[ocr]   ▶ file_read end_line=145 start_line=115
+[ocr]   ✔ file_read (1ms)
+[ocr] Scan subtask error for app/src/main/java/com/xiaoduo/deskpet/chat/SuggestedQuestions.kt (batch #0): LLM completion error: POST "http://127.0.0.1:18924/v1/messages": 429 Too Many Requests (Request-ID: 20261003012525602afe049b264f5f) {"type":"error","error":{"type":"rate_limit_error","code":"1302","message":"[1302][您的账户已达到速率限制，请您控制请求频率][20261003012525602afe049b264f5f]"},"request_id":"20261003012525602afe049b264f5f"}
+[ocr] scan plan failed for app/src/main/java/com/xiaoduo/deskpet/cloud/OpenAIAsrClient.kt: POST "http://127.0.0.1:18924/v1/messages": 429 Too Many Requests (Request-ID: 2026100301254199b300ec604a488e) {"type":"error","error":{"type":"rate_limit_error","code":"1302","message":"[1302][您的账户已达到速率限制，请您控制请求频率][2026100301254199b300ec604a488e]"},"request_id":"2026100301254199b300ec604a488e"} (falling back to plan-less)
+[ocr]   ▶ code_comment
+[ocr]   ✔ code_comment (0s)
+[ocr]   ▶ file_read end_line=75 start_line=25
+[ocr]   ✔ file_read (1ms)
+[ocr]   ▶ code_comment
+[ocr]   ✔ code_comment (0s)
+[ocr] Scan subtask error for app/src/main/java/com/xiaoduo/deskpet/cloud/AliyunTtsClient.kt (batch #0): LLM completion error: POST "http://127.0.0.1:18924/v1/messages": 429 Too Many Requests (Request-ID: 20261003012607918c79331cbe47dd) {"type":"error","error":{"type":"rate_limit_error","code":"1302","message":"[1302][您的账户已达到速率限制，请您控制请求频率][20261003012607918c79331cbe47dd]"},"request_id":"20261003012607918c79331cbe47dd"}
+[ocr] scan plan failed for app/src/main/java/com/xiaoduo/deskpet/cloud/OpenAITtsClient.kt: POST "http://127.0.0.1:18924/v1/messages": 429 Too Many Requests (Request-ID: 202610030126248a3b9c494b844483) {"type":"error","error":{"type":"rate_limit_error","code":"1302","message":"[1302][您的账户已达到速率限制，请您控制请求频率][202610030126248a3b9c494b844483]"},"request_id":"202610030126248a3b9c494b844483"} (falling back to plan-less)
+[ocr]   ▶ file_find query_name=ChatStore
+[ocr]   ✔ file_find (14ms)
+[ocr]   ▶ file_find query_name=ChatTurnLogic
+[ocr]   ✔ file_find (14ms)
+[ocr]   ▶ code_search search_text=fun saveMessages
+[ocr]   ✔ code_search (67ms)
+[ocr]   ▶ code_search file_patterns=[*.kt] use_perl_regexp=true
+[ocr]   ✔ code_search (16ms)
+[ocr]   ▶ file_read end_line=120 start_line=1
+[ocr]   ✔ file_read (1ms)
+[ocr]   ▶ code_search search_text=fun applyDelta|fun markDone|fun markError use_perl_regexp=true
+[ocr]   ✔ code_search (15ms)
+[ocr]   ▶ code_search search_text=LANGUAGE_ZH
+[ocr]   ✔ code_search (56ms)
+[ocr]   ▶ code_search file_patterns=[*.kt] search_text=\.transcribe\(
+[ocr]   ✔ code_search (17ms)
+[ocr]   ▶ code_search search_text=fun transcribe(
+[ocr]   ✔ code_search (56ms)
+[ocr]   ▶ code_search search_text=fun synthesize(
+[ocr]   ✔ code_search (70ms)
+[ocr]   ▶ code_search use_perl_regexp=true
+[ocr]   ✔ code_search (70ms)
+[ocr]   ▶ code_search file_patterns=[*.kt] search_text=OpenAIAsrClient
+[ocr]   ✔ code_search (21ms)
+[ocr]   ▶ file_read start_line=30 end_line=70
+[ocr]   ✔ file_read (1ms)
+[ocr]   ▶ code_search search_text=transcribe use_perl_regexp=false
+[ocr]   ✔ code_search (69ms)
+[ocr] Scan subtask error for app/src/main/java/com/xiaoduo/deskpet/cloud/CloudClientFactory.kt (batch #0): LLM completion error: POST "http://127.0.0.1:18924/v1/messages": 429 Too Many Requests (Request-ID: 20261003012704b57236bdf9264051) {"type":"error","error":{"type":"rate_limit_error","code":"1302","message":"[1302][您的账户已达到速率限制，请您控制请求频率][20261003012704b57236bdf9264051]"},"request_id":"20261003012704b57236bdf9264051"}
+[ocr] scan plan failed for app/src/main/java/com/xiaoduo/deskpet/cloud/VolcengineAsrClient.kt: POST "http://127.0.0.1:18924/v1/messages": 429 Too Many Requests (Request-ID: 2026100301272198561ad6eeea4f71) {"type":"error","error":{"type":"rate_limit_error","code":"1302","message":"[1302][您的账户已达到速率限制，请您控制请求频率][2026100301272198561ad6eeea4f71]"},"request_id":"2026100301272198561ad6eeea4f71"} (falling back to plan-less)
+[ocr]   ▶ code_comment
+[ocr]   ✔ code_comment (1ms)
+[ocr] Scan subtask error for app/src/main/java/com/xiaoduo/deskpet/cloud/VolcengineAsrClient.kt (batch #0): LLM completion error: POST "http://127.0.0.1:18924/v1/messages": 429 Too Many Requests (Request-ID: 202610030127382626a49842394b6a) {"type":"error","error":{"type":"rate_limit_error","code":"1302","message":"[1302][您的账户已达到速率限制，请您控制请求频率][202610030127382626a49842394b6a]"},"request_id":"202610030127382626a49842394b6a"}
+[ocr]   ▶ code_comment
+[ocr]   ✔ code_comment (1ms)
+[ocr]   ▶ code_comment
+[ocr]   ✔ code_comment (0s)
+[ocr]   ▶ code_search search_text=TextChatRouter
+[ocr]   ✔ code_search (55ms)
+[ocr]   ▶ file_find query_name=OpenAIChatClient
+[ocr]   ✔ file_find (12ms)
+[ocr]   ▶ file_find query_name=ChatMessage
+[ocr]   ✔ file_find (11ms)
+[ocr]   ▶ file_read end_line=810 start_line=700
+[ocr]   ✔ file_read (2ms)
+[ocr]   ▶ file_read end_line=80 start_line=1
+[ocr]   ✔ file_read (1ms)
+[ocr]   ▶ code_search search_text=OpenAITtsClient
+[ocr]   ✔ code_search (54ms)
+[ocr]   ▶ code_search search_text=placeholder|appendUser|assistantId =
+[ocr]   ✔ code_search (14ms)
+[ocr]   ▶ code_search search_text=enum class Role|val wire
+[ocr]   ✔ code_search (55ms)
+[ocr]   ▶ code_search file_patterns=[app/src/main/java/com/xiaoduo/deskpet/chat/*.kt] search_text=runChat\(
+[ocr]   ✔ code_search (14ms)
+[ocr]   ▶ code_search search_text=runChat use_perl_regexp=false
+[ocr]   ✔ code_search (61ms)
+[ocr]   ▶ code_comment
+[ocr]   ✔ code_comment (1ms)
+[ocr]   ▶ file_read
+[ocr]   ✔ file_read (0s)
+[ocr]   ▶ code_search search_text=VolcengineTtsClient(
+[ocr]   ✔ code_search (51ms)
+[ocr]   ▶ code_search use_perl_regexp=true search_text=callTimeout|readTimeout|writeTimeout
+[ocr]   ✔ code_search (68ms)
+[ocr]   ▶ file_read start_line=25 end_line=70
+[ocr]   ✔ file_read (1ms)
+[ocr]   ▶ code_comment
+[ocr]   ✔ code_comment (1ms)
+[ocr]   ▶ code_comment
+[ocr]   ✔ code_comment (0s)
+[ocr]   ▶ code_comment
+[ocr]   ✔ code_comment (0s)
+[ocr]   ▶ code_comment
+[ocr]   ✔ code_comment (0s)
+[ocr] scan dedup batch #0: 60 → 53 comments
+[ocr] Results written to docs/audit/2026-10-03-full-audit/ocr-03-chat-cloud.json

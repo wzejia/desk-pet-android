@@ -1,6 +1,21 @@
 # 小朵 Android 开发日志
 
 
+## 2026-10-03 全量代码审计 + P2 修复工程（双通道机扫 + 双路人工 → 三路并行修复 → 集成评审）
+
+**审计**（双通道，管理者统筹子智能体）：ocr scan（100/105 文件，462 条）+ codex-security（全仓 215 文件，5 条）+ 人工兜底 ocr 三连败 5 文件 + 非代码面人工 → P1=0 / P2=43 / P3=410，跨通道独立命中（TLS 旁路、凭证明文）为最高置信。过程披露与覆盖账见 `docs/audit/2026-10-03-full-audit/README.md`。
+
+**修复**（领导令：修除「分发形态」外全部 P2）：40 条按地界三分（voice 14 / ui 8 / misc 18，跨简报文件冲突程序化验证为 0），三路子智能体各自 worktree 并行 TDD 修复；集成 af-integration 后跨包接线（FUNC-5 flush 单点接入 hideBubbleLater），独立评审无 P1、其「3 条缺口」中 ROB-16/SEC-6 实为证伪有据（ROB-16 经管理者一次性实测仲裁：kotlinx 1.8.1 `CoroutineScope(ctx).cancel()` 不抛 ISE，工厂自动补 Job）。**集成终验 752 绿 / skipped 0 / failures 0**（基线 665，+87 新测试全部先红后绿）。
+
+**沉淀**：①审计「机制类」发现（裸 scope、Double 撕裂等）必须先对依赖版本/ABI 实证再动手——ROB-16 被字节码+实测证伪、CONC-1 的 32 位论据被 arm64 abiFilters 削弱；②kotlinx 1.8.1 `close()` 不解脱满 Channel 挂起的 sender，解挂背压必须 `cancel()`——全仓任何「close 解挂」假设都适用；③并行修复工程的地界切分：按文件归属切 + 程序化冲突验证 + 独立 worktree 隔离 gradle，是三路可真并行的前提。
+
+```evidence
+verify_cmd: gradlew.bat --no-daemon testDebugUnitTest --rerun-tasks（基线 665 绿 → 集成 752 绿 skipped=0 failures=0）
+verify_claim: 40 条 P2 处置完毕（37 修+2 证伪+1 部分）；独立评审无 P1；禁改项（HttpClients.kt/build.gradle.kts）零 diff
+files_touched: [af-integration 分支 65+1 文件（voice/agui/ui/chat/cloud/device/根服务及其测试），主仓 docs/audit/2026-10-03-full-audit/ 全套产物]
+```
+
+
 ## 2026-09-24 S68/S68b：弹窗区块参数摘要 + 并行 tool_calls 登记(SSE 取证)
 
 **S68(Q1-B,用户从四方案原型中选定)**:同工具多区块标题全同无法区分。区块头追加 keywordOf(args) 参数摘要——「查询结果 ·「项目档案」」;args 缺失退化为现状标题。mijijia 端 makeBlockHead 单函数改动;8849 冒烟 OCR 验证两区块摘要清晰。

@@ -1,0 +1,14 @@
+[ocr] full-scan: 1 file(s) discovered, reviewing 1 in E:\desk-pet-android
+[ocr] estimated cost: ~1 file(s), est. 36K input + 5K output ≈ 42K total tokens (rough; actual reported after run)
+[ocr] scan dispatch: 1 batch(es) by by-language strategy
+[ocr]   ▶ code_search search_text=surfaceVariant|0xFF171717
+[ocr]   ✔ code_search (15ms)
+[ocr]   ▶ code_search file_patterns=[app/src/main/java/**/*.kt] search_text=OverlayMenu.show
+[ocr]   ✔ code_search (18ms)
+[ocr]   ▶ file_find query_name=theme/Theme
+[ocr]   ✔ file_find (16ms)
+[ocr]   ▶ file_read end_line=460 start_line=430
+[ocr]   ✔ file_read (1ms)
+[ocr]   ▶ code_comment
+[ocr]   ✔ code_comment (1ms)
+[ocr] Results written to docs/audit/2026-10-03-full-audit/ocr-07-rescue.json

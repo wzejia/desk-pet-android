@@ -1,0 +1,14 @@
+{
+ "suspect_partial": [
+  "app/src/main/java/com/xiaoduo/deskpet/voice/DynamicWakeAck.kt",
+  "app/src/main/java/com/xiaoduo/deskpet/ui/overlay/BubbleView.kt",
+  "app/src/main/java/com/xiaoduo/deskpet/chat/ChatSession.kt"
+ ],
+ "uncovered": [
+  "app/src/main/java/com/xiaoduo/deskpet/voice/NlmsEchoCanceller.kt",
+  "app/src/main/java/com/xiaoduo/deskpet/voice/VoiceSessionManager.kt",
+  "app/src/main/java/com/xiaoduo/deskpet/ui/overlay/BubbleTextStrip.kt",
+  "app/src/main/java/com/xiaoduo/deskpet/chat/MarkdownRenderer.kt",
+  "app/src/main/java/com/xiaoduo/deskpet/cloud/VolcengineAsrClient.kt"
+ ]
+}

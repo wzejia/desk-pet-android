@@ -1,0 +1,6 @@
+[ocr] full-scan: 1 file(s) discovered, reviewing 1 in E:\desk-pet-android
+[ocr] estimated cost: ~1 file(s), est. 37K input + 5K output ≈ 43K total tokens (rough; actual reported after run)
+[ocr] scan dispatch: 1 batch(es) by by-language strategy
+[ocr] Scan subtask error for app/src/main/java/com/xiaoduo/deskpet/cloud/VolcengineAsrClient.kt (batch #0): LLM completion error: context deadline exceeded
+[ocr] Session: 126f5306-8b52-4a6a-ade2-9c6f28efe242 (retry with: --resume 126f5306-8b52-4a6a-ade2-9c6f28efe242)
+Error: scan failed: all 1 file scan(s) failed — check your LLM configuration and API key

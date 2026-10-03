@@ -1,0 +1,101 @@
+[ocr] full-scan: 20 file(s) discovered, reviewing 20 in E:\desk-pet-android
+[ocr] estimated cost: ~20 file(s), est. 599K input + 107K output ≈ 707K total tokens (rough; actual reported after run)
+[ocr] scan dispatch: 1 batch(es) by by-language strategy
+[ocr] scan plan failed for app/src/main/java/com/xiaoduo/deskpet/PetOverlayService.kt: POST "http://127.0.0.1:18924/v1/messages": 429 Too Many Requests (Request-ID: 20261003014308d461b0633cef4672) {"type":"error","error":{"type":"rate_limit_error","code":"1302","message":"[1302][您的账户已达到速率限制，请您控制请求频率][20261003014308d461b0633cef4672]"},"request_id":"20261003014308d461b0633cef4672"} (falling back to plan-less)
+[ocr] Scan subtask error for app/src/main/java/com/xiaoduo/deskpet/PetOverlayService.kt (batch #0): LLM completion error: POST "http://127.0.0.1:18924/v1/messages": 429 Too Many Requests (Request-ID: 20261003014324c5604fddd32b48b7) {"type":"error","error":{"type":"rate_limit_error","code":"1302","message":"[1302][您的账户已达到速率限制，请您控制请求频率][20261003014324c5604fddd32b48b7]"},"request_id":"20261003014324c5604fddd32b48b7"}
+[ocr]   ▶ file_find query_name=PetLogger
+[ocr]   ✔ file_find (14ms)
+[ocr]   ▶ file_find query_name=CrashReporter
+[ocr]   ✔ file_find (11ms)
+[ocr]   ▶ file_read
+[ocr]   ✔ file_read (0s)
+[ocr]   ▶ file_read
+[ocr]   ✔ file_read (0s)
+[ocr]   ▶ file_read file_path=app/src/main/AndroidManifest.xml
+[ocr]   ✔ file_read (1ms)
+[ocr]   ▶ file_find query_name=LogRotator
+[ocr]   ✔ file_find (14ms)
+[ocr] Scan subtask error for app/src/main/java/com/xiaoduo/deskpet/device/DeviceIntentMatcher.kt (batch #0): LLM completion error: POST "http://127.0.0.1:18924/v1/messages": 429 Too Many Requests (Request-ID: 20261003014455c52c4f350ac2468a) {"type":"error","error":{"type":"rate_limit_error","code":"1302","message":"[1302][您的账户已达到速率限制，请您控制请求频率][20261003014455c52c4f350ac2468a]"},"request_id":"20261003014455c52c4f350ac2468a"}
+[ocr] scan plan failed for app/src/main/java/com/xiaoduo/deskpet/pet/FrameAnimator.kt: POST "http://127.0.0.1:18924/v1/messages": 429 Too Many Requests (Request-ID: 2026100301451089f282fce70845f2) {"type":"error","error":{"type":"rate_limit_error","code":"1302","message":"[1302][您的账户已达到速率限制，请您控制请求频率][2026100301451089f282fce70845f2]"},"request_id":"2026100301451089f282fce70845f2"} (falling back to plan-less)
+[ocr] Scan subtask error for app/src/main/java/com/xiaoduo/deskpet/pet/FrameAnimator.kt (batch #0): LLM completion error: POST "http://127.0.0.1:18924/v1/messages": 429 Too Many Requests (Request-ID: 20261003014526a51515baadaa49a2) {"type":"error","error":{"type":"rate_limit_error","code":"1302","message":"[1302][您的账户已达到速率限制，请您控制请求频率][20261003014526a51515baadaa49a2]"},"request_id":"20261003014526a51515baadaa49a2"}
+[ocr]   ▶ code_comment
+[ocr]   ✔ code_comment (0s)
+[ocr]   ▶ code_search file_patterns=[*.kt] search_text=FanSpeed
+[ocr]   ✔ code_search (21ms)
+[ocr]   ▶ code_search file_patterns=[*.kt] search_text=sealed interface Command|data class|data object
+[ocr]   ✔ code_search (16ms)
+[ocr] scan plan failed for app/src/main/java/com/xiaoduo/deskpet/pet/OverlayClamp.kt: POST "http://127.0.0.1:18924/v1/messages": 429 Too Many Requests (Request-ID: 20261003014541242e32f72457479e) {"type":"error","error":{"type":"rate_limit_error","code":"1302","message":"[1302][您的账户已达到速率限制，请您控制请求频率][20261003014541242e32f72457479e]"},"request_id":"20261003014541242e32f72457479e"} (falling back to plan-less)
+[ocr] Scan subtask error for app/src/main/java/com/xiaoduo/deskpet/pet/OverlayClamp.kt (batch #0): LLM completion error: POST "http://127.0.0.1:18924/v1/messages": 429 Too Many Requests (Request-ID: 20261003014558194d4418820a4895) {"type":"error","error":{"type":"rate_limit_error","code":"1302","message":"[1302][您的账户已达到速率限制，请您控制请求频率][20261003014558194d4418820a4895]"},"request_id":"20261003014558194d4418820a4895"}
+[ocr]   ▶ code_search search_text=launchMode
+[ocr]   ✔ code_search (56ms)
+[ocr]   ▶ code_search search_text=ChatViewModel use_perl_regexp=false
+[ocr]   ✔ code_search (50ms)
+[ocr]   ▶ code_search search_text=PetOverlayState
+[ocr]   ✔ code_search (53ms)
+[ocr] scan plan failed for app/src/main/java/com/xiaoduo/deskpet/util/AppLauncher.kt: POST "http://127.0.0.1:18924/v1/messages": 429 Too Many Requests (Request-ID: 20261003014613ac19cc6d49df4e45) {"type":"error","error":{"type":"rate_limit_error","code":"1302","message":"[1302][您的账户已达到速率限制，请您控制请求频率][20261003014613ac19cc6d49df4e45]"},"request_id":"20261003014613ac19cc6d49df4e45"} (falling back to plan-less)
+[ocr]   ▶ code_comment
+[ocr]   ✔ code_comment (0s)
+[ocr]   ▶ code_search search_text=ShelfMcpBridge
+[ocr]   ✔ code_search (68ms)
+[ocr]   ▶ code_search search_text=\.navigate\(
+[ocr]   ✔ code_search (53ms)
+[ocr] Scan subtask error for app/src/main/java/com/xiaoduo/deskpet/util/AppLauncher.kt (batch #0): LLM completion error: POST "http://127.0.0.1:18924/v1/messages": 429 Too Many Requests (Request-ID: 20261003014630f6f9b8d48ef54ab9) {"type":"error","error":{"type":"rate_limit_error","code":"1302","message":"[1302][您的账户已达到速率限制，请您控制请求频率][20261003014630f6f9b8d48ef54ab9]"},"request_id":"20261003014630f6f9b8d48ef54ab9"}
+[ocr]   ▶ code_search search_text=clampAxis
+[ocr]   ✔ code_search (55ms)
+[ocr]   ▶ code_search search_text=dockSide\(|dockedX\(|slideOutX\(|dockedSideOf\( use_perl_regexp=true
+[ocr]   ✔ code_search (76ms)
+[ocr]   ▶ file_read end_line=90 start_line=1
+[ocr]   ✔ file_read (0s)
+[ocr]   ▶ code_search file_patterns=[**/PetLogger.kt] search_text=fun (e|i|init)\( use_perl_regexp=true
+[ocr]   ✔ code_search (18ms)
+[ocr] Scan subtask error for app/src/main/java/com/xiaoduo/deskpet/pet/PetFrameTable.kt (batch #0): LLM completion error: POST "http://127.0.0.1:18924/v1/messages": 429 Too Many Requests (Request-ID: 202610030146517bd7003ea3e44af1) {"type":"error","error":{"type":"rate_limit_error","code":"1302","message":"[1302][您的账户已达到速率限制，请您控制请求频率][202610030146517bd7003ea3e44af1]"},"request_id":"202610030146517bd7003ea3e44af1"}
+[ocr]   ▶ code_search search_text=kwsSink|stopIdleCapture|startIdleCapture use_perl_regexp=true
+[ocr]   ✔ code_search (93ms)
+[ocr]   ▶ code_search search_text=fun autoCalibrateIfFirstTime
+[ocr]   ✔ code_search (51ms)
+[ocr] Scan subtask error for app/src/main/java/com/xiaoduo/deskpet/pet/EdgeDock.kt (batch #0): LLM completion error: POST "http://127.0.0.1:18924/v1/messages": 429 Too Many Requests (Request-ID: 20261003014700c1810767a8844801) {"type":"error","error":{"type":"rate_limit_error","code":"1302","message":"[1302][您的账户已达到速率限制，请您控制请求频率][20261003014700c1810767a8844801]"},"request_id":"20261003014700c1810767a8844801"}
+[ocr] scan plan failed for app/src/main/java/com/xiaoduo/deskpet/util/NavInsetPolicy.kt: POST "http://127.0.0.1:18924/v1/messages": 429 Too Many Requests (Request-ID: 20261003014707e7686b443f3044bc) {"type":"error","error":{"type":"rate_limit_error","code":"1302","message":"[1302][您的账户已达到速率限制，请您控制请求频率][20261003014707e7686b443f3044bc]"},"request_id":"20261003014707e7686b443f3044bc"} (falling back to plan-less)
+[ocr] scan plan failed for app/src/main/java/com/xiaoduo/deskpet/util/PetLogger.kt: POST "http://127.0.0.1:18924/v1/messages": 429 Too Many Requests (Request-ID: 2026100301471789cfc0087c8f4c05) {"type":"error","error":{"type":"rate_limit_error","code":"1302","message":"[1302][您的账户已达到速率限制，请您控制请求频率][2026100301471789cfc0087c8f4c05]"},"request_id":"2026100301471789cfc0087c8f4c05"} (falling back to plan-less)
+[ocr] Scan subtask error for app/src/main/java/com/xiaoduo/deskpet/util/PetLogger.kt (batch #0): LLM completion error: POST "http://127.0.0.1:18924/v1/messages": 429 Too Many Requests (Request-ID: 202610030147320b28f340f0734a73) {"type":"error","error":{"type":"rate_limit_error","code":"1302","message":"[1302][您的账户已达到速率限制，请您控制请求频率][202610030147320b28f340f0734a73]"},"request_id":"202610030147320b28f340f0734a73"}
+[ocr] scan plan failed for app/src/main/java/com/xiaoduo/deskpet/util/PrefContract.kt: POST "http://127.0.0.1:18924/v1/messages": 429 Too Many Requests (Request-ID: 2026100301474883fd020b3c3d47a5) {"type":"error","error":{"type":"rate_limit_error","code":"1302","message":"[1302][您的账户已达到速率限制，请您控制请求频率][2026100301474883fd020b3c3d47a5]"},"request_id":"2026100301474883fd020b3c3d47a5"} (falling back to plan-less)
+[ocr]   ▶ code_comment
+[ocr]   ✔ code_comment (0s)
+[ocr]   ▶ code_search
+[ocr]   ✔ code_search (67ms)
+[ocr] Scan subtask error for app/src/main/java/com/xiaoduo/deskpet/util/PrefContract.kt (batch #0): LLM completion error: POST "http://127.0.0.1:18924/v1/messages": 429 Too Many Requests (Request-ID: 20261003014804637577ad40f64fc2) {"type":"error","error":{"type":"rate_limit_error","code":"1302","message":"[1302][您的账户已达到速率限制，请您控制请求频率][20261003014804637577ad40f64fc2]"},"request_id":"20261003014804637577ad40f64fc2"}
+[ocr] scan plan failed for app/src/main/java/com/xiaoduo/deskpet/util/TapGesture.kt: POST "http://127.0.0.1:18924/v1/messages": 429 Too Many Requests (Request-ID: 20261003014820ddbe126415494b3a) {"type":"error","error":{"type":"rate_limit_error","code":"1302","message":"[1302][您的账户已达到速率限制，请您控制请求频率][20261003014820ddbe126415494b3a]"},"request_id":"20261003014820ddbe126415494b3a"} (falling back to plan-less)
+[ocr]   ▶ code_comment
+[ocr]   ✔ code_comment (1ms)
+[ocr] Scan subtask error for app/src/main/java/com/xiaoduo/deskpet/util/TapGesture.kt (batch #0): LLM completion error: POST "http://127.0.0.1:18924/v1/messages": 429 Too Many Requests (Request-ID: 2026100301483886d274c91cb14dc8) {"type":"error","error":{"type":"rate_limit_error","code":"1302","message":"[1302][您的账户已达到速率限制，请您控制请求频率][2026100301483886d274c91cb14dc8]"},"request_id":"2026100301483886d274c91cb14dc8"}
+[ocr]   ▶ code_comment
+[ocr]   ✔ code_comment (0s)
+[ocr]   ▶ code_search search_text=LogRotator
+[ocr]   ✔ code_search (59ms)
+[ocr]   ▶ code_search search_text=expiredFiles|fileNameFor|dayOf\( use_perl_regexp=true
+[ocr]   ✔ code_search (72ms)
+[ocr]   ▶ code_comment
+[ocr]   ✔ code_comment (0s)
+[ocr]   ▶ file_read start_line=20 end_line=75
+[ocr]   ✔ file_read (1ms)
+[ocr]   ▶ code_comment
+[ocr]   ✔ code_comment (0s)
+[ocr]   ▶ code_search file_patterns=[*.kt] search_text=crash-
+[ocr]   ✔ code_search (18ms)
+[ocr]   ▶ code_search file_patterns=[*.kt] search_text=fun dayOf
+[ocr]   ✔ code_search (19ms)
+[ocr]   ▶ code_search search_text=delete|cleanup|prune|maxFiles|retention use_perl_regexp=true
+[ocr]   ✔ code_search (13ms)
+[ocr]   ▶ file_read
+[ocr]   ✔ file_read (1ms)
+[ocr]   ▶ code_comment
+[ocr]   ✔ code_comment (0s)
+[ocr]   ▶ code_comment
+[ocr]   ✔ code_comment (0s)
+[ocr]   ▶ file_find query_name=PrefContract
+[ocr]   ✔ file_find (14ms)
+[ocr]   ▶ file_read
+[ocr]   ✔ file_read (1ms)
+[ocr]   ▶ code_comment
+[ocr]   ✔ code_comment (1ms)
+[ocr] scan dedup batch #0: 44 → 43 comments
+[ocr] Results written to docs/audit/2026-10-03-full-audit/ocr-05-util-device-pet-root.json

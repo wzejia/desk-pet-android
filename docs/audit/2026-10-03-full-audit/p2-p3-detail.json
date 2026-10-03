@@ -1,0 +1,1537 @@
+{
+  "meta": {
+    "generated": "2026-10-03",
+    "generator": "merge-triage (合并分诊员)",
+    "sources": [
+      "merged-ocr-findings.json",
+      "codex-report.md + findings.json",
+      "manual-code-rescue-findings.md",
+      "manual-noncode-findings.md"
+    ],
+    "conventions": "ocr_indices 指 merged-ocr-findings.json merged_comments 数组下标（0 起）；refs 为仓库路径:行号，行号原样取自来源，未改动。",
+    "grading_rules": "P1=可直接利用安全洞/必崩必丢数据；P2=真实但难触发、有兜底或需特定条件；P3=卫生类。ocr severity 非机械映射：high 默认 P2 逐条复核（19 条降 P3），medium/low 默认 P3 仅实锤崩溃/数据损坏升级（21 medium + 2 low 升/并入 P2）；拿不准降一级并标 needs_human_review。"
+  },
+  "summary": {
+    "P1": 0,
+    "P2": 43,
+    "P3": 410,
+    "raw_to_unified": "P2：ocr 65 + codex 3 + 人工 4 = 72 原始 → 43 统一；P3：ocr 397 + 人工代码 12 + 人工非代码 6 + codex 2 = 417 原始 → 410 统一（并条 -7）。",
+    "dual_channel_p2": [
+      "SEC-1 (codex#1+ocr)",
+      "SEC-3 (codex#3+ocr)",
+      "SEC-4 (codex#3+人工非代码)",
+      "CONC-1 (ocr+人工代码)"
+    ],
+    "triple_channel_p3": [
+      "P3-DEBUG-BUBBLE (codex#5+ocr[326]+人工非代码 F-P3-1)"
+    ],
+    "disclosures": "ocr 机扫 5 文件失败转人工兜底（coverage-flags.uncovered：NlmsEchoCanceller/VoiceSessionManager/BubbleTextStrip/MarkdownRenderer/VolcengineAsrClient）；3 文件疑似部分评审（coverage-flags.suspect_partial：DynamicWakeAck/BubbleView/ChatSession）。人工 5 文件与 ocr 输出零重叠（互补已核实）。"
+  },
+  "p1": [],
+  "p2": [
+    {
+      "id": "SEC-1",
+      "level": "P2",
+      "title": "TLS 证书校验对内网白名单完全旁路",
+      "channels": [
+        "codex#1",
+        "ocr"
+      ],
+      "refs": [
+        "app/src/main/java/com/xiaoduo/deskpet/net/HttpClients.kt:25,47-49,78-88"
+      ],
+      "ocr_indices": [
+        171
+      ],
+      "problem": "WhitelistTrustManager 对 10.0.18.166/97/24 直接 return，跳过全部证书链/有效期/信任锚校验，hostnameVerifier 对同列表短路为 true，无 pinning。",
+      "impact": "同网段攻击者（ARP 欺骗/DHCP 占位）可冒充平台 443 端点，截获 Bearer token 与上传文件、注入 SSE/TTS 内容（codex confirmed，high/high）。",
+      "fix": "改内置自签证书/SPKI pinning 比对叶证书，其余主机走默认 TrustManager；移除 hostnameVerifier 旁路；补不匹配证书必须握手失败的单测。",
+      "needs_human_review": true,
+      "review_note": "最接近 P1 的条目：利用前提是进入板子所在内网网段（固定内网 IP+NO_PROXY），且为项目文档明示的自签设计（人工非代码评审记录在案未列 finding）。是否升 P1 请用户拍板。"
+    },
+    {
+      "id": "SEC-2",
+      "level": "P2",
+      "title": "平台登录明文 HTTP 传输账号密码",
+      "channels": [
+        "codex#2"
+      ],
+      "refs": [],
+      "ocr_indices": [],
+      "problem": "默认 POST http://10.0.18.166:8080，账号密码 JSON 明文；token 约 25 分钟过期即重发密码。（codex 位置：network_security_config.xml:7-11、NetConfig.kt:90、AguiClient.kt:283-296）",
+      "impact": "网内被动观察者（镜像端口/流氓 AP/ARP 欺骗）直接收取管理员凭据。",
+      "fix": "登录迁到既有 443 反代（loginUrl 按 agentStreamUrl 同法推导 https）；:8080 必须保留则显式 opt-in 并延长 token 免密周期。",
+      "needs_human_review": false,
+      "review_note": null
+    },
+    {
+      "id": "SEC-3",
+      "level": "P2",
+      "title": "凭证与 API key 明文存 SharedPreferences",
+      "channels": [
+        "codex#3",
+        "ocr"
+      ],
+      "refs": [],
+      "ocr_indices": [
+        159,
+        145,
+        144
+      ],
+      "problem": "登录密码/bearer token/三家云 key 以明文字符串写入默认 SharedPreferences（codex 位置 NetConfig.kt:103-105,236-263、TokenStore.kt:43-45；ocr[145]=TokenStore.kt:34）；全仓无 Keystore/EncryptedSharedPreferences；TokenEntry.toString() 内嵌原始 token 与「严禁入日志」规则矛盾（ocr[144]=TokenStore.kt:6）。",
+      "impact": "root 设备/本机短暂接触/debuggable dump 可直接读取；云备份面已被 allowBackup=false 关闭。",
+      "fix": "迁 EncryptedSharedPreferences（Keystore 后端）；TokenEntry 覆写 toString 脱敏。",
+      "needs_human_review": false,
+      "review_note": null
+    },
+    {
+      "id": "SEC-4",
+      "level": "P2",
+      "title": "云端密钥经 BuildConfig 明文编入 APK",
+      "channels": [
+        "codex#3",
+        "人工非代码 F-P2-2"
+      ],
+      "refs": [],
+      "ocr_indices": [],
+      "problem": "CLOUD_KEY/ALIYUN_SPEECH_KEY/VOLC_SPEECH_KEY 经 buildConfigField 编译期常量内联进 dex（app/build.gradle.kts:33-35，cloudSecret() L14-15），apktool/jadx 可从任一分发 APK 还原；源值 gitignored 未入库；注释表明 2026-08-13 已拍板接受。",
+      "impact": "内网流通的 release APK 携带可静态提取的长期有效密钥；dist/ 已有实际分发的 release 包。",
+      "fix": "短期确认服务端限额与可轮换手段；中期改设备级短时效 token；建议对已分发 APK 的 key 做一轮轮换。",
+      "needs_human_review": false,
+      "review_note": null
+    },
+    {
+      "id": "SEC-5",
+      "level": "P2",
+      "title": "release 包挂公开 debug 签名（+未混淆）",
+      "channels": [
+        "人工非代码 F-P2-1"
+      ],
+      "refs": [],
+      "ocr_indices": [],
+      "problem": "release 使用公开口令的 debug.keystore 签名（app/build.gradle.kts:43）且 minify 关闭（L40）；dist/ 已有按此形态流通的 APK。",
+      "impact": "第三方可用同一签名构造 APK 直接覆盖安装（同签名视为升级），升级链完整性零保护；未混淆放大密钥暴露。",
+      "fix": "生成项目独立 keystore（不入库，密码走 secrets/）替换 debug 签名；正式发布前补混淆。",
+      "needs_human_review": false,
+      "review_note": null
+    },
+    {
+      "id": "SEC-6",
+      "level": "P2",
+      "title": "ShelfMcpBridge runId 未转义拼入手工 JSON",
+      "channels": [
+        "ocr"
+      ],
+      "refs": [
+        "app/src/main/java/com/xiaoduo/deskpet/device/ShelfMcpBridge.kt:56-57"
+      ],
+      "ocr_indices": [
+        190
+      ],
+      "problem": "runId 未校验/转义拼入 callFor() 手工 JSON 字面量；ocr 认定来自平台 SSE（TOOL_CALL_START→ToolCallOutcome），codex 审同一候选以「runId client-generated、工具白名单」为由 reject——两通道判断相反。含引号/反斜杠即畸形 JSON 包，构造值可注入额外键（如第二个 \"Op\"，device 侧 last-wins 解析可能执行）。",
+      "impact": "最坏把 UI-only 同步变成非预期设备指令；前提是平台侧 runId 可被污染。",
+      "fix": "runId 含引号/反斜杠/控制字符时丢弃该字段仍发同步（或校验字符集），与 resultBodyFor() 的 org.json 处理对齐。",
+      "needs_human_review": true,
+      "review_note": "跨通道分歧：需读 ShelfMcpBridge/AguiClient 源码定谳 runId 实际来源；平台可控则 P2 成立，client-generated 则降 P3。"
+    },
+    {
+      "id": "ROB-1",
+      "level": "P2",
+      "title": "AudioCapture start/stop 生命周期竞态",
+      "channels": [
+        "ocr"
+      ],
+      "refs": [
+        "app/src/main/java/com/xiaoduo/deskpet/voice/AudioCapture.kt:74-76, 88, 144"
+      ],
+      "ocr_indices": [
+        23,
+        24,
+        25
+      ],
+      "problem": "start/stop 对 job/gateToken 无共同锁（job 非 @Volatile），tryAcquire→赋值→launch 与并发 stop() 不原子；stop 先释放门再等协作取消；startRecording 错误码被忽略，isRunning 照置 true。",
+      "impact": "丢失 stop（麦克风滞留打开、门被占致后续 start 静默 no-op）或双捕获循环并行抢麦克风。",
+      "fix": "start/stop 串行到同一锁；stop 把 token 交给 job 完成路径再释放；startRecording 失败即失败返回。",
+      "needs_human_review": false,
+      "review_note": null
+    },
+    {
+      "id": "ROB-2",
+      "level": "P2",
+      "title": "AudioCapture read 持续失败满速自旋",
+      "channels": [
+        "ocr"
+      ],
+      "refs": [
+        "app/src/main/java/com/xiaoduo/deskpet/voice/AudioCapture.kt:282-285"
+      ],
+      "ocr_indices": [
+        26
+      ],
+      "problem": "read() 持续返回非正（AudioRecord 卡错误态/启动失败）时读循环零退避无出口。",
+      "impact": "单核满速自旋，VAD/KWS 静默饿死，直到 job 被取消。",
+      "fix": "连续失败计数，超阈值记日志退出（finally 释放 AudioRecord 与门），重试间让出。",
+      "needs_human_review": false,
+      "review_note": null
+    },
+    {
+      "id": "ROB-3",
+      "level": "P2",
+      "title": "VoiceIndicatorView 线程亲和与可见性",
+      "channels": [
+        "ocr"
+      ],
+      "refs": [
+        "app/src/main/java/com/xiaoduo/deskpet/ui/overlay/VoiceIndicatorView.kt:98-101"
+      ],
+      "ocr_indices": [
+        75
+      ],
+      "problem": "setMode/startLoop/stopLoop 调 Choreographer.getInstance()（无 Looper 线程即抛），loopRunning/displayLevel 等无同步；onLevel() 文档允许任意线程（VAD 分支）。",
+      "impact": "非主线程驱动显隐时崩溃或动画状态损坏。",
+      "fix": "生命周期收敛主线程（或主 Looper Handler post）并文档化线程契约。",
+      "needs_human_review": false,
+      "review_note": null
+    },
+    {
+      "id": "ROB-4",
+      "level": "P2",
+      "title": "采麦喂入 vs 原生引擎释放竞态（native use-after-release）",
+      "channels": [
+        "ocr"
+      ],
+      "refs": [
+        "app/src/main/java/com/xiaoduo/deskpet/VoiceForegroundService.kt:221-227"
+      ],
+      "ocr_indices": [
+        201
+      ],
+      "problem": "kwsSink 采集线程 feed 无同步，onDestroy 持锁 release；sink null-check-then-invoke 窗口内旧闭包仍可喂已释放引擎；runCatching 无日志吞 teardown 失败（三重可达路径）。",
+      "impact": "use-after-release → native crash（SIGSEGV，无 Java 栈）。",
+      "fix": "feed 与 release 同一监视器串行（或 KwsEngine.feed 内原子 closed 标志）；记录被吞异常。",
+      "needs_human_review": false,
+      "review_note": null
+    },
+    {
+      "id": "ROB-5",
+      "level": "P2",
+      "title": "气泡双窗口部分 addView 失败泄漏系统窗口",
+      "channels": [
+        "ocr"
+      ],
+      "refs": [
+        "app/src/main/java/com/xiaoduo/deskpet/PetOverlayService.kt:224-231"
+      ],
+      "ocr_indices": [
+        220
+      ],
+      "problem": "第一个 addView 成功、第二个抛出时，失败路径 stopSelf 返回且 displayBox/interactionBox 未赋值，onDestroy 无从移除已挂窗口。",
+      "impact": "WindowLeaked 型系统窗口泄漏，悬浮层残留。",
+      "fix": "记录首个已挂视图，失败路径先移除再退出。",
+      "needs_human_review": false,
+      "review_note": null
+    },
+    {
+      "id": "ROB-6",
+      "level": "P2",
+      "title": "气泡发布 TOCTOU：过期 runnable 覆盖新轮次",
+      "channels": [
+        "ocr"
+      ],
+      "refs": [
+        "app/src/main/java/com/xiaoduo/deskpet/PetOverlayService.kt:525-534"
+      ],
+      "ocr_indices": [
+        221
+      ],
+      "problem": "judgePublish 调用线程校验、handler.post 延后执行；新轮 claim/隐藏落地后旧 runnable 仍无条件执行，以旧文本新建会话覆盖 bubbleStrip 并重开触摸。appendBubble 同型。",
+      "impact": "新轮次气泡内容被旧轮污染，追加喂错会话。",
+      "fix": "捕获 owner/round，posted runnable 内重新校验后才应用。",
+      "needs_human_review": false,
+      "review_note": null
+    },
+    {
+      "id": "ROB-7",
+      "level": "P2",
+      "title": "setBubbleTouchable 崩溃面（错误线程 + lateinit 未初始化）",
+      "channels": [
+        "ocr"
+      ],
+      "refs": [
+        "app/src/main/java/com/xiaoduo/deskpet/PetOverlayService.kt:601-613, 622-624"
+      ],
+      "ocr_indices": [
+        222,
+        223
+      ],
+      "problem": "① hideBubble/FORCE_HIDE 可从 binder/worker 线程到达，非主线程 wm.updateViewLayout 抛 CalledFromWrongThreadException；② 窗口未建（onStartCommand 前，service 可 bind、companion 实例 onCreate 即发布）时 lateinit displayLp 抛 UninitializedPropertyAccessException。",
+      "impact": "悬浮窗路径两类确定性崩溃。",
+      "fix": "移入 posted runnable 主线程原子执行；!built 降级 no-op。",
+      "needs_human_review": false,
+      "review_note": null
+    },
+    {
+      "id": "ROB-8",
+      "level": "P2",
+      "title": "OverlayMenu PopupWindow BadTokenException",
+      "channels": [
+        "ocr"
+      ],
+      "refs": [
+        "app/src/main/java/com/xiaoduo/deskpet/ui/overlay/OverlayMenu.kt:179-180"
+      ],
+      "ocr_indices": [
+        455
+      ],
+      "problem": "以 WindowManager 悬浮 anchor showAsDropDown，无 isAttachedToWindow/token 检查、无错误处理（07-rescue 批次）。",
+      "impact": "teardown 与长按竞态/多窗口切换令 token 失效时崩溃进程。",
+      "fix": "show 前 guard anchor.isAttachedToWindow 并 try/catch 包裹。",
+      "needs_human_review": false,
+      "review_note": null
+    },
+    {
+      "id": "ROB-9",
+      "level": "P2",
+      "title": "ChatScreen 上传协程未捕获异常",
+      "channels": [
+        "ocr"
+      ],
+      "refs": [
+        "app/src/main/java/com/xiaoduo/deskpet/ui/screens/ChatScreen.kt:211-212"
+      ],
+      "ocr_indices": [
+        333
+      ],
+      "problem": "vm.uploadFile 在 rememberCoroutineScope 的 IO 协程内无 try/catch（无 CoroutineExceptionHandler）；中途导航离开协程被静默取消。",
+      "impact": "上传网络/IO 异常直达未捕获处理器崩溃应用；文件 chip 遗留指向未上传文件。",
+      "fix": "try/catch（CancellationException rethrow）+ toast；迁移 viewModelScope。",
+      "needs_human_review": false,
+      "review_note": null
+    },
+    {
+      "id": "ROB-10",
+      "level": "P2",
+      "title": "SessionDrawer 搜索 producer 未捕获 IO 异常",
+      "channels": [
+        "ocr"
+      ],
+      "refs": [
+        "app/src/main/java/com/xiaoduo/deskpet/ui/screens/SessionDrawer.kt:86-92"
+      ],
+      "ocr_indices": [
+        352
+      ],
+      "problem": "onSearch 在 withContext(IO) 无 try/catch，异常逸出 produceState producer。",
+      "impact": "任一次搜索 IO 错误撕毁整个组合（UI 崩溃）。",
+      "fix": "catch 非 Cancellation 异常降级（log+空结果），CancellationException rethrow。",
+      "needs_human_review": false,
+      "review_note": null
+    },
+    {
+      "id": "ROB-11",
+      "level": "P2",
+      "title": "权限页 ACTION_MANAGE_OVERLAY_PERMISSION 无守卫",
+      "channels": [
+        "ocr"
+      ],
+      "refs": [
+        "app/src/main/java/com/xiaoduo/deskpet/ui/screens/PermissionScreen.kt:83-91"
+      ],
+      "ocr_indices": [
+        339
+      ],
+      "problem": "startActivity 无守卫，部分 OEM 精简系统无该 action 解析 activity。",
+      "impact": "点「授权悬浮窗」抛 ActivityNotFoundException 崩溃（机型相关）。",
+      "fix": "try/catch（PetLogger.e）+ 回退 ACTION_APPLICATION_DETAILS_SETTINGS。",
+      "needs_human_review": false,
+      "review_note": null
+    },
+    {
+      "id": "ROB-12",
+      "level": "P2",
+      "title": "附件读取先 readBytes 后限 20MB",
+      "channels": [
+        "ocr"
+      ],
+      "refs": [
+        "app/src/main/java/com/xiaoduo/deskpet/ui/screens/ChatScreen.kt:681-683"
+      ],
+      "ocr_indices": [
+        332
+      ],
+      "problem": "picker 为 */*，readBytes() 在 20MB 限制之前整读入内存；OOM 被 runCatching 吞成「读取文件失败」toast（同样掩盖 SecurityException）。",
+      "impact": "选数百 MB 文件 → 内存尖峰（低端板可被系统杀）或误导性失败。",
+      "fix": "游标先取 OpenableColumns.SIZE 预拒，或流式带硬上限读取。",
+      "needs_human_review": false,
+      "review_note": null
+    },
+    {
+      "id": "ROB-13",
+      "level": "P2",
+      "title": "SettingsScreen 三处 scope.launch 无异常兜底",
+      "channels": [
+        "ocr"
+      ],
+      "refs": [
+        "app/src/main/java/com/xiaoduo/deskpet/ui/screens/SettingsScreen.kt:409-410"
+      ],
+      "ocr_indices": [
+        80
+      ],
+      "problem": "agent 列表/对话轮/采麦校准三处 scope.launch 无兜底，任一抛出未映射为 Error 的异常沿 rememberCoroutineScope 传播。",
+      "impact": "应用崩溃且 loading/running 卡 true、按钮永久禁用。",
+      "fix": "每处 try/catch（CancellationException rethrow，其余转 Error）+ finally 复位标志。",
+      "needs_human_review": false,
+      "review_note": null
+    },
+    {
+      "id": "ROB-14",
+      "level": "P2",
+      "title": "云客户端 Result 契约异常边界缺失（家族）",
+      "channels": [
+        "ocr"
+      ],
+      "refs": [
+        "app/src/main/java/com/xiaoduo/deskpet/cloud/OpenAIAsrClient.kt:39-43",
+        "app/src/main/java/com/xiaoduo/deskpet/cloud/OpenAIChatClient.kt:58, 82-84",
+        "app/src/main/java/com/xiaoduo/deskpet/agui/AguiClient.kt:765, 779-781",
+        "app/src/main/java/com/xiaoduo/deskpet/cloud/AliyunAsrClient.kt:42",
+        "app/src/main/java/com/xiaoduo/deskpet/voice/TtsClient.kt:96"
+      ],
+      "ocr_indices": [
+        105,
+        129,
+        130,
+        231,
+        232,
+        267,
+        413
+      ],
+      "problem": "Request.Builder.url 对用户可配畸形 baseUrl 抛 IAE（构造在 try 外）；resp.body!! 可 NPE；catch 只覆盖 IOException（回调异常/OkHttp ISE/Base64 IAE 逸出）；SSE feedLine 解析异常逸出 chat()；transcribe() 无顶层异常边界；TTS 流式 body!! 击穿文档化降级链。（同型镜像：OpenAITtsClient/VolcengineTtsClient）",
+      "impact": "畸形响应/错误配置/取消时序 → 未捕获异常崩溃调用方而非返回 Result.Error。",
+      "fix": "家族统一修：请求构造入 try、body 安全调用+null→Failure、catch 补 RuntimeException 映射 Error、feedLine runCatching 防御化。",
+      "needs_human_review": false,
+      "review_note": null
+    },
+    {
+      "id": "ROB-15",
+      "level": "P2",
+      "title": "WakeAckPrefetcher 半数步骤无护栏",
+      "channels": [
+        "ocr"
+      ],
+      "refs": [
+        "app/src/main/java/com/xiaoduo/deskpet/voice/WakeAckPrefetcher.kt:47-49"
+      ],
+      "ocr_indices": [
+        438
+      ],
+      "problem": "仅 ttsSynthesize/cacheStore.write 有护栏；resolver.snapshot()/selector/WakeAckAudio.validate/process/WavCodec.pcmToWav 裸奔，异常直达线程默认 uncaught handler；catch 只捕 Exception（OOM 逸出）。违背类 KDoc「不让异常逃出线程」。",
+      "impact": "一个异常缓存文件即可杀死进程。",
+      "fix": "run() 整体单层 try/catch(Exception) + PetLogger（可用 key 时记 backoff）。",
+      "needs_human_review": false,
+      "review_note": null
+    },
+    {
+      "id": "ROB-16",
+      "level": "P2",
+      "title": "AmbientCalibrator ioScope 无 Job",
+      "channels": [
+        "ocr"
+      ],
+      "refs": [
+        "app/src/main/java/com/xiaoduo/deskpet/voice/AmbientCalibrator.kt:70-71"
+      ],
+      "ocr_indices": [
+        379
+      ],
+      "problem": "CoroutineScope(Dispatchers.IO) 无 Job，ioScope.cancel() 走扩展函数抛 IllegalStateException。",
+      "impact": "临时采集分支每次运行收尾必抛（掩盖采集结果），scope 级清理永不发生。",
+      "fix": "CoroutineScope(SupervisorJob() + Dispatchers.IO)。",
+      "needs_human_review": false,
+      "review_note": null
+    },
+    {
+      "id": "DATA-1",
+      "level": "P2",
+      "title": "会话/历史持久化「读失败→静默降级为空→破坏性回写」数据丢失链",
+      "channels": [
+        "ocr"
+      ],
+      "refs": [
+        "app/src/main/java/com/xiaoduo/deskpet/chat/ChatStore.kt:43-45, 156-160, 53-56, 173-174, 63, 118-119",
+        "app/src/main/java/com/xiaoduo/deskpet/chat/ChatHistoryCodec.kt:36",
+        "app/src/main/java/com/xiaoduo/deskpet/chat/SessionIndexCodec.kt:38, 55(42-43)"
+      ],
+      "ocr_indices": [
+        108,
+        109,
+        110,
+        111,
+        112,
+        113,
+        241,
+        249,
+        250,
+        115,
+        251
+      ],
+      "problem": "索引/消息读失败或损坏一律降级为空且与「没有」不可区分，下一次变更/保存即以空内容覆盖好文件（108/109/110/241/250）；writeText 非原子，torn write 放大（111）；saveIndex 失败仅记日志且 createSession 照常返回 → saveMessages 全程静默 no-op（112）；删消息文件先于索引持久化（113）；Android org.json 把 JSON null 读成 \"null\" 幽灵会话 id（249+251）；@Synchronized 仅实例级，第二实例交错 RMW last-writer-wins（115，次级）。",
+      "impact": "一次瞬时 IO 错误/断电即可永久抹掉会话列表或整段对话历史，全程无用户可见信号。",
+      "fix": "读失败可观测并以标志/备份拒绝破坏性覆写；writeText 改临时文件+原子 rename；先 persist 索引后删文件；null 用 (opt as? String) 类型安全读；createSession/saveIndex 失败向上传播。",
+      "needs_human_review": false,
+      "review_note": null
+    },
+    {
+      "id": "DATA-2",
+      "level": "P2",
+      "title": "ChatViewModel 静态桥滞留已清 VM → 旧快照回写覆盖新历史",
+      "channels": [
+        "ocr"
+      ],
+      "refs": [
+        "app/src/main/java/com/xiaoduo/deskpet/chat/ChatViewModel.kt:144-147"
+      ],
+      "ocr_indices": [
+        126
+      ],
+      "problem": "三个静态桥捕获 this VM 且无 onCleared 反注册；VM 销毁后 Service 仍持旧实例，期间悬浮窗 chatInterrupt 对失效实例 markCancelledDone+persist。",
+      "impact": "旧 _messages 快照整写回会话文件覆盖新 VM 已持久化内容（历史回退）；旧实例被静态引用滞留。",
+      "fix": "onCleared() 置空三桥，Service 侧判空。",
+      "needs_human_review": false,
+      "review_note": null
+    },
+    {
+      "id": "DATA-3",
+      "level": "P2",
+      "title": "语音/文字轮双写者（busy 守卫缺口）",
+      "channels": [
+        "ocr"
+      ],
+      "refs": [
+        "app/src/main/java/com/xiaoduo/deskpet/chat/ChatViewModel.kt:181-185"
+      ],
+      "ocr_indices": [
+        121
+      ],
+      "problem": "busy 只看 _phase/_voiceActive，「我在」播放/聆听期两标志均假，send 通过；语音 utterance 到达即与在途文字轮成双写者。",
+      "impact": "对 _messages 交错 RMW 后写整体覆盖先写：丢消息/丢 delta；两轮收尾并发 persist 文件层 last-writer-wins。",
+      "fix": "onUserUtterance 开头检查在途文字轮（打断或延后上屏）；_voiceActive=true 提前缩小 TOCTOU。",
+      "needs_human_review": false,
+      "review_note": null
+    },
+    {
+      "id": "DATA-4",
+      "level": "P2",
+      "title": "ChatViewModel 多线程 RMW 竞态（_messages/_files/uploadJobs）",
+      "channels": [
+        "ocr"
+      ],
+      "refs": [
+        "app/src/main/java/com/xiaoduo/deskpet/chat/ChatViewModel.kt:205, 380-387"
+      ],
+      "ocr_indices": [
+        122,
+        123
+      ],
+      "problem": "_messages 读-改-写跨语音 IO/OkHttp IO 协程/主线程三方非原子；_files IO 协程与主线程并发写；uploadJobs 非线程安全 HashMap 被三线程读写。",
+      "impact": "互吞 append/delta、已删附件复活、HashMap 结构损坏。",
+      "fix": "StateFlow.update 原子 RMW 或写收敛单一调度器；uploadJobs 换 ConcurrentHashMap。",
+      "needs_human_review": false,
+      "review_note": null
+    },
+    {
+      "id": "DATA-5",
+      "level": "P2",
+      "title": "ChatTurnLogic rawBuffers 非线程安全",
+      "channels": [
+        "ocr"
+      ],
+      "refs": [
+        "app/src/main/java/com/xiaoduo/deskpet/chat/ChatTurnLogic.kt:39-40"
+      ],
+      "ocr_indices": [
+        235
+      ],
+      "problem": "普通 HashMap + StringBuilder + 非原子 getOrPut；流式线程 applyDelta 与主线程终态处理并发。",
+      "impact": "map 损坏、双 StringBuilder 丢 delta、终态后残留 buffer。",
+      "fix": "ConcurrentHashMap.compute(assistantId){...} 单临界区完成追加与读取；或文档化单线程契约。",
+      "needs_human_review": false,
+      "review_note": null
+    },
+    {
+      "id": "DATA-6",
+      "level": "P2",
+      "title": "applyDelta 无状态守卫，迟到 delta 复活已终态轮次",
+      "channels": [
+        "ocr"
+      ],
+      "refs": [
+        "app/src/main/java/com/xiaoduo/deskpet/chat/ChatTurnLogic.kt:38-39"
+      ],
+      "ocr_indices": [
+        236
+      ],
+      "problem": "markDone/markError/markCancelledDone/prepareResend 之后到达的迟到/重复 delta 以 cleaned text 重建 rawBuffer 并把终态消息翻回 STREAMING。",
+      "impact": "已完成轮次带陈旧内容复活，StringBuilder 泄漏至 reset()。",
+      "fix": "仅 SENDING/STREAMING 状态应用 delta，其余原样返回。",
+      "needs_human_review": false,
+      "review_note": null
+    },
+    {
+      "id": "CONC-1",
+      "level": "P2",
+      "title": "VadDetector 跨线程无同步（喂入双线程 + 32 位 ARM Double 撕裂）",
+      "channels": [
+        "ocr",
+        "人工代码 F-VSM-3"
+      ],
+      "refs": [
+        "app/src/main/java/com/xiaoduo/deskpet/voice/VadDetector.kt:170-171",
+        "app/src/main/java/com/xiaoduo/deskpet/voice/VoiceSessionManager.kt:583-589, 748"
+      ],
+      "ocr_indices": [
+        419
+      ],
+      "problem": "feed() 同时来自 Default 采集循环与 stopListening() 线程，runPipeline(IO) 调 start/raiseNoiseFloorFromLastUtterance；仅 startLevelOverride @Volatile，noiseFloor 非 volatile Double RMW，缓冲/tick 状态无 happens-before（人工审调用方 VoiceSessionManager.kt:583-589,748，ocr 审检测器内部，互补）。",
+      "impact": "并发 feed 可损坏 ArrayList/ArrayDeque 与 tick 状态机；噪声地板丢更新；32 位 ARM 非volatile Double 写撕裂成垃圾阈值（板端 rk3568）。",
+      "fix": "公共入口一把锁，或全部收敛到单一音频消费线程（stopListening 静音块经 Channel 投递）。",
+      "needs_human_review": true,
+      "review_note": "ocr high vs 人工 F-VSM-3 P3 分级分歧（人工认为 currentTurn 换主屏蔽大部分后果）；合并后按 Double 撕裂+容器损坏可能保留 P2，可复核降级。"
+    },
+    {
+      "id": "CONC-2",
+      "level": "P2",
+      "title": "WakeBlindWindowBuffer ArrayDeque 双域竞态",
+      "channels": [
+        "ocr"
+      ],
+      "refs": [
+        "app/src/main/java/com/xiaoduo/deskpet/voice/WakeBlindWindowBuffer.kt:30-33"
+      ],
+      "ocr_indices": [
+        443
+      ],
+      "problem": "add/drain 在采集收集协程（Default），clear() 可达 KWS 唤醒回调/UI barge-in 线程（文档化的 ack 播放中唤醒打断唤醒场景即双写）；drainEntries() toList+clear 非原子。",
+      "impact": "并发 clear/addLast 丢块、head/tail 损坏或 AIOOBE；间隙块静默丢失违背「恰好回灌一次」契约。",
+      "fix": "所有访问器同一私有锁（仓库 continuationLock 已有同型先例）。",
+      "needs_human_review": false,
+      "review_note": null
+    },
+    {
+      "id": "CONC-3",
+      "level": "P2",
+      "title": "VoicePlayer 流式生命周期竞态",
+      "channels": [
+        "ocr"
+      ],
+      "refs": [
+        "app/src/main/java/com/xiaoduo/deskpet/voice/VoicePlayer.kt:95-97"
+      ],
+      "ocr_indices": [
+        423
+      ],
+      "problem": "streamTrack/activeTrack/streamWrittenFrames（非 volatile Long）由 IO 线程 play()/finish() 写，stop()/reset() 可来自 UI/会话线程，无同步。",
+      "impact": "双 AudioTrack 泄漏一个；写已 release 轨道抛 ISE 或 drainUntil 空转到 wall-clock 死线（卡最长 audioDuration+3s）；Long 撕裂。",
+      "fix": "play/finish 收敛单线程 + 释放延迟到该线程 finally；或生命周期转换加锁。",
+      "needs_human_review": false,
+      "review_note": null
+    },
+    {
+      "id": "CONC-4",
+      "level": "P2",
+      "title": "ref-pacer 线程异常退出后永不再启",
+      "channels": [
+        "ocr"
+      ],
+      "refs": [
+        "app/src/main/java/com/xiaoduo/deskpet/voice/VoicePlayer.kt:147-150"
+      ],
+      "ocr_indices": [
+        425
+      ],
+      "problem": "playbackHeadPosition 抛出/Thread.sleep 中断杀死线程但不清 refPacerRunning，startRefPacer 见 true 早退。",
+      "impact": "refPending 无界增长（约 48KB/s）且 AEC 参考静默死亡——正是该 pacer 要修的 NLMS 退化。",
+      "fix": "循环体 try/finally 清 refPacerRunning（+记日志）。",
+      "needs_human_review": false,
+      "review_note": null
+    },
+    {
+      "id": "CONC-5",
+      "level": "P2",
+      "title": "WakeAckCacheStore 固定 .tmp 并发写碰撞",
+      "channels": [
+        "ocr"
+      ],
+      "refs": [
+        "app/src/main/java/com/xiaoduo/deskpet/voice/WakeAckCacheStore.kt:38"
+      ],
+      "ocr_indices": [
+        431
+      ],
+      "problem": "同名文件并发 write 共享固定 .tmp 路径无同步，先完成的 moveAtomically 可把半写/混合缓冲转正。",
+      "impact": "读者消费损坏音频直到自愈——恰是原子重命名设计要防的事。",
+      "fix": "每次写用唯一临时名（nanoTime/UUID 后缀）。",
+      "needs_human_review": false,
+      "review_note": null
+    },
+    {
+      "id": "CONC-6",
+      "level": "P2",
+      "title": "AguiClient 共享实例 auth 状态并发竞态",
+      "channels": [
+        "ocr"
+      ],
+      "refs": [
+        "app/src/main/java/com/xiaoduo/deskpet/agui/AguiClient.kt:181-182"
+      ],
+      "ocr_indices": [
+        228
+      ],
+      "problem": "reloginUsed/lastAuthError 共享可变实例状态且 chat() 入口重置；runId 仅 clock()+attempt 可撞。",
+      "impact": "并发 chat 互相清零配额违反「每次 chat 透明重登 1 次」；A 操作的错误消息串到 B。",
+      "fix": "状态按调用传上下文对象，或明确单飞行约束并文档化。",
+      "needs_human_review": false,
+      "review_note": null
+    },
+    {
+      "id": "CONC-7",
+      "level": "P2",
+      "title": "AguiClientFactory DEFAULT/legacy 槽位混叠 + promotion 竞态",
+      "channels": [
+        "ocr"
+      ],
+      "refs": [
+        "app/src/main/java/com/xiaoduo/deskpet/agui/AguiClientFactory.kt:60-64, 58"
+      ],
+      "ocr_indices": [
+        166,
+        167
+      ],
+      "problem": "DEFAULT 键与 LEGACY_KEY 同槽：load() legacy promotion 把值 move 走（默认会话 threadId 被偷，下次 load null 另建新线程）；DEFAULT save/remove 直写 LEGACY 使「晋升后永久删除」不变量失效，非默认键首载 adopt 该 id → 两会话共享同一服务端 thread；promotion 本身 check-then-act 无同步。",
+      "impact": "默认会话服务端连续性静默丢失；会话串线。",
+      "fix": "DEFAULT 与 LEGACY 彻底解耦：一次性迁移 flag + copy（不 move），promotion 加同步。",
+      "needs_human_review": false,
+      "review_note": null
+    },
+    {
+      "id": "CONC-8",
+      "level": "P2",
+      "title": "设备/密集架导航轮不可打断，busy 吞输入",
+      "channels": [
+        "ocr"
+      ],
+      "refs": [
+        "app/src/main/java/com/xiaoduo/deskpet/chat/ChatViewModel.kt:520-522"
+      ],
+      "ocr_indices": [
+        124
+      ],
+      "problem": "runDeviceTurn/runShelfNavTurn 不登记 chatJob/activeAssistantId、不捕获 turnEpoch，cancelCurrentTurn 直接 return。",
+      "impact": "barge-in 打不断设备轮；busy(SENDING) 吞掉用户输入直到自然结束（DeviceClient/ShelfMcpBridge 有 4s/6s 超时兜底）。",
+      "fix": "与 runChat 同款登记，使取消路径能 markCancelledDone 并复位 phase。",
+      "needs_human_review": false,
+      "review_note": null
+    },
+    {
+      "id": "FUNC-1",
+      "level": "P2",
+      "title": "意图匹配缺疑问句/否定句门控（家族）",
+      "channels": [
+        "ocr"
+      ],
+      "refs": [
+        "app/src/main/java/com/xiaoduo/deskpet/device/DeviceIntentMatcher.kt:38-39, 56, 41",
+        "app/src/main/java/com/xiaoduo/deskpet/device/ShelfNavIntentMatcher.kt:45"
+      ],
+      "ocr_indices": [
+        282,
+        283,
+        281,
+        187
+      ],
+      "problem": "动作分支先于疑问检测且开关词是问句子串：「整理台开机了吗」发 PowerOn、「净化柜强力模式是什么」切强力（282）；否定不处理：「不要打开整理台」执行 PowerOn（283）；fan-speed 分支命中但解析失败吞掉 query 回退（281）；ShelfNav 问句/聊天句被劫持为导航（187）。",
+      "impact": "自然问句/否定句确定性误触发物理设备动作或错误跳页。",
+      "fix": "动作分支前加疑问标记门（吗/呢/什么/？）与否定门（不要/别），问句路由 QueryStatus 或 null。",
+      "needs_human_review": false,
+      "review_note": null
+    },
+    {
+      "id": "FUNC-2",
+      "level": "P2",
+      "title": "关机校验 RunFlag 缺省 0 误报成功",
+      "channels": [
+        "ocr"
+      ],
+      "refs": [
+        "app/src/main/java/com/xiaoduo/deskpet/device/DeviceClient.kt:60-61"
+      ],
+      "ocr_indices": [
+        180
+      ],
+      "problem": "optInt(\"RunFlag\") 缺键默认 0，无 err 字段的空/畸形状态体被判「成功关闭」。",
+      "impact": "关机未证实却向用户报成功。",
+      "fix": "哨兵默认（-1），缺 flag 即失败。",
+      "needs_human_review": false,
+      "review_note": null
+    },
+    {
+      "id": "FUNC-3",
+      "level": "P2",
+      "title": "FanSpeed 回读校验硬编码 ZLT 忽略 cmd.device",
+      "channels": [
+        "ocr"
+      ],
+      "refs": [
+        "app/src/main/java/com/xiaoduo/deskpet/device/DeviceClient.kt:69"
+      ],
+      "ocr_indices": [
+        181
+      ],
+      "problem": "净化柜(JHG)风速指令的回读校验打在错误设备上。",
+      "impact": "误报失败或掩盖真实失败。",
+      "fix": "回读改用 cmd.device。",
+      "needs_human_review": false,
+      "review_note": null
+    },
+    {
+      "id": "FUNC-4",
+      "level": "P2",
+      "title": "ShelfNav 源→目标句式取首词导航错页",
+      "channels": [
+        "ocr"
+      ],
+      "refs": [
+        "app/src/main/java/com/xiaoduo/deskpet/device/ShelfNavIntentMatcher.kt:49-50"
+      ],
+      "ocr_indices": [
+        186
+      ],
+      "problem": "首现决胜：「从借阅切到归还」返回 borrow（源页）且无 LLM 兜底；KDoc 把错误目标写成预期。",
+      "impact": "该句式 100% 导航到用户要离开的页面。",
+      "fix": "候选跨多页时返回 null 交 LLM。",
+      "needs_human_review": false,
+      "review_note": null
+    },
+    {
+      "id": "FUNC-5",
+      "level": "P2",
+      "title": "BubbleTextStrip 无流尾 flush，未闭合标记永久吞尾",
+      "channels": [
+        "人工代码 F-BT-1"
+      ],
+      "refs": [
+        "app/src/main/java/com/xiaoduo/deskpet/ui/overlay/BubbleTextStrip.kt:276-284, 310-332"
+      ],
+      "ocr_indices": [],
+      "problem": "Session 只有 feed 无 flush；`**` 分支无 hold 上限（`*`≤24 字、反引号≤48 字）；调用方只取 feed().text（佐证 PetOverlayService.kt:534,563）。",
+      "impact": "LLM 回复以未闭合标记收尾时标记后内容永不上屏（「回答缺后半句」）。反例 feed(\"注意**这里是重点\") 只显示「注意」。",
+      "fix": "Session.flush()（全量 raw 走一次性 render 规则差分补发）在 RUN_FINISHED/收泡前调用；最小改动为 `**` 分支加 hold 上限。",
+      "needs_human_review": false,
+      "review_note": null
+    },
+    {
+      "id": "FUNC-6",
+      "level": "P2",
+      "title": "runBlocking{sentences.send} 不可取消 → IO 线程永久挂死",
+      "channels": [
+        "人工代码 F-VSM-1"
+      ],
+      "refs": [
+        "app/src/main/java/com/xiaoduo/deskpet/voice/VoiceSessionManager.kt:1047, 1131-1156, 1180-1184"
+      ],
+      "ocr_indices": [],
+      "problem": "sentences(4) 打满时管线线程阻塞于 runBlocking（不在 pipelineJob 协作取消域）；producer 只 break 不 close；consumeSentences finally 只 close audioQueue（1112 行 sentences.close() 永不可达）。",
+      "impact": "每发生一次永久泄漏 1 个 IO 线程；反复打断长回复可耗尽 Dispatchers.IO（默认 64）拖垮全 App 网络路径。",
+      "fix": "consumeSentences finally 补 sentences.close()；或 handleDelta 改 trySend + sealed 短路消除 runBlocking。",
+      "needs_human_review": false,
+      "review_note": null
+    },
+    {
+      "id": "FUNC-7",
+      "level": "P2",
+      "title": "WakeAckResolver 瞬态失败被 memo 永久化",
+      "channels": [
+        "ocr"
+      ],
+      "refs": [
+        "app/src/main/java/com/xiaoduo/deskpet/voice/WakeAckResolver.kt:71-73, 121-122"
+      ],
+      "ocr_indices": [
+        449,
+        450
+      ],
+      "problem": "memo 以外层 Decision 为键缓存 fallback/NONE 无失效（进程级单例）；assetNames() 把首次 assets.list 的 IOException 空集 memo 终身。",
+      "impact": "一次瞬态失败 → 进程生命周期内 vendor/缓存层永不重试，唤醒应答降级且零诊断、不可自愈。",
+      "fix": "回退结果不写 memo（或按文件长度/mtime 新鲜度键）；空集不 memo 并记录 lister 失败。",
+      "needs_human_review": false,
+      "review_note": null
+    }
+  ],
+  "p3": {
+    "ocr_item_total": 397,
+    "unified_entry_total": 410,
+    "ocr_severity_breakdown": {
+      "low": 218,
+      "medium": 158,
+      "high": 19,
+      "null": 2
+    },
+    "clusters": [
+      {
+        "name": "可维护性-契约-测试缺口",
+        "count": 98,
+        "ocr_indices": [
+          2,
+          3,
+          4,
+          6,
+          20,
+          27,
+          28,
+          29,
+          31,
+          37,
+          38,
+          46,
+          53,
+          57,
+          58,
+          64,
+          68,
+          70,
+          83,
+          89,
+          95,
+          99,
+          100,
+          106,
+          142,
+          143,
+          146,
+          148,
+          152,
+          154,
+          157,
+          158,
+          164,
+          165,
+          174,
+          175,
+          185,
+          188,
+          193,
+          195,
+          199,
+          200,
+          205,
+          208,
+          210,
+          215,
+          219,
+          227,
+          242,
+          244,
+          245,
+          252,
+          253,
+          259,
+          260,
+          280,
+          284,
+          295,
+          296,
+          301,
+          303,
+          309,
+          316,
+          318,
+          320,
+          325,
+          328,
+          329,
+          331,
+          341,
+          346,
+          358,
+          361,
+          363,
+          368,
+          370,
+          371,
+          372,
+          373,
+          374,
+          385,
+          388,
+          389,
+          390,
+          398,
+          399,
+          400,
+          407,
+          410,
+          411,
+          418,
+          422,
+          442,
+          445,
+          451,
+          452,
+          458,
+          459
+        ],
+        "representatives": [
+          {
+            "ocr_index": 370,
+            "path": "app/src/main/java/com/xiaoduo/deskpet/util/PrefContract.kt",
+            "lines": "76-77",
+            "gist": "The header invariant promises \"防升级丢键：键集变更必须同步改 PrefContractTest\", but the preservation sets are incomplete: kws_enabled "
+          },
+          {
+            "ocr_index": 154,
+            "path": "app/src/main/java/com/xiaoduo/deskpet/net/TtsVoiceDefaults.kt",
+            "lines": "32-37",
+            "gist": "The else→openai fallback and its twin in voice() are guarded only by convention, leaving three silent-drift vectors: (1)"
+          },
+          {
+            "ocr_index": 50,
+            "path": "app/src/main/java/com/xiaoduo/deskpet/voice/VoiceClientFactory.kt",
+            "lines": "160-161",
+            "gist": "One-shot gating defeats the hot-reload intent ('每轮现读地址（改设置即时生效）') for BOTH matchers: deviceSkillMatcher and shelfNavMatc"
+          }
+        ]
+      },
+      {
+        "name": "并发-线程安全-竞态",
+        "count": 68,
+        "ocr_indices": [
+          0,
+          5,
+          10,
+          11,
+          13,
+          14,
+          15,
+          16,
+          18,
+          19,
+          21,
+          40,
+          42,
+          49,
+          50,
+          98,
+          135,
+          147,
+          177,
+          179,
+          183,
+          202,
+          203,
+          204,
+          211,
+          212,
+          213,
+          217,
+          218,
+          225,
+          230,
+          237,
+          262,
+          264,
+          265,
+          269,
+          270,
+          292,
+          294,
+          308,
+          311,
+          314,
+          334,
+          342,
+          344,
+          356,
+          359,
+          362,
+          366,
+          367,
+          381,
+          382,
+          383,
+          384,
+          393,
+          394,
+          402,
+          420,
+          421,
+          424,
+          426,
+          427,
+          428,
+          429,
+          432,
+          435,
+          439,
+          444
+        ],
+        "representatives": [
+          {
+            "ocr_index": 5,
+            "path": "app/src/main/java/com/xiaoduo/deskpet/voice/BubbleHidePolicy.kt",
+            "lines": "18-23",
+            "gist": "Thread-safety: `bubbleShownThisRound` is a plain unsynchronized `var`, but the write path (`onBubbleShown`) and the read"
+          },
+          {
+            "ocr_index": 49,
+            "path": "app/src/main/java/com/xiaoduo/deskpet/voice/VoiceClientFactory.kt",
+            "lines": "66-69",
+            "gist": "Claim-then-use on a shared mutable token is not atomic. `voiceRound` is claimed by both OverlayBubbleSink.show and Overl"
+          },
+          {
+            "ocr_index": 202,
+            "path": "app/src/main/java/com/xiaoduo/deskpet/VoiceForegroundService.kt",
+            "lines": "214-214",
+            "gist": "Check-then-act TOCTOU in onWake: the volatile `destroyed` read and session.startListening(...) are not atomic. If onDest"
+          }
+        ]
+      },
+      {
+        "name": "风格-文档-注释",
+        "count": 61,
+        "ocr_indices": [
+          7,
+          8,
+          9,
+          22,
+          32,
+          35,
+          36,
+          39,
+          48,
+          54,
+          72,
+          73,
+          74,
+          78,
+          88,
+          90,
+          96,
+          97,
+          104,
+          107,
+          117,
+          120,
+          127,
+          136,
+          137,
+          155,
+          169,
+          170,
+          194,
+          197,
+          209,
+          246,
+          248,
+          254,
+          275,
+          279,
+          286,
+          289,
+          299,
+          300,
+          302,
+          304,
+          319,
+          321,
+          322,
+          327,
+          330,
+          338,
+          386,
+          391,
+          403,
+          404,
+          405,
+          406,
+          408,
+          437,
+          446,
+          447,
+          448,
+          460,
+          461
+        ],
+        "representatives": [
+          {
+            "ocr_index": 35,
+            "path": "app/src/main/java/com/xiaoduo/deskpet/voice/TtsSanitizer.kt",
+            "lines": "12-14",
+            "gist": "\"与桌面端 sidecar._TTS_KEEP_PUNCT 逐字符一致\"这条硬约束目前只靠注释背书，没有任何机制防止两端漂移；白名单一旦不同步（sidecar HEAD 前进时尤甚），用户听到的朗读内容会静默改变（如剥除 #/@/_ 使 \""
+          },
+          {
+            "ocr_index": 39,
+            "path": "app/src/main/java/com/xiaoduo/deskpet/voice/VoiceStateRouter.kt",
+            "lines": "84-84",
+            "gist": "The one-line KDoc hides contracts that already produced a production bug: (1) the function does NOT strip punctuation, s"
+          },
+          {
+            "ocr_index": 93,
+            "path": "app/src/main/java/com/xiaoduo/deskpet/chat/ChatSession.kt",
+            "lines": "24-24",
+            "gist": "On the JVM, \\s only matches [ \\t\\n\\x0B\\f\\r] and does not match ideographic space (U+3000) or NBSP (U+00A0), which are co"
+          }
+        ]
+      },
+      {
+        "name": "健壮性-边界输入-安全与隐私卫生",
+        "count": 61,
+        "ocr_indices": [
+          17,
+          33,
+          34,
+          43,
+          56,
+          63,
+          66,
+          67,
+          69,
+          71,
+          79,
+          81,
+          82,
+          86,
+          91,
+          92,
+          93,
+          101,
+          102,
+          103,
+          114,
+          119,
+          139,
+          149,
+          150,
+          151,
+          153,
+          156,
+          163,
+          184,
+          196,
+          198,
+          206,
+          229,
+          233,
+          247,
+          256,
+          258,
+          263,
+          272,
+          290,
+          305,
+          323,
+          326,
+          337,
+          343,
+          348,
+          350,
+          354,
+          369,
+          375,
+          378,
+          395,
+          396,
+          401,
+          409,
+          416,
+          430,
+          433,
+          456,
+          457
+        ],
+        "representatives": [
+          {
+            "ocr_index": 114,
+            "path": "app/src/main/java/com/xiaoduo/deskpet/chat/ChatStore.kt",
+            "lines": "168-168",
+            "gist": "Path traversal: sessionId is concatenated into the file path unvalidated. Ids normally come from newId() (UUID), but loa"
+          },
+          {
+            "ocr_index": 233,
+            "path": "app/src/main/java/com/xiaoduo/deskpet/agui/AguiClient.kt",
+            "lines": "773-775",
+            "gist": "S68 research logging dumps raw SSE tool-call payloads (up to 1200 chars; tool args often embed user conversation content"
+          },
+          {
+            "ocr_index": 119,
+            "path": "app/src/main/java/com/xiaoduo/deskpet/cloud/OpenAITtsClient.kt",
+            "lines": "41-41",
+            "gist": "The bearer API key is sent to whatever scheme baseUrl carries. If baseUrl is misconfigured as http://, the key is transm"
+          }
+        ]
+      },
+      {
+        "name": "性能-主线程-内存",
+        "count": 48,
+        "ocr_indices": [
+          1,
+          12,
+          30,
+          45,
+          52,
+          76,
+          84,
+          87,
+          116,
+          125,
+          128,
+          131,
+          140,
+          168,
+          176,
+          178,
+          192,
+          214,
+          234,
+          240,
+          257,
+          268,
+          285,
+          293,
+          306,
+          307,
+          310,
+          312,
+          315,
+          317,
+          335,
+          340,
+          345,
+          347,
+          355,
+          357,
+          364,
+          365,
+          376,
+          377,
+          392,
+          412,
+          415,
+          417,
+          434,
+          441,
+          453,
+          454
+        ],
+        "representatives": [
+          {
+            "ocr_index": 307,
+            "path": "app/src/main/java/com/xiaoduo/deskpet/ui/PetView.kt",
+            "lines": "44-46",
+            "gist": "invalidate() fires every Choreographer frame even when animator.tick didn't advance the frame — frames only change every"
+          },
+          {
+            "ocr_index": 364,
+            "path": "app/src/main/java/com/xiaoduo/deskpet/util/PetLogger.kt",
+            "lines": "69-70",
+            "gist": "Blocking file I/O on the caller thread under a global lock: File.appendText() opens and closes the FileOutputStream for "
+          },
+          {
+            "ocr_index": 434,
+            "path": "app/src/main/java/com/xiaoduo/deskpet/voice/WakeAckCacheStore.kt",
+            "lines": "53-57",
+            "gist": "read() slurps the entire file into memory before any validation. A single oversized/garbage cache entry (orphaned by a c"
+          }
+        ]
+      },
+      {
+        "name": "错误吞掉-误导性失败-降级语义",
+        "count": 47,
+        "ocr_indices": [
+          41,
+          44,
+          47,
+          55,
+          61,
+          62,
+          94,
+          118,
+          132,
+          133,
+          134,
+          138,
+          141,
+          160,
+          161,
+          162,
+          172,
+          173,
+          182,
+          189,
+          191,
+          207,
+          216,
+          238,
+          239,
+          243,
+          255,
+          261,
+          273,
+          274,
+          276,
+          277,
+          278,
+          287,
+          288,
+          291,
+          297,
+          298,
+          313,
+          324,
+          336,
+          349,
+          351,
+          360,
+          414,
+          436,
+          440
+        ],
+        "representatives": [
+          {
+            "ocr_index": 138,
+            "path": "app/src/main/java/com/xiaoduo/deskpet/cloud/VolcengineTtsClient.kt",
+            "lines": "70-73",
+            "gist": "Error frames are silently swallowed: the `if (b64.isEmpty()) continue` runs BEFORE the error-code check, so a failure fr"
+          },
+          {
+            "ocr_index": 230,
+            "path": "app/src/main/java/com/xiaoduo/deskpet/agui/AguiClient.kt",
+            "lines": "510-514",
+            "gist": "Idempotency handling conflates 'already deleted' with transient server failure: every non-2xx response (including 500/50"
+          },
+          {
+            "ocr_index": 94,
+            "path": "app/src/main/java/com/xiaoduo/deskpet/chat/ChatMessage.kt",
+            "lines": "39-39",
+            "gist": "Silent DONE fallback for unknown wire values: any unrecognized status (corruption, typo, or a status introduced by a new"
+          }
+        ]
+      },
+      {
+        "name": "资源泄漏-生命周期清理",
+        "count": 14,
+        "ocr_indices": [
+          51,
+          59,
+          60,
+          65,
+          77,
+          85,
+          224,
+          226,
+          266,
+          271,
+          353,
+          380,
+          387,
+          397
+        ],
+        "representatives": [
+          {
+            "ocr_index": 387,
+            "path": "app/src/main/java/com/xiaoduo/deskpet/voice/KwsEngine.kt",
+            "lines": "39-40",
+            "gist": "Constructor property initialization has no failure cleanup: if `KeywordSpotter(...)` succeeds but `createStream()` throw"
+          },
+          {
+            "ocr_index": 224,
+            "path": "app/src/main/java/com/xiaoduo/deskpet/PetOverlayService.kt",
+            "lines": "715-717",
+            "gist": "Handler callbacks are not cancelled on destroy. cancelSlideAnimation guards the animator, but pending posts survive tear"
+          },
+          {
+            "ocr_index": 269,
+            "path": "app/src/main/java/com/xiaoduo/deskpet/cloud/AliyunTtsClient.kt",
+            "lines": "84-89",
+            "gist": "done.await() throws InterruptedException, but it is not caught. If the calling thread is interrupted, the exception prop"
+          }
+        ]
+      }
+    ],
+    "cross_channel_and_special_entries": [
+      {
+        "id": "P3-DEBUG-BUBBLE",
+        "title": "DebugBubbleReceiver 导出常驻 manifest",
+        "channels": [
+          "codex#5",
+          "ocr[326]",
+          "人工非代码 F-P3-1"
+        ],
+        "refs": [
+          "app/src/main/java/com/xiaoduo/deskpet/ui/overlay/DebugBubbleReceiver.kt:24",
+          "app/src/main/AndroidManifest.xml:57-65"
+        ],
+        "gist": "exported=true 无 permission，release 仅靠运行时 FLAG_DEBUGGABLE 守卫；release 无实际漏洞、debug 包可被同机应用伪造气泡文本。三通道命中。",
+        "fix": "signature 级自定义权限或迁 debug source set，并挂 issue 跟踪防遗忘。"
+      },
+      {
+        "id": "P3-CRASH-LOG",
+        "title": "crash 日志无轮转无上限",
+        "channels": [
+          "codex#4",
+          "ocr[214]"
+        ],
+        "refs": [
+          "app/src/main/java/com/xiaoduo/deskpet/util/LogRotator.kt:21-28",
+          "app/src/main/java/com/xiaoduo/deskpet/util/CrashReporter.kt:40-47",
+          "app/src/main/java/com/xiaoduo/deskpet/util/PetLogger.kt:29-33"
+        ],
+        "gist": "crash-*.log 绕过仅匹配 xiaoduo-*.log 的轮转/清理/导出过滤器，appendText 无大小上限，崩溃循环下全天累积；应用私有目录、分享面板已过滤，属留存卫生。双通道命中。",
+        "fix": "LogRotator 识别 crash-<date>.log 或统一命名。"
+      },
+      {
+        "id": "P3-WAV-FAMILY",
+        "title": "WAV 解析负值/溢出族（4 处同型）",
+        "channels": [
+          "ocr[41]",
+          "ocr[262]",
+          "ocr[263]",
+          "人工代码 F-ASR-1"
+        ],
+        "refs": [
+          "app/src/main/java/com/xiaoduo/deskpet/voice/WavCodec.kt:47",
+          "app/src/main/java/com/xiaoduo/deskpet/cloud/AliyunAsrClient.kt:163-168",
+          "app/src/main/java/com/xiaoduo/deskpet/cloud/VolcengineAsrClient.kt:177-178"
+        ],
+        "ocr_indices": [
+          41,
+          262,
+          263
+        ],
+        "gist": "损坏 WAV 的负/溢出 chunkSize 导致 IOOBE（违背 IAE 契约）、倒退甚至死循环；输入为自录/内置 WAV，需文件损坏才触发，无外部输入面。人工对同型判 P3，统一 P3。",
+        "fix": "循环体负值即 break/fallback；比较改无溢出形式。",
+        "needs_human_review": true,
+        "review_note": "人工判例 P3 vs ocr high（两处），是否因 IOOBE 逃逸 IAE 映射契约统一升 P2，待复诊。"
+      }
+    ],
+    "manual_code_standalone": [
+      "F-MD-1",
+      "F-MD-2",
+      "F-ASR-2",
+      "F-NL-1",
+      "F-NL-2",
+      "F-NL-3",
+      "F-VSM-2",
+      "F-VSM-4",
+      "F-VSM-5",
+      "F-VSM-6"
+    ],
+    "manual_noncode_standalone": [
+      "F-P3-2",
+      "F-P3-3",
+      "F-P3-4",
+      "F-P3-5",
+      "F-P3-6"
+    ]
+  }
+}

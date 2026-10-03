@@ -1,0 +1,51 @@
+[ocr] full-scan: 8 file(s) discovered, reviewing 8 in E:\desk-pet-android
+[ocr] estimated cost: ~8 file(s), est. 300K input + 43K output ≈ 343K total tokens (rough; actual reported after run)
+[ocr] scan dispatch: 1 batch(es) by by-language strategy
+[ocr] scan plan failed for app/src/main/java/com/xiaoduo/deskpet/agui/AguiClient.kt: POST "http://127.0.0.1:18924/v1/messages": 429 Too Many Requests (Request-ID: 20261003013626bbd98e573ec24eae) {"type":"error","error":{"type":"rate_limit_error","code":"1302","message":"[1302][您的账户已达到速率限制，请您控制请求频率][20261003013626bbd98e573ec24eae]"},"request_id":"20261003013626bbd98e573ec24eae"} (falling back to plan-less)
+[ocr] Scan subtask error for app/src/main/java/com/xiaoduo/deskpet/agui/AguiClient.kt (batch #0): LLM completion error: POST "http://127.0.0.1:18924/v1/messages": 429 Too Many Requests (Request-ID: 20261003013642ff9cd198b48e419b) {"type":"error","error":{"type":"rate_limit_error","code":"1302","message":"[1302][您的账户已达到速率限制，请您控制请求频率][20261003013642ff9cd198b48e419b]"},"request_id":"20261003013642ff9cd198b48e419b"}
+[ocr]   ▶ code_search search_text=TtsVoiceDefaults
+[ocr]   ✔ code_search (46ms)
+[ocr]   ▶ code_search use_perl_regexp=true
+[ocr]   ✔ code_search (89ms)
+[ocr]   ▶ code_search search_text=volcTtsSpeaker|CloudClientFactory|WakeAckSelector use_perl_regexp=true
+[ocr]   ✔ code_search (75ms)
+[ocr]   ▶ code_search use_perl_regexp=true
+[ocr]   ✔ code_search (48ms)
+[ocr]   ▶ code_search file_patterns=[tools/wozai/*] search_text=TEXT|text =|"我在" use_perl_regexp=true
+[ocr]   ✔ code_search (17ms)
+[ocr]   ▶ code_search search_text=FileMeta
+[ocr]   ✔ code_search (57ms)
+[ocr]   ▶ code_search search_text=localId
+[ocr]   ✔ code_search (55ms)
+[ocr]   ▶ code_search file_patterns=[*.gradle *.gradle.kts *.toml] search_text=org.json
+[ocr]   ✔ code_search (15ms)
+[ocr]   ▶ code_search file_patterns=[**/AguiClient.kt] search_text=threadStore\.
+[ocr]   ✔ code_search (19ms)
+[ocr]   ▶ code_search search_text=AguiClientFactory\.create
+[ocr]   ✔ code_search (49ms)
+[ocr]   ▶ code_search search_text=threadStore
+[ocr]   ✔ code_search (67ms)
+[ocr]   ▶ code_search search_text=AguiClientFactory
+[ocr]   ✔ code_search (57ms)
+[ocr]   ▶ code_comment
+[ocr]   ✔ code_comment (0s)
+[ocr]   ▶ file_read end_line=380 start_line=315
+[ocr]   ✔ file_read (0s)
+[ocr]   ▶ file_find query_name=TtsVoiceDefaults
+[ocr]   ✔ file_find (15ms)
+[ocr]   ▶ code_comment
+[ocr]   ✔ code_comment (0s)
+[ocr]   ▶ code_comment
+[ocr]   ✔ code_comment (0s)
+[ocr]   ▶ code_search search_text=HttpClients\.(create|shared|TRUSTED_HOSTS) use_perl_regexp=true
+[ocr]   ✔ code_search (55ms)
+[ocr]   ▶ code_comment
+[ocr]   ✔ code_comment (0s)
+[ocr]   ▶ code_comment
+[ocr]   ✔ code_comment (1ms)
+[ocr]   ▶ code_comment
+[ocr]   ✔ code_comment (0s)
+[ocr]   ▶ code_comment
+[ocr]   ✔ code_comment (0s)
+[ocr] scan dedup batch #0: 34 → 33 comments
+[ocr] Results written to docs/audit/2026-10-03-full-audit/ocr-04-agui-net.json

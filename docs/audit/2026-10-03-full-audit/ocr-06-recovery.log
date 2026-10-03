@@ -1,0 +1,412 @@
+[ocr] full-scan: 55 file(s) discovered, reviewing 55 in E:\desk-pet-android
+[ocr] estimated cost: ~55 file(s), est. 1.9M input + 295K output ≈ 2.2M total tokens (rough; actual reported after run)
+[ocr] scan dispatch: 2 batch(es) by by-language strategy
+[ocr]   ▶ code_search file_patterns=[*.kt] search_text=hasShownBubbleContent
+[ocr]   ✔ code_search (20ms)
+[ocr]   ▶ code_search file_patterns=[*.kt] search_text=judgePublish|judgeHide
+[ocr]   ✔ code_search (16ms)
+[ocr]   ▶ code_comment
+[ocr]   ✔ code_comment (1ms)
+[ocr]   ▶ code_comment
+[ocr]   ✔ code_comment (1ms)
+[ocr]   ▶ code_search file_patterns=[app/src/main/java/com/xiaoduo/deskpet/chat/*] search_text=fromWire
+[ocr]   ✔ code_search (16ms)
+[ocr]   ▶ code_search search_text=ChatHistoryCodec
+[ocr]   ✔ code_search (64ms)
+[ocr]   ▶ code_comment
+[ocr]   ✔ code_comment (0s)
+[ocr]   ▶ code_search search_text=enum class UploadStatus use_perl_regexp=false
+[ocr]   ✔ code_search (54ms)
+[ocr]   ▶ code_search search_text=data class FileMeta use_perl_regexp=false
+[ocr]   ✔ code_search (52ms)
+[ocr]   ▶ code_search search_text=localId use_perl_regexp=false
+[ocr]   ✔ code_search (55ms)
+[ocr]   ▶ code_comment
+[ocr]   ✔ code_comment (0s)
+[ocr]   ▶ code_search file_patterns=[*.kt *.java] search_text=FunctionKeyLogic
+[ocr]   ✔ code_search (20ms)
+[ocr]   ▶ file_find query_name=FunctionKeyLogicTest
+[ocr]   ✔ file_find (14ms)
+[ocr]   ▶ file_read start_line=95 end_line=125
+[ocr]   ✔ file_read (1ms)
+[ocr]   ▶ file_read start_line=1 end_line=80
+[ocr]   ✔ file_read (1ms)
+[ocr]   ▶ code_search file_patterns=[*.kt] search_text=attachedDone\(|clearAttached\(|uploadInFlight\( use_perl_regexp=true
+[ocr]   ✔ code_search (19ms)
+[ocr]   ▶ code_comment
+[ocr]   ✔ code_comment (0s)
+[ocr]   ▶ code_comment
+[ocr]   ✔ code_comment (0s)
+[ocr]   ▶ code_search search_text=SessionIndexCodec.decode
+[ocr]   ✔ code_search (68ms)
+[ocr]   ▶ code_search search_text=data class ChatSession
+[ocr]   ✔ code_search (55ms)
+[ocr]   ▶ code_comment
+[ocr]   ✔ code_comment (0s)
+[ocr] Scan subtask error for app/src/main/java/com/xiaoduo/deskpet/chat/MarkdownRenderer.kt (batch #0): LLM completion error: context deadline exceeded
+[ocr]   ▶ code_search search_text=SuggestedQuestions
+[ocr]   ✔ code_search (69ms)
+[ocr]   ▶ code_search search_text=\.pick\(
+[ocr]   ✔ code_search (60ms)
+[ocr]   ▶ code_search search_text=SUGGESTION_COUNT
+[ocr]   ✔ code_search (15ms)
+[ocr]   ▶ code_comment
+[ocr]   ✔ code_comment (0s)
+[ocr]   ▶ code_comment
+[ocr]   ✔ code_comment (0s)
+[ocr]   ▶ code_search search_text=LANGUAGE_ZH|interface AsrClient
+[ocr]   ✔ code_search (50ms)
+[ocr]   ▶ file_find query_name=AsrClient
+[ocr]   ✔ file_find (14ms)
+[ocr]   ▶ file_read end_line=60 start_line=1
+[ocr]   ✔ file_read (1ms)
+[ocr]   ▶ code_comment
+[ocr]   ✔ code_comment (0s)
+[ocr]   ▶ code_comment
+[ocr]   ✔ code_comment (1ms)
+[ocr]   ▶ code_search search_text=asrTranscribe\(|ttsSynthesize\( use_perl_regexp=true
+[ocr]   ✔ code_search (70ms)
+[ocr]   ▶ code_search file_patterns=[app/src/main/java/com/xiaoduo/deskpet/cloud/*] search_text=apiKey|Authorization|Bearer use_perl_regexp=true
+[ocr]   ✔ code_search (14ms)
+[ocr]   ▶ code_search file_patterns=[**/PetLogger.kt] search_text=fun w(
+[ocr]   ✔ code_search (15ms)
+[ocr]   ▶ code_search file_patterns=[**/OpenAITtsClient.kt] search_text=voice
+[ocr]   ✔ code_search (15ms)
+[ocr]   ▶ file_read end_line=140 start_line=60
+[ocr]   ✔ file_read (1ms)
+[ocr]   ▶ code_search file_patterns=[app/src/main/java/com/xiaoduo/deskpet/cloud/*] search_text=logger\?\.\w+\(|logger\( use_perl_regexp=true
+[ocr]   ✔ code_search (19ms)
+[ocr]   ▶ code_search use_perl_regexp=true search_text=transcribeAny|synthesizeAny
+[ocr]   ✔ code_search (16ms)
+[ocr]   ▶ file_read end_line=920 start_line=875
+[ocr]   ✔ file_read (1ms)
+[ocr]   ▶ code_comment
+[ocr]   ✔ code_comment (0s)
+[ocr] Scan subtask error for app/src/main/java/com/xiaoduo/deskpet/cloud/VolcengineAsrClient.kt (batch #0): LLM completion error: context deadline exceeded
+[ocr]   ▶ code_search search_text=clampAxis
+[ocr]   ✔ code_search (55ms)
+[ocr]   ▶ code_search search_text=object OverlayClamp
+[ocr]   ✔ code_search (48ms)
+[ocr]   ▶ file_read start_line=1 end_line=60
+[ocr]   ✔ file_read (1ms)
+[ocr]   ▶ code_comment
+[ocr]   ✔ code_comment (0s)
+[ocr]   ▶ code_comment
+[ocr]   ✔ code_comment (0s)
+[ocr]   ▶ code_search search_text=durationMs
+[ocr]   ✔ code_search (58ms)
+[ocr]   ▶ file_find query_name=PetFrameTable
+[ocr]   ✔ file_find (14ms)
+[ocr]   ▶ file_read end_line=80 start_line=1
+[ocr]   ✔ file_read (1ms)
+[ocr]   ▶ code_search search_text=\.onFinished\s*=
+[ocr]   ✔ code_search (57ms)
+[ocr]   ▶ code_comment
+[ocr]   ✔ code_comment (0s)
+[ocr]   ▶ code_search search_text=OverlayClamp
+[ocr]   ✔ code_search (54ms)
+[ocr]   ▶ file_find query_name=OverlayClampTest
+[ocr]   ✔ file_find (12ms)
+[ocr]   ▶ file_read
+[ocr]   ✔ file_read (0s)
+[ocr]   ▶ code_search search_text=durationMs
+[ocr]   ✔ code_search (55ms)
+[ocr]   ▶ code_search search_text=byName(
+[ocr]   ✔ code_search (60ms)
+[ocr]   ▶ code_search search_text=RUNNING_RIGHT|RUNNING_LEFT|WAVING|JUMPING use_perl_regexp=true
+[ocr]   ✔ code_search (81ms)
+[ocr]   ▶ code_comment
+[ocr]   ✔ code_comment (0s)
+[ocr]   ▶ code_comment
+[ocr]   ✔ code_comment (0s)
+[ocr]   ▶ code_search file_patterns=[*.kt] search_text=fun tick|val sourceLeft|val sourceTop|fun setState use_perl_regexp=true
+[ocr]   ✔ code_search (19ms)
+[ocr]   ▶ code_search file_patterns=[*.kt] search_text=FRAME_WIDTH|FRAME_HEIGHT use_perl_regexp=true
+[ocr]   ✔ code_search (17ms)
+[ocr]   ▶ file_read start_line=31 end_line=70
+[ocr]   ✔ file_read (1ms)
+[ocr]   ▶ file_find query_name=MarkdownRenderer
+[ocr]   ✔ file_find (15ms)
+[ocr]   ▶ code_search file_patterns=[*.kt] search_text=colMaxUnits
+[ocr]   ✔ code_search (20ms)
+[ocr]   ▶ file_read end_line=140 start_line=1
+[ocr]   ✔ file_read (1ms)
+[ocr]   ▶ code_comment
+[ocr]   ✔ code_comment (0s)
+[ocr]   ▶ code_comment
+[ocr]   ✔ code_comment (1ms)
+[ocr]   ▶ code_comment
+[ocr]   ✔ code_comment (0s)
+[ocr]   ▶ code_search use_perl_regexp=true
+[ocr]   ✔ code_search (15ms)
+[ocr]   ▶ file_read end_line=300 start_line=180
+[ocr]   ✔ file_read (1ms)
+[ocr]   ▶ code_comment
+[ocr]   ✔ code_comment (0s)
+[ocr]   ▶ code_search file_patterns=[*.kt] search_text=fun showBubble
+[ocr]   ✔ code_search (21ms)
+[ocr]   ▶ code_search file_patterns=[*.kt] search_text=var instance
+[ocr]   ✔ code_search (17ms)
+[ocr]   ▶ file_read end_line=600 start_line=480
+[ocr]   ✔ file_read (1ms)
+[ocr]   ▶ file_read end_line=800 start_line=740
+[ocr]   ✔ file_read (0s)
+[ocr]   ▶ code_search file_patterns=[*.kt] search_text=class BubbleOwnership
+[ocr]   ✔ code_search (21ms)
+[ocr]   ▶ file_read end_line=100 start_line=1
+[ocr]   ✔ file_read (1ms)
+[ocr]   ▶ code_comment
+[ocr]   ✔ code_comment (0s)
+[ocr] Scan subtask error for app/src/main/java/com/xiaoduo/deskpet/ui/overlay/BubbleTextStrip.kt (batch #0): LLM completion error: context deadline exceeded
+[ocr]   ▶ file_find query_name=AudioProbe
+[ocr]   ✔ file_find (15ms)
+[ocr]   ▶ code_search search_text=armed
+[ocr]   ✔ code_search (63ms)
+[ocr]   ▶ code_comment
+[ocr]   ✔ code_comment (0s)
+[ocr] Scan subtask error for app/src/main/java/com/xiaoduo/deskpet/ui/overlay/OverlayMenu.kt (batch #0): LLM completion error: context deadline exceeded
+[ocr]   ▶ code_search file_patterns=[*.kt] use_perl_regexp=true
+[ocr]   ✔ code_search (19ms)
+[ocr]   ▶ code_search file_patterns=[*.kt] search_text=fun effectiveBottomInset use_perl_regexp=true
+[ocr]   ✔ code_search (16ms)
+[ocr]   ▶ file_read end_line=140 start_line=100
+[ocr]   ✔ file_read (1ms)
+[ocr]   ▶ code_comment
+[ocr]   ✔ code_comment (1ms)
+[ocr]   ▶ code_search search_text=fun rmsOf
+[ocr]   ✔ code_search (59ms)
+[ocr]   ▶ code_search search_text=captureBlocks
+[ocr]   ✔ code_search (50ms)
+[ocr]   ▶ file_find query_name=build.gradle
+[ocr]   ✔ file_find (13ms)
+[ocr]   ▶ code_search search_text=canDrawOverlays
+[ocr]   ✔ code_search (50ms)
+[ocr]   ▶ code_search file_patterns=[app/build.gradle.kts] search_text=minSdk
+[ocr]   ✔ code_search (16ms)
+[ocr]   ▶ code_search search_text=fun 
+[ocr]   ✔ code_search (15ms)
+[ocr]   ▶ code_comment
+[ocr]   ✔ code_comment (0s)
+[ocr]   ▶ code_comment
+[ocr]   ✔ code_comment (0s)
+[ocr]   ▶ code_search search_text=CornerInputBar
+[ocr]   ✔ code_search (56ms)
+[ocr]   ▶ code_search search_text=XiaoduoDimens
+[ocr]   ✔ code_search (59ms)
+[ocr]   ▶ code_comment
+[ocr]   ✔ code_comment (0s)
+[ocr]   ▶ code_search file_patterns=[*.kt] search_text=class PetView
+[ocr]   ✔ code_search (18ms)
+[ocr]   ▶ code_search file_patterns=[*.kt] search_text=fun onSearch|fun search(
+[ocr]   ✔ code_search (18ms)
+[ocr]   ▶ file_read end_line=80 start_line=1
+[ocr]   ✔ file_read (1ms)
+[ocr]   ▶ code_comment
+[ocr]   ✔ code_comment (1ms)
+[ocr]   ▶ code_search search_text=startWithToast|AppLauncher\.(start|targetPackage) use_perl_regexp=true
+[ocr]   ✔ code_search (83ms)
+[ocr]   ▶ code_search file_patterns=[**/AndroidManifest.xml] search_text=queries
+[ocr]   ✔ code_search (15ms)
+[ocr]   ▶ code_search search_text=jumpTargetPackage
+[ocr]   ✔ code_search (50ms)
+[ocr]   ▶ file_read end_line=30 file_path=app/src/main/AndroidManifest.xml start_line=10
+[ocr]   ✔ file_read (1ms)
+[ocr]   ▶ file_read end_line=465 start_line=440
+[ocr]   ✔ file_read (1ms)
+[ocr]   ▶ code_comment
+[ocr]   ✔ code_comment (1ms)
+[ocr]   ▶ code_search use_perl_regexp=true
+[ocr]   ✔ code_search (74ms)
+[ocr]   ▶ code_comment
+[ocr]   ✔ code_comment (0s)
+[ocr]   ▶ code_search search_text=TapGesture|isTap|MAX_DRIFT_PX use_perl_regexp=true
+[ocr]   ✔ code_search (86ms)
+[ocr]   ▶ file_find query_name=TapGesture
+[ocr]   ✔ file_find (14ms)
+[ocr]   ▶ code_search use_perl_regexp=true search_text=compactShelf
+[ocr]   ✔ code_search (56ms)
+[ocr]   ▶ code_search search_text=PrefContract\.\w+_KEYS|_KEYS\b use_perl_regexp=true
+[ocr]   ✔ code_search (68ms)
+[ocr]   ▶ code_search search_text=mic_raw_source|KEY_MIC_RAW_SOURCE use_perl_regexp=true
+[ocr]   ✔ code_search (80ms)
+[ocr]   ▶ code_search search_text=DEFAULT_TTS_VOLUME|0\.45f|tts_volume use_perl_regexp=true
+[ocr]   ✔ code_search (70ms)
+[ocr]   ▶ code_comment
+[ocr]   ✔ code_comment (0s)
+[ocr]   ▶ code_comment
+[ocr]   ✔ code_comment (0s)
+[ocr]   ▶ file_find query_name=AudioCapture
+[ocr]   ✔ file_find (15ms)
+[ocr]   ▶ file_find query_name=EnergyGate
+[ocr]   ✔ file_find (14ms)
+[ocr]   ▶ code_search search_text=captureRunning
+[ocr]   ✔ code_search (61ms)
+[ocr]   ▶ file_read end_line=120 start_line=1
+[ocr]   ✔ file_read (1ms)
+[ocr]   ▶ code_search
+[ocr]   ✔ code_search (17ms)
+[ocr]   ▶ code_search search_text=statsOf
+[ocr]   ✔ code_search (65ms)
+[ocr]   ▶ code_search search_text=class CalibrationStats
+[ocr]   ✔ code_search (49ms)
+[ocr]   ▶ code_comment
+[ocr]   ✔ code_comment (1ms)
+[ocr]   ▶ code_comment
+[ocr]   ✔ code_comment (0s)
+[ocr]   ▶ code_search search_text=KwsDefaults
+[ocr]   ✔ code_search (74ms)
+[ocr]   ▶ code_search search_text=SILENCE_END_TICKS
+[ocr]   ✔ code_search (64ms)
+[ocr]   ▶ code_search search_text=KwsEngine(
+[ocr]   ✔ code_search (66ms)
+[ocr]   ▶ code_search search_text=_KWS_BLOCK_MS|100ms|100L|blockMs|1600
+[ocr]   ✔ code_search (46ms)
+[ocr]   ▶ file_read end_line=175 start_line=100
+[ocr]   ✔ file_read (1ms)
+[ocr]   ▶ file_read end_line=120 start_line=1
+[ocr]   ✔ file_read (0s)
+[ocr]   ▶ code_search file_patterns=[app/src/main/java/**/*.kt] search_text=3200
+[ocr]   ✔ code_search (17ms)
+[ocr]   ▶ code_search file_patterns=[**/KwsCore.kt] search_text=fun release
+[ocr]   ✔ code_search (18ms)
+[ocr]   ▶ code_search file_patterns=[**/KwsCore.kt] search_text=native.release
+[ocr]   ✔ code_search (17ms)
+[ocr]   ▶ file_read end_line=235 start_line=195
+[ocr]   ✔ file_read (0s)
+[ocr]   ▶ code_comment
+[ocr]   ✔ code_comment (1ms)
+[ocr]   ▶ code_comment
+[ocr]   ✔ code_comment (0s)
+[ocr]   ▶ code_search search_text=ListeningHintPolicy
+[ocr]   ✔ code_search (50ms)
+[ocr]   ▶ code_search search_text=suppressListeningHintOnce
+[ocr]   ✔ code_search (66ms)
+[ocr]   ▶ code_search search_text=showListeningHint
+[ocr]   ✔ code_search (15ms)
+[ocr]   ▶ file_read end_line=305 start_line=275
+[ocr]   ✔ file_read (0s)
+[ocr]   ▶ code_comment
+[ocr]   ✔ code_comment (1ms)
+[ocr]   ▶ code_search search_text=PrefetchBackoff
+[ocr]   ✔ code_search (55ms)
+[ocr]   ▶ code_search search_text=backoff\.
+[ocr]   ✔ code_search (15ms)
+[ocr]   ▶ code_search search_text=backoff|shouldSkip|recordFailure|recordSuccess use_perl_regexp=true
+[ocr]   ✔ code_search (17ms)
+[ocr]   ▶ code_comment
+[ocr]   ✔ code_comment (0s)
+[ocr] Scan subtask error for app/src/main/java/com/xiaoduo/deskpet/voice/NlmsEchoCanceller.kt (batch #0): LLM completion error: context deadline exceeded
+[ocr]   ▶ code_search search_text=interface BubbleSink
+[ocr]   ✔ code_search (61ms)
+[ocr]   ▶ code_search search_text=CarrierBubbleSink(
+[ocr]   ✔ code_search (54ms)
+[ocr]   ▶ file_read start_line=155 end_line=175
+[ocr]   ✔ file_read (1ms)
+[ocr]   ▶ file_read end_line=140 start_line=110
+[ocr]   ✔ file_read (0s)
+[ocr]   ▶ code_comment
+[ocr]   ✔ code_comment (0s)
+[ocr]   ▶ code_search search_text=RevealScheduler
+[ocr]   ✔ code_search (64ms)
+[ocr]   ▶ code_comment
+[ocr]   ✔ code_comment (0s)
+[ocr]   ▶ code_search file_patterns=[*.kt] search_text=StampedBlock
+[ocr]   ✔ code_search (21ms)
+[ocr]   ▶ code_search file_patterns=[*.kt] search_text=nanoTime|currentTimeMillis
+[ocr]   ✔ code_search (18ms)
+[ocr]   ▶ code_search file_patterns=[app/src/main/java/com/xiaoduo/deskpet/voice/] search_text=System.nanoTime|currentTimeMillis
+[ocr]   ✔ code_search (18ms)
+[ocr]   ▶ file_read end_line=170 start_line=130
+[ocr]   ✔ file_read (1ms)
+[ocr]   ▶ code_search file_patterns=[*.kt] search_text=nanoTime
+[ocr]   ✔ code_search (24ms)
+[ocr]   ▶ code_search file_patterns=[*.kt] search_text=pumpBlocks
+[ocr]   ✔ code_search (16ms)
+[ocr]   ▶ file_read start_line=270 end_line=292
+[ocr]   ✔ file_read (1ms)
+[ocr]   ▶ code_comment
+[ocr]   ✔ code_comment (0s)
+[ocr]   ▶ file_find query_name=tts_orchestrator
+[ocr]   ✔ file_find (13ms)
+[ocr]   ▶ code_search search_text=SentenceSplitter
+[ocr]   ✔ code_search (69ms)
+[ocr]   ▶ file_read end_line=1080 start_line=1010
+[ocr]   ✔ file_read (1ms)
+[ocr]   ▶ code_comment
+[ocr]   ✔ code_comment (1ms)
+[ocr]   ▶ code_comment
+[ocr]   ✔ code_comment (0s)
+[ocr]   ▶ code_search use_perl_regexp=true file_patterns=[*.kt]
+[ocr]   ✔ code_search (20ms)
+[ocr]   ▶ file_read end_line=930 start_line=560
+[ocr]   ✔ file_read (1ms)
+[ocr]   ▶ code_comment
+[ocr]   ✔ code_comment (0s)
+[ocr]   ▶ code_search file_patterns=[*.kt] search_text=VoicePlayer(
+[ocr]   ✔ code_search (17ms)
+[ocr]   ▶ code_search file_patterns=[*.kt] search_text=stopped = false
+[ocr]   ✔ code_search (16ms)
+[ocr]   ▶ code_comment
+[ocr]   ✔ code_comment (1ms)
+[ocr] scan dedup failed for batch #0: context deadline exceeded (keeping originals)
+[ocr]   ▶ code_search file_patterns=[*WakeAckAudio*] search_text=fun validate
+[ocr]   ✔ code_search (20ms)
+[ocr]   ▶ file_read end_line=140 start_line=95
+[ocr]   ✔ file_read (0s)
+[ocr]   ▶ code_comment
+[ocr]   ✔ code_comment (0s)
+[ocr]   ▶ code_search search_text=class PrefetchBackoff
+[ocr]   ✔ code_search (52ms)
+[ocr]   ▶ code_search search_text=fun write(
+[ocr]   ✔ code_search (54ms)
+[ocr]   ▶ file_find query_name=WakeAckSelector
+[ocr]   ✔ file_find (11ms)
+[ocr]   ▶ file_read
+[ocr]   ✔ file_read (1ms)
+[ocr]   ▶ file_read
+[ocr]   ✔ file_read (0s)
+[ocr]   ▶ file_read
+[ocr]   ✔ file_read (1ms)
+[ocr] Scan subtask error for app/src/main/java/com/xiaoduo/deskpet/voice/VoiceSessionManager.kt (batch #1): LLM completion error: context deadline exceeded
+[ocr]   ▶ code_search file_patterns=[app/src/main/java/com/xiaoduo/deskpet/cloud/*.kt] search_text=fun ttsSynthesize
+[ocr]   ✔ code_search (18ms)
+[ocr]   ▶ code_comment
+[ocr]   ✔ code_comment (4.445s)
+[ocr]   ▶ file_find query_name=WakeAckSelector
+[ocr]   ✔ file_find (16ms)
+[ocr]   ▶ code_search file_patterns=[*.kt] search_text=WakeAckResolver(
+[ocr]   ✔ code_search (15ms)
+[ocr]   ▶ code_search search_text=WakeBlindWindowBuffer
+[ocr]   ✔ code_search (57ms)
+[ocr]   ▶ code_search search_text=capturedAtNs|drainFrom\(|backfillBlindWindow file_patterns=[app/src/main/java/com/xiaoduo/deskpet/voice/*.kt]
+[ocr]   ✔ code_search (15ms)
+[ocr]   ▶ code_search search_text=wakeBlindBuffer\.
+[ocr]   ✔ code_search (15ms)
+[ocr]   ▶ code_search file_patterns=[app/src/main/java/com/xiaoduo/deskpet/voice/*.kt] search_text=StampedBlock\(
+[ocr]   ✔ code_search (16ms)
+[ocr]   ▶ file_read
+[ocr]   ✔ file_read (0s)
+[ocr]   ▶ code_search search_text=wakeBlindBuffer
+[ocr]   ✔ code_search (18ms)
+[ocr]   ▶ file_read end_line=905 start_line=650
+[ocr]   ✔ file_read (1ms)
+[ocr]   ▶ file_read end_line=560 start_line=430
+[ocr]   ✔ file_read (1ms)
+[ocr]   ▶ code_search search_text=fun processBlock file_patterns=[app/src/main/java/com/xiaoduo/deskpet/voice/*.kt]
+[ocr]   ✔ code_search (14ms)
+[ocr]   ▶ file_read start_line=95 end_line=150
+[ocr]   ✔ file_read (0s)
+[ocr]   ▶ file_read end_line=245 start_line=190
+[ocr]   ✔ file_read (0s)
+[ocr]   ▶ code_search search_text=capturedAtNs
+[ocr]   ✔ code_search (13ms)
+[ocr]   ▶ code_search search_text=nanoTime|StampedBlock
+[ocr]   ✔ code_search (13ms)
+[ocr]   ▶ code_search file_patterns=[app/src/main/java/com/xiaoduo/deskpet/voice/] search_text=stampedBlocks|StampedBlock\(
+[ocr]   ✔ code_search (14ms)
+[ocr]   ▶ code_comment
+[ocr]   ✔ code_comment (0s)
+[ocr]   ▶ code_comment
+[ocr]   ✔ code_comment (0s)
+[ocr] scan dedup batch #1: 25 → 24 comments
+[ocr] Results written to docs/audit/2026-10-03-full-audit/ocr-06-recovery.json
