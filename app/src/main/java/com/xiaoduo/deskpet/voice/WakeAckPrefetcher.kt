@@ -62,26 +62,51 @@ object WakeAckPrefetcher {
     /** daemon 线程主体：任何一步落空即退，不让异常逃出线程（守卫四问②：异常路径终态）。 */
     private fun run(app: Context) {
         val resolver = WakeAckResolver.from(app)
-        val snap = resolver.snapshot()
-        if (!WakeAckSelector.needsPrefetch(snap, resolver.cacheExists(snap))) return
-        val key = WakeAckSelector.cacheKey(snap)
-        if (backoff.shouldSkip(key, System.currentTimeMillis())) return
-        val result = try {
-            CloudClientFactory.ttsSynthesize(app, TtsVoiceDefaults.TEXT)
+        runWith(resolver, synth = { CloudClientFactory.ttsSynthesize(app, TtsVoiceDefaults.TEXT) })
+    }
+
+    /**
+     * 预取主体（注入化，JVM 可测；ROB-15）：resolver/selector/validate/process/pcmToWav
+     * 等步骤整体护栏——任何异常不逃出线程（线程默认 uncaught handler 可杀进程，违背类
+     * KDoc「不让异常逃出线程」），key 已知时记退避窗。
+     */
+    internal fun runWith(
+        resolver: WakeAckResolver,
+        synth: () -> Result,
+        backoff: PrefetchBackoff = this.backoff,
+        log: (String) -> Unit = { PetLogger.w(TAG, it) },
+    ) {
+        // ROB-15：单层整体兜底——此前仅 ttsSynthesize/cacheStore.write 有护栏，
+        // resolver.snapshot()/selector/validate/process/pcmToWav 裸奔异常直达线程默认
+        // uncaught handler（可杀进程）。catch(Exception)（Error 级如 OOM 不吞，照旧上抛）。
+        var key: String? = null
+        try {
+            val snap = resolver.snapshot()
+            if (!WakeAckSelector.needsPrefetch(snap, resolver.cacheExists(snap))) return
+            key = WakeAckSelector.cacheKey(snap)
+            if (backoff.shouldSkip(key, System.currentTimeMillis())) return
+            val result = synth()
+            when (result) {
+                is Result.Error -> fail(backoff, key, result.message, log)
+                is Result.Audio -> synthOk(resolver, backoff, key, result.pcm, log)
+            }
         } catch (e: Exception) {
-            fail(key, "synth threw: ${e.message}")
-            return
-        }
-        when (result) {
-            is Result.Error -> fail(key, result.message)
-            is Result.Audio -> synthOk(resolver, key, result.pcm)
+            log("prefetch aborted: ${e.javaClass.simpleName}: ${e.message}" +
+                (key?.let { " (key=$it, backoff ${PrefetchBackoff.DEFAULT_WINDOW_MS / 60000}min)" } ?: ""))
+            key?.let { backoff.recordFailure(it, System.currentTimeMillis()) }
         }
     }
 
     /** 合成成功 → 校验 → 后处理 → WAV 封装 → 原子写；任一步失败记退避+静默日志。 */
-    private fun synthOk(resolver: WakeAckResolver, key: String, raw: ByteArray) {
+    private fun synthOk(
+        resolver: WakeAckResolver,
+        backoff: PrefetchBackoff,
+        key: String,
+        raw: ByteArray,
+        log: (String) -> Unit,
+    ) {
         if (!WakeAckAudio.validate(raw)) {
-            fail(key, "synth pcm invalid (${raw.size}B, validate 拒)")
+            fail(backoff, key, "synth pcm invalid (${raw.size}B, validate 拒)", log)
             return
         }
         val processed = WakeAckAudio.toBytes(WakeAckAudio.process(WakeAckAudio.toSamples(raw)))
@@ -91,20 +116,20 @@ object WakeAckPrefetcher {
         val written = try {
             resolver.cacheStore.write(fileName, wav)
         } catch (e: Exception) {
-            fail(key, "cache write threw: ${e.message}")
+            fail(backoff, key, "cache write threw: ${e.message}", log)
             return
         }
         if (!written) {
-            fail(key, "cache write failed")
+            fail(backoff, key, "cache write failed", log)
             return
         }
         backoff.recordSuccess(key)
-        PetLogger.i(TAG, "prefetch saved: $fileName (${wav.size}B wav, pcm ${processed.size}B)")
+        log("prefetch saved: $fileName (${wav.size}B wav, pcm ${processed.size}B)")
     }
 
     /** 失败终态：记退避窗（10min 内同 key 不再打）+ 静默日志（无 Toast/状态行）。 */
-    private fun fail(key: String, reason: String) {
+    private fun fail(backoff: PrefetchBackoff, key: String, reason: String, log: (String) -> Unit) {
         backoff.recordFailure(key, System.currentTimeMillis())
-        PetLogger.w(TAG, "prefetch failed: $reason (backoff ${PrefetchBackoff.DEFAULT_WINDOW_MS / 60000}min)")
+        log("prefetch failed: $reason (backoff ${PrefetchBackoff.DEFAULT_WINDOW_MS / 60000}min)")
     }
 }
