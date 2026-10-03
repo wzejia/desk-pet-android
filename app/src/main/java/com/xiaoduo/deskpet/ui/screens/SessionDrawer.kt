@@ -50,6 +50,7 @@ import com.xiaoduo.deskpet.chat.ChatSession
 import com.xiaoduo.deskpet.chat.SessionSummary
 import com.xiaoduo.deskpet.ui.PetView
 import com.xiaoduo.deskpet.ui.theme.XiaoduoDimens
+import com.xiaoduo.deskpet.util.PetLogger
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
@@ -87,7 +88,12 @@ fun SessionDrawerContent(
         value = if (query.isBlank()) {
             null
         } else {
-            withContext(Dispatchers.IO) { onSearch(query) }
+            // ROB-10：搜索 IO 异常降级空结果，不逸出 producer 撕毁组合
+            withContext(Dispatchers.IO) {
+                searchCatching(query, onSearch) {
+                    PetLogger.w("SessionDrawer", "search failed, degrade to empty: ${it.message}")
+                }
+            }
         }
     }
     // 收窄露 scrim：参照 ChatGPT 边栏约占屏宽 80%，300dp 封顶（默认 360dp 满屏像翻页）
@@ -370,3 +376,21 @@ internal fun relativeTimeLabel(nowMillis: Long, ts: Long): String {
         else -> SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date(ts))
     }
 }
+
+/**
+ * ROB-10：搜索 producer 兜底——非取消异常降级为空结果（抽屉显示「无匹配会话」），
+ * 不逸出 produceState 撕毁组合；CancellationException 穿透 rethrow。
+ * 纯逻辑（错误经 [onError] sink 注入，保持零 Android 依赖），JVM 单测覆盖。
+ */
+internal suspend fun <T> searchCatching(
+    query: String,
+    onSearch: (String) -> List<T>,
+    onError: (Throwable) -> Unit = {},
+): List<T> =
+    when (val outcome = guardedUi { onSearch(query) }) {
+        is UiOutcome.Ok -> outcome.value
+        is UiOutcome.Failed -> {
+            onError(outcome.error)
+            emptyList()
+        }
+    }

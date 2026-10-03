@@ -199,19 +199,28 @@ fun ChatScreen(
                     ActivityResultContracts.GetContent(),
                 ) { uri ->
                     if (uri == null) return@rememberLauncherForActivityResult
-                    // 读字节放 IO；VM 的 20MB 守卫拒收时 toast（VM 不持 UI 引用）
+                    // 读字节放 IO；ROB-9：读文件/上传任一异常收敛为 FAILED toast 不逸出协程
+                    // （vm.uploadFile 同步段的建会话/刷列表是未守卫磁盘 IO；VM 的 20MB 守卫拒收时 toast）
                     scope.launch(Dispatchers.IO) {
-                        val picked = readPickedFile(context, uri)
-                        if (picked == null) {
-                            withContext(Dispatchers.Main) {
-                                Toast.makeText(context, "读取文件失败", Toast.LENGTH_SHORT).show()
+                        val outcome = guardedUi {
+                            when (val picked = readPickedFile(context, uri)) {
+                                is PickedFile.Ok ->
+                                    if (vm.uploadFile(picked.name, picked.bytes)) UploadOutcome.OK
+                                    else UploadOutcome.TOO_LARGE
+                                PickedFile.TooLarge -> UploadOutcome.TOO_LARGE
+                                PickedFile.Failed -> UploadOutcome.READ_FAILED
                             }
-                            return@launch
                         }
-                        val accepted = vm.uploadFile(picked.first, picked.second)
-                        if (!accepted) {
+                        val shown = when (outcome) {
+                            is UiOutcome.Ok -> uploadToastFor(outcome.value)
+                            is UiOutcome.Failed -> {
+                                PetLogger.e("ChatScreen", "upload crashed: ${outcome.error.message}", outcome.error)
+                                uploadToastFor(UploadOutcome.FAILED)
+                            }
+                        }
+                        if (shown != null) {
                             withContext(Dispatchers.Main) {
-                                Toast.makeText(context, "文件超过 20MB，未上传", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, shown, Toast.LENGTH_SHORT).show()
                             }
                         }
                     }
@@ -668,17 +677,52 @@ private fun cancelVoiceHold(context: Context) {
     runCatching { VoiceClientFactory.session(context).cancelCurrentTurn() }
 }
 
-/** 系统文件选择器结果：(显示名, 字节)；ContentResolver 查询/读取任一失败返回 null。 */
-private fun readPickedFile(context: Context, uri: Uri): Pair<String, ByteArray>? = runCatching {
+/** ROB-9：上传链路收敛结果（UI 协程内不抛异常，映射为用户提示）。 */
+internal enum class UploadOutcome { OK, READ_FAILED, TOO_LARGE, FAILED }
+
+/** ROB-9：结果 → toast 文案（OK 为 null 不提示）。纯逻辑，JVM 单测覆盖。 */
+internal fun uploadToastFor(outcome: UploadOutcome): String? = when (outcome) {
+    UploadOutcome.OK -> null
+    UploadOutcome.READ_FAILED -> "读取文件失败"
+    UploadOutcome.TOO_LARGE -> "文件超过 20MB，未上传"
+    UploadOutcome.FAILED -> "上传失败，请重试"
+}
+
+/** ROB-12：附件读取结局。Ok(显示名, 字节)；超限；读取失败（查询/开流异常含 SecurityException）。 */
+internal sealed interface PickedFile {
+    data class Ok(val name: String, val bytes: ByteArray) : PickedFile
+    object TooLarge : PickedFile
+    object Failed : PickedFile
+}
+
+/** ROB-12：20MB 读取上限（与 ChatViewModel MAX_UPLOAD_BYTES 同源镜像，其常量 private）。 */
+private const val PICK_MAX_BYTES = 20 * 1024 * 1024
+
+/**
+ * 系统文件选择器结果读取（ROB-12 两道闸，防大文件整读 OOM）：
+ * 闸 1 游标 SIZE 预拒（超限连流都不开）；闸 2 [PickStreamLimit.readBounded] 流式硬上限
+ * （size 缺失/虚报兜底）。ContentResolver 查询/读取任一失败 → [PickedFile.Failed]。
+ */
+private fun readPickedFile(context: Context, uri: Uri): PickedFile = runCatching {
+    var size: Long? = null
     val name = context.contentResolver.query(
         uri,
-        arrayOf(OpenableColumns.DISPLAY_NAME),
+        arrayOf(OpenableColumns.DISPLAY_NAME, OpenableColumns.SIZE),
         null,
         null,
         null,
-    )?.use { c -> if (c.moveToFirst()) c.getString(0) else null }
-        ?.takeIf { it.isNotBlank() } ?: "未命名文件"
-    val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
-        ?: return null
-    name to bytes
-}.getOrNull()
+    )?.use { c ->
+        if (c.moveToFirst()) {
+            size = if (c.isNull(1)) null else c.getLong(1)
+            c.getString(0)
+        } else null
+    }?.takeIf { it.isNotBlank() } ?: "未命名文件"
+    if (PickStreamLimit.sizeExceeds(size, PICK_MAX_BYTES)) return PickedFile.TooLarge
+    val bytes = context.contentResolver.openInputStream(uri)?.use { ins ->
+        when (val r = PickStreamLimit.readBounded(ins, PICK_MAX_BYTES)) {
+            is PickStreamLimit.Bounded.Done -> r.bytes
+            PickStreamLimit.Bounded.Overflow -> return PickedFile.TooLarge
+        }
+    } ?: return PickedFile.Failed
+    PickedFile.Ok(name, bytes)
+}.getOrDefault(PickedFile.Failed)

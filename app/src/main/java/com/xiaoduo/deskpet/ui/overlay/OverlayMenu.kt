@@ -10,6 +10,7 @@ import android.view.ViewGroup
 import android.widget.LinearLayout
 import android.widget.PopupWindow
 import android.widget.TextView
+import com.xiaoduo.deskpet.util.PetLogger
 
 /**
  * 长按菜单（KD15）：PopupWindow 四项--打开 App / 查看最近一轮 / 语音开关 / 隐藏悬浮窗。
@@ -41,6 +42,12 @@ object OverlayMenu {
         canInterrupt: Boolean,
         onInterrupt: () -> Unit,
     ) {
+        // ROB-8：teardown 与长按竞态/多窗口切换时 anchor 已脱窗（window token 失效），
+        // showAsDropDown 抛 BadTokenException 直接崩进程 → 已脱窗直接不弹
+        if (!anchor.isAttachedToWindow) {
+            PetLogger.w("OverlayMenu", "skip popup: anchor not attached to window")
+            return
+        }
         val context = anchor.context
         val dp = context.resources.displayMetrics.density
         val dark = (context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) ==
@@ -177,7 +184,13 @@ object OverlayMenu {
         // 默认左对齐锚点会把菜单裁出屏--popup 左缘钳回 [0, 屏宽-popupW]
         // （与上方纵向翻转「出屏不出界」同一范式；屏宽于菜单恒成立，coerceAtLeast 仅防御）
         val xoff = anchorLoc[0].coerceIn(0, (screenW - popupW).coerceAtLeast(0)) - anchorLoc[0]
-        popup.showAsDropDown(anchor, xoff, yoff)
+        // ROB-8：guard 与 show 的间隙仍可能 teardown（令牌失效）→ showAsDropDown 包
+        // try/catch 记日志不崩（此时 popup 未展示，无需 dismiss）
+        try {
+            popup.showAsDropDown(anchor, xoff, yoff)
+        } catch (e: Exception) {
+            PetLogger.e("OverlayMenu", "popup show failed: ${e.message}", e)
+        }
     }
 
     private const val DOT_ON_COLOR = 0xFF34C759.toInt()

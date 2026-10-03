@@ -75,6 +75,8 @@ data class StyledText(val text: String, val spans: List<Span> = emptyList()) {
  *   流式反引号 hold 上限 48 字（体例同斜体 24 字封顶）：残缺/孤立反引号超限后
  *   丢标记留内容放行，防 LLM 半截反引号把打字机尾巴永久冻结；48 覆盖常见
  *   路径/命令/标识符行内码（比斜体长因 code 内容天然更长）。
+ *   未闭合 `**` 流式 hold 上限同为 48 字（FUNC-5，体例同反引号）；残余尾巴由
+ *   [Session.flush] 在流结束（RUN_FINISHED/收泡）时按一次性规则补发。
  * - 列表行 `- `/`* ` 前缀→行首「• 」。
  * - 表格行：含 `|` 的行把管道符换成空格再压缩（| a | b | → a b）；GFM 分隔行整行跳过
  *   （表格本身不渲染，仅降级为可读纯文本）。
@@ -100,6 +102,10 @@ object BubbleTextStrip {
 
     /** 反引号流式 hold 上限（字符）：超限按「丢标记留内容」放行（与一次性渲染的未闭合规则一致）。 */
     private const val BACKTICK_MAX = 48
+
+    /** 未闭合 `**` 流式 hold 上限（字符，FUNC-5）：体例同反引号（粗体内容与行内码同量级，
+     *  比斜体长）；超限丢标记留内容放行，防 LLM 残缺粗体把打字机尾巴永久冻结。 */
+    private const val BOLD_MAX = 48
 
     private val RULE = Regex("^\\s*(-{3,}|\\*{3,}|[—–―]{2,})\\s*$")
     private val TABLE_SEP = Regex("^\\s*\\|?\\s*:?-{3,}:?\\s*(\\|\\s*:?-{3,}:?\\s*)*\\|?\\s*$")
@@ -277,7 +283,13 @@ object BubbleTextStrip {
                     val after = lastLine.getOrNull(i + 2)
                     if (after == null || !after.isWhitespace()) {
                         val close = if (after == null) -1 else lastLine.indexOf("**", i + 2)
-                        if (close >= 0) i = close + 2 else return lineStart + i
+                        when {
+                            close >= 0 -> i = close + 2
+                            // FUNC-5：未闭合粗体上限内先 hold；超上限丢标记留内容放行继续扫
+                            // （体例同反引号 BACKTICK_MAX / 斜体 ITALIC_MAX，防尾巴永久冻结）
+                            raw.length - (lineStart + i) <= BOLD_MAX -> return lineStart + i
+                            else -> i += 2
+                        }
                     } else {
                         i += 2
                     }
@@ -317,9 +329,21 @@ object BubbleTextStrip {
             val s = raw.toString()
             val h = findHoldback(s)
             val safe = if (h >= 0) s.substring(0, h) else s
-            val rendered = render(safe)
-            return if (rendered.prefix(emitted.text.length) == emitted) {
-                // 前缀稳定（文本与 span 区间均一致）：只吐新增尾巴
+            return diffEmit(render(safe))
+        }
+
+        /**
+         * FUNC-5 流尾 flush：LLM 回复以未闭合标记收尾时，残余内容被 hold 点挡住永不上屏
+         * （「回答缺后半句」）。调用方在流结束（RUN_FINISHED/收泡）前调用一次：全量 raw 按
+         * 一次性 [render] 规则（未闭合标记丢标记留内容）差分补发残余，语义与 [feed] 一致
+         * （前缀稳定走尾巴增量；万一失稳走 reset 全量重打兜底）。幂等：无新 feed 时重复
+         * flush 吐空。flush 后再 feed 仍成立（emitted 已对齐全量渲染）。
+         */
+        fun flush(): Emit = diffEmit(render(raw.toString()))
+
+        /** 差分吐出：前缀稳定（文本与 span 区间均一致）只吐新增尾巴；失稳走 reset 全量重打。 */
+        private fun diffEmit(rendered: StyledText): Emit =
+            if (rendered.prefix(emitted.text.length) == emitted) {
                 val tail = rendered.dropStart(emitted.text.length)
                 emitted = rendered
                 Emit(tail, reset = false)
@@ -328,6 +352,5 @@ object BubbleTextStrip {
                 emitted = rendered
                 Emit(rendered, reset = true)
             }
-        }
     }
 }

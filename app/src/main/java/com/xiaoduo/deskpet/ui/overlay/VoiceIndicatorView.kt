@@ -6,6 +6,8 @@ import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.drawable.GradientDrawable
+import android.os.Handler
+import android.os.Looper
 import android.view.Choreographer
 import android.view.View
 
@@ -22,6 +24,10 @@ import android.view.View
  * 动画管线：Choreographer 自循环帧回调（仅可见时跑）+ invalidate——plain View 无重组
  * 概念，不存在全屏页 Compose 版的板子冻结病史（S25c 是 Compose 帧管线问题）；
  * RMS 目标值 @Volatile 直写（VAD 分支每块喂，~12-50Hz），draw 阶段只读零分配。
+ *
+ * 线程契约（ROB-3）：[onLevel] 任意线程（@Volatile 直写）；[setMode]/[stopLoop] 任意线程
+ * 可调，内部收敛主线程执行（Choreographer 只能在带 Looper 的线程获取，loopRunning/
+ * displayLevel/timeMs 只允许主线程读写——收敛后可见性由主线程单写者保证）。
  */
 class VoiceIndicatorView(context: Context) : View(context) {
 
@@ -44,6 +50,9 @@ class VoiceIndicatorView(context: Context) : View(context) {
 
     private val barPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = HALO_CYAN }
     private val dotPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = DOT_COLOR }
+
+    /** ROB-3：生命周期收敛主线程的 Handler（非主线程调 setMode/stopLoop 时 post 过去）。 */
+    private val mainHandler = Handler(Looper.getMainLooper())
 
     private val frameCallback = object : Choreographer.FrameCallback {
         override fun doFrame(frameTimeNanos: Long) {
@@ -81,25 +90,35 @@ class VoiceIndicatorView(context: Context) : View(context) {
         )
     }
 
-    /** 切模式（show 时调用；同模式重复调用重置动画相位，无副作用）。 */
+    /** 切模式（show 时调用；同模式重复调用重置动画相位，无副作用）。任意线程可调，
+     *  非主线程收敛主线程执行（ROB-3，见类 KDoc 线程契约）。 */
     fun setMode(m: Mode) {
+        if (Looper.myLooper() != Looper.getMainLooper()) {
+            mainHandler.post { setMode(m) }
+            return
+        }
         mode = m
         rmsTarget = 0f
         displayLevel = 0f
         startLoop()
     }
 
-    /** RMS 目标直喂（VSM VAD 分支，任意线程；内部归一化 clamp）。 */
+    /** RMS 目标直喂（VSM VAD 分支，任意线程 @Volatile 直写；内部归一化 clamp）。 */
     fun onLevel(rms: Float) {
         rmsTarget = VoiceIndicatorModel.normalize(rms)
     }
 
-    /** 停帧循环（hide 时调用；幂等）。 */
+    /** 停帧循环（hide 时调用；幂等）。任意线程可调，非主线程收敛主线程执行（ROB-3）。 */
     fun stopLoop() {
+        if (Looper.myLooper() != Looper.getMainLooper()) {
+            mainHandler.post { stopLoop() }
+            return
+        }
         loopRunning = false
         Choreographer.getInstance().removeFrameCallback(frameCallback)
     }
 
+    /** 起帧循环（仅主线程；未挂窗时 no-op，post 过头的挂起请求由此自愈）。 */
     private fun startLoop() {
         if (loopRunning || !isAttachedToWindow) return
         loopRunning = true
