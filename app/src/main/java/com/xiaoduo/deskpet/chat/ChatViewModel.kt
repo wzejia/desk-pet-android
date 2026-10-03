@@ -505,6 +505,8 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
      * S46 密集架页面导航轮：同步 POST mcpUiNavigate（IO 线程）→ 结果 speech 作为
      * assistant 终态（DONE）上屏。失败降级为 Fail 文案，不抛异常不标 ERROR 轮
      * （设备轮同款：联动不可达是常态而非崩溃）。
+     * CONC-8：与 runChat 同款登记 chatJob/activeAssistantId/turnEpoch——barge-in
+     * cancel 能 markCancelledDone 复位相位，迟到结果以 epoch 对不上丢弃，不再吞输入。
      */
     private fun runShelfNavTurn(
         session: ChatSession,
@@ -512,16 +514,27 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
         assistantId: String,
     ) {
         _phase.value = Phase.SENDING
-        viewModelScope.launch(Dispatchers.IO) {
-            val ok = runCatching { shelfMcpClient.navigate(page) }
-                .getOrElse { false }
-            val speech = if (ok) ShelfNavIntentMatcher.navSpeech(page) // S62：共用回执（home=已回到首页）
-                         else "密集架联动不可用，请检查网络后重试"
-            PetLogger.i(TAG, "shelf nav turn done: page=$page ok=$ok")
-            withContext(Dispatchers.Main) {
-                _messages.value = turns.markDone(_messages.value, assistantId, speech)
-                persist(session)
-                _phase.value = Phase.IDLE
+        activeAssistantId = assistantId
+        val myEpoch = turnEpoch
+        chatJob = viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val ok = runCatching { shelfMcpClient.navigate(page) }
+                    .getOrElse { false }
+                val speech = if (ok) ShelfNavIntentMatcher.navSpeech(page) // S62：共用回执（home=已回到首页）
+                             else "密集架联动不可用，请检查网络后重试"
+                PetLogger.i(TAG, "shelf nav turn done: page=$page ok=$ok")
+                if (myEpoch != turnEpoch) return@launch // 已被打断：结果不落盘不改相位
+                withContext(Dispatchers.Main) {
+                    _messages.update { turns.markDone(it, assistantId, speech) }
+                    persist(session)
+                    _phase.value = Phase.IDLE
+                }
+            } finally {
+                // 自清：仅本轮未被新轮/取消换主时清（对齐 runChat 迟到 finally 纪律）
+                if (myEpoch == turnEpoch) {
+                    activeAssistantId = null
+                    chatJob = null
+                }
             }
         }
     }
@@ -529,6 +542,7 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
     /**
      * 文字设备轮：直连执行（IO 线程）→ 结果 speech 作为 assistant 终态（DONE）上屏。
      * 失败降级为 Fail 播报（语音轮同款），不抛异常不标 ERROR 轮——设备不可达是常态而非崩溃。
+     * CONC-8：登记口径同 [runShelfNavTurn]——busy 期不再吞输入，barge-in 可打断。
      */
     private fun runDeviceTurn(
         session: ChatSession,
@@ -536,21 +550,31 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
         assistantId: String,
     ) {
         _phase.value = Phase.SENDING
-        viewModelScope.launch(Dispatchers.IO) {
-            val result = runCatching {
-                DeviceClient(
-                    http = deviceHttp,
-                    baseUrl = Prefs.deviceBaseUrl(getApplication()),
-                    // 异常原因必须进日志（S30 排查痛：未传 logger 时 CLEARTEXT 拦截被吞）
-                    logger = { msg -> PetLogger.w(TAG, "device skill: $msg") },
-                ).execute(cmd)
-            }.getOrElse { DeviceClient.SkillResult.Fail("设备控制异常，请重试") }
-            val speech = result.speech
-            PetLogger.i(TAG, "device turn done: cmd=$cmd speech=$speech")
-            withContext(Dispatchers.Main) {
-                _messages.value = turns.markDone(_messages.value, assistantId, speech)
-                persist(session)
-                _phase.value = Phase.IDLE
+        activeAssistantId = assistantId
+        val myEpoch = turnEpoch
+        chatJob = viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val result = runCatching {
+                    DeviceClient(
+                        http = deviceHttp,
+                        baseUrl = Prefs.deviceBaseUrl(getApplication()),
+                        // 异常原因必须进日志（S30 排查痛：未传 logger 时 CLEARTEXT 拦截被吞）
+                        logger = { msg -> PetLogger.w(TAG, "device skill: $msg") },
+                    ).execute(cmd)
+                }.getOrElse { DeviceClient.SkillResult.Fail("设备控制异常，请重试") }
+                val speech = result.speech
+                PetLogger.i(TAG, "device turn done: cmd=$cmd speech=$speech")
+                if (myEpoch != turnEpoch) return@launch // 已被打断：结果不落盘不改相位
+                withContext(Dispatchers.Main) {
+                    _messages.update { turns.markDone(it, assistantId, speech) }
+                    persist(session)
+                    _phase.value = Phase.IDLE
+                }
+            } finally {
+                if (myEpoch == turnEpoch) {
+                    activeAssistantId = null
+                    chatJob = null
+                }
             }
         }
     }
@@ -864,6 +888,21 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
     private fun persist(session: ChatSession) {
         store.saveMessages(session.id, _messages.value)
         refreshSessions()
+    }
+
+    /**
+     * DATA-2：三个静态桥（chatInterrupt/chatBusyProvider/chatNewSession）捕获 this VM
+     * 且被 Service/悬浮窗跨生命周期持有——VM 销毁必须摘桥。否则旧实例被静态引用滞留，
+     * 期间悬浮窗 chatInterrupt 会对失效实例 markCancelledDone + persist，
+     * 旧 _messages 快照整写回会话文件覆盖新 VM 已持久化内容（历史回退）。
+     * Service 侧消费点全部判空（?./?:），摘桥即回退无桥语义。
+     */
+    override fun onCleared() {
+        PetOverlayService.chatInterrupt = null
+        PetOverlayService.chatBusyProvider = null
+        PetOverlayService.chatNewSession = null
+        PetLogger.i(TAG, "vm cleared, overlay bridges detached")
+        super.onCleared()
     }
 
     private fun refreshSessions() {
