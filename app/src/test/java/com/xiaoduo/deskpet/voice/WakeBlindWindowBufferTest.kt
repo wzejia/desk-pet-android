@@ -82,4 +82,47 @@ class WakeBlindWindowBufferTest {
     fun defaultCapacityIsThreeSeconds() {
         assertEquals("默认容量 30 块 = 3s（覆盖 KWS 尾延迟+应答播放+消费停顿）", 30, WakeBlindWindowBuffer().capacityBlocks)
     }
+
+    /**
+     * CONC-2：add/drain 可达采麦收集协程（Default），clear 可达 KWS 唤醒回调/UI barge-in
+     * 线程（文档化的 ack 播放中唤醒打断场景即双写）——ArrayDeque 非线程安全，无锁并发
+     * 必然概率性损坏（丢块/head-tail 错乱/越界异常）。压测锁定：多线程 hammer 不得抛、
+     * 终态 size 不得超容量。修复前 ArrayDeque 裸奔大概率抛 NoSuchElementException/
+     * AIOOBE → 红。
+     */
+    @Test
+    fun `CONC-2 concurrent add drain clear never corrupts buffer`() {
+        val buf = WakeBlindWindowBuffer(capacityBlocks = 8)
+        val errors = java.util.concurrent.CopyOnWriteArrayList<Throwable>()
+        val stop = java.util.concurrent.atomic.AtomicBoolean(false)
+        val threads = (1..4).map { t ->
+            java.lang.Thread {
+                try {
+                    var i = 0L
+                    while (!stop.get()) {
+                        buf.add(ByteArray(4), i++)
+                        if (i % 3 == 0L) buf.drain()
+                    }
+                } catch (e: Throwable) {
+                    errors.add(e)
+                }
+            }.apply { start() }
+        }
+        val clearer = java.lang.Thread {
+            try {
+                while (!stop.get()) {
+                    buf.clear()
+                    buf.drainFrom(0L)
+                }
+            } catch (e: Throwable) {
+                errors.add(e)
+            }
+        }.apply { start() }
+        Thread.sleep(400)
+        stop.set(true)
+        threads.forEach { it.join(3000) }
+        clearer.join(3000)
+        assertTrue("并发操作不得损坏缓冲: $errors", errors.isEmpty())
+        assertTrue("终态 size 不得超容量: ${buf.size}", buf.size <= buf.capacityBlocks)
+    }
 }

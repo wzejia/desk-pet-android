@@ -24,10 +24,19 @@ class WakeBlindWindowBuffer(val capacityBlocks: Int = CAPACITY_BLOCKS) {
 
     private val deque = ArrayDeque<Entry>()
 
-    val size: Int get() = deque.size
+    /**
+     * CONC-2：所有访问器共用一把锁。add/drain 走采麦收集协程（Dispatchers.Default），
+     * clear 可达 KWS 唤醒回调/UI barge-in 线程（ack 播放中唤醒打断场景即双写）——
+     * ArrayDeque 非线程安全，无锁并发丢块/损坏 head-tail；drainEntries 的 toList+clear
+     * 也须原子（间隙落进来的 add 会被 clear 静默吞掉，违背「恰好回灌一次」）。
+     * 同型先例：VoiceSessionManager.continuationLock。
+     */
+    private val lock = Any()
+
+    val size: Int get() = synchronized(lock) { deque.size }
 
     /** 入队；满则淘汰最旧（保最新音频）。 */
-    fun add(block: ByteArray, capturedAtNs: Long) {
+    fun add(block: ByteArray, capturedAtNs: Long) = synchronized(lock) {
         deque.addLast(Entry(block, capturedAtNs))
         while (deque.size > capacityBlocks) deque.removeFirst()
     }
@@ -43,12 +52,12 @@ class WakeBlindWindowBuffer(val capacityBlocks: Int = CAPACITY_BLOCKS) {
         drainEntries().filterNot { it.capturedAtNs < cutoffNs }.map { it.pcm }
 
     /** 清空（cancel/新唤醒入口调用，防旧轮音频泄入新轮）。 */
-    fun clear() = deque.clear()
+    fun clear() = synchronized(lock) { deque.clear() }
 
-    private fun drainEntries(): List<Entry> {
+    private fun drainEntries(): List<Entry> = synchronized(lock) {
         val out = deque.toList()
         deque.clear()
-        return out
+        out
     }
 
     companion object {
