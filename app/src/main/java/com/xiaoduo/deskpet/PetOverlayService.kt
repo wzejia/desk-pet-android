@@ -221,10 +221,13 @@ class PetOverlayService : Service() {
         // 打字机逐字改变气泡宽度 -> 每次布局重算气泡窗 X（贴边 clamp）
         bubbleView.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ -> updateBubbleWindow() }
 
+        var firstAttached: View? = null // ROB-5：记录首个已挂窗口，失败路径先摘再退（防 WindowLeaked）
         runCatching {
             wm.addView(bubbleLayer, displayLp) // 先加气泡层，交互层在上
+            firstAttached = bubbleLayer
             wm.addView(interaction, interactionLp)
         }.onFailure {
+            firstAttached?.let { v -> runCatching { wm.removeView(v) } }
             PetLogger.e(TAG, "addView failed", it)
             stopSelf()
             return
@@ -523,6 +526,20 @@ class PetOverlayService : Service() {
             BubbleOwnership.Verdict.APPLY -> {
                 if (text.isNotEmpty()) hasShownBubbleContent = true
                 handler.post {
+                    // ROB-6：post 前校验与落地间可插入新轮 claim/隐藏——落地前以同一令牌复验，
+                    // 过期 runnable 不再以旧文本重建 bubbleStrip/重开触摸
+                    when (bubbleOwnership.judgePublish(owner, round, Prefs.showBubble(this))) {
+                        BubbleOwnership.Verdict.APPLY -> Unit // 落地
+                        BubbleOwnership.Verdict.FORCE_HIDE -> {
+                            PetLogger.d(TAG, "bubble show re-judged force-hide after post")
+                            forceHideBubble()
+                            return@post
+                        }
+                        BubbleOwnership.Verdict.DROP_STALE -> {
+                            PetLogger.d(TAG, "bubble show dropped after post: stale owner=$owner round=$round")
+                            return@post
+                        }
+                    }
                     voiceIndicator?.let {
                         it.stopLoop()
                         it.visibility = View.GONE
@@ -554,6 +571,19 @@ class PetOverlayService : Service() {
             BubbleOwnership.Verdict.APPLY -> {
                 if (delta.isNotEmpty()) hasShownBubbleContent = true
                 handler.post {
+                    // ROB-6：同 showBubble——落地前复验，过期 runnable 不再追加喂错会话
+                    when (bubbleOwnership.judgePublish(owner, round, Prefs.showBubble(this))) {
+                        BubbleOwnership.Verdict.APPLY -> Unit
+                        BubbleOwnership.Verdict.FORCE_HIDE -> {
+                            PetLogger.d(TAG, "bubble append re-judged force-hide after post")
+                            forceHideBubble()
+                            return@post
+                        }
+                        BubbleOwnership.Verdict.DROP_STALE -> {
+                            PetLogger.d(TAG, "bubble append dropped after post: stale owner=$owner round=$round")
+                            return@post
+                        }
+                    }
                     voiceIndicator?.let {
                         it.stopLoop()
                         it.visibility = View.GONE
@@ -597,7 +627,9 @@ class PetOverlayService : Service() {
         }, delayMs)
     }
 
-    /** 无条件收泡（FORCE_HIDE 路径与令牌校验通过后的实际执行）。指示泡一并收（互斥同容器）。 */
+    /** 无条件收泡（FORCE_HIDE 路径与令牌校验通过后的实际执行）。指示泡一并收（互斥同容器）。
+     *  ROB-7：触摸开关随视图操作一并 post 到主线程原子执行——hideBubble/FORCE_HIDE 可从
+     *  binder/worker 线程到达，旧实现此处同步调 setBubbleTouchable 走非主线程窗口更新。 */
     private fun forceHideBubble() {
         handler.post {
             bubble?.let {
@@ -608,8 +640,8 @@ class PetOverlayService : Service() {
                 it.stopLoop()
                 it.visibility = View.GONE
             }
+            setBubbleTouchable(false) // S39：隐藏即还触摸穿透（防常驻窗口矩形拦截）
         }
-        setBubbleTouchable(false) // S39：隐藏即还触摸穿透（防常驻窗口矩形拦截）
     }
 
     /**
@@ -620,6 +652,9 @@ class PetOverlayService : Service() {
      * 展示件，区域不可点可接受（用户拍板 2026-09-11）。
      */
     private fun setBubbleTouchable(on: Boolean) {
+        // ROB-7：窗口未建（onStartCommand 前 service 可被 bind、companion 实例 onCreate 即发布；
+        // onDestroy 后 post 残余）时 lateinit displayLp 未初始化——降级 no-op 防崩溃
+        if (!built) return
         val touchable = displayLp.flags and WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE == 0
         if (on == touchable) return
         displayLp.flags = if (on) {

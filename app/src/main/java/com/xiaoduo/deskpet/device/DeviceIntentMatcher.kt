@@ -35,14 +35,30 @@ object DeviceIntentMatcher {
         val device = deviceOf(t) ?: return null
         val purify = purifyPhrase(t) // 「标准/快速/强力净化」本身含开机语义（仅净化柜）
         return when {
+            // FUNC-1：否定门先于一切动作分支——「不要打开整理台」绝不执行（null 走 LLM）
+            isNegated(t) -> null
+            // FUNC-1：疑问门先于动作分支——「开机了吗」→ 查询；「强力模式是什么」→ null 走 LLM
+            isQuestion(t) -> if (isQuery(t)) Command.QueryStatus(device) else null
             isOff(t) -> Command.PowerOff(device)
             isOn(t) -> Command.PowerOn(device, modeOf(t, device))
             device == Device.JHG && purify != null -> Command.PowerOn(device, purify)
-            device == Device.ZLT && (t.contains("风速") || hasBareGear(t)) -> fanSpeed(t)
+            // FUNC-1：风速分支解析失败回落查询判定，不再吞掉 isQuery 回退
+            device == Device.ZLT && (t.contains("风速") || hasBareGear(t)) -> fanSpeed(t) ?: queryOrNull(t, device)
             isQuery(t) -> Command.QueryStatus(device)
             else -> null
         }
     }
+
+    // FUNC-1：疑问/否定标记（动作分支前置门；词表刻意保守——误放行走 LLM，误拦截丢指令，
+    // 取「宁可不动作」方向）
+    private val NEGATION_WORDS = listOf("不要", "别", "不用")
+    private val QUESTION_WORDS = listOf("吗", "呢", "什么", "怎么", "多少", "？", "?")
+
+    private fun isNegated(t: String) = NEGATION_WORDS.any { t.contains(it) }
+    private fun isQuestion(t: String) = QUESTION_WORDS.any { t.contains(it) }
+
+    private fun queryOrNull(t: String, device: Device): Command? =
+        if (isQuery(t)) Command.QueryStatus(device) else null
 
     private fun deviceOf(t: String): Device? = when {
         ZLT_WORDS.any { t.contains(it) } -> Device.ZLT
@@ -84,7 +100,7 @@ object DeviceIntentMatcher {
         return null
     }
 
-    private val QUERY_WORDS = listOf("状态", "温度", "湿度", "pm2", "PM2", "空气", "怎么样", "开了吗", "开着吗", "运行")
+    private val QUERY_WORDS = listOf("状态", "温度", "湿度", "pm2", "PM2", "空气", "怎么样", "开了吗", "开着吗", "运行", "了吗") // FUNC-1：「开机了吗/关了吗」类问句=查询
 
     /** 净化短语自带档位：档位词（标准/快速/强力）+「净化」结尾语义（不含柜名误触——
      *  「净化柜」一词不能当开机词，否则查询/闲聊句全误判开机）。 */

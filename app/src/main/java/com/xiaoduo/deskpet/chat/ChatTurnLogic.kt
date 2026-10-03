@@ -1,5 +1,6 @@
 package com.xiaoduo.deskpet.chat
 
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
 
 /**
@@ -10,6 +11,8 @@ import java.util.concurrent.atomic.AtomicInteger
  *   半截 think 标签跨 delta 拼接无损。旧实现把「清洗结果」当累加基（ChatViewModel 存
  *   cleaned 文本再 clean(cleaned + delta)），尾部被截的半截标签永远丢失：裸 "<" 闪现一帧，
  *   若 delta 逐字符到达，标签碎片（"hink>秘密"）直接漏成字面文本；
+ * - DATA-5：rawBuffers 为 ConcurrentHashMap，追加与读取经 compute 单临界区完成——
+ *   流式线程 applyDelta 与主线程终态处理并发时双 StringBuilder/丢 delta/map 损坏不再可达；
  * - 重发决策 [prepareResend]：复用 user 消息携带的 wire messageId（踩坑 #25：同 id 重试，
  *   空回复率才不从 ~20% 涨到 ~50%；升级前旧历史缺 wireId 时现造并回写，后续重发仍同 id）。
  */
@@ -18,7 +21,7 @@ class ChatTurnLogic(private val clock: () -> Long = System::currentTimeMillis) {
     private val seq = AtomicInteger(0)
 
     /** 流式原始累加缓冲：assistantId → 未清洗原文；回合结束（done/error/重发/清空）即移除。 */
-    private val rawBuffers = HashMap<String, StringBuilder>()
+    private val rawBuffers = ConcurrentHashMap<String, StringBuilder>()
 
     /** wire 消息 id：`u_{毫秒}_{seq}`（§2.2 全局唯一；同毫秒靠单调 seq 防撞）。 */
     fun nextWireId(): String = "u_${clock()}_${seq.incrementAndGet()}"
@@ -33,12 +36,27 @@ class ChatTurnLogic(private val clock: () -> Long = System::currentTimeMillis) {
     /**
      * 流式追加：delta 并入原始缓冲 → 整体清洗得可见文本 → 状态置 STREAMING。
      * 目标消息缺失（如对话被清空）原样返回。
+     * DATA-6：仅 SENDING/STREAMING 在途状态应用 delta——markDone/markError/markCancelledDone/
+     * prepareResend 之后到达的迟到/重复 delta 原样返回，不得把终态翻回 STREAMING
+     * 或以陈旧文本重建缓冲。
      */
     fun applyDelta(messages: List<ChatMessage>, assistantId: String, delta: String): List<ChatMessage> {
         val current = messages.firstOrNull { it.id == assistantId } ?: return messages
-        val buf = rawBuffers.getOrPut(assistantId) { StringBuilder(current.text) }
-        buf.append(delta)
-        val visible = ThinkCleaner.clean(buf.toString())
+        if (current.status != ChatMessage.Status.SENDING &&
+            current.status != ChatMessage.Status.STREAMING
+        ) {
+            return messages
+        }
+        // DATA-5：compute 单临界区完成「取/建缓冲 + 追加 + 快照」三步，per-key 互斥；
+        // getOrPut + 外部 append 的竞态（双 StringBuilder 丢 delta）不再可达
+        var full = ""
+        rawBuffers.compute(assistantId) { _, existing ->
+            val b = existing ?: StringBuilder(current.text)
+            b.append(delta)
+            full = b.toString()
+            b
+        }
+        val visible = ThinkCleaner.clean(full)
         return messages.map {
             if (it.id == assistantId) it.copy(text = visible, status = ChatMessage.Status.STREAMING) else it
         }

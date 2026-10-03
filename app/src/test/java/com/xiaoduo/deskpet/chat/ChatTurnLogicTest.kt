@@ -59,6 +59,55 @@ class ChatTurnLogicTest {
         assertEquals(msgs, logic.applyDelta(msgs, "ghost", "新"))
     }
 
+    // ---------------- DATA-6：迟到 delta 不得复活终态轮次 ----------------
+
+    @Test
+    fun `DATA-6 late delta after markDone does not resurrect turn`() {
+        val logic = newLogic()
+        var msgs = listOf(assistant("a1", "", ChatMessage.Status.SENDING))
+        msgs = logic.applyDelta(msgs, "a1", "流出半截")
+        msgs = logic.markDone(msgs, "a1", "定稿全文")
+        val after = logic.applyDelta(msgs, "a1", "迟到增量")
+        assertEquals("定稿全文", after[0].text)
+        assertEquals(ChatMessage.Status.DONE, after[0].status)
+    }
+
+    @Test
+    fun `DATA-6 late delta after markError stays error`() {
+        val logic = newLogic()
+        var msgs = listOf(assistant("a1", "", ChatMessage.Status.SENDING))
+        msgs = logic.applyDelta(msgs, "a1", "半截")
+        msgs = logic.markError(msgs, "a1")
+        val after = logic.applyDelta(msgs, "a1", "迟到增量")
+        assertEquals("半截", after[0].text)
+        assertEquals(ChatMessage.Status.ERROR, after[0].status)
+    }
+
+    @Test
+    fun `DATA-6 late delta after cancel keeps partial done text`() {
+        val logic = newLogic()
+        var msgs = listOf(assistant("a1", "", ChatMessage.Status.SENDING))
+        msgs = logic.applyDelta(msgs, "a1", "半截")
+        msgs = logic.markCancelledDone(msgs, "a1")
+        val after = logic.applyDelta(msgs, "a1", "迟到增量")
+        assertEquals("半截", after[0].text)
+        assertEquals(ChatMessage.Status.DONE, after[0].status)
+    }
+
+    /** 回归保护：重发重置为 SENDING 后新一轮 delta 必须照常应用。 */
+    @Test
+    fun `DATA-6 delta still applies after resend reset (sending state)`() {
+        val logic = newLogic()
+        val msgs = listOf(
+            user("u1", "问", "u_1_1"),
+            assistant("a1", "", ChatMessage.Status.ERROR),
+        )
+        val plan = logic.prepareResend(msgs, "a1")!!
+        val rerun = logic.applyDelta(plan.messages, "a1", "新回复")
+        assertEquals("新回复", rerun[1].text)
+        assertEquals(ChatMessage.Status.STREAMING, rerun[1].status)
+    }
+
     @Test
     fun `markDone cleans final text and sets done`() {
         val logic = newLogic()
@@ -154,6 +203,33 @@ class ChatTurnLogicTest {
         val logic = newLogic()
         val msgs = listOf(assistant("a1", "旧", ChatMessage.Status.DONE))
         assertEquals(msgs, logic.markCancelledDone(msgs, "ghost"))
+    }
+
+    // ---------------- DATA-5：rawBuffers 并发追加不丢增量 ----------------
+
+    /** 两线程在同一 base 上并发 applyDelta（流式 IO 线程 × 主线程终态处理并发形态）：
+     *  全部增量都必须进入共享缓冲——旧 HashMap+getOrPut 竞态会产生双缓冲/丢字符。 */
+    @Test
+    fun `DATA-5 concurrent applyDelta on same base loses no delta`() {
+        val logic = newLogic()
+        val base = listOf(assistant("a1", "", ChatMessage.Status.SENDING))
+        val pool = java.util.concurrent.Executors.newFixedThreadPool(2)
+        val done = java.util.concurrent.CountDownLatch(2)
+        val results = java.util.Collections.synchronizedList(ArrayList<List<ChatMessage>>())
+        repeat(2) {
+            pool.submit {
+                try {
+                    repeat(200) { results.add(logic.applyDelta(base, "a1", "x")) }
+                } finally {
+                    done.countDown()
+                }
+            }
+        }
+        done.await()
+        pool.shutdown()
+        var maxLen = 0
+        for (r in results) maxLen = maxOf(maxLen, r[0].text.length)
+        assertEquals("并发增量不得丢失: $maxLen/400", 400, maxLen)
     }
 
     // ---------------- 重发决策（踩坑 #25） ----------------

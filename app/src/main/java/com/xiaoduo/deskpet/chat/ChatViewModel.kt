@@ -32,9 +32,11 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import java.util.UUID
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * 聊天状态层（S2 + 多会话扩 scope）：消息流 + 对话相位 + 会话管理，文字轮经 [TextChatRouter]
@@ -124,8 +126,9 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
     private val _files = MutableStateFlow<List<FileMeta>>(emptyList())
     val files: StateFlow<List<FileMeta>> = _files
 
-    /** 在途上传 job（按 FileMeta.localId 登记；切会话/删除文件时取消）。 */
-    private val uploadJobs = HashMap<String, Job>()
+    /** 在途上传 job（按 FileMeta.localId 登记；切会话/删除文件时取消）。
+     *  DATA-4：IO 协程回写与主线程并发读写，HashMap 换 ConcurrentHashMap 防结构损坏。 */
+    private val uploadJobs = ConcurrentHashMap<String, Job>()
 
     init {
         val index = store.loadIndex()
@@ -179,10 +182,20 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
                 private val rawBuffer = StringBuilder()
 
                 override fun onUserUtterance(text: String) {
+                    // DATA-3：文字轮在途即拒——防语音/文字双写者对 _messages 交错 RMW
+                    // 后写整体覆盖先写（拒入方向安全：用户可再说一遍，历史数据不被覆盖）
+                    if (TurnGateRules.textTurnInFlight(
+                            _phase.value == Phase.SENDING,
+                            _phase.value == Phase.STREAMING,
+                        )
+                    ) {
+                        PetLogger.w(TAG, "voice utterance dropped: text turn in flight (phase=${_phase.value})")
+                        return
+                    }
+                    _voiceActive.value = true // 守卫窗口尽早开启（缩小与主线程 send 的 TOCTOU）
                     // S48 惰性超时轮转：与文字轮同规则（置守卫窗前调用，rotate 内部不查 busy）。
                     // 轮转后下方 _currentSession.value 拿到新会话，本轮消息入新会话/新 thread。
                     rotateSessionIfIdle()
-                    _voiceActive.value = true // 守卫窗口开启（done|error 的 endTurn 关闭）
                     val session = _currentSession.value ?: return
                     val userMsg = ChatMessage(
                         newId(),
@@ -191,7 +204,7 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
                         ChatMessage.Status.DONE,
                         System.currentTimeMillis(),
                     )
-                    _messages.value = _messages.value + userMsg
+                    _messages.update { it + userMsg } // DATA-4：原子 RMW（语音 IO 线程写点）
                     persist(session)
                 }
 
@@ -202,7 +215,7 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
                         // 守卫下不应发生；仍留日志防 fail-silent（如清空前后的竞态窗口）
                         PetLogger.w(TAG, "voice delta dropped: assistant message $id missing from history")
                     }
-                    _messages.value = turns.applyDelta(_messages.value, id, delta)
+                    _messages.update { turns.applyDelta(it, id, delta) } // DATA-4：原子 RMW
                 }
 
                 override fun onAssistantDone() {
@@ -213,14 +226,15 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
                         endTurn()
                         return
                     }
-                    _messages.value = turns.markDone(_messages.value, id, rawBuffer.toString())
+                    val raw = rawBuffer.toString()
+                    _messages.update { turns.markDone(it, id, raw) }
                     endTurn()
                 }
 
                 override fun onAssistantError(message: String) {
                     // 零 delta 失败（如 HTTP 500 未出字）也补占位再标错误，历史里可见失败轮
                     val id = ensureAssistant()
-                    _messages.value = turns.markError(_messages.value, id)
+                    _messages.update { turns.markError(it, id) }
                     endTurn()
                     PetLogger.w(TAG, "voice turn failed: $message")
                 }
@@ -235,7 +249,7 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
                         ChatMessage.Status.SENDING,
                         System.currentTimeMillis(),
                     )
-                    _messages.value = _messages.value + msg
+                    _messages.update { it + msg } // DATA-4：原子 RMW
                     currentAssistantId = msg.id
                     return msg.id
                 }
@@ -318,7 +332,7 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
         if (assistantId == null) return // 无在途文字轮：no-op
         PetLogger.i(TAG, "barge-in: cancel text turn")
         activeAssistantId = null
-        _messages.value = turns.markCancelledDone(_messages.value, assistantId)
+        _messages.update { turns.markCancelledDone(it, assistantId) } // DATA-4：原子 RMW
         _currentSession.value?.let { persist(it) }
         _phase.value = Phase.IDLE
         val svc = PetOverlayService.instance ?: return
@@ -364,7 +378,7 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
             fileSuffix = fileName.substringAfterLast('.', ""),
             status = UploadStatus.UPLOADING,
         )
-        _files.value = _files.value + placeholder
+        _files.update { it + placeholder } // DATA-4：原子 RMW（IO 协程回写并发）
         PetLogger.i(TAG, "upload start: $fileName ${bytes.size} bytes")
         uploadJobs[placeholder.localId] = viewModelScope.launch(Dispatchers.IO) {
             val result = try {
@@ -378,18 +392,22 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
             if (!isActive) return@launch
             when (result) {
                 is AguiClient.UploadResult.Success -> {
-                    _files.value = _files.value.map {
-                        if (it.localId == placeholder.localId) {
-                            result.meta.copy(localId = it.localId)
-                        } else {
-                            it
+                    _files.update { list ->
+                        list.map {
+                            if (it.localId == placeholder.localId) {
+                                result.meta.copy(localId = it.localId)
+                            } else {
+                                it
+                            }
                         }
                     }
                     PetLogger.i(TAG, "upload done: $fileName -> ${result.meta.fileId}")
                 }
                 is AguiClient.UploadResult.Error -> {
-                    _files.value = _files.value.map {
-                        if (it.localId == placeholder.localId) it.copy(status = UploadStatus.ERROR) else it
+                    _files.update { list ->
+                        list.map {
+                            if (it.localId == placeholder.localId) it.copy(status = UploadStatus.ERROR) else it
+                        }
                     }
                     PetLogger.w(TAG, "upload failed: $fileName: ${result.message}")
                 }
@@ -402,14 +420,14 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
     /** 从待发列表移除（在途上传一并取消）。 */
     fun removeFile(localId: String) {
         uploadJobs.remove(localId)?.cancel()
-        _files.value = _files.value.filterNot { it.localId == localId }
+        _files.update { it.filterNot { f -> f.localId == localId } } // DATA-4：原子 RMW
     }
 
     /** 切会话/发送成功的统一收尾：取消全部在途上传 + 清空列表（防 fileId 跨会话串写）。 */
     private fun resetFiles() {
         uploadJobs.values.forEach { it.cancel() }
         uploadJobs.clear()
-        if (_files.value.isNotEmpty()) _files.value = emptyList()
+        _files.update { if (it.isNotEmpty()) emptyList() else it }
     }
 
     fun send(text: String) {
@@ -442,7 +460,7 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
             wireId = wireId,
         )
         val assistant = ChatMessage(newId(), ChatMessage.Role.ASSISTANT, "", ChatMessage.Status.SENDING, now)
-        _messages.value = turns.appendTurn(_messages.value, userMsg, assistant)
+        _messages.update { turns.appendTurn(it, userMsg, assistant) } // DATA-4：原子 RMW
         persist(session)
         // fileId 前缀注入在 AguiClient.chat（两路一致挂载点）：本轮捕获 DONE 文件快照，
         // 列表展示文本保持纯用户输入（文件以 chips 形态在输入区呈现）；
@@ -487,6 +505,8 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
      * S46 密集架页面导航轮：同步 POST mcpUiNavigate（IO 线程）→ 结果 speech 作为
      * assistant 终态（DONE）上屏。失败降级为 Fail 文案，不抛异常不标 ERROR 轮
      * （设备轮同款：联动不可达是常态而非崩溃）。
+     * CONC-8：与 runChat 同款登记 chatJob/activeAssistantId/turnEpoch——barge-in
+     * cancel 能 markCancelledDone 复位相位，迟到结果以 epoch 对不上丢弃，不再吞输入。
      */
     private fun runShelfNavTurn(
         session: ChatSession,
@@ -494,16 +514,27 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
         assistantId: String,
     ) {
         _phase.value = Phase.SENDING
-        viewModelScope.launch(Dispatchers.IO) {
-            val ok = runCatching { shelfMcpClient.navigate(page) }
-                .getOrElse { false }
-            val speech = if (ok) ShelfNavIntentMatcher.navSpeech(page) // S62：共用回执（home=已回到首页）
-                         else "密集架联动不可用，请检查网络后重试"
-            PetLogger.i(TAG, "shelf nav turn done: page=$page ok=$ok")
-            withContext(Dispatchers.Main) {
-                _messages.value = turns.markDone(_messages.value, assistantId, speech)
-                persist(session)
-                _phase.value = Phase.IDLE
+        activeAssistantId = assistantId
+        val myEpoch = turnEpoch
+        chatJob = viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val ok = runCatching { shelfMcpClient.navigate(page) }
+                    .getOrElse { false }
+                val speech = if (ok) ShelfNavIntentMatcher.navSpeech(page) // S62：共用回执（home=已回到首页）
+                             else "密集架联动不可用，请检查网络后重试"
+                PetLogger.i(TAG, "shelf nav turn done: page=$page ok=$ok")
+                if (myEpoch != turnEpoch) return@launch // 已被打断：结果不落盘不改相位
+                withContext(Dispatchers.Main) {
+                    _messages.update { turns.markDone(it, assistantId, speech) }
+                    persist(session)
+                    _phase.value = Phase.IDLE
+                }
+            } finally {
+                // 自清：仅本轮未被新轮/取消换主时清（对齐 runChat 迟到 finally 纪律）
+                if (myEpoch == turnEpoch) {
+                    activeAssistantId = null
+                    chatJob = null
+                }
             }
         }
     }
@@ -511,6 +542,7 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
     /**
      * 文字设备轮：直连执行（IO 线程）→ 结果 speech 作为 assistant 终态（DONE）上屏。
      * 失败降级为 Fail 播报（语音轮同款），不抛异常不标 ERROR 轮——设备不可达是常态而非崩溃。
+     * CONC-8：登记口径同 [runShelfNavTurn]——busy 期不再吞输入，barge-in 可打断。
      */
     private fun runDeviceTurn(
         session: ChatSession,
@@ -518,21 +550,31 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
         assistantId: String,
     ) {
         _phase.value = Phase.SENDING
-        viewModelScope.launch(Dispatchers.IO) {
-            val result = runCatching {
-                DeviceClient(
-                    http = deviceHttp,
-                    baseUrl = Prefs.deviceBaseUrl(getApplication()),
-                    // 异常原因必须进日志（S30 排查痛：未传 logger 时 CLEARTEXT 拦截被吞）
-                    logger = { msg -> PetLogger.w(TAG, "device skill: $msg") },
-                ).execute(cmd)
-            }.getOrElse { DeviceClient.SkillResult.Fail("设备控制异常，请重试") }
-            val speech = result.speech
-            PetLogger.i(TAG, "device turn done: cmd=$cmd speech=$speech")
-            withContext(Dispatchers.Main) {
-                _messages.value = turns.markDone(_messages.value, assistantId, speech)
-                persist(session)
-                _phase.value = Phase.IDLE
+        activeAssistantId = assistantId
+        val myEpoch = turnEpoch
+        chatJob = viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val result = runCatching {
+                    DeviceClient(
+                        http = deviceHttp,
+                        baseUrl = Prefs.deviceBaseUrl(getApplication()),
+                        // 异常原因必须进日志（S30 排查痛：未传 logger 时 CLEARTEXT 拦截被吞）
+                        logger = { msg -> PetLogger.w(TAG, "device skill: $msg") },
+                    ).execute(cmd)
+                }.getOrElse { DeviceClient.SkillResult.Fail("设备控制异常，请重试") }
+                val speech = result.speech
+                PetLogger.i(TAG, "device turn done: cmd=$cmd speech=$speech")
+                if (myEpoch != turnEpoch) return@launch // 已被打断：结果不落盘不改相位
+                withContext(Dispatchers.Main) {
+                    _messages.update { turns.markDone(it, assistantId, speech) }
+                    persist(session)
+                    _phase.value = Phase.IDLE
+                }
+            } finally {
+                if (myEpoch == turnEpoch) {
+                    activeAssistantId = null
+                    chatJob = null
+                }
             }
         }
     }
@@ -744,7 +786,7 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
                 // epoch 防线/相位/气泡节奏与 LLM 模式无关
                 val onDelta: (String) -> Unit = onDelta@{ delta ->
                     if (myEpoch != turnEpoch) return@onDelta // barge-in 迟到 delta 防线
-                    _messages.value = turns.applyDelta(_messages.value, assistantId, delta)
+                    _messages.update { turns.applyDelta(it, assistantId, delta) } // DATA-4：原子 RMW
                     val visible = _messages.value.firstOrNull { it.id == assistantId }?.text ?: return@onDelta
                     _phase.value = Phase.STREAMING
                     svc?.let {
@@ -789,14 +831,14 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
                 if (myEpoch != turnEpoch) return@launch // 已被打断：结果不落盘不改相位
                 when (result) {
                     is AguiClient.ChatResult.Success -> {
-                        _messages.value = turns.markDone(_messages.value, assistantId, result.text)
+                        _messages.update { turns.markDone(it, assistantId, result.text) }
                         val finalText = _messages.value.firstOrNull { it.id == assistantId }?.text.orEmpty()
                         persist(session)
                         _phase.value = Phase.IDLE
                         // S7-f 发送成功清场：只清本轮挂载快照（P2-② 不连坐——turn 进行中
                         // 用户新选并传完的 DONE 文件未挂进本轮，必须存活；Error/被打断全保留）
                         if (attachedLocalIds.isNotEmpty()) {
-                            _files.value = FileListRules.clearAttached(_files.value, attachedLocalIds)
+                            _files.update { FileListRules.clearAttached(it, attachedLocalIds) }
                             attachedLocalIds.forEach { uploadJobs.remove(it)?.cancel() }
                         }
                         PetLogger.i(
@@ -809,7 +851,7 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
                         svc?.hideBubbleLater(BubbleOwner.CHAT, myRound, BUBBLE_HIDE_DELAY_MS)
                     }
                     is AguiClient.ChatResult.Error -> {
-                        _messages.value = turns.markError(_messages.value, assistantId)
+                        _messages.update { turns.markError(it, assistantId) }
                         persist(session)
                         _phase.value = Phase.ERROR
                         PetLogger.w(TAG, "chat round failed: ${result.message}")
@@ -828,7 +870,7 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
                 val alreadyDone = _messages.value.firstOrNull { it.id == assistantId }
                     ?.status == ChatMessage.Status.DONE
                 if (!alreadyDone) {
-                    _messages.value = turns.markError(_messages.value, assistantId)
+                    _messages.update { turns.markError(it, assistantId) }
                     persist(session)
                     _phase.value = Phase.ERROR
                 }
@@ -846,6 +888,21 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
     private fun persist(session: ChatSession) {
         store.saveMessages(session.id, _messages.value)
         refreshSessions()
+    }
+
+    /**
+     * DATA-2：三个静态桥（chatInterrupt/chatBusyProvider/chatNewSession）捕获 this VM
+     * 且被 Service/悬浮窗跨生命周期持有——VM 销毁必须摘桥。否则旧实例被静态引用滞留，
+     * 期间悬浮窗 chatInterrupt 会对失效实例 markCancelledDone + persist，
+     * 旧 _messages 快照整写回会话文件覆盖新 VM 已持久化内容（历史回退）。
+     * Service 侧消费点全部判空（?./?:），摘桥即回退无桥语义。
+     */
+    override fun onCleared() {
+        PetOverlayService.chatInterrupt = null
+        PetOverlayService.chatBusyProvider = null
+        PetOverlayService.chatNewSession = null
+        PetLogger.i(TAG, "vm cleared, overlay bridges detached")
+        super.onCleared()
     }
 
     private fun refreshSessions() {

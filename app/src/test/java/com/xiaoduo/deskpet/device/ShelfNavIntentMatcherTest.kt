@@ -79,9 +79,31 @@ class ShelfNavIntentMatcherTest {
         assertEquals("已打开借阅页面", ShelfNavIntentMatcher.navSpeech("borrow")) // 既有语义不变
     }
 
+    /** FUNC-4：源→目标句式（「从 A 切到 B」）候选跨多页 = 意图含糊，返回 null 交 LLM，
+     *  绝不取首现词导航到用户要离开的页面（旧实现取先者锁定缺陷，KDoc 亦误写为预期）。 */
     @Test
-    fun `借还词同时出现取先者`() {
-        assertEquals("borrow", ShelfNavIntentMatcher.match("从借阅切到归还"))
-        assertEquals("return", ShelfNavIntentMatcher.match("从归还切到借阅页面"))
+    fun `FUNC-4 源到目标句式跨多页不劫持`() {
+        assertNull(ShelfNavIntentMatcher.match("从借阅切到归还"))
+        assertNull(ShelfNavIntentMatcher.match("从归还切到借阅页面"))
+        assertNull(ShelfNavIntentMatcher.match("从首页切到盘点"))
+        // 单一目标页仍正常命中（回归保护）
+        assertEquals("return", ShelfNavIntentMatcher.match("切换到归还"))
+        assertEquals("borrow", ShelfNavIntentMatcher.match("去借阅"))
+    }
+
+    // ---- FUNC-1(187)：问句/否定句不劫持为导航 ----
+
+    @Test
+    fun `FUNC-1 问句不劫持为导航`() {
+        assertNull(ShelfNavIntentMatcher.match("借阅页面是什么"))
+        assertNull(ShelfNavIntentMatcher.match("去借阅吗"))
+        assertNull(ShelfNavIntentMatcher.match("归还页面长什么样"))
+        assertNull(ShelfNavIntentMatcher.match("盘点页面在哪儿"))
+    }
+
+    @Test
+    fun `FUNC-1 否定句不劫持为导航`() {
+        assertNull(ShelfNavIntentMatcher.match("不要去借阅页面"))
+        assertNull(ShelfNavIntentMatcher.match("别切到归还界面"))
     }
 }

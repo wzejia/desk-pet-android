@@ -203,6 +203,11 @@ object NetConfig {
     fun volcTtsResource(context: Context): String =
         sp(context).getString(KEY_VOLC_TTS_RESOURCE, null)?.takeIf { it.isNotBlank() } ?: "seed-tts-2.0"
 
+    // TODO(SEC-3 BLOCKED 2026-10-03)：password/cloud_key/volc_speech_key/aliyun_speech_key 仍为
+    //  SharedPreferences 明文。迁移 EncryptedSharedPreferences 需新增 androidx.security:security-crypto
+    //  依赖（项目规矩「不新增依赖须报批」）→ 本轮未做；自封装 Keystore AES 属新机制，需立项。
+    //  迁移时必须兼容板端存量 prefs：首启读旧明文 → 写加密 → 清旧键（迁移逻辑单测）。
+    //  已落地最小缓解：TokenEntry.toString 脱敏（防日志/调试泄露），见 TokenStore.kt。
     fun saveAll(
         context: Context,
         platformBase: String,

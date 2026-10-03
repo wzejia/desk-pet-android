@@ -14,6 +14,7 @@ import android.os.IBinder
 import androidx.core.app.NotificationCompat
 import androidx.core.app.ServiceCompat
 import androidx.core.content.ContextCompat
+import com.xiaoduo.deskpet.util.FeedReleaseGate
 import com.xiaoduo.deskpet.util.PetLogger
 import com.xiaoduo.deskpet.util.Prefs
 import com.xiaoduo.deskpet.voice.KwsEngine
@@ -56,6 +57,13 @@ class VoiceForegroundService : Service() {
     private var destroyed = false
 
     private val lock = Any()
+
+    /**
+     * ROB-4：采麦喂入与引擎释放的单监视器串行门——sink 闭包（kws-init 线程挂上后由
+     * VSM 采集线程调用）与 onDestroy 的 release 共用本门：close 后任何残余闭包
+     * （null-check-then-invoke 窗口外已取出的引用）不再喂已释放引擎。
+     */
+    private val kwsGate = FeedReleaseGate()
 
     /**
      * init 单次门闩（backlog #8a，选门闩而非「收尾 engine 复查」）：复查只堵泄漏不堵
@@ -160,15 +168,18 @@ class VoiceForegroundService : Service() {
                 shadowEngine = shadow
                 val session = VoiceClientFactory.session(this)
                 session.kwsSink = { block ->
-                    e.feed(block)
-                    // 影子仅播报/处理期喂流（S22 口径）。S34 曾改全时段喂流，18:52-18:55
-                    // 14.18 实测双引擎把 rk3568 打满（App CPU 202%），主+影子解码吞吐上限
-                    // ≈10 块/s（单引擎时代恰满速），主引擎被挤到 decoded 4.4/s：队列（64 块
-                    // 封顶丢最旧）恒满=时间轴撕裂 56%，唤醒必漏——即时回退。近漏检观测判
-                    // BLOCKED（需更小模型/更强硬件/离线批量），数据存证见 notes+BLOCKED。
-                    val st = session.stateFlow.value
-                    if (st == VoiceStateRouter.State.SPEAKING || st == VoiceStateRouter.State.PROCESSING) {
-                        shadow?.feed(block)
+                    // ROB-4：喂入经 kwsGate 与 release 串行——close 后旧闭包调用直达此处也被跳过
+                    kwsGate.feed {
+                        e.feed(block)
+                        // 影子仅播报/处理期喂流（S22 口径）。S34 曾改全时段喂流，18:52-18:55
+                        // 14.18 实测双引擎把 rk3568 打满（App CPU 202%），主+影子解码吞吐上限
+                        // ≈10 块/s（单引擎时代恰满速），主引擎被挤到 decoded 4.4/s：队列（64 块
+                        // 封顶丢最旧）恒满=时间轴撕裂 56%，唤醒必漏——即时回退。近漏检观测判
+                        // BLOCKED（需更小模型/更强硬件/离线批量），数据存证见 notes+BLOCKED。
+                        val st = session.stateFlow.value
+                        if (st == VoiceStateRouter.State.SPEAKING || st == VoiceStateRouter.State.PROCESSING) {
+                            shadow?.feed(block)
+                        }
                     }
                 }
                 session.startIdleCapture()
@@ -222,11 +233,15 @@ class VoiceForegroundService : Service() {
                 val session = VoiceClientFactory.session(this)
                 session.kwsSink = null
                 session.stopIdleCapture()
+            }.onFailure { PetLogger.e(TAG, "kws session teardown failed: ${it.message}") } // ROB-4：吞掉的异常留痕
+            // ROB-4：feed 与 release 同一监视器串行——close 持门锁 release，
+            // 在途/残余 sink 闭包的 feed 在锁外等待或被跳过，use-after-release 不可达
+            kwsGate.close {
+                engine?.release()
+                engine = null
+                shadowEngine?.release()
+                shadowEngine = null
             }
-            engine?.release()
-            engine = null
-            shadowEngine?.release()
-            shadowEngine = null
         }
         super.onDestroy()
     }

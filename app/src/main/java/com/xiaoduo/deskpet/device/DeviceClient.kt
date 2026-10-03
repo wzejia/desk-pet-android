@@ -57,7 +57,8 @@ class DeviceClient(
                     }
                     sleeper(verifyDelayMs)
                     val st = status(device)
-                    if (st.optString("err").isNotEmpty() || st.optInt("RunFlag") != 0) {
+                    // FUNC-2：缺省哨兵 -1——状态体缺 RunFlag 键（空/畸形回读）不得按 0 误判「已关闭」
+                    if (st.optString("err").isNotEmpty() || st.optInt("RunFlag", -1) != 0) {
                         SkillResult.Fail("${nameOf(device)}未确认关机，请看一眼面板")
                     } else {
                         SkillResult.Ok("${nameOf(device)}已关闭")
@@ -66,7 +67,8 @@ class DeviceClient(
                 is DeviceIntentMatcher.Command.FanSpeed -> {
                     get("/windSpeed?mode=${cmd.speed}")
                     sleeper(verifyDelayMs)
-                    val st = status(DeviceIntentMatcher.Device.ZLT)
+                    // FUNC-3：回读跟随指令的目标设备，不硬编码 ZLT（JHG 指令此前打错状态口）
+                    val st = status(device)
                     when {
                         st.optString("err").isNotEmpty() -> SkillResult.Fail("整理台状态读取失败")
                         st.optInt("FunSpeed") == cmd.speed -> SkillResult.Ok("风速已调到${gearName(cmd.speed)}")

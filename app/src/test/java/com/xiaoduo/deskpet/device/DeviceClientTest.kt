@@ -81,6 +81,15 @@ class DeviceClientTest {
         assertTrue(paths.any { it.startsWith("/btZlg?runFlag=0") })
     }
 
+    /** FUNC-2：状态体缺 RunFlag 键（空/畸形回读）不得按缺省 0 误判「已关闭」。 */
+    @Test
+    fun `FUNC-2 power off with missing RunFlag key fails instead of false success`() {
+        server.enqueue(MockResponse().setBody("true")) // /btZlg?runFlag=0
+        server.enqueue(MockResponse().setBody("""{"err":""}""")) // 无 RunFlag 键的状态体
+        val r = client.execute(Command.PowerOff(Device.JHG))
+        assertTrue("缺 RunFlag 键应判未确认关机: $r", r is DeviceClient.SkillResult.Fail)
+    }
+
     @Test
     fun `fan speed verifies FunSpeed`() {
         server.enqueue(MockResponse().setBody("true")) // /windSpeed?mode=2
@@ -89,6 +98,17 @@ class DeviceClientTest {
         assertTrue(r is DeviceClient.SkillResult.Ok)
         assertTrue((r as DeviceClient.SkillResult.Ok).speech.contains("中速档"))
         assertTrue(drain().any { it.startsWith("/windSpeed?mode=2") })
+    }
+
+    /** FUNC-3：回读校验跟随 cmd.device，不硬编码 ZLT（JHG 指令不得打整理台状态口）。 */
+    @Test
+    fun `FUNC-3 fan speed readback queries command device not hardcoded ZLT`() {
+        server.enqueue(MockResponse().setBody("true")) // /windSpeed?mode=2
+        server.enqueue(jhgStatus(0)) // JHG 状态体
+        client.execute(Command.FanSpeed(Device.JHG, 2))
+        val paths = drain()
+        assertTrue("JHG 风速指令应回读 /getJHGData: $paths", paths.any { it.startsWith("/getJHGData") })
+        assertTrue("不得硬编码回读整理台: $paths", paths.none { it.startsWith("/getZLTData") })
     }
 
     @Test
