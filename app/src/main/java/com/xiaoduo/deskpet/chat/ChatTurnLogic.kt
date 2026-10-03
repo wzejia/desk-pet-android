@@ -33,9 +33,17 @@ class ChatTurnLogic(private val clock: () -> Long = System::currentTimeMillis) {
     /**
      * 流式追加：delta 并入原始缓冲 → 整体清洗得可见文本 → 状态置 STREAMING。
      * 目标消息缺失（如对话被清空）原样返回。
+     * DATA-6：仅 SENDING/STREAMING 在途状态应用 delta——markDone/markError/markCancelledDone/
+     * prepareResend 之后到达的迟到/重复 delta 原样返回，不得把终态翻回 STREAMING
+     * 或以陈旧文本重建缓冲。
      */
     fun applyDelta(messages: List<ChatMessage>, assistantId: String, delta: String): List<ChatMessage> {
         val current = messages.firstOrNull { it.id == assistantId } ?: return messages
+        if (current.status != ChatMessage.Status.SENDING &&
+            current.status != ChatMessage.Status.STREAMING
+        ) {
+            return messages
+        }
         val buf = rawBuffers.getOrPut(assistantId) { StringBuilder(current.text) }
         buf.append(delta)
         val visible = ThinkCleaner.clean(buf.toString())
