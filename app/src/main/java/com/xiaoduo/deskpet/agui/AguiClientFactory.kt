@@ -14,6 +14,9 @@ import com.xiaoduo.deskpet.util.Prefs
  */
 object AguiClientFactory {
 
+    // CONC-7：槽位逻辑见 [ThreadIdSlots]（自 PrefsThreadIdStore 提取，注入化 JVM 可测）。
+
+
     /**
      * @param logger 默认落 PetLogger（tag=AguiClient）；UI 自检可叠加状态回调。
      */
@@ -48,37 +51,71 @@ object AguiClientFactory {
 
     /**
      * threadId 本地持久化（独立 prefs 文件，不与端点配置混存；按会话 key 存取）。
-     * 升级兼容：旧版单会话键 "thread_id" 在首个非默认 key 未命中时一次性提升——
-     * 服务端记忆随旧会话无缝续接（旧历史即当前会话），提升后删除旧键，
-     * 后续新会话各自 createThreadId。默认 key（语音路径等）直接读写旧键，行为不变。
+     * 升级兼容与槽位防混叠语义统一收进 [ThreadIdSlots]（CONC-7）。
      */
     private class PrefsThreadIdStore(context: Context) : AguiClient.ThreadIdStore {
         private val sp = context.getSharedPreferences(FILE, Context.MODE_PRIVATE)
+        private val slots = ThreadIdSlots(
+            get = { sp.getString(it, null) },
+            put = { k, v -> sp.edit().putString(k, v).apply() },
+            del = { sp.edit().remove(it).apply() },
+        )
 
-        override fun load(key: String): String? {
-            sp.getString(storageKey(key), null)?.takeIf { it.isNotBlank() }?.let { return it }
-            if (key != AguiClient.DEFAULT_THREAD_KEY) {
-                val legacy = sp.getString(LEGACY_KEY, null)?.takeIf { it.isNotBlank() } ?: return null
-                sp.edit().putString(storageKey(key), legacy).remove(LEGACY_KEY).apply()
-                return legacy
-            }
-            return null
-        }
+        override fun load(key: String): String? = slots.load(key)
 
-        override fun save(key: String, threadId: String) {
-            sp.edit().putString(storageKey(key), threadId).apply()
-        }
+        override fun save(key: String, threadId: String) = slots.save(key, threadId)
 
-        override fun remove(key: String) {
-            sp.edit().remove(storageKey(key)).apply()
-        }
-
-        private fun storageKey(key: String): String =
-            if (key == AguiClient.DEFAULT_THREAD_KEY) LEGACY_KEY else "thread_id_$key"
+        override fun remove(key: String) = slots.remove(key)
 
         companion object {
             private const val FILE = "xiaoduo_agui"
-            private const val LEGACY_KEY = "thread_id"
         }
+    }
+}
+
+/**
+ * threadId 槽位逻辑（CONC-7，纯逻辑注入化，JVM 可测；自 PrefsThreadIdStore 提取）：
+ * - DEFAULT 键即 legacy 槽（"thread_id"，板端存量数据兼容：语音路径/旧版直接读写）；
+ * - 非默认键各占 "thread_id_{key}" 槽；首载未命中时把 legacy **copy**（不 move）到自己
+ *   槽位并落持久迁移旗（"thread_id_legacy_claimed"）——默认会话的服务端连续性不动，
+ *   旗后的新会话各自 createThreadId，不再 adopt（防两会话共享同一服务端 thread）；
+ * - promotion 的 check-then-act 收进同一把锁。
+ */
+internal class ThreadIdSlots(
+    private val get: (String) -> String?,
+    private val put: (String, String) -> Unit,
+    private val del: (String) -> Unit,
+) {
+    private val lock = Any()
+
+    fun load(key: String): String? = synchronized(lock) {
+        get(slot(key))?.takeIf { it.isNotBlank() }?.let { return it }
+        if (key == AguiClient.DEFAULT_THREAD_KEY) return null
+        // CONC-7：legacy 只被认领一次（持久旗，跨进程重启有效）——旗后的新会话各自
+        // createThreadId，不再 adopt（旧 move 语义会偷默认会话 threadId / 让两会话共享
+        // 同一服务端 thread）。
+        if (get(CLAIM_KEY) != null) return null
+        val legacy = get(LEGACY_KEY)?.takeIf { it.isNotBlank() } ?: return null
+        put(slot(key), legacy) // copy 不 move：默认会话（读写 legacy 槽）不受影响
+        put(CLAIM_KEY, "1")
+        legacy
+    }
+
+    fun save(key: String, threadId: String) {
+        synchronized(lock) { put(slot(key), threadId) }
+    }
+
+    fun remove(key: String) {
+        synchronized(lock) { del(slot(key)) }
+    }
+
+    private fun slot(key: String): String =
+        if (key == AguiClient.DEFAULT_THREAD_KEY) LEGACY_KEY else "thread_id_$key"
+
+    companion object {
+        const val LEGACY_KEY = "thread_id"
+
+        /** 一次性迁移持久旗：首个非默认会话 adopt legacy 时落笔（跨进程重启有效）。 */
+        const val CLAIM_KEY = "thread_id_legacy_claimed"
     }
 }
