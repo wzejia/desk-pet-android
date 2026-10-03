@@ -39,7 +39,8 @@ object SessionIndexCodec {
         val sessions = ArrayList<ChatSession>(arr.length())
         for (i in 0 until arr.length()) {
             val s = arr.optJSONObject(i) ?: continue
-            val id = s.optString("id", "")
+            // DATA-1(249)：类型安全读——JSON null 经 optString 会变成 "null" 字符串幽灵会话 id
+            val id = (s.opt("id") as? String)?.trim() ?: ""
             if (id.isBlank()) continue
             sessions.add(
                 ChatSession(
@@ -52,7 +53,8 @@ object SessionIndexCodec {
                 ),
             )
         }
-        val current = o.optString("current", "").takeIf { it.isNotBlank() }
+        // DATA-1(251)：current 同口径——JSON null 不产生 "null" 幽灵当前会话
+        val current = (o.opt("current") as? String)?.takeIf { it.isNotBlank() }
         return SessionIndex(current, sessions)
     }
 }

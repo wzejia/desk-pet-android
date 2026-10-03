@@ -2,7 +2,9 @@ package com.xiaoduo.deskpet.chat
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
+import org.junit.Assert.fail
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
@@ -232,5 +234,123 @@ class ChatStoreTest {
         val s = store.loadIndex().sessions[0]
         assertEquals("原标题", s.title)
         assertFalse(s.titleManual)
+    }
+
+    // ---------------- DATA-1：读失败→静默空→破坏性覆写 数据丢失链 ----------------
+
+    private fun sessionsDir() = File(tmp.root, ChatStore.DIR_NAME)
+
+    private fun indexFile() = File(sessionsDir(), ChatStore.INDEX_NAME)
+
+    /** 预占 .bak 为非空目录：备份路径必败 → 强制走 degraded 分支（JVM 可确定复现）。 */
+    private fun blockBackupOf(file: File) {
+        file.parentFile.mkdirs()
+        val bak = File(file.parentFile, file.name + ".bak")
+        assertTrue(bak.mkdir() || bak.isDirectory)
+        File(bak, "child").writeText("x")
+    }
+
+    /** 14. 索引损坏：先备份保底、移除原件恢复可用，绝不以空内容静默覆写。 */
+    @Test
+    fun `DATA-1 corrupt index backed up then recovered not silently overwritten`() {
+        store.createSession()
+        indexFile().writeText("{{{corrupt")
+
+        val index = store.loadIndex()
+
+        assertTrue(index.sessions.isEmpty())
+        val bak = File(sessionsDir(), ChatStore.INDEX_NAME + ".bak")
+        assertTrue("损坏索引必须先备份保底", bak.exists())
+        assertTrue(bak.readText().contains("corrupt"))
+        assertFalse("备份成功后原件移除（避免每次启动重试）", indexFile().exists())
+        // 恢复后写入链路正常
+        store.createSession()
+        assertTrue(store.loadIndex().sessions.isNotEmpty())
+    }
+
+    /** 15. 索引不可读且备份失败 → degraded：拒写保原件，createSession 向上抛（不再静默 no-op）。 */
+    @Test
+    fun `DATA-1 degraded index refuses writes and createSession propagates failure`() {
+        blockBackupOf(indexFile())
+        indexFile().writeText("{{{corrupt")
+
+        assertNotNull(store.loadIndex()) // 触发降级
+        val bytesBefore = indexFile().readText()
+
+        try {
+            store.createSession()
+            fail("createSession 必须向上传播索引持久化失败")
+        } catch (expected: IllegalStateException) {
+            // 期望路径
+        }
+        assertEquals("degraded 期索引文件保持原样（拒绝破坏性覆写）", bytesBefore, indexFile().readText())
+    }
+
+    /** 16. 消息文件损坏且备份失败：返回空但原件保留，后续保存被拒（空列表不得覆盖好数据）。 */
+    @Test
+    fun `DATA-1 unreadable messages file keeps original and refuses empty overwrite`() {
+        val a = store.createSession()
+        store.saveMessages(a.id, listOf(msg("u1", ChatMessage.Role.USER, "重要历史", 1L)))
+        val f = File(sessionsDir(), "${a.id}.json")
+        blockBackupOf(f)
+        f.writeText("{{{corrupt")
+
+        assertTrue(store.loadMessages(a.id).isEmpty())
+
+        store.saveMessages(a.id, emptyList())
+        assertEquals("坏原件保留、拒绝覆盖", "{{{corrupt", f.readText())
+    }
+
+    /** 17. 删除会话：索引降级（持久化必败）时中止删除，消息文件不得先于索引持久化被删。 */
+    @Test
+    fun `DATA-1 deleteSession keeps messages file when index persist unavailable`() {
+        val a = store.createSession()
+        store.saveMessages(a.id, listOf(msg("u1", ChatMessage.Role.USER, "甲", 1L)))
+        blockBackupOf(indexFile())
+        indexFile().writeText("{{{corrupt")
+        assertNotNull(store.loadIndex()) // 降级
+
+        store.deleteSession(a.id)
+
+        assertTrue("索引持久化不可用期消息文件必须保留", File(sessionsDir(), "${a.id}.json").exists())
+    }
+
+    /** 18. 旧版迁移：索引持久化失败 → 中止迁移并保留旧文件（下次启动重试），不丢迁移源。 */
+    @Test
+    fun `DATA-1 legacy migration aborted keeps legacy file when index persist fails`() {
+        legacyFile().writeText(ChatHistoryCodec.encode(listOf(msg("u1", ChatMessage.Role.USER, "你好小朵", 1L))))
+        // index.json 为非空目录 → 原子 rename 必败
+        indexFile().parentFile.mkdirs()
+        assertTrue(indexFile().mkdir() || indexFile().isDirectory)
+        File(indexFile(), "child").writeText("x")
+
+        val index = store.loadIndex()
+
+        assertTrue(index.sessions.isEmpty())
+        assertTrue("迁移中止旧文件保留待重试", legacyFile().exists())
+    }
+
+    /** 19. 原子写：正常保存后无 .tmp 残留；预存 .tmp 不影响后续保存（111 torn write 放大）。 */
+    @Test
+    fun `DATA-1 saves leave no tmp residue and tolerate stale tmp`() {
+        val a = store.createSession()
+        File(sessionsDir(), "${a.id}.json.tmp").writeText("stale")
+        store.saveMessages(a.id, listOf(msg("u1", ChatMessage.Role.USER, "正文", 1L)))
+
+        assertEquals("正文", store.loadMessages(a.id)[0].text)
+        val leftovers = sessionsDir().listFiles { f -> f.name.endsWith(".tmp") }
+        assertTrue("无 tmp 残留: ${leftovers?.joinToString { it.name }}", leftovers.isNullOrEmpty())
+    }
+
+    /** 20. 重命名：索引持久化失败 → 返回 null（改名未落盘，不得谎报成功）。 */
+    @Test
+    fun `DATA-1 renameSession returns null when index persist fails`() {
+        val a = store.createSession()
+        store.saveMessages(a.id, listOf(msg("u1", ChatMessage.Role.USER, "原标题", 1L)))
+        blockBackupOf(indexFile())
+        indexFile().writeText("{{{corrupt")
+        assertNotNull(store.loadIndex()) // 降级
+
+        assertNull(store.renameSession(a.id, "新名"))
     }
 }

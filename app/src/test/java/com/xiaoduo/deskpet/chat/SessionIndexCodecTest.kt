@@ -77,4 +77,17 @@ class SessionIndexCodecTest {
         assertEquals(1, back.sessions.size)
         assertFalse(back.sessions[0].titleManual)
     }
+
+    /** DATA-1(249/251)：JSON null 的 id / current 不得经 optString 读成 "null" 幽灵会话 id。 */
+    @Test
+    fun `DATA-1 json null id and current never become literal null strings`() {
+        val json = """{"current":null,"sessions":[
+            {"id":null,"title":"幽灵","createdAt":1,"updatedAt":2},
+            {"id":"s1","title":"真身","createdAt":3,"updatedAt":4}
+        ]}"""
+        val back = SessionIndexCodec.decode(json)
+        assertEquals(1, back.sessions.size)
+        assertEquals("s1", back.sessions[0].id)
+        assertNull(back.currentId)
+    }
 }
