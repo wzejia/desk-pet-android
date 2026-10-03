@@ -199,19 +199,27 @@ fun ChatScreen(
                     ActivityResultContracts.GetContent(),
                 ) { uri ->
                     if (uri == null) return@rememberLauncherForActivityResult
-                    // 读字节放 IO；VM 的 20MB 守卫拒收时 toast（VM 不持 UI 引用）
+                    // 读字节放 IO；ROB-9：读文件/上传任一异常收敛为 FAILED toast 不逸出协程
+                    // （vm.uploadFile 同步段的建会话/刷列表是未守卫磁盘 IO；VM 的 20MB 守卫拒收时 toast）
                     scope.launch(Dispatchers.IO) {
-                        val picked = readPickedFile(context, uri)
-                        if (picked == null) {
-                            withContext(Dispatchers.Main) {
-                                Toast.makeText(context, "读取文件失败", Toast.LENGTH_SHORT).show()
+                        val outcome = guardedUi {
+                            val picked = readPickedFile(context, uri)
+                            when {
+                                picked == null -> UploadOutcome.READ_FAILED
+                                !vm.uploadFile(picked.first, picked.second) -> UploadOutcome.TOO_LARGE
+                                else -> UploadOutcome.OK
                             }
-                            return@launch
                         }
-                        val accepted = vm.uploadFile(picked.first, picked.second)
-                        if (!accepted) {
+                        val shown = when (outcome) {
+                            is UiOutcome.Ok -> uploadToastFor(outcome.value)
+                            is UiOutcome.Failed -> {
+                                PetLogger.e("ChatScreen", "upload crashed: ${outcome.error.message}", outcome.error)
+                                uploadToastFor(UploadOutcome.FAILED)
+                            }
+                        }
+                        if (shown != null) {
                             withContext(Dispatchers.Main) {
-                                Toast.makeText(context, "文件超过 20MB，未上传", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, shown, Toast.LENGTH_SHORT).show()
                             }
                         }
                     }
@@ -666,6 +674,17 @@ private fun stopVoiceHold(context: Context) {
 /** S7-f 上滑取消按住说话：终止录音会话不发送（VSM LISTENING 分支 = vad.stop + 回 IDLE）。 */
 private fun cancelVoiceHold(context: Context) {
     runCatching { VoiceClientFactory.session(context).cancelCurrentTurn() }
+}
+
+/** ROB-9：上传链路收敛结果（UI 协程内不抛异常，映射为用户提示）。 */
+internal enum class UploadOutcome { OK, READ_FAILED, TOO_LARGE, FAILED }
+
+/** ROB-9：结果 → toast 文案（OK 为 null 不提示）。纯逻辑，JVM 单测覆盖。 */
+internal fun uploadToastFor(outcome: UploadOutcome): String? = when (outcome) {
+    UploadOutcome.OK -> null
+    UploadOutcome.READ_FAILED -> "读取文件失败"
+    UploadOutcome.TOO_LARGE -> "文件超过 20MB，未上传"
+    UploadOutcome.FAILED -> "上传失败，请重试"
 }
 
 /** 系统文件选择器结果：(显示名, 字节)；ContentResolver 查询/读取任一失败返回 null。 */
