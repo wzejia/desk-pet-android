@@ -205,6 +205,33 @@ class ChatTurnLogicTest {
         assertEquals(msgs, logic.markCancelledDone(msgs, "ghost"))
     }
 
+    // ---------------- DATA-5：rawBuffers 并发追加不丢增量 ----------------
+
+    /** 两线程在同一 base 上并发 applyDelta（流式 IO 线程 × 主线程终态处理并发形态）：
+     *  全部增量都必须进入共享缓冲——旧 HashMap+getOrPut 竞态会产生双缓冲/丢字符。 */
+    @Test
+    fun `DATA-5 concurrent applyDelta on same base loses no delta`() {
+        val logic = newLogic()
+        val base = listOf(assistant("a1", "", ChatMessage.Status.SENDING))
+        val pool = java.util.concurrent.Executors.newFixedThreadPool(2)
+        val done = java.util.concurrent.CountDownLatch(2)
+        val results = java.util.Collections.synchronizedList(ArrayList<List<ChatMessage>>())
+        repeat(2) {
+            pool.submit {
+                try {
+                    repeat(200) { results.add(logic.applyDelta(base, "a1", "x")) }
+                } finally {
+                    done.countDown()
+                }
+            }
+        }
+        done.await()
+        pool.shutdown()
+        var maxLen = 0
+        for (r in results) maxLen = maxOf(maxLen, r[0].text.length)
+        assertEquals("并发增量不得丢失: $maxLen/400", 400, maxLen)
+    }
+
     // ---------------- 重发决策（踩坑 #25） ----------------
 
     @Test
