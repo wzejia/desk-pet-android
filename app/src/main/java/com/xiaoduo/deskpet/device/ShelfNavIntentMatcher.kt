@@ -54,7 +54,8 @@ object ShelfNavIntentMatcher {
         return if (hasNavVerb || hasPageNoun) page else null
     }
 
-    /** 同时出现多目标词时取先出现者（如「从借阅切到归还」→ borrow）。 */
+    /** 候选落在单一目标页才命中；跨多页（「从借阅切到归还」类源→目标句式）= 意图含糊，
+     *  返回 null 交 LLM——FUNC-4：旧实现取先现词会导航到用户要离开的源页。 */
     private fun pageOf(t: String): String? {
         data class Cand(val page: String, val idx: Int)
         val cands = buildList {
@@ -63,6 +64,8 @@ object ShelfNavIntentMatcher {
             INVENTORY_WORDS.forEach { w -> t.indexOf(w).takeIf { i -> i >= 0 }?.let { add(Cand("inventory", it)) } }
             HOME_WORDS.forEach { w -> t.indexOf(w).takeIf { i -> i >= 0 }?.let { add(Cand("home", it)) } }
         }
+        val pages = cands.map { it.page }.toSet()
+        if (pages.size > 1) return null // FUNC-4：多页候选不猜
         return cands.minByOrNull { it.idx }?.page
     }
 
