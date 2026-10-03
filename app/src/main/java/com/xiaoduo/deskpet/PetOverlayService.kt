@@ -615,8 +615,35 @@ class PetOverlayService : Service() {
         }
     }
 
+    /** FUNC-5 流尾补发（audit-fix 跨包接线）：流结束时把 hold 点挡住的残余内容按一次性渲染规则补上屏。
+     *  令牌/落地复验语义同 [appendBubble]；flush 幂等（无持有内容吐空），气泡未显示时不补发不弹出。 */
+    fun flushBubble(owner: BubbleOwner, round: Int) {
+        if (bubbleOwnership.judgePublish(owner, round, Prefs.showBubble(this)) != BubbleOwnership.Verdict.APPLY) return
+        handler.post {
+            when (bubbleOwnership.judgePublish(owner, round, Prefs.showBubble(this))) {
+                BubbleOwnership.Verdict.APPLY -> Unit
+                BubbleOwnership.Verdict.FORCE_HIDE -> {
+                    PetLogger.d(TAG, "bubble flush re-judged force-hide after post")
+                    forceHideBubble()
+                    return@post
+                }
+                BubbleOwnership.Verdict.DROP_STALE -> {
+                    PetLogger.d(TAG, "bubble flush dropped after post: stale owner=$owner round=$round")
+                    return@post
+                }
+            }
+            bubble?.takeIf { it.visibility == View.VISIBLE }?.let {
+                val emit = bubbleStrip.flush()
+                if (emit.reset) it.typeNew(emit.text) else it.append(emit.text)
+            }
+        }
+    }
+
     /** 带 round 的延迟隐藏原语（文字轮完成 12s 收泡用）：到点复验，新 round 占用时不生效。 */
     fun hideBubbleLater(owner: BubbleOwner, round: Int, delayMs: Long) {
+        // FUNC-5 跨包接线：收泡调度=流结束信号，先把 hold 残余补上屏再排收泡
+        // （文字轮/语音轮收泡都走本原语，单点覆盖；flush 幂等，重复调用无副作用）
+        flushBubble(owner, round)
         handler.postDelayed({
             if (bubbleOwnership.judgeHide(owner, round) == BubbleOwnership.Verdict.APPLY) {
                 forceHideBubble()
