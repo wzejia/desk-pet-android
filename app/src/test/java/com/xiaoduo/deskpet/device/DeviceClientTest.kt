@@ -100,6 +100,17 @@ class DeviceClientTest {
         assertTrue(drain().any { it.startsWith("/windSpeed?mode=2") })
     }
 
+    /** FUNC-3：回读校验跟随 cmd.device，不硬编码 ZLT（JHG 指令不得打整理台状态口）。 */
+    @Test
+    fun `FUNC-3 fan speed readback queries command device not hardcoded ZLT`() {
+        server.enqueue(MockResponse().setBody("true")) // /windSpeed?mode=2
+        server.enqueue(jhgStatus(0)) // JHG 状态体
+        client.execute(Command.FanSpeed(Device.JHG, 2))
+        val paths = drain()
+        assertTrue("JHG 风速指令应回读 /getJHGData: $paths", paths.any { it.startsWith("/getJHGData") })
+        assertTrue("不得硬编码回读整理台: $paths", paths.none { it.startsWith("/getZLTData") })
+    }
+
     @Test
     fun `query status speech contains running state`() {
         server.enqueue(zltStatus(1, 1))

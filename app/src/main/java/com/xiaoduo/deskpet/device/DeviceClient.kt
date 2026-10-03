@@ -67,7 +67,8 @@ class DeviceClient(
                 is DeviceIntentMatcher.Command.FanSpeed -> {
                     get("/windSpeed?mode=${cmd.speed}")
                     sleeper(verifyDelayMs)
-                    val st = status(DeviceIntentMatcher.Device.ZLT)
+                    // FUNC-3：回读跟随指令的目标设备，不硬编码 ZLT（JHG 指令此前打错状态口）
+                    val st = status(device)
                     when {
                         st.optString("err").isNotEmpty() -> SkillResult.Fail("整理台状态读取失败")
                         st.optInt("FunSpeed") == cmd.speed -> SkillResult.Ok("风速已调到${gearName(cmd.speed)}")
