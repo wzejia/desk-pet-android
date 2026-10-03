@@ -27,8 +27,10 @@ import java.util.concurrent.TimeUnit
  * `runBlocking { sentences.send(s) }`（不在 pipelineJob 取消域）永挂 = 每次泄漏 1 个
  * IO 线程，反复打断长回复可耗尽 Dispatchers.IO。
  *
- * 修复：consumeSentences finally 补 sentences.close()——挂死的 send 立即以
- * Channel 已关闭异常解脱，走管线 catch(Throwable) 的失败轮收尾。
+ * 修复：consumeSentences finally 补 sentences.cancel()——挂死的 send 立即以
+ * CancellationException 解脱，走管线 catch(Throwable) 的失败轮收尾。
+ * （评审勘误：kotlinx 1.8.1 的 close() 只拒新 send、不解脱已挂起 sender——
+ *   实测实证 cancel() 才对；评审 P3-1 指出本文档原写 close() 系简报处方陈旧。）
  * 修复前：onAssistantError 永不到达 → 本测试 20s 超时红。
  */
 class VoiceSessionManagerFunc6PipelineHangTest {
