@@ -16,6 +16,7 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.yield
 
 /**
  * 单条采麦流（Android IO 层，知识包 §3.2/§3.5 + 踩坑 #33：stream 常开 + 状态机门控，
@@ -68,29 +69,42 @@ class AudioCapture(
     @Volatile
     private var gateToken: Long? = null
 
+    /**
+     * ROB-1：start/stop 生命周期串行锁。两者对 job/gateToken 的 check-then-act 必须
+     * 互斥——否则并发 stop 可插在 start 的 tryAcquire→launch 之间（读到旧 job=null，
+     * 释放刚占的闩）→ 丢 stop（麦克风滞留）或旧循环未死新循环又起（双捕获抢麦）。
+     * job/gateToken 从此只在锁内读写（isRunning 保持 @Volatile 供跨线程查询）。
+     */
+    private val lifecycleLock = Any()
+
     fun start(scope: CoroutineScope) {
         // 旧写法 if (isRunning) return 的检查与 job 置位间有竞态窗口：双调各过检查
-        // 起双读循环抢麦（critic-#4 P3，既有问题）。门闩把检查+占位收敛成一次原子操作。
-        val token = startGate.tryAcquire() ?: return
-        gateToken = token
-        job = scope.launch(Dispatchers.IO) {
-            try {
-                readLoop()
-            } finally {
-                // 读循环自然终结（权限缺失/初始化失败）也放行重启。
-                // 带令牌 release：若 stop→start2 已换主，本过期 release 自动失效，
-                // 不会错放 start2 的闩（backlog #11 理论窗：job1 finally 晚于 start2）。
-                startGate.release(token)
+        // 起双读循环抢麦（critic-#4 P3，既有问题）。门闩把检查+占位收敛成一次原子操作；
+        // ROB-1 再加生命周期串行锁：与 stop 的 cancel/release 序列互斥。
+        synchronized(lifecycleLock) {
+            val token = startGate.tryAcquire() ?: return
+            gateToken = token
+            job = scope.launch(Dispatchers.IO) {
+                try {
+                    readLoop()
+                } finally {
+                    // 读循环自然终结（权限缺失/初始化失败）也放行重启。
+                    // 带令牌 release：若 stop→start2 已换主，本过期 release 自动失效，
+                    // 不会错放 start2 的闩（backlog #11 理论窗：job1 finally 晚于 start2）。
+                    startGate.release(token)
+                }
             }
         }
     }
 
     fun stop() {
-        job?.cancel()
-        job = null
-        // 协程可能未及开跑即被取消（上面 finally 不执行），此处兜底释放；双放幂等
-        gateToken?.let { startGate.release(it) }
-        gateToken = null
+        synchronized(lifecycleLock) {
+            job?.cancel()
+            job = null
+            // 协程可能未及开跑即被取消（上面 finally 不执行），此处兜底释放；双放幂等
+            gateToken?.let { startGate.release(it) }
+            gateToken = null
+        }
     }
 
     @SuppressLint("MissingPermission") // 权限由调用方（设置页）真实申请路径保证
@@ -141,7 +155,15 @@ class AudioCapture(
         } ?: return
         record = r
         try {
+            // ROB-1：启动结果不得忽略——无参 startRecording() 返回 void（带 int 返回值的
+            // 重载需 MediaSyncEvent，板端 HAL 异常态下照样可能静默失败），用 recordingState
+            // 复核：未进 RECORDSTATE_RECORDING 视为启动失败，照旧置 isRunning=true 会让
+            // 上层以为在采（静默 no-op 流）。失败即失败返回，finally 释放 record 与门闩。
             r.startRecording()
+            if (r.recordingState != AudioRecord.RECORDSTATE_RECORDING) {
+                PetLogger.e(TAG, "startRecording 未进入录音态（state=${r.recordingState}），本轮采麦不启动")
+                return
+            }
             isRunning = true
             PetLogger.i(TAG, "capture start, source=$usedSource, 16kHz/mono/Int16, block=3200B")
             // 只推队列：攒满一块即 emit（DROP_OLDEST 下 tryEmit 恒 true，消费侧慢则旧块被挤掉
@@ -154,6 +176,10 @@ class AudioCapture(
                     _stamped.tryEmit(StampedBlock(block, System.nanoTime()))
                 },
             )
+            // ROB-2：非取消退出（未取消即返回）= read 连续失败达阈值，留一行定层日志
+            if (isActive) {
+                PetLogger.e(TAG, "read 连续失败达 $MAX_CONSECUTIVE_READ_FAILURES 次，采麦循环退出（AudioRecord 异常态）")
+            }
         } finally {
             isRunning = false
             runCatching { r.stop() }
@@ -210,7 +236,7 @@ class AudioCapture(
     }
 
     companion object {
-        private const val TAG = "AudioCapture"
+        internal const val TAG = "AudioCapture" // top-level pumpBlocks 同文件取用（ROB-2 退出日志）
 
         /** 延迟取证探针日志 tag（grep 口径：`cap rms=` / `feed rms=` / `keyword hit:`）。 */
         private const val PROBE_TAG = "AudioProbe"
@@ -272,16 +298,29 @@ internal class OnceGate {
  * Job 引用**——旧写法 `while (job?.isActive == true)` 存在启动竞态：launch 返回前协程体
  * 即可开跑（如 UNDISPATCHED / 调度抢占），此时 job 字段尚未赋值读到 null，循环一次不进、
  * 采麦静默不启动（critic-G S4 P3）。
+ *
+ * ROB-2：read 持续返回非正（AudioRecord 卡错误态/启动失败）不得零退避满速自旋——
+ * 连续失败达 [MAX_CONSECUTIVE_READ_FAILURES] 即正常返回（readLoop 的 finally 据此释放
+ * AudioRecord 与门闩），重试间 yield 让出。偶发失败（<阈值内恢复）照常续读。
  */
+internal const val MAX_CONSECUTIVE_READ_FAILURES = 50
+
 internal suspend fun CoroutineScope.pumpBlocks(
     read: suspend (buf: ByteArray, offset: Int, length: Int) -> Int,
     emit: (ByteArray) -> Unit,
 ) {
     val buf = ByteArray(VadDetector.BLOCK_BYTES)
     var filled = 0
+    var failures = 0
     while (isActive) {
         val n = read(buf, filled, buf.size - filled)
-        if (n <= 0) continue // ERROR_* 或 0：不推队列，下轮再读
+        if (n <= 0) { // ERROR_* 或 0：不推队列，重试间让出；连续失败达阈值退出
+            failures++
+            if (failures >= MAX_CONSECUTIVE_READ_FAILURES) return
+            yield()
+            continue
+        }
+        failures = 0
         filled += n
         if (filled == buf.size) {
             filled = 0

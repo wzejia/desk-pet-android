@@ -121,6 +121,50 @@ class AudioCapturePumpTest {
         assertNotNull(withTimeoutOrNull(2000) { job.join() })
     }
 
+    /** ROB-2 红测：read 持续返回非正（AudioRecord 卡错误态）时泵必须退出，
+     *  不得零退避满速自旋到取消为止。修复前：无限 continue → 5s 内 reads 远超阈值 → 红。 */
+    @Test
+    fun `ROB-2 persistent non-positive reads terminate the pump instead of spinning`() = runBlocking {
+        var reads = 0
+        withTimeoutOrNull(5000) {
+            pumpBlocks(
+                read = { _, _, _ -> reads++; 0 },
+                emit = { },
+            )
+        }
+        assertTrue(
+            "持续读失败须有出口（5s 内 reads=$reads，期望 ≤ 失败阈值）",
+            reads <= 50,
+        )
+    }
+
+    /** ROB-2 反例：孤立失败（失败<阈值即恢复）不得误杀泵——0 与有效数据交替照常出块。 */
+    @Test
+    fun `ROB-2 isolated failures do not abort the pump`() = runBlocking {
+        val inbox = Channel<ByteArray>(Channel.UNLIMITED)
+        val emitted = mutableListOf<ByteArray>()
+        val job = launch(Dispatchers.Unconfined) {
+            pumpBlocks(
+                read = { buf, off, _ ->
+                    val chunk = inbox.receive()
+                    chunk.copyInto(buf, off)
+                    chunk.size
+                },
+                emit = { emitted.add(it) },
+            )
+        }
+        val half = VadDetector.BLOCK_BYTES / 2
+        // 失败-数据-失败-失败-数据 交替：每次恢复即清零计数，泵不得退出
+        inbox.send(ByteArray(0)); inbox.send(ByteArray(half) { 1 })
+        inbox.send(ByteArray(0)); inbox.send(ByteArray(0)); inbox.send(ByteArray(half) { 2 })
+        awaitUntil { emitted.size == 1 }
+        assertEquals(1, emitted.size)
+        assertEquals(1.toByte(), emitted[0][0])
+        assertEquals(2.toByte(), emitted[0][half])
+        job.cancel()
+        assertNotNull(withTimeoutOrNull(2000) { job.join() })
+    }
+
     @Test
     fun `pump loop stops promptly on cancellation while blocked in read`() = runBlocking {
         val inbox = Channel<ByteArray>(Channel.UNLIMITED)
