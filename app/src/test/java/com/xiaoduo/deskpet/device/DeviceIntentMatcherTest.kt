@@ -123,4 +123,44 @@ class DeviceIntentMatcherTest {
         assertNull(m(""))
         assertNull(m("   "))
     }
+
+    // ---- FUNC-1：疑问句/否定句门（动作分支前拦截） ----
+
+    /** 疑问句带查询语义 → 路由 QueryStatus，绝不发动作（「开机了吗」曾误发 PowerOn）。 */
+    @Test
+    fun `FUNC-1 question with query semantics routes to QueryStatus not action`() {
+        assertEquals(
+            DeviceIntentMatcher.Command.QueryStatus(DeviceIntentMatcher.Device.ZLT),
+            m("整理台开机了吗"),
+        )
+        assertEquals(
+            DeviceIntentMatcher.Command.QueryStatus(DeviceIntentMatcher.Device.ZLT),
+            m("整理台风速怎么样"),
+        )
+    }
+
+    /** 疑问句无查询语义 → null 交 LLM（「强力模式是什么」曾误切强力档）。 */
+    @Test
+    fun `FUNC-1 question without query semantics is null not action`() {
+        assertNull(m("净化柜强力模式是什么"))
+        assertNull(m("整理台风速是多少"))
+        assertNull(m("整理台呢"))
+    }
+
+    /** 否定句 → null 交 LLM（「不要打开整理台」曾执行 PowerOn）。 */
+    @Test
+    fun `FUNC-1 negation is null not action`() {
+        assertNull(m("不要打开整理台"))
+        assertNull(m("别开净化柜"))
+        assertNull(m("不用关整理台"))
+    }
+
+    /** fan-speed 分支解析失败不得吞掉查询回退（「整理台风速状态」曾返回 null）。 */
+    @Test
+    fun `FUNC-1 fan speed parse miss falls back to query`() {
+        assertEquals(
+            DeviceIntentMatcher.Command.QueryStatus(DeviceIntentMatcher.Device.ZLT),
+            m("整理台风速状态"),
+        )
+    }
 }

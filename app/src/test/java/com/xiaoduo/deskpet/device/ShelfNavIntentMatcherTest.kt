@@ -84,4 +84,20 @@ class ShelfNavIntentMatcherTest {
         assertEquals("borrow", ShelfNavIntentMatcher.match("从借阅切到归还"))
         assertEquals("return", ShelfNavIntentMatcher.match("从归还切到借阅页面"))
     }
+
+    // ---- FUNC-1(187)：问句/否定句不劫持为导航 ----
+
+    @Test
+    fun `FUNC-1 问句不劫持为导航`() {
+        assertNull(ShelfNavIntentMatcher.match("借阅页面是什么"))
+        assertNull(ShelfNavIntentMatcher.match("去借阅吗"))
+        assertNull(ShelfNavIntentMatcher.match("归还页面长什么样"))
+        assertNull(ShelfNavIntentMatcher.match("盘点页面在哪儿"))
+    }
+
+    @Test
+    fun `FUNC-1 否定句不劫持为导航`() {
+        assertNull(ShelfNavIntentMatcher.match("不要去借阅页面"))
+        assertNull(ShelfNavIntentMatcher.match("别切到归还界面"))
+    }
 }

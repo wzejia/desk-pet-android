@@ -31,11 +31,19 @@ object ShelfNavIntentMatcher {
     /** 执行对象词：出现即视为执行借还（带档案对象），本地导航绝不拦截。 */
     private val OBJECT_WORDS = listOf("档案", "文件", "书名", "编号", "盒", "条码", "资料")
 
+    // FUNC-1(187)：疑问/否定标记门（与 DeviceIntentMatcher 同口径、同取向）
+    private val NEGATION_WORDS = listOf("不要", "别", "不用")
+    private val QUESTION_WORDS = listOf("吗", "呢", "什么", "怎么", "多少", "哪", "？", "?")
+
     /** 返回 "borrow"/"return"/"inventory"/"home"；null = 非纯导航意图（走 LLM 常规轮）。 */
     fun match(text: String): String? {
         val t = text.trim()
         if (t.isEmpty()) return null
         if (OBJECT_WORDS.any { t.contains(it) }) return null
+        // FUNC-1(187)：问句/否定句门先于导航判定——「借阅页面是什么」「不要去借阅页面」
+        // 是话题/拒绝语态，绝不能劫持为跳页（误放行走 LLM，方向安全）
+        if (QUESTION_WORDS.any { t.contains(it) }) return null
+        if (NEGATION_WORDS.any { t.contains(it) }) return null
         val page = pageOf(t) ?: return null
         val hasNavVerb = NAV_VERBS.any { t.contains(it) }
         val hasPageNoun = PAGE_NOUNS.any { t.contains(it) }
