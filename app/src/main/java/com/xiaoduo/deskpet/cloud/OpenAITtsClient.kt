@@ -27,7 +27,7 @@ class OpenAITtsClient(
         data class Error(val message: String) : Result
     }
 
-    fun synthesize(text: String, voice: String = "default", speed: Double = 1.0): Result {
+    fun synthesize(text: String, voice: String = "default", speed: Double = 1.0): Result = try {
         val payload = JSONObject()
             .put("model", model)
             .put("input", text)
@@ -42,19 +42,20 @@ class OpenAITtsClient(
             .post(payload)
             .build()
         logger("cloud tts POST, ${text.length} chars")
-        return try {
-            http.newCall(req).execute().use { resp ->
-                if (!resp.isSuccessful) {
-                    val body = resp.body?.string().orEmpty()
-                    return Result.Error("TTS HTTP ${resp.code}: ${body.take(120)}")
-                }
-                val pcm = resp.body?.bytes() ?: byteArrayOf()
-                if (pcm.isEmpty()) Result.Error("TTS 返回空音频")
-                else { logger("cloud tts ok, ${pcm.size}B pcm"); Result.Audio(pcm) }
+        http.newCall(req).execute().use { resp ->
+            if (!resp.isSuccessful) {
+                val body = resp.body?.string().orEmpty()
+                return Result.Error("TTS HTTP ${resp.code}: ${body.take(120)}")
             }
-        } catch (e: IOException) {
-            Result.Error("TTS 网络错误: ${e.message}")
+            val pcm = resp.body?.bytes() ?: byteArrayOf()
+            if (pcm.isEmpty()) Result.Error("TTS 返回空音频")
+            else { logger("cloud tts ok, ${pcm.size}B pcm"); Result.Audio(pcm) }
         }
+    } catch (e: IOException) {
+        Result.Error("TTS 网络错误: ${e.message}")
+    } catch (e: RuntimeException) {
+        // ROB-14：畸形 baseUrl / OkHttp ISE 等须守 Result 契约
+        Result.Error("TTS 请求异常: ${e.javaClass.simpleName}: ${e.message}")
     }
 
     companion object {

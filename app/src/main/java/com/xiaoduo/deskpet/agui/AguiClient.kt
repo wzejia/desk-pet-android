@@ -285,7 +285,14 @@ class AguiClient(
             .put("password", password)
             .toString()
             .toRequestBody(JSON)
-        val req = Request.Builder().url(loginUrl).post(body).build()
+        val req = try {
+            Request.Builder().url(loginUrl).post(body).build()
+        } catch (e: RuntimeException) {
+            // ROB-14：用户可配畸形 baseUrl → url 构造 IAE，映射登录失败而非击穿契约
+            lastAuthError = "登录请求构造异常: ${e.javaClass.simpleName}: ${e.message}"
+            logger(lastAuthError!!)
+            return null
+        }
         val respText = try {
             http.newCall(req).execute().use { resp ->
                 val text = resp.body?.string().orEmpty()
@@ -333,12 +340,19 @@ class AguiClient(
             .put("agentId", agentIdProvider())
             .toString()
             .toRequestBody(JSON)
-        val req = Request.Builder()
-            .url(url)
-            .header("Authorization", "Bearer $token")
-            .header("agentId", agentIdProvider())
-            .post(body)
-            .build()
+        val req = try {
+            Request.Builder()
+                .url(url)
+                .header("Authorization", "Bearer $token")
+                .header("agentId", agentIdProvider())
+                .post(body)
+                .build()
+        } catch (e: RuntimeException) {
+            // ROB-14：畸形端点 url 构造 IAE → Failed（守 ThreadResult 契约）
+            lastAuthError = "createThreadId 请求构造异常: ${e.javaClass.simpleName}: ${e.message}"
+            logger(lastAuthError!!)
+            return ThreadResult.Failed(lastAuthError!!)
+        }
         val respText = try {
             http.newCall(req).execute().use { resp ->
                 if (resp.code == 401 || resp.code == 403) {
@@ -454,12 +468,12 @@ class AguiClient(
     private fun listAgentsOnce(token: String, pageSize: Int, pageNum: Int): AgentListCall {
         logger("agent/list POST $listUrl pageSize=$pageSize pageNum=$pageNum")
         val body = """{"pageSize":$pageSize,"pageNum":$pageNum}"""
-        val req = Request.Builder()
-            .url(listUrl)
-            .header("Authorization", "Bearer $token")
-            .post(body.toRequestBody(JSON))
-            .build()
         return try {
+            val req = Request.Builder()
+                .url(listUrl)
+                .header("Authorization", "Bearer $token")
+                .post(body.toRequestBody(JSON))
+                .build()
             http.newCall(req).execute().use { resp ->
                 val text = resp.body?.string().orEmpty()
                 when {
@@ -497,13 +511,13 @@ class AguiClient(
         val url = "$threadBaseUrl/deleteThread"
         logger("deleteThread POST $url threadId=$threadId")
         val body = JSONObject().put("threadId", threadId).toString().toRequestBody(JSON)
-        val req = Request.Builder()
-            .url(url)
-            .header("Authorization", "Bearer $token")
-            .header("agentId", agentIdProvider())
-            .post(body)
-            .build()
         return try {
+            val req = Request.Builder()
+                .url(url)
+                .header("Authorization", "Bearer $token")
+                .header("agentId", agentIdProvider())
+                .post(body)
+                .build()
             http.newCall(req).execute().use { resp ->
                 when {
                     resp.code == 401 || resp.code == 403 -> DeleteCall.Unauthorized
@@ -527,6 +541,9 @@ class AguiClient(
             }
         } catch (e: IOException) {
             DeleteCall.Failed("deleteThread 网络错误: ${e.message}")
+        } catch (e: RuntimeException) {
+            // ROB-14：畸形端点 url 构造 IAE / OkHttp ISE → Failed（守 DeleteResult 契约）
+            DeleteCall.Failed("deleteThread 请求异常: ${e.javaClass.simpleName}: ${e.message}")
         }
     }
 
@@ -575,13 +592,13 @@ class AguiClient(
             .put("threadName", newName)
             .toString()
             .toRequestBody(JSON)
-        val req = Request.Builder()
-            .url(url)
-            .header("Authorization", "Bearer $token")
-            .header("agentId", agentIdProvider())
-            .post(body)
-            .build()
         return try {
+            val req = Request.Builder()
+                .url(url)
+                .header("Authorization", "Bearer $token")
+                .header("agentId", agentIdProvider())
+                .post(body)
+                .build()
             http.newCall(req).execute().use { resp ->
                 when {
                     resp.code == 401 || resp.code == 403 -> RenameCall.Unauthorized
@@ -606,6 +623,9 @@ class AguiClient(
             }
         } catch (e: IOException) {
             RenameCall.Failed("renameThread 网络错误: ${e.message}")
+        } catch (e: RuntimeException) {
+            // ROB-14：畸形端点 url 构造 IAE / OkHttp ISE → Failed（守 RenameResult 契约）
+            RenameCall.Failed("renameThread 请求异常: ${e.javaClass.simpleName}: ${e.message}")
         }
     }
 
@@ -660,13 +680,13 @@ class AguiClient(
             .addFormDataPart("fileClass", "agent----${agentIdProvider()}----$threadId")
             .addFormDataPart("file", fileName, bytes.toRequestBody(OCTET_STREAM))
             .build()
-        val req = Request.Builder()
-            .url(uploadUrl)
-            .header("Authorization", "Bearer $token")
-            .header("agentId", agentIdProvider())
-            .post(body)
-            .build()
         return try {
+            val req = Request.Builder()
+                .url(uploadUrl)
+                .header("Authorization", "Bearer $token")
+                .header("agentId", agentIdProvider())
+                .post(body)
+                .build()
             http.newCall(req).execute().use { resp ->
                 when {
                     resp.code == 401 || resp.code == 403 -> UploadCall.Unauthorized
@@ -698,6 +718,9 @@ class AguiClient(
             }
         } catch (e: IOException) {
             UploadCall.Failed("uploadFile 网络错误: ${e.message}")
+        } catch (e: RuntimeException) {
+            // ROB-14：畸形 uploadUrl url 构造 IAE / OkHttp ISE → Failed（守 UploadResult 契约）
+            UploadCall.Failed("uploadFile 请求异常: ${e.javaClass.simpleName}: ${e.message}")
         }
     }
 
@@ -735,13 +758,18 @@ class AguiClient(
                     .put("protocolVersion", "0.1.0")
                     .put("source", "desk_pet"),
             )
-        val req = Request.Builder()
-            .url(streamUrl)
-            .header("Accept", "text/event-stream")
-            .header("agentId", agentIdProvider())
-            .header("Authorization", "Bearer $token")
-            .post(payload.toString().toRequestBody(JSON))
-            .build()
+        val req = try {
+            Request.Builder()
+                .url(streamUrl)
+                .header("Accept", "text/event-stream")
+                .header("agentId", agentIdProvider())
+                .header("Authorization", "Bearer $token")
+                .post(payload.toString().toRequestBody(JSON))
+                .build()
+        } catch (e: RuntimeException) {
+            // ROB-14：畸形 streamUrl url 构造 IAE → Failure（守 ChatResult 契约）
+            return AttemptResult.Failure("AG-UI 请求构造异常: ${e.javaClass.simpleName}: ${e.message}")
+        }
         logger("run POST $streamUrl runId=$runId msgId=$messageId threadId=$threadId attempt=$attempt")
 
         val startMs = clock()
@@ -762,7 +790,9 @@ class AguiClient(
                     val text = resp.body?.string().orEmpty()
                     return AttemptResult.Failure("AG-UI HTTP ${resp.code}: ${envelopeMsg(text)}")
                 }
-                val source = resp.body!!.source()
+                // ROB-14：body! 可 NPE——安全调用，null 视为本次尝试失败（走重试/报错链）
+                val source = resp.body?.source()
+                    ?: return AttemptResult.Failure("AG-UI 响应无 body")
                 while (true) {
                     val line = source.readUtf8Line() ?: break
                     if (firstTokenMs == null && line.contains("TEXT_MESSAGE_START")) {
@@ -773,13 +803,20 @@ class AguiClient(
                     if (line.contains("TOOL_CALL_START") || line.contains("TOOL_CALL_RESULT")) {
                         logger("SSE raw: ${line.take(1200)}")
                     }
+                    // feedLine 不加 runCatching：回调（onDelta 等）异常必须穿透到调用方——
+                    // VSM 管线依赖其终止轮次（VoiceSessionManagerPipelineCloseTest 锁定的契约）。
                     consumer.feedLine(line)
                 }
             }
         } catch (e: IOException) {
             return AttemptResult.Failure("AG-UI 网络错误: ${e.message}")
         }
-        return when (val r = consumer.finish()) {
+        val finish = try {
+            consumer.finish() // 不回调（S66 即时回吐后收尾不再转发），RuntimeException 收口安全
+        } catch (e: RuntimeException) {
+            return AttemptResult.Failure("SSE 收尾异常: ${e.javaClass.simpleName}: ${e.message}")
+        }
+        return when (val r = finish) {
             is AguiSseConsumer.RunResult.Success -> {
                 logger("RUN_FINISHED ok, reply ${r.text.length} chars, runId=$runId")
                 // S66：工具结果已在到达时即时回吐，收尾不再二次转发（防双发）

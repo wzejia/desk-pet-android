@@ -26,7 +26,7 @@ class OpenAIAsrClient(
         data class Error(val message: String) : Result
     }
 
-    fun transcribe(wav: ByteArray, language: String = AsrClient.LANGUAGE_ZH): Result {
+    fun transcribe(wav: ByteArray, language: String = AsrClient.LANGUAGE_ZH): Result = try {
         val form = MultipartBody.Builder()
             .setType(MultipartBody.FORM)
             .addFormDataPart("file", "utterance.wav", wav.toRequestBody(WAV))
@@ -43,24 +43,25 @@ class OpenAIAsrClient(
             .build()
 
         logger("cloud asr POST, wav=${wav.size}B")
-        return try {
-            http.newCall(request).execute().use { resp ->
-                val body = resp.body?.string() ?: ""
-                if (!resp.isSuccessful) {
-                    Result.Error("ASR HTTP ${resp.code}: ${body.take(120)}")
+        http.newCall(request).execute().use { resp ->
+            val body = resp.body?.string() ?: ""
+            if (!resp.isSuccessful) {
+                Result.Error("ASR HTTP ${resp.code}: ${body.take(120)}")
+            } else {
+                val text = runCatching { JSONObject(body).optString("text") }.getOrNull()?.trim() ?: ""
+                if (text.isEmpty()) {
+                    Result.Error("ASR 返回空文本")
                 } else {
-                    val text = runCatching { JSONObject(body).optString("text") }.getOrNull()?.trim() ?: ""
-                    if (text.isEmpty()) {
-                        Result.Error("ASR 返回空文本")
-                    } else {
-                        logger("cloud asr ok, ${text.length} chars")
-                        Result.Success(text)
-                    }
+                    logger("cloud asr ok, ${text.length} chars")
+                    Result.Success(text)
                 }
             }
-        } catch (e: IOException) {
-            Result.Error("ASR 网络错误: ${e.message}")
         }
+    } catch (e: IOException) {
+        Result.Error("ASR 网络错误: ${e.message}")
+    } catch (e: RuntimeException) {
+        // ROB-14：畸形 baseUrl（url 构造 IAE）/OkHttp ISE 等 RuntimeException 也须守 Result 契约
+        Result.Error("ASR 请求异常: ${e.javaClass.simpleName}: ${e.message}")
     }
 
     companion object {

@@ -39,85 +39,91 @@ class AliyunAsrClient(
     }
 
     fun transcribe(wav: ByteArray, language: String = AsrClient.LANGUAGE_ZH): Result {
-        val pcm = stripWavPcm(wav)
-        val taskId = UUID.randomUUID().toString().replace("-", "")
-        val request = Request.Builder()
-            .url(WS_URL)
-            .header("Authorization", "Bearer $apiKey")
-            .build()
+        return try {
+            val pcm = stripWavPcm(wav)
+            val taskId = UUID.randomUUID().toString().replace("-", "")
+            val request = Request.Builder()
+                .url(WS_URL)
+                .header("Authorization", "Bearer $apiKey")
+                .build()
 
-        var resultText = ""
-        var error: String? = null
-        val done = CountDownLatch(1)
+            var resultText = ""
+            var error: String? = null
+            val done = CountDownLatch(1)
 
-        val listener = object : WebSocketListener() {
-            override fun onOpen(webSocket: WebSocket, response: Response) {
-                logger("aliyun asr WS open")
-                webSocket.send(runTask(taskId))
-                val frameBytes = (sampleRate / 10) * 2 // 200ms 音频/帧（16bit mono）
-                var frames = 0
-                var off = 0
-                while (off < pcm.size) {
-                    val end = minOf(off + frameBytes, pcm.size)
-                    webSocket.send(pcm.copyOfRange(off, end).toByteString())
-                    frames++
-                    off = end
+            val listener = object : WebSocketListener() {
+                override fun onOpen(webSocket: WebSocket, response: Response) {
+                    logger("aliyun asr WS open")
+                    webSocket.send(runTask(taskId))
+                    val frameBytes = (sampleRate / 10) * 2 // 200ms 音频/帧（16bit mono）
+                    var frames = 0
+                    var off = 0
+                    while (off < pcm.size) {
+                        val end = minOf(off + frameBytes, pcm.size)
+                        webSocket.send(pcm.copyOfRange(off, end).toByteString())
+                        frames++
+                        off = end
+                    }
+                    webSocket.send(finishTask(taskId))
+                    logger("aliyun asr sent $frames audio frames + finish")
                 }
-                webSocket.send(finishTask(taskId))
-                logger("aliyun asr sent $frames audio frames + finish")
-            }
 
-            override fun onMessage(webSocket: WebSocket, text: String) {
-                val json = runCatching { JSONObject(text) }.getOrNull() ?: return
-                val header = json.optJSONObject("header") ?: return
-                when (header.optString("event")) {
-                    "result-generated" -> {
-                        val output = json.optJSONObject("payload")?.optJSONObject("output")
-                        when (val sentence = output?.opt("sentence")) {
-                            is JSONObject -> {
-                                val t = sentence.optString("text", "")
-                                if (t.isNotEmpty()) resultText = t
-                            }
-                            is JSONArray -> {
-                                val sb = StringBuilder()
-                                for (i in 0 until sentence.length()) {
-                                    val t = sentence.optJSONObject(i)?.optString("text", "")
-                                    if (!t.isNullOrEmpty()) sb.append(t)
+                override fun onMessage(webSocket: WebSocket, text: String) {
+                    val json = runCatching { JSONObject(text) }.getOrNull() ?: return
+                    val header = json.optJSONObject("header") ?: return
+                    when (header.optString("event")) {
+                        "result-generated" -> {
+                            val output = json.optJSONObject("payload")?.optJSONObject("output")
+                            when (val sentence = output?.opt("sentence")) {
+                                is JSONObject -> {
+                                    val t = sentence.optString("text", "")
+                                    if (t.isNotEmpty()) resultText = t
                                 }
-                                if (sb.isNotEmpty()) resultText = sb.toString()
+                                is JSONArray -> {
+                                    val sb = StringBuilder()
+                                    for (i in 0 until sentence.length()) {
+                                        val t = sentence.optJSONObject(i)?.optString("text", "")
+                                        if (!t.isNullOrEmpty()) sb.append(t)
+                                    }
+                                    if (sb.isNotEmpty()) resultText = sb.toString()
+                                }
                             }
                         }
+                        "task-failed" -> {
+                            error = "ASR task-failed: " + header.optString("error_message", text).take(120)
+                            done.countDown()
+                        }
+                        "task-finished" -> done.countDown()
                     }
-                    "task-failed" -> {
-                        error = "ASR task-failed: " + header.optString("error_message", text).take(120)
-                        done.countDown()
-                    }
-                    "task-finished" -> done.countDown()
+                }
+
+                override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
+                    if (done.count == 0L) return
+                    logger("aliyun asr WS failure: ${t.message}")
+                    error = "ASR WS 错误: ${t.message}"
+                    done.countDown()
+                }
+
+                override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
+                    done.countDown()
                 }
             }
 
-            override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
-                if (done.count == 0L) return
-                logger("aliyun asr WS failure: ${t.message}")
-                error = "ASR WS 错误: ${t.message}"
-                done.countDown()
+            val ws = http.newWebSocket(request, listener)
+            if (!done.await(20, TimeUnit.SECONDS)) {
+                ws.cancel()
+                return Result.Error("ASR 超时（20s）")
             }
-
-            override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
-                done.countDown()
-            }
-        }
-
-        val ws = http.newWebSocket(request, listener)
-        if (!done.await(20, TimeUnit.SECONDS)) {
             ws.cancel()
-            return Result.Error("ASR 超时（20s）")
+            error?.let { return Result.Error(it) }
+            if (resultText.isBlank()) return Result.Error("ASR 返回空文本")
+            logger("aliyun asr ok, ${resultText.length} chars")
+            Result.Success(resultText.trim())
+        } catch (e: RuntimeException) {
+            // ROB-14：顶层异常边界——畸形 WAV（stripWavPcm 负 chunk IAE）/并发中断等
+            // RuntimeException 一律映射 Error，不击穿 Result 契约（无 IOException 路径，WS 内部自转）。
+            Result.Error("ASR 请求异常: ${e.javaClass.simpleName}: ${e.message}")
         }
-        ws.cancel()
-        error?.let { return Result.Error(it) }
-        if (resultText.isBlank()) return Result.Error("ASR 返回空文本")
-        logger("aliyun asr ok, ${resultText.length} chars")
-        return Result.Success(resultText.trim())
     }
 
     private fun runTask(taskId: String): String = JSONObject().apply {

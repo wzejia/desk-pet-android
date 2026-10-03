@@ -26,7 +26,7 @@ class OpenAIChatClient(
         data class Error(val message: String) : Result
     }
 
-    fun chat(history: List<Message>, systemPrompt: String?, onDelta: (String) -> Unit): Result {
+    fun chat(history: List<Message>, systemPrompt: String?, onDelta: (String) -> Unit): Result = try {
         val messages = JSONArray()
         if (!systemPrompt.isNullOrBlank()) {
             messages.put(JSONObject().put("role", "system").put("content", systemPrompt))
@@ -49,39 +49,41 @@ class OpenAIChatClient(
         val t0 = System.currentTimeMillis()
         var firstTokenMs: Long? = null
         val sb = StringBuilder()
-        return try {
-            http.newCall(request).execute().use { resp ->
-                if (!resp.isSuccessful) {
-                    val body = resp.body?.string() ?: ""
-                    return@use Result.Error("LLM HTTP ${resp.code}: ${envelope(body)}")
-                }
-                val source = resp.body!!.source()
-                while (true) {
-                    val line = source.readUtf8Line() ?: break
-                    if (!line.startsWith("data:")) continue
-                    val data = line.substring(5).trim()
-                    if (data == "[DONE]") break
-                    val json = runCatching { JSONObject(data) }.getOrNull() ?: continue
-                    val delta = json.optJSONArray("choices")
-                        ?.optJSONObject(0)
-                        ?.optJSONObject("delta")
-                        ?.optString("content") ?: continue
-                    if (delta.isEmpty()) continue
-                    if (firstTokenMs == null) firstTokenMs = System.currentTimeMillis() - t0
-                    sb.append(delta)
-                    onDelta(delta)
-                }
-                val text = sb.toString().trim()
-                if (text.isEmpty()) {
-                    Result.Error("LLM 返回空回复")
-                } else {
-                    logger("cloud llm ok, ${text.length} chars, firstToken=${firstTokenMs} ms")
-                    Result.Success(text, firstTokenMs)
-                }
+        http.newCall(request).execute().use { resp ->
+            if (!resp.isSuccessful) {
+                val body = resp.body?.string() ?: ""
+                return@use Result.Error("LLM HTTP ${resp.code}: ${envelope(body)}")
             }
-        } catch (e: IOException) {
-            Result.Error("LLM 网络错误: ${e.message}")
+            val source = resp.body?.source()
+                ?: return@use Result.Error("LLM 响应无 body") // ROB-14：body! 可 NPE，安全调用
+            while (true) {
+                val line = source.readUtf8Line() ?: break
+                if (!line.startsWith("data:")) continue
+                val data = line.substring(5).trim()
+                if (data == "[DONE]") break
+                val json = runCatching { JSONObject(data) }.getOrNull() ?: continue
+                val delta = json.optJSONArray("choices")
+                    ?.optJSONObject(0)
+                    ?.optJSONObject("delta")
+                    ?.optString("content") ?: continue
+                if (delta.isEmpty()) continue
+                if (firstTokenMs == null) firstTokenMs = System.currentTimeMillis() - t0
+                sb.append(delta)
+                onDelta(delta)
+            }
+            val text = sb.toString().trim()
+            if (text.isEmpty()) {
+                Result.Error("LLM 返回空回复")
+            } else {
+                logger("cloud llm ok, ${text.length} chars, firstToken=${firstTokenMs} ms")
+                Result.Success(text, firstTokenMs)
+            }
         }
+    } catch (e: IOException) {
+        Result.Error("LLM 网络错误: ${e.message}")
+    } catch (e: RuntimeException) {
+        // ROB-14：畸形 baseUrl / onDelta 回调异常 / OkHttp ISE 等须守 Result 契约
+        Result.Error("LLM 请求异常: ${e.javaClass.simpleName}: ${e.message}")
     }
 
     /** 错误体取 error 字段（OpenAI 兼容错误格式），取不到回退截断原文。 */

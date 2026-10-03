@@ -54,7 +54,11 @@ class TtsClient(
     /** 单句合成：流式主路径，失败按降级链走非流式兜底。 */
     fun synthesize(sentence: String): Result {
         if (!streamSupport.isUnsupported()) {
-            when (val r = synthesizeStream(sentence)) {
+            // ROB-14：流路径 RuntimeException（url 构造 IAE / body 异常形态 / 帧解析越界等）
+            // 就地转 Failure——保住「失败走非流式兜底一次」的文档化降级链，不击穿。
+            when (val r = runCatching { synthesizeStream(sentence) }.getOrElse { e ->
+                StreamOutcome.Failure("TTS stream 异常: ${e.javaClass.simpleName}: ${e.message}")
+            }) {
                 is StreamOutcome.Ok -> {
                     logger("tts stream ok, ${r.frames} frame(s), pcm=${r.pcm.size}B")
                     return Result.Audio(r.pcm)
@@ -67,7 +71,12 @@ class TtsClient(
                     logger("tts stream failed, 非流式兜底一次: ${r.message}")
             }
         }
-        return synthesizeOnce(sentence)
+        // ROB-14：兜底路径同样上 RuntimeException 边界（Url 构造畸形等），恒守 Result 契约
+        return try {
+            synthesizeOnce(sentence)
+        } catch (e: RuntimeException) {
+            fail("TTS 请求异常: ${e.javaClass.simpleName}: ${e.message}")
+        }
     }
 
     /**
@@ -75,17 +84,20 @@ class TtsClient(
      * NDJSON 逐帧收，**先缓冲全帧**剥头拼 PCM，done 帧终止（坑 #7：残帧+兜底重复）。
      */
     private fun synthesizeStream(sentence: String): StreamOutcome {
-        val payload = JSONObject()
-            .put("text", JSONArray().put(sentence))
-            .put("serviceName", SERVICE_NAME)
-            .put("speaker", speaker)
-            .put("speed", speed)
-            .toString()
-            .toRequestBody(JSON)
-        val req = Request.Builder().url(streamUrl).post(payload).build()
-        logger("tts stream POST $streamUrl, ${sentence.length} chars")
         val pcm = ByteArrayOutputStream()
         var frames = 0
+        val req = Request.Builder().url(streamUrl)
+            .post(
+                JSONObject()
+                    .put("text", JSONArray().put(sentence))
+                    .put("serviceName", SERVICE_NAME)
+                    .put("speaker", speaker)
+                    .put("speed", speed)
+                    .toString()
+                    .toRequestBody(JSON),
+            )
+            .build()
+        logger("tts stream POST $streamUrl, ${sentence.length} chars")
         try {
             http.newCall(req).execute().use { resp ->
                 if (resp.code == 404) return StreamOutcome.NotFound
@@ -93,7 +105,9 @@ class TtsClient(
                     val text = resp.body?.string().orEmpty()
                     return StreamOutcome.Failure("TTS stream HTTP ${resp.code}: ${envelopeMsg(text)}")
                 }
-                val source = resp.body!!.source()
+                // ROB-14：body! 可 NPE——安全调用，null 视为流失败（走兜底链）
+                val source = resp.body?.source()
+                    ?: return StreamOutcome.Failure("TTS stream 响应无 body")
                 while (true) {
                     val line = source.readUtf8Line() ?: break
                     if (line.isBlank()) continue
@@ -122,6 +136,9 @@ class TtsClient(
             return StreamOutcome.Failure("TTS stream 网络错误: ${e.message}")
         } catch (e: IllegalArgumentException) {
             return StreamOutcome.Failure("TTS 帧解析失败: ${e.message}")
+        } catch (e: RuntimeException) {
+            // ROB-14：getString 类型不符（JSONException）等剩余 RuntimeException 转 Failure
+            return StreamOutcome.Failure("TTS stream 异常: ${e.javaClass.simpleName}: ${e.message}")
         }
         // 无 done 帧的干净断流（166 转发 30s 截断同形态）——显式报错，不伪装成功
         return StreamOutcome.Failure("TTS 流提前结束（未见 done 帧，已收 $frames 帧丢弃）")
@@ -129,14 +146,17 @@ class TtsClient(
 
     /** 非流式兜底：text 传字符串，信封 code==200 取 data.audioData（base64 WAV 剥头）。 */
     private fun synthesizeOnce(sentence: String): Result {
-        val payload = JSONObject()
-            .put("text", sentence)
-            .put("serviceName", SERVICE_NAME)
-            .put("speaker", speaker)
-            .put("speed", speed)
-            .toString()
-            .toRequestBody(JSON)
-        val req = Request.Builder().url(synthesizeUrl).post(payload).build()
+        val req = Request.Builder().url(synthesizeUrl)
+            .post(
+                JSONObject()
+                    .put("text", sentence)
+                    .put("serviceName", SERVICE_NAME)
+                    .put("speaker", speaker)
+                    .put("speed", speed)
+                    .toString()
+                    .toRequestBody(JSON),
+            )
+            .build()
         logger("tts synthesize POST $synthesizeUrl, ${sentence.length} chars")
         val respText = try {
             http.newCall(req).execute().use { resp ->
