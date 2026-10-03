@@ -126,15 +126,15 @@ class VadDetector(
     var startLevelOverride: (() -> Double)? = null
 
     /** S51 续听窗冻结口径：当前判停阈值（与 feed 内同一“静音”定义，全链单标）。 */
-    fun currentEndThreshold(): Double = endThreshold()
+    fun currentEndThreshold(): Double = synchronized(vadLock) { endThreshold() }
 
     /** S56 当前噪声底（诊断日志用）。 */
-    fun currentNoiseFloor(): Double = noiseFloor
+    fun currentNoiseFloor(): Double = synchronized(vadLock) { noiseFloor }
 
     /** S56 ASR 裁判式噪声底上行：空 ASR 轮（ASR 认证「收集到的不是话」）调用一次，
      *  floor 向最近成句 RMS 收敛（速率 [EMPTY_TURN_FLOOR_RATE]，封顶 [NOISE_FLOOR_MAX]）。
      *  有文本轮绝不调用——真语音永不推高 floor，S52 式误伤免疫。无成句历史时 no-op。 */
-    fun raiseNoiseFloorFromLastUtterance() {
+    fun raiseNoiseFloorFromLastUtterance() = synchronized(vadLock) {
         val rms = lastUtteranceRms ?: return
         noiseFloor = (noiseFloor + (rms - noiseFloor) * EMPTY_TURN_FLOOR_RATE)
             .coerceIn(0.0, NOISE_FLOOR_MAX)
@@ -156,8 +156,17 @@ class VadDetector(
     var isSpeaking = false
         private set
 
+    /**
+     * CONC-1〔ocr-419 + 人工 F-VSM-3〕公共入口互斥锁：feed() 同时来自采麦收集协程
+     * （Default）与 stopListening() 调用线程（按住松开），start/stop/
+     * raiseNoiseFloorFromLastUtterance 另可达管线 IO 线程——内部 ArrayList/ArrayDeque
+     * 与 noiseFloor（Double RMW）跨线程裸奔会损坏缓冲/丢更新。所有公共入口收敛到这把
+     * 私有锁（单线程调用方零行为变化，仅每块一次无争用锁获取；锁内无回调无重入）。
+     */
+    private val vadLock = Any()
+
     /** 本次监听窗口内观测到的最大归一化电平（「一值定层」诊断：手动释放未检出语音时打日志）。 */
-    fun currentMaxLevel(): Double = maxLevel
+    fun currentMaxLevel(): Double = synchronized(vadLock) { maxLevel }
 
     private val buffer = ArrayList<ShortArray>()
     private val preRoll = ArrayDeque<ShortArray>()
@@ -183,7 +192,7 @@ class VadDetector(
     private val plateauWindow = ArrayDeque<Double>()
 
     /** 开始监听（重置全部状态 + 启动超时计数）。单次触发停止后由调用方重新 start。 */
-    fun start() {
+    fun start() = synchronized(vadLock) {
         buffer.clear()
         preRoll.clear()
         // S19-1：noiseFloor/speechPeak/sustainedAbove/plateauWindow 刻意不清--
@@ -197,7 +206,7 @@ class VadDetector(
         isActive = true
     }
 
-    fun stop() {
+    fun stop() = synchronized(vadLock) {
         isActive = false
     }
 
@@ -211,7 +220,7 @@ class VadDetector(
     }
 
     /** 喂一块 Int16 PCM（100ms = 1600 样本）。返回触发事件或 null。 */
-    fun feed(block: ShortArray): Event? {
+    fun feed(block: ShortArray): Event? = synchronized(vadLock) {
         if (!isActive || block.isEmpty()) return null
         val level = levelOf(block)
         if (level > maxLevel) maxLevel = level
@@ -281,7 +290,8 @@ class VadDetector(
         }
     }
 
-    /** 说话结束：min_utterance 过滤后产出 Utterance。不达 min 丢弃但不停机（同桌面端）。 */
+    /** 说话结束：min_utterance 过滤后产出 Utterance。不达 min 丢弃但不停机（同桌面端）。
+     *  仅在 vadLock 内被 feed 调用（CONC-1），不重复加锁。 */
     private fun finishUtterance(): Event? {
         isSpeaking = false
         belowTicks = 0
