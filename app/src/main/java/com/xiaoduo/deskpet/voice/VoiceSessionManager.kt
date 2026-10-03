@@ -1181,6 +1181,12 @@ class VoiceSessionManager(
             player.reset() // 兜底释放（finish/异常/barge-in；幂等）
             if (currentPlayer === player) currentPlayer = null
             producer.cancel() // 消费者退出（含 barge-in/异常）→ 取消生产者防挂（队满 send 阻塞）
+            // FUNC-6：本函数退出即无人在消费 sentences——管线侧 `runBlocking { sentences.send }`
+            // （不在 pipelineJob 取消域，cancel 够不着）在 channel 打满后永挂 = 每轮泄漏 1 个
+            // IO 线程。必须 **cancel** 而非 close：kotlinx 1.8.1 语义下 close 只拒新 send，
+            // 已挂起的 sender 无人唤醒（BufferedChannel.completeCancel 才解脱挂起 sender）；
+            // cancel 把挂死 send 以 CancellationException 解脱，走管线既有 catch 分支收尾。
+            sentences.cancel()
         }
     }
 
