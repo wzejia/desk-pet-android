@@ -221,10 +221,13 @@ class PetOverlayService : Service() {
         // 打字机逐字改变气泡宽度 -> 每次布局重算气泡窗 X（贴边 clamp）
         bubbleView.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ -> updateBubbleWindow() }
 
+        var firstAttached: View? = null // ROB-5：记录首个已挂窗口，失败路径先摘再退（防 WindowLeaked）
         runCatching {
             wm.addView(bubbleLayer, displayLp) // 先加气泡层，交互层在上
+            firstAttached = bubbleLayer
             wm.addView(interaction, interactionLp)
         }.onFailure {
+            firstAttached?.let { v -> runCatching { wm.removeView(v) } }
             PetLogger.e(TAG, "addView failed", it)
             stopSelf()
             return
