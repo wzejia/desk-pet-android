@@ -35,7 +35,10 @@ class WakeAckCacheStore(private val root: File) {
         if (!WakeAckAudio.validate(pcm)) return false
         root.mkdirs()
         val target = file(fileName)
-        val tmp = File(root, "$fileName.tmp")
+        // CONC-5：tmp 名按次唯一（nanoTime）——固定 ".tmp" 下并发写同名校互撞：先完成者的
+        // moveAtomically 会把他人半写/混合中的缓冲转正（读者消费损坏音频）。唯一名后各写
+        // 各的 tmp，move 竞争只决定"哪个完整载荷最终在场"，不再产生混合内容。
+        val tmp = File(root, "$fileName.${System.nanoTime()}.tmp")
         return try {
             tmp.outputStream().use { it.write(pcm) }
             moveAtomically(tmp, target)

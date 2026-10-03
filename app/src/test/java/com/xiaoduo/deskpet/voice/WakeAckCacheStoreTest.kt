@@ -125,4 +125,38 @@ class WakeAckCacheStoreTest {
         assertFalse(store.write(name, ByteArray(12000)))    // 全零低峰
         assertFalse(store.exists(name))
     }
+
+    /**
+     * CONC-5：同名文件并发 write 不得共享固定 .tmp 路径——先完成者的 moveAtomically
+     * 会把别人半写/混合中的缓冲转正（读者消费损坏音频，恰是原子重命名要防的事）。
+     * 修复前：16 线程同写一个 tmp，Windows 上 move 撞开句柄即 IOException（部分返 false）、
+     * 内容混合 → 双断言红；修复后（唯一 tmp）全部成功且落盘必为某一完整载荷。
+     */
+    @Test
+    fun `CONC-5 concurrent writes to same file never collide on tmp path`() {
+        val store = newStore()
+        val name = "ack-c-abcdef0123.pcm"
+        val payloadA = validPcm()
+        val payloadB = WakeAckAudio.toBytes(ShortArray(7000) { (it % 1500).toShort() })
+        val pool = java.util.concurrent.Executors.newFixedThreadPool(8)
+        try {
+            val results = (0 until 16).map { i ->
+                pool.submit(java.util.concurrent.Callable { store.write(name, if (i % 2 == 0) payloadA else payloadB) })
+            }.map { it.get(20, java.util.concurrent.TimeUnit.SECONDS) }
+            // 唯一 tmp 后写失败只剩一种合法来源：Windows 并发原子替换同一目标的输者
+            // （AccessDenied→false）。契约 = 不混合 + 至少一个成功；全员成功非本票目标。
+            assertTrue("至少一个并发写成功: $results", results.any { it })
+        } finally {
+            pool.shutdownNow()
+        }
+        val final = store.read(name)
+        assertNotNull("并发写后必须可读", final)
+        assertTrue(
+            "落盘内容必须恰好等于某一写者的完整载荷（不得混合）",
+            final!!.contentEquals(payloadA) || final.contentEquals(payloadB),
+        )
+        val root = File(tmp.root, "wake_ack/v2")
+        val tmpLeftovers = root.listFiles { f -> f.name.endsWith(".tmp") } ?: emptyArray()
+        assertTrue("不得残留 tmp: ${tmpLeftovers.map { it.name }}", tmpLeftovers.isEmpty())
+    }
 }
