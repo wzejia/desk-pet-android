@@ -3,6 +3,7 @@ package com.xiaoduo.deskpet.voice
 import com.xiaoduo.deskpet.net.TtsVoiceDefaults
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -154,5 +155,62 @@ class WakeAckResolverTest {
         snap = platformSnap // 换回：按 Decision 键的 memo 命中
         assertArrayEquals(pcmA, resolver.resolve())
         assertEquals("回到已知 Decision 走 memo 不重读", 2, assets.reads)
+    }
+
+    /**
+     * FUNC-7：全链落空（NONE/fallback）不得写 memo——进程级单例下，一次瞬态失败
+     * （资产暂不可读/缓存坏）会被 memo 终身化，vendor/缓存层永不重试、零自愈。
+     * 修复前：首次落空 memo[Decision]=NONE → 资产恢复后同实例第二次仍 null → 红。
+     */
+    @Test
+    fun `FUNC-7 transient miss is not memoized and recovers on retry`() {
+        val store = newStore()
+        val names = java.util.concurrent.atomic.AtomicReference(emptySet<String>())
+        val data = java.util.concurrent.atomic.AtomicReference<Map<String, ByteArray>>(emptyMap())
+        val resolver = WakeAckResolver(
+            snapshotProvider = { platformSnap },
+            assetLister = { names.get() },
+            assetReader = { name -> data.get()[name] },
+            cacheStore = store,
+            log = { logs.add(it) },
+        )
+        assertNull("首次落空（名单空+无缓存）", resolver.resolve())
+
+        // 瞬态恢复：名单与资产字节出现 → 同实例必须重试成功（NONE 不 memo）
+        names.set(assetNames)
+        data.set(
+            mapOf(
+                "wozai.wav" to WavCodec.pcmToWav(pcmA, 24000),
+                "wozai-aliyun.wav" to WavCodec.pcmToWav(pcmB, 24000),
+            ),
+        )
+        assertArrayEquals("落空恢复后必须重读到资产 PCM", pcmA, resolver.resolve())
+    }
+
+    /**
+     * FUNC-7：assets.list 空集（首次 list 失败被接线层吞成空集）不得 memo 终身——
+     * 空集不 memo，下次 resolve 重列目录即可自愈。
+     * 修复前：assetNamesMemo=emptySet 永驻 → 名单恢复后仍查无资产 → 红。
+     */
+    @Test
+    fun `FUNC-7 empty asset listing is not memoized and re-lists next resolve`() {
+        val store = newStore()
+        val names = java.util.concurrent.atomic.AtomicReference(emptySet<String>())
+        var listCalls = 0
+        val data = mapOf("wozai.wav" to WavCodec.pcmToWav(pcmA, 24000))
+        val resolver = WakeAckResolver(
+            snapshotProvider = { platformSnap },
+            assetLister = {
+                listCalls++
+                names.get()
+            },
+            assetReader = { name -> data[name] },
+            cacheStore = store,
+            log = { logs.add(it) },
+        )
+        assertNull("首次 list 失败（空集）→ 落空", resolver.resolve())
+        names.set(assetNames) // 资产「出现」（等价瞬态 list 失败恢复）
+        assertArrayEquals("空集不得 memo，二次必须重列并命中", pcmA, resolver.resolve())
+        assertTrue("list 必须被重调（空集不 memo）", listCalls >= 2)
     }
 }

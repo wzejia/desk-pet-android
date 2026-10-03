@@ -70,7 +70,11 @@ class WakeAckResolver(
         )
         val result = memo[decision]
             ?: selectAndLoad(snap, names, cacheFileExists = cached)
-                .also { memo[decision] = it }
+                .also {
+                    // FUNC-7：仅成功结果入 memo——NONE/兜底失败链（坏缓存、读失败、空资产）
+                    // 不缓存，下次 resolve 重试，瞬态失败不进程级终身化、可自愈。
+                    if (it.pcm != null) memo[decision] = it
+                }
         // S9-3 回归守卫：source 日志行（删此 → S9-4 真机验收无取证链 → 红不了但验收必挂；
         // 测试以日志内容断言锁死格式）
         log("source=${result.source} provider=${snap.provider} model=${snap.model} voice=${snap.voice}")
@@ -117,9 +121,19 @@ class WakeAckResolver(
     private fun stripToPcm(wav: ByteArray): ByteArray? =
         runCatching { WavCodec.stripWavHeader(wav) }.getOrNull()
 
-    /** assets.list 的 wozai*.wav 名单，每实例 memo 一次（资产进程内不变，重复列目录浪费）。 */
+    /**
+     * assets.list 的 wozai*.wav 名单，每实例 memo 一次（资产进程内不变，重复列目录浪费）。
+     * FUNC-7：空集不 memo——首次 assets.list 失败被 [from] 接线层吞成空集时，memo 空集
+     * 会让 vendor 层进程级终身查无资产；留空重列，下次 resolve 即自愈（每次落一行诊断）。
+     */
     private fun assetNames(): Set<String> =
-        assetNamesMemo ?: assetLister().also { assetNamesMemo = it }
+        assetNamesMemo ?: assetLister().also {
+            if (it.isNotEmpty()) {
+                assetNamesMemo = it
+            } else {
+                log("assets list empty (lister failure or no vendor assets), will re-list next resolve")
+            }
+        }
 
     private fun cacheFileName(s: WakeAckSelector.Snapshot): String =
         WakeAckSelector.fileName(WakeAckSelector.cacheKey(s))
