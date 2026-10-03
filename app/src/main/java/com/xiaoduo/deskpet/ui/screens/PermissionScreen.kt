@@ -1,5 +1,7 @@
 package com.xiaoduo.deskpet.ui.screens
 
+import android.content.ActivityNotFoundException
+import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.provider.Settings
@@ -39,6 +41,28 @@ import com.xiaoduo.deskpet.util.PetLogger
 /**
  * 权限引导页（S0 迁移悬浮窗权限引导；麦克风/通知/电池豁免为 Spec UI 结构占位，M3/M4 接入）。
  */
+
+/** ROB-11：悬浮窗设置跳转候选（顺序尝试，纯逻辑可 JVM 单测）。部分 OEM 精简系统无
+ *  MANAGE_OVERLAY_PERMISSION 的解析目标，兜底回退应用详情页。 */
+internal fun overlaySettingsActions(): List<String> = listOf(
+    Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+    Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+)
+
+/** ROB-11：按候选顺序跳转（每步 catch ActivityNotFoundException），全部不可解析仅记
+ *  日志不崩（机型相关）；成功即返回。 */
+internal fun openOverlaySettings(context: Context) {
+    val packageUri = Uri.parse("package:${context.packageName}")
+    for (action in overlaySettingsActions()) {
+        try {
+            context.startActivity(Intent(action, packageUri))
+            return
+        } catch (e: ActivityNotFoundException) {
+            PetLogger.w("Permission", "settings action not resolvable: $action")
+        }
+    }
+    PetLogger.e("Permission", "no overlay settings activity resolvable on this device")
+}
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PermissionScreen(onBack: () -> Unit) {
@@ -82,12 +106,7 @@ fun PermissionScreen(onBack: () -> Unit) {
             ) {
                 Button(onClick = {
                     PetLogger.i("Permission", "jump to overlay permission settings")
-                    context.startActivity(
-                        Intent(
-                            Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                            Uri.parse("package:${context.packageName}")
-                        )
-                    )
+                    openOverlaySettings(context)
                 }) { Text("去开启") }
             }
 
