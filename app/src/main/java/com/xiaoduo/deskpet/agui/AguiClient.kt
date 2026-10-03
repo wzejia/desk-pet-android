@@ -178,11 +178,22 @@ class AguiClient(
     /** thread 管理接口前缀 = streamUrl 去末段 /stream（知识包 §2.2）。 */
     private val threadBaseUrl: String = streamUrl.removeSuffix("/stream")
 
-    private var reloginUsed = false
-    private var lastAuthError: String? = null
+    /**
+     * CONC-6：按调用传递的鉴权上下文。reloginUsed（「每次 chat 透明重登 1 次」额度）
+     * 与 lastAuthError 都是调用级状态——实例级共享会让并发 chat 互耗额度/错误串台。
+     * 各公共入口（chat/deleteThread/listAgents/uploadFile/renameThread）入口各建一份，
+     * 经私有调用链穿透，实例字段归零。
+     */
+    private class AuthCtx {
+        var reloginUsed = false
+        var lastAuthError: String? = null
+    }
 
     /** 消息 id 单调序号：与毫秒拼成 `u_{毫秒}_{seq}`，杜绝同毫秒撞 id（§2.2 要求全局唯一）。 */
     private val messageSeq = AtomicInteger(0)
+
+    /** CONC-6：runId 单调序号——runId 仅 clock()+attempt 时同毫秒并发/连发可撞。 */
+    private val runSeq = AtomicInteger(0)
 
     /**
      * 同步阻塞执行一轮对话（调用方负责切 IO 线程/协程）。
@@ -215,15 +226,15 @@ class AguiClient(
         /** S43：run 正常收尾后回吐本轮最后一次工具结果（无结果轮为 null；断流/空 run 不回吐）。 */
         onToolCallOutcome: (AguiSseConsumer.ToolCallOutcome?) -> Unit = {},
     ): ChatResult {
-        reloginUsed = false
-        var token = ensureToken() ?: return ChatResult.Error(lastAuthError ?: "登录失败")
-        val threadId = when (val t = ensureThreadId(token, threadKey, threadName)) {
+        val auth = AuthCtx()
+        var token = ensureToken(auth) ?: return ChatResult.Error(auth.lastAuthError ?: "登录失败")
+        val threadId = when (val t = ensureThreadId(auth, token, threadKey, threadName)) {
             is ThreadResult.Ok -> t.threadId
             is ThreadResult.Failed -> return ChatResult.Error(t.message)
             ThreadResult.Unauthorized -> {
                 logger("createThreadId HTTP 401, token 视为过期，透明重登 1 次")
-                token = reloginOnce() ?: return ChatResult.Error(lastAuthError ?: "token 过期透明重登失败")
-                when (val t2 = ensureThreadId(token, threadKey, threadName)) {
+                token = reloginOnce(auth) ?: return ChatResult.Error(auth.lastAuthError ?: "token 过期透明重登失败")
+                when (val t2 = ensureThreadId(auth, token, threadKey, threadName)) {
                     is ThreadResult.Ok -> t2.threadId
                     is ThreadResult.Failed -> return ChatResult.Error(t2.message)
                     ThreadResult.Unauthorized ->
@@ -244,11 +255,11 @@ class AguiClient(
                 AttemptResult.Empty ->
                     logger("empty run (attempt $attempt/$MAX_ATTEMPTS), retry with same message id")
                 is AttemptResult.Unauthorized -> {
-                    if (reloginUsed) {
+                    if (auth.reloginUsed) {
                         return ChatResult.Error("透明重登后仍鉴权失败：${r.message}")
                     }
                     logger("SSE HTTP ${r.message}, token 视为过期，透明重登 1 次")
-                    token = reloginOnce() ?: return ChatResult.Error(lastAuthError ?: "token 过期透明重登失败")
+                    token = reloginOnce(auth) ?: return ChatResult.Error(auth.lastAuthError ?: "token 过期透明重登失败")
                     attempt-- // 401 重登不消耗空 run 重试次数
                 }
                 is AttemptResult.Failure -> return ChatResult.Error(r.message)
@@ -258,25 +269,25 @@ class AguiClient(
     }
 
     /** 缓存未过期直接用，否则登录取新 token。 */
-    private fun ensureToken(): String? = tokenCache.cached() ?: login()
+    private fun ensureToken(auth: AuthCtx): String? = tokenCache.cached() ?: login(auth)
 
-    /** 清缓存并重新登录；每次 chat 仅限 1 次额度（spec：透明重登 1 次），额度已用尽返回 null。 */
-    private fun reloginOnce(): String? {
-        if (reloginUsed) return null
-        reloginUsed = true
+    /** 清缓存并重新登录；每次调用仅限 1 次额度（spec：透明重登 1 次），额度已用尽返回 null。 */
+    private fun reloginOnce(auth: AuthCtx): String? {
+        if (auth.reloginUsed) return null
+        auth.reloginUsed = true
         tokenCache.clear()
-        return login()
+        return login(auth)
     }
 
     /**
      * 登录：POST {loginUrl} body {"username","password"}，信封 code==200 取 36 字符 UUID token。
      * 凭据与 token 一律不进日志。
      */
-    private fun login(): String? {
+    private fun login(auth: AuthCtx): String? {
         val (username, password) = credentials()
         if (username.isBlank() || password.isBlank()) {
-            lastAuthError = "账号或密码未配置（请到设置页填写并保存）"
-            logger(lastAuthError!!)
+            auth.lastAuthError = "账号或密码未配置（请到设置页填写并保存）"
+            logger(auth.lastAuthError!!)
             return null
         }
         logger("login POST $loginUrl")
@@ -289,40 +300,40 @@ class AguiClient(
             Request.Builder().url(loginUrl).post(body).build()
         } catch (e: RuntimeException) {
             // ROB-14：用户可配畸形 baseUrl → url 构造 IAE，映射登录失败而非击穿契约
-            lastAuthError = "登录请求构造异常: ${e.javaClass.simpleName}: ${e.message}"
-            logger(lastAuthError!!)
+            auth.lastAuthError = "登录请求构造异常: ${e.javaClass.simpleName}: ${e.message}"
+            logger(auth.lastAuthError!!)
             return null
         }
         val respText = try {
             http.newCall(req).execute().use { resp ->
                 val text = resp.body?.string().orEmpty()
                 if (!resp.isSuccessful) {
-                    lastAuthError = "登录 HTTP ${resp.code}: ${envelopeMsg(text)}"
-                    logger(lastAuthError!!)
+                    auth.lastAuthError = "登录 HTTP ${resp.code}: ${envelopeMsg(text)}"
+                    logger(auth.lastAuthError!!)
                     return null
                 }
                 text
             }
         } catch (e: IOException) {
-            lastAuthError = "登录网络错误: ${e.message}"
-            logger(lastAuthError!!)
+            auth.lastAuthError = "登录网络错误: ${e.message}"
+            logger(auth.lastAuthError!!)
             return null
         }
         val json = runCatching { JSONObject(respText) }.getOrNull()
         if (json == null) {
-            lastAuthError = "登录响应非 JSON 信封"
-            logger(lastAuthError!!)
+            auth.lastAuthError = "登录响应非 JSON 信封"
+            logger(auth.lastAuthError!!)
             return null
         }
         if (json.optInt("code", -1) != 200) {
-            lastAuthError = "登录失败: ${json.optString("msg", "未知错误")}"
-            logger(lastAuthError!!)
+            auth.lastAuthError = "登录失败: ${json.optString("msg", "未知错误")}"
+            logger(auth.lastAuthError!!)
             return null
         }
         val token = json.optString("token", "")
         if (!TokenPolicy.isValidToken(token)) {
-            lastAuthError = "登录返回 token 格式非法（非 36 字符 UUID）"
-            logger(lastAuthError!!)
+            auth.lastAuthError = "登录返回 token 格式非法（非 36 字符 UUID）"
+            logger(auth.lastAuthError!!)
             return null
         }
         tokenCache.saveFresh(token)
@@ -331,7 +342,7 @@ class AguiClient(
     }
 
     /** 该会话无缓存 thread 时调 createThreadId（body 必须同时 threadName+agentId，踩坑 #29）并按键持久化；401 分型供调用方透明重登。 */
-    private fun ensureThreadId(token: String, threadKey: String, threadName: String?): ThreadResult {
+    private fun ensureThreadId(auth: AuthCtx, token: String, threadKey: String, threadName: String?): ThreadResult {
         threadStore.load(threadKey)?.let { return ThreadResult.Ok(it) }
         val url = "$threadBaseUrl/createThreadId"
         logger("createThreadId POST $url")
@@ -349,9 +360,9 @@ class AguiClient(
                 .build()
         } catch (e: RuntimeException) {
             // ROB-14：畸形端点 url 构造 IAE → Failed（守 ThreadResult 契约）
-            lastAuthError = "createThreadId 请求构造异常: ${e.javaClass.simpleName}: ${e.message}"
-            logger(lastAuthError!!)
-            return ThreadResult.Failed(lastAuthError!!)
+            auth.lastAuthError = "createThreadId 请求构造异常: ${e.javaClass.simpleName}: ${e.message}"
+            logger(auth.lastAuthError!!)
+            return ThreadResult.Failed(auth.lastAuthError!!)
         }
         val respText = try {
             http.newCall(req).execute().use { resp ->
@@ -360,28 +371,28 @@ class AguiClient(
                 }
                 val text = resp.body?.string().orEmpty()
                 if (!resp.isSuccessful) {
-                    lastAuthError = "createThreadId HTTP ${resp.code}: ${envelopeMsg(text)}"
-                    logger(lastAuthError!!)
-                    return ThreadResult.Failed(lastAuthError!!)
+                    auth.lastAuthError = "createThreadId HTTP ${resp.code}: ${envelopeMsg(text)}"
+                    logger(auth.lastAuthError!!)
+                    return ThreadResult.Failed(auth.lastAuthError!!)
                 }
                 text
             }
         } catch (e: IOException) {
-            lastAuthError = "createThreadId 网络错误: ${e.message}"
-            logger(lastAuthError!!)
-            return ThreadResult.Failed(lastAuthError!!)
+            auth.lastAuthError = "createThreadId 网络错误: ${e.message}"
+            logger(auth.lastAuthError!!)
+            return ThreadResult.Failed(auth.lastAuthError!!)
         }
         val json = runCatching { JSONObject(respText) }.getOrNull()
         if (json == null || json.optInt("code", -1) != 200) {
-            lastAuthError = "createThreadId 失败: ${json?.optString("msg") ?: "响应非 JSON 信封"}"
-            logger(lastAuthError!!)
-            return ThreadResult.Failed(lastAuthError!!)
+            auth.lastAuthError = "createThreadId 失败: ${json?.optString("msg") ?: "响应非 JSON 信封"}"
+            logger(auth.lastAuthError!!)
+            return ThreadResult.Failed(auth.lastAuthError!!)
         }
         val threadId = json.optString("data", "")
         if (threadId.isBlank()) {
-            lastAuthError = "createThreadId 返回空 threadId"
-            logger(lastAuthError!!)
-            return ThreadResult.Failed(lastAuthError!!)
+            auth.lastAuthError = "createThreadId 返回空 threadId"
+            logger(auth.lastAuthError!!)
+            return ThreadResult.Failed(auth.lastAuthError!!)
         }
         threadStore.save(threadKey, threadId)
         logger("thread created and persisted, threadId=$threadId")
@@ -395,7 +406,8 @@ class AguiClient(
      */
     fun deleteThread(threadId: String): DeleteResult {
         if (threadId.isBlank()) return DeleteResult.NoThread
-        var token = ensureToken() ?: return DeleteResult.Error(lastAuthError ?: "登录失败")
+        val auth = AuthCtx()
+        var token = ensureToken(auth) ?: return DeleteResult.Error(auth.lastAuthError ?: "登录失败")
         var reloginRetried = false
         while (true) {
             when (val r = deleteThreadOnce(token, threadId)) {
@@ -407,7 +419,7 @@ class AguiClient(
                     reloginRetried = true
                     logger("deleteThread HTTP 401, token 视为过期，透明重登 1 次")
                     tokenCache.clear()
-                    token = login() ?: return DeleteResult.Error(lastAuthError ?: "token 过期透明重登失败")
+                    token = login(auth) ?: return DeleteResult.Error(auth.lastAuthError ?: "token 过期透明重登失败")
                 }
             }
         }
@@ -437,7 +449,8 @@ class AguiClient(
      * thread 连续性与本地历史均不动。
      */
     fun listAgents(): AgentListResult {
-        var token = ensureToken() ?: return AgentListResult.Error(lastAuthError ?: "登录失败")
+        val auth = AuthCtx()
+        var token = ensureToken(auth) ?: return AgentListResult.Error(auth.lastAuthError ?: "登录失败")
         var reloginRetried = false
         val agents = mutableListOf<AgentBrief>()
         var pageNum = 1
@@ -456,7 +469,7 @@ class AguiClient(
                     reloginRetried = true
                     logger("agent/list HTTP 401, token 视为过期，透明重登 1 次")
                     tokenCache.clear()
-                    token = login() ?: return AgentListResult.Error(lastAuthError ?: "token 过期透明重登失败")
+                    token = login(auth) ?: return AgentListResult.Error(auth.lastAuthError ?: "token 过期透明重登失败")
                     agents.clear() // 已聚合的半卷作废，从第 1 页重拉（防旧 token 页与新 token 页混合）
                     pageNum = 1
                 }
@@ -555,7 +568,8 @@ class AguiClient(
      */
     fun renameThread(threadId: String, newName: String): RenameResult {
         if (threadId.isBlank() || newName.isBlank()) return RenameResult.NoThread
-        var token = ensureToken() ?: return RenameResult.Error(lastAuthError ?: "登录失败")
+        val auth = AuthCtx()
+        var token = ensureToken(auth) ?: return RenameResult.Error(auth.lastAuthError ?: "登录失败")
         var reloginRetried = false
         while (true) {
             when (val r = renameThreadOnce(token, threadId, newName)) {
@@ -566,7 +580,7 @@ class AguiClient(
                     reloginRetried = true
                     logger("renameThread HTTP 401, token 视为过期，透明重登 1 次")
                     tokenCache.clear()
-                    token = login() ?: return RenameResult.Error(lastAuthError ?: "token 过期透明重登失败")
+                    token = login(auth) ?: return RenameResult.Error(auth.lastAuthError ?: "token 过期透明重登失败")
                 }
             }
         }
@@ -643,10 +657,11 @@ class AguiClient(
         threadKey: String = DEFAULT_THREAD_KEY,
     ): UploadResult {
         if (fileName.isBlank() || bytes.isEmpty()) return UploadResult.Error("空文件不上传")
-        var token = ensureToken() ?: return UploadResult.Error(lastAuthError ?: "登录失败")
+        val auth = AuthCtx()
+        var token = ensureToken(auth) ?: return UploadResult.Error(auth.lastAuthError ?: "登录失败")
         var reloginRetried = false
         while (true) {
-            val threadId = when (val t = ensureThreadId(token, threadKey, null)) {
+            val threadId = when (val t = ensureThreadId(auth, token, threadKey, null)) {
                 is ThreadResult.Ok -> t.threadId
                 is ThreadResult.Failed -> return UploadResult.Error(t.message)
                 ThreadResult.Unauthorized -> {
@@ -654,7 +669,7 @@ class AguiClient(
                     reloginRetried = true
                     logger("upload createThreadId HTTP 401, token 视为过期，透明重登 1 次")
                     tokenCache.clear()
-                    token = login() ?: return UploadResult.Error(lastAuthError ?: "token 过期透明重登失败")
+                    token = login(auth) ?: return UploadResult.Error(auth.lastAuthError ?: "token 过期透明重登失败")
                     continue
                 }
             }
@@ -666,7 +681,7 @@ class AguiClient(
                     reloginRetried = true
                     logger("uploadFile HTTP 401, token 视为过期，透明重登 1 次")
                     tokenCache.clear()
-                    token = login() ?: return UploadResult.Error(lastAuthError ?: "token 过期透明重登失败")
+                    token = login(auth) ?: return UploadResult.Error(auth.lastAuthError ?: "token 过期透明重登失败")
                 }
             }
         }
@@ -736,7 +751,8 @@ class AguiClient(
         onToolCallOutcome: (AguiSseConsumer.ToolCallOutcome?) -> Unit = {},
         roundId: String = "",
     ): AttemptResult {
-        val runId = "deskpet_run_${clock()}_$attempt"
+        // CONC-6：runId 加实例级单调序号——仅 clock()+attempt 时同毫秒并发/连发可撞
+        val runId = "deskpet_run_${clock()}_${runSeq.incrementAndGet()}"
         val payload = JSONObject()
             .put("threadId", threadId)
             .put("runId", runId)
