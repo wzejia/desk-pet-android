@@ -305,4 +305,55 @@ class BubbleTextStripTest {
         assertFalse(e2.reset)
         assertEquals(StyledText("尾巴"), e2.text)
     }
+
+    // ---------- FUNC-5：未闭合 ** hold 上限 + 流尾 flush ----------
+
+    @Test
+    fun `streaming unclosed bold within cap held until close`() {
+        // 上限内未闭合 **：仍先 hold（钉住既有正常路径不回归）
+        val s = BubbleTextStrip.Session()
+        assertEquals(StyledText("看"), s.feed("看**重点").text)
+    }
+
+    @Test
+    fun `streaming unclosed bold beyond cap released as content`() {
+        // 未闭合 ** 超过 48 字上限：丢标记留内容放行（体例同反引号 48/斜体 24，防打字机永久冻结）
+        val s = BubbleTextStrip.Session()
+        val content = "重".repeat(47)
+        val e = s.feed("看**$content")
+        assertFalse(e.reset)
+        assertEquals("看$content", e.text.text)
+        assertTrue(e.text.spans.isEmpty())
+    }
+
+    @Test
+    fun `flush emits tail of unclosed bold at end of stream`() {
+        // FUNC-5 反例（简报）：LLM 回复以未闭合 ** 收尾 → feed 只吐 hold 点前内容，flush 补发残余
+        val s = BubbleTextStrip.Session()
+        assertEquals(StyledText("注意"), s.feed("注意**这里是重点").text)
+        val e = s.flush()
+        assertFalse(e.reset)
+        assertEquals(StyledText("这里是重点"), e.text)
+    }
+
+    @Test
+    fun `flush emits tail of unclosed backtick at end of stream`() {
+        val s = BubbleTextStrip.Session()
+        assertEquals(StyledText("执行"), s.feed("执行 `adb devices").text)
+        val e = s.flush()
+        assertFalse(e.reset)
+        assertEquals(StyledText(" adb devices"), e.text)
+    }
+
+    @Test
+    fun `flush after fully emitted stream is empty no-op and idempotent`() {
+        val s = BubbleTextStrip.Session()
+        val e1 = s.feed("你好**加粗**世界")
+        assertEquals("你好加粗世界", e1.text.text)
+        val e2 = s.flush()
+        assertFalse(e2.reset)
+        assertEquals(StyledText(""), e2.text)
+        // 幂等：重复 flush 不重复吐
+        assertEquals(StyledText(""), s.flush().text)
+    }
 }
