@@ -81,6 +81,15 @@ class DeviceClientTest {
         assertTrue(paths.any { it.startsWith("/btZlg?runFlag=0") })
     }
 
+    /** FUNC-2：状态体缺 RunFlag 键（空/畸形回读）不得按缺省 0 误判「已关闭」。 */
+    @Test
+    fun `FUNC-2 power off with missing RunFlag key fails instead of false success`() {
+        server.enqueue(MockResponse().setBody("true")) // /btZlg?runFlag=0
+        server.enqueue(MockResponse().setBody("""{"err":""}""")) // 无 RunFlag 键的状态体
+        val r = client.execute(Command.PowerOff(Device.JHG))
+        assertTrue("缺 RunFlag 键应判未确认关机: $r", r is DeviceClient.SkillResult.Fail)
+    }
+
     @Test
     fun `fan speed verifies FunSpeed`() {
         server.enqueue(MockResponse().setBody("true")) // /windSpeed?mode=2

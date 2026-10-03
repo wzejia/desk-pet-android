@@ -57,7 +57,8 @@ class DeviceClient(
                     }
                     sleeper(verifyDelayMs)
                     val st = status(device)
-                    if (st.optString("err").isNotEmpty() || st.optInt("RunFlag") != 0) {
+                    // FUNC-2：缺省哨兵 -1——状态体缺 RunFlag 键（空/畸形回读）不得按 0 误判「已关闭」
+                    if (st.optString("err").isNotEmpty() || st.optInt("RunFlag", -1) != 0) {
                         SkillResult.Fail("${nameOf(device)}未确认关机，请看一眼面板")
                     } else {
                         SkillResult.Ok("${nameOf(device)}已关闭")
