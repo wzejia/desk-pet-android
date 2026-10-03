@@ -2,8 +2,20 @@ package com.xiaoduo.deskpet.net
 
 import android.content.Context
 
-/** 平台 token 条目：36 字符 UUID + 获取时间戳（Spec 数据模型 TokenEntry）。 */
-data class TokenEntry(val token: String, val obtainedAtMs: Long)
+/**
+ * 平台 token 条目：36 字符 UUID + 获取时间戳（Spec 数据模型 TokenEntry）。
+ * SEC-3(ocr[144])：覆写 toString 脱敏——「严禁入日志」在 data class 默认 toString /
+ * 调试输出 / 崩溃现场同样成立，原始 token 不得随对象打印泄露。
+ */
+data class TokenEntry(val token: String, val obtainedAtMs: Long) {
+    override fun toString(): String = "TokenEntry(token=${mask(token)}, obtainedAtMs=$obtainedAtMs)"
+
+    companion object {
+        /** 脱敏：保留前 4 字符便于人工比对；空/过短 token 只出占位符，不泄原文。 */
+        fun mask(token: String): String =
+            if (token.length >= 8) "${token.take(4)}…(masked)" else "<masked>"
+    }
+}
 
 /**
  * token 新鲜度纯逻辑（零 Android import，时钟注入，JVM 可测）。

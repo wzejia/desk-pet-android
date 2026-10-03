@@ -68,4 +68,21 @@ class TokenPolicyTest {
     fun `valid 36-char uuid accepted`() {
         assertTrue(TokenPolicy.isValidToken(uuid))
     }
+
+    /** SEC-3(ocr[144])：toString 脱敏——data class 默认 toString 会在日志/调试输出泄露原始 token。 */
+    @Test
+    fun `SEC-3 toString masks raw token`() {
+        val entry = TokenEntry(uuid, t0)
+        val s = entry.toString()
+        assertTrue("toString 不得含原始 token: $s", !s.contains(uuid))
+        assertTrue("脱敏标记可见: $s", s.contains("masked"))
+        // data class 语义不受影响：copy/equals 照旧（不因 toString 覆写破坏）
+        assertEquals(entry, entry.copy(obtainedAtMs = t0))
+    }
+
+    @Test
+    fun `SEC-3 short or empty token masked without exception`() {
+        assertTrue(!TokenEntry("", t0).toString().contains("masked token="))
+        assertTrue(!TokenEntry("abc", t0).toString().contains("abc"))
+    }
 }
