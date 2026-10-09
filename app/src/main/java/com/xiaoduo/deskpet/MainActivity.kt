@@ -28,12 +28,6 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         PetLogger.init(applicationContext)
         PetLogger.i("MainActivity", "onCreate, compose host started")
-        // 密集架基础设置「打开小朵」悬浮窗直拉路径：START 判定成立时 finish 在 setContent 前，
-        // 不闪 UI；FALLBACK（权限缺失）走常规 UI 流程让用户去授权。
-        if (handleOverlayOnlyLaunch(intent)) {
-            finish()
-            return
-        }
         handleViewLastRoundIntent(intent)
         healServicesByPrefs()
         setContent {
@@ -52,11 +46,6 @@ class MainActivity : ComponentActivity() {
         // S14 白屏治理取证锚：singleTask 后所有拉起路径（悬浮窗菜单/KWS 通知/启动器）
         // 统一路由到同一实例——此日志出现即证明未走重建（对比 onCreate）
         PetLogger.i("MainActivity", "onNewIntent -> existing instance reused")
-        // singleTask 复用实例收到 overlay-only 拉起：起悬浮窗后收掉 UI（用户要的是精灵窗，不是聊天页）
-        if (handleOverlayOnlyLaunch(intent)) {
-            finish()
-            return
-        }
         handleViewLastRoundIntent(intent)
     }
 
@@ -81,32 +70,6 @@ class MainActivity : ComponentActivity() {
         intent.removeExtra(EXTRA_VIEW_LAST_ROUND) // 防配置变更重建时重复触发
         ViewModelProvider(this)[ChatViewModel::class.java].requestScrollToLastRound()
         PetLogger.i("MainActivity", "view last round requested")
-    }
-
-    /**
-     * 密集架「打开小朵」悬浮窗直拉（2026-10-09）：extra 命中时按 [resolveOverlayOnlyLaunch]
-     * 策略处理。START：前台 Activity 内 startService（ColorOS 合法路径）后由调用方 finish；
-     * FALLBACK（无悬浮窗权限）：不 finish，落回常规 UI 让用户授权。extra 用后即删防重建重入。
-     */
-    private fun handleOverlayOnlyLaunch(intent: Intent?): Boolean {
-        if (intent?.getBooleanExtra(EXTRA_LAUNCH_OVERLAY_ONLY, false) != true) return false
-        intent.removeExtra(EXTRA_LAUNCH_OVERLAY_ONLY) // 防配置变更重建时重复触发
-        val granted = Settings.canDrawOverlays(this)
-        return when (resolveOverlayOnlyLaunch(overlayOnly = true, overlayGranted = granted)) {
-            OverlayLaunchAction.START_OVERLAY_AND_FINISH -> {
-                try {
-                    startService(Intent(this, PetOverlayService::class.java))
-                    PetLogger.i("MainActivity", "overlay-only launch: PetOverlayService started (granted=$granted)")
-                } catch (e: Exception) {
-                    PetLogger.e("MainActivity", "overlay-only launch: start service failed: ${e.message}")
-                }
-                true
-            }
-            OverlayLaunchAction.FALLBACK_TO_UI -> {
-                PetLogger.i("MainActivity", "overlay-only launch: fallback to UI (granted=$granted)")
-                false
-            }
-        }
     }
 
     /**
@@ -152,18 +115,7 @@ class MainActivity : ComponentActivity() {
         /** S8-6：悬浮窗「查看最近一轮」菜单拉起 Activity 的 intent extra 键。 */
         const val EXTRA_VIEW_LAST_ROUND = "extra_view_last_round"
 
-        /** 密集架基础设置「打开小朵」直拉悬浮窗的 intent extra 键（真值触发）。 */
-        const val EXTRA_LAUNCH_OVERLAY_ONLY = "extra_launch_overlay_only"
-
-        /** overlay-only 拉起的处置策略（纯函数，MainActivityOverlayLaunchPolicyTest 锁行为）：
-         *  权限在→起悬浮窗并收 UI；extra 缺席或无权限→常规 UI（后者让用户可授权，不黑屏）。 */
-        internal fun resolveOverlayOnlyLaunch(overlayOnly: Boolean, overlayGranted: Boolean): OverlayLaunchAction =
-            if (overlayOnly && overlayGranted) OverlayLaunchAction.START_OVERLAY_AND_FINISH
-            else OverlayLaunchAction.FALLBACK_TO_UI
     }
-
-    /** overlay-only 拉起的处置动作。 */
-    internal enum class OverlayLaunchAction { START_OVERLAY_AND_FINISH, FALLBACK_TO_UI }
 }
 
 /** 进程内记录悬浮窗服务运行态（M1 单进程足够）。 */

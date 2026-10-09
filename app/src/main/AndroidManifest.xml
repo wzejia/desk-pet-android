@@ -21,6 +21,14 @@
         </intent>
     </queries>
 
+        <!-- 密集架基础设置「打开小朵」直拉悬浮窗（2026-10-09）：对外开透明入口 Activity + 悬浮窗服务，
+        均 signature 权限把守——同签名包自动授权，其余调用方 SecurityException（密集架侧回退开 APP）。
+        审计 D2-3 口径更新：exported 面 = MainActivity(LAUNCHER) + DebugBubbleReceiver(debug 守卫)
+        + OverlayLaunchActivity(签名守卫，透明 trampoline) + PetOverlayService(签名守卫)。 -->
+    <permission
+        android:name="com.xiaoduo.deskpet.permission.START_OVERLAY_SERVICE"
+        android:protectionLevel="signature" />
+
     <application
         android:name=".App"
         android:allowBackup="false"
@@ -29,6 +37,14 @@
         android:networkSecurityConfig="@xml/network_security_config"
         android:supportsRtl="true"
         android:theme="@style/Theme.AppCompat.DayNight.NoActionBar">
+        <activity
+            android:name=".OverlayLaunchActivity"
+            android:excludeFromRecents="true"
+            android:exported="true"
+            android:noHistory="true"
+            android:permission="com.xiaoduo.deskpet.permission.START_OVERLAY_SERVICE"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+
 
         <activity
             android:name=".MainActivity"
@@ -44,7 +60,8 @@
 
         <service
             android:name=".PetOverlayService"
-            android:exported="false" />
+            android:exported="true"
+            android:permission="com.xiaoduo.deskpet.permission.START_OVERLAY_SERVICE" />
 
         <!-- S5 KWS 常开唤醒：microphone 前台服务；唯一拉起路径 = 设置页用户显式开关（禁止自启） -->
         <service
