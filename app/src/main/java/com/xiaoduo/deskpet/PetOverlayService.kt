@@ -444,15 +444,6 @@ class PetOverlayService : Service() {
         OverlayMenu.show(
             anchor = anchor,
             voiceEnabled = Prefs.voiceEnabled(this),
-            onOpenApp = {
-                PetLogger.i(TAG, "menu: open app")
-                runCatching {
-                    startActivity(
-                        Intent(this, MainActivity::class.java)
-                            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                    )
-                }.onFailure { PetLogger.e(TAG, "menu open app failed", it) }
-            },
             onOpenDenseShelf = {
                 val ok = AppLauncher.startWithToast(this)
                 PetLogger.i(TAG, "menu: open dense shelf app, ok=$ok")

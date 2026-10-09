@@ -33,7 +33,6 @@ object OverlayMenu {
     fun show(
         anchor: View,
         voiceEnabled: Boolean,
-        onOpenApp: () -> Unit,
         onOpenDenseShelf: () -> Unit,
         onToggleVoice: () -> Boolean, // 返回切换后的新状态
         onHideOverlay: () -> Unit,
@@ -95,12 +94,8 @@ object OverlayMenu {
             elevation = 8f * dp
         }
 
-        row("打开 App").also {
-            it.setOnClickListener { popup.dismiss(); onOpenApp() }
-            menu.addView(it)
-        }
-        menu.addView(divider())
-
+        // 2026-10-09 删「打开 App」行（用户令）：密集架设置页已有系统设置「打开小朵」拉 APP 入口，
+        // 菜单跳转类仅保留「打开密集架」。
         // S27「打开密集架」：跳密集架控制应用（与聊天页导航行中键共用 AppLauncher），
         // 第 2 位（跳转类聚拢）；纯文字行（v4 拍板无图标），失败 toast 由 AppLauncher 兜底。
         row("打开密集架").also {
