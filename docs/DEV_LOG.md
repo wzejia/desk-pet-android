@@ -1,6 +1,16 @@
 # 小朵 Android 开发日志
 
 
+## 2026-10-09 入口功能：密集架基础设置直拉悬浮窗 + 长按菜单删「打开 App」
+
+**背景**（用户令）：mijijia 侧重划入口职责——系统设置加「打开小朵」（拉起 APP），基础设置按键名不变改直拉悬浮窗。desk-pet 侧配两条：①MainActivity 新增 `extra_launch_overlay_only` 直拉路径（TDD：策略纯函数 3 测锁「无权限回落 UI 不黑屏」；`finish()` 在 `setContent` 前不闪屏；singleTask 下 onNewIntent 同路收 UI）；②长按菜单删「打开 App」行（同 `onOpenApp` 参数与 Service 拉起代码一并清）——入口归密集架设置页，菜单跳转类只剩「打开密集架」。755 绿（752+3）。
+
+```evidence
+verify_cmd: gradlew.bat --no-daemon testDebugUnitTest（755 绿 skipped=0 failures=0；新增 MainActivityOverlayLaunchPolicyTest 3 测）
+verify_claim: overlay-only extra 命中且权限在→起 PetOverlayService 并 finish（不闪 UI）；无权限→常规 UI；菜单无「打开 App」行且全量测试不退
+files_touched: [app/src/main/java/com/xiaoduo/deskpet/MainActivity.kt, app/src/main/java/com/xiaoduo/deskpet/ui/overlay/OverlayMenu.kt, app/src/main/java/com/xiaoduo/deskpet/PetOverlayService.kt, app/src/test/java/com/xiaoduo/deskpet/MainActivityOverlayLaunchPolicyTest.kt]
+```
+
 ## 2026-10-03 全量代码审计 + P2 修复工程（双通道机扫 + 双路人工 → 三路并行修复 → 集成评审）
 
 **审计**（双通道，管理者统筹子智能体）：ocr scan（100/105 文件，462 条）+ codex-security（全仓 215 文件，5 条）+ 人工兜底 ocr 三连败 5 文件 + 非代码面人工 → P1=0 / P2=43 / P3=410，跨通道独立命中（TLS 旁路、凭证明文）为最高置信。过程披露与覆盖账见 `docs/audit/2026-10-03-full-audit/README.md`。

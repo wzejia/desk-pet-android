@@ -1,5 +1,12 @@
 # 小朵 Android M1 进度
 
+## 状态：入口功能——密集架基础设置直拉悬浮窗 + 菜单删「打开 App」 ✅（2026-10-09，755 绿，已推送）
+
+- **用户令**：mijijia 系统设置加「打开小朵」（拉 APP）+ 基础设置按键名不变改直拉悬浮窗（mijijia 侧改动在 mijijia 仓，见其 DEV_LOG 2026-10-09）。
+- **desk-pet 配套**：①`extra_launch_overlay_only` 直拉路径（MainActivity 策略纯函数 3 测；START→起 PetOverlayService+finish（setContent 前不闪 UI）；无权限→FALLBACK 常规 UI）；②长按菜单删「打开 App」行（`onOpenApp` 链全清，跳转类只剩「打开密集架」——入口职责归密集架设置页）。
+- **部署**：生产板=审计修复版 23078d1c（10-08）；测试机离线待补装；**10-09 功能需 desk-pet+mijijia 双 APK 成对更新**（旧 desk-pet 不认新 extra，会退化成开 APP）。
+- 状态：755 绿 skipped=0；提交 a913ad9（直拉）+ 962ab80（菜单删行）已推送。
+
 ## 状态：全量代码审计 + P2 修复工程 ✅ 完成（2026-10-03，审计 P1=0/P2=43/P3=410；修复 40 条处置毕，集成 752 绿）
 
 - **审计**：双通道机扫（ocr 100/105 文件 462 条 + codex 全仓 215 文件 5 条）+ 双路人工（兜底 5 文件 + 非代码面）→ **P1=0 / P2=43 / P3=410**；风险集中「分发形态」三件套（debug 签名 + BuildConfig 明文密钥 + TLS 内网白名单旁路），打包成一个安全决策待拍板。产物 `docs/audit/2026-10-03-full-audit/`（入口 README.md）。

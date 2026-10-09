@@ -45,17 +45,14 @@ M1（悬浮桌宠本体）与「助手化」大切片（S0-S8）均已收口；�
 
 ## 基线（不可退）
 
-- 单测基线 **656 个**（2026-09-23 晚，S65 后；此前 652=S54~S64 时代）；skipped=0；新增只增不减；验证 `./gradlew.bat testDebugUnitTest --rerun-tasks`
+- 单测基线 **755 个**（2026-10-09；656=S65 时代 → 665=S68b → 752=全量审计修复（2026-10-03，40 条 P2 并入）→ 755=入口功能）；skipped=0；新增只增不减；验证 `./gradlew.bat testDebugUnitTest --rerun-tasks`
 - `assembleDebug` 绿；spritesheet.webp MD5 `53c81ce652518f7fc7bf70554f363f54`；pet_states.json SHA256 `60b45124…4366`（S13 起 Android 行为有意偏离桌面镜像，见 implementation-notes 2026-08-24）
 
-## 当前状态（2026-09-23 晚，S65 后对齐）
+## 当前状态（2026-10-09，审计修复 + 入口功能后对齐）
 
-- **S50~S65 已全部收口并全合 main**（代码至 `1723f59`，656 绿；文档收口提交在其上）：语音链噪声域加固 + 多唤醒词 + 关键词治理
-  + **S65 回声纪元守卫**（盲窗回灌滤「我在」回声；s54 分支/worktree 已清场）。逐票速览见 `PROGRESS.md` 状态段。
+- **S50~S65 语音链 + S66~S68b 弹窗链已收口**；2026-10-03 **全量代码审计**（P1=0/P2=43/P3=410，产物 `docs/audit/2026-10-03-full-audit/`）+ **40 条 P2 修复**（752 绿）同日合 main；2026-10-09 入口功能：密集架基础设置「打开小朵」可直拉悬浮窗（`extra_launch_overlay_only`，无权限回落 UI），长按菜单删「打开 App」行（入口职责归密集架设置页）。
 - **关键词现状**：唤醒词=小朵小朵/你好小朵/小度小度；打断词已全禁（S63/S64）——打断走唤醒词（S12 链路）或双击。
-- **两板矩阵（2026-09-23 深夜，双板同版）**：测试机=desk-pet S65（b2df043c，⚠️ prefs 待重填 password+三模态 platform）
-  +mijijia xiaoduo 1ef8614（fb528b1e）；生产板=desk-pet S65（b2df043c）+ mijijia xiaoduo 1ef8614（fb528b1e）
-  ——MCP 联动链生产板实锤可用。生产板 mijijia 现为我们的 debug 签名（与同事包不兼容，换包需卸装回灌）。
+- **两板矩阵（2026-10-08，⚠️ 不同版）**：生产板=desk-pet 审计修复版（sha1 23078d1c，13:34 部署，截图 docs/verification/auditfix-deploy-20261008/）；测试机=192.168.137.76 **离线待补装**（10-08 起 ping 不通）；两板均**未带** 10-09 入口功能——新功能生效需 desk-pet+mijijia 两个 APK 成对更新。生产板 mijijia 仍为我们 debug 签名（换包需卸装回灌）。
 - **平台注意**：10.0.18.166 平台曾出现 chatAgent 故障致语音轮 SSE 断流（HTTP 200+控制事件后 ~2.2s
   空手关流）——**切换 Agent 即恢复**；全案（含双线对照/pktmon/tcpdump 方法论）见 `docs/solutions/workflow-issues/platform-sse-zero-chars-server-side-diagnosis.md`。
 - 双板 adb：`C:/platform-tools/adb.exe`（SDK E 盘 adb 为历史路径）；MSYS 下 install/push 本地路径须 `E:/` 风格；
