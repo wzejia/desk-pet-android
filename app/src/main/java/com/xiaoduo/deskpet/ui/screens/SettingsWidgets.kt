@@ -11,11 +11,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.core.content.FileProvider
@@ -31,6 +27,29 @@ internal fun SectionTitle(title: String) {
     )
 }
 
+/** 悬浮窗开关动作（见 [OverlaySwitchPolicy]）。 */
+internal enum class OverlaySwitchAction { ENABLE, DISABLE, BLOCKED_TO_PERMISSION }
+
+/**
+ * 悬浮窗开关判定（审计 ocr[79] 开关失步配套，纯 JVM 可测）：
+ * 未授权请求开 = 只跳权限页——不落 pref、不启服务（写被阻止时不产生乐观假象，Switch 由外部真源驱动保持 OFF）；
+ * 授权请求开 = ENABLE；请求关 = DISABLE（无论授权态，显式关闭都落 pref 停服务）。
+ * 守卫被删（未授权放行）→ OverlaySwitchPolicyTest 红。
+ */
+internal object OverlaySwitchPolicy {
+    fun decide(requestOn: Boolean, canDrawOverlays: Boolean): OverlaySwitchAction =
+        when {
+            !requestOn -> OverlaySwitchAction.DISABLE
+            canDrawOverlays -> OverlaySwitchAction.ENABLE
+            else -> OverlaySwitchAction.BLOCKED_TO_PERMISSION
+        }
+}
+
+/**
+ * 行开关（无状态，审计 ocr[79] 修复）：Switch 恒显示外部真源 [checked]；
+ * 用户 toggle 经 [onChecked] 由调用方同步写回快照状态驱动重组（写入被阻止时不产生乐观假象，
+ * 根除旧 `state = it` 无条件回写与外部失步：未授权开悬浮窗后 Switch 假 ON 直至某次 checked 真变化）。
+ */
 @Composable
 internal fun RowSwitch(
     title: String,
@@ -39,7 +58,6 @@ internal fun RowSwitch(
     enabled: Boolean,
     onChecked: (Boolean) -> Unit,
 ) {
-    var state by remember(checked) { mutableStateOf(checked) }
     Row(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
@@ -52,9 +70,9 @@ internal fun RowSwitch(
             }
         }
         Switch(
-            checked = state,
+            checked = checked,
             enabled = enabled,
-            onCheckedChange = { onChecked(it); state = it },
+            onCheckedChange = onChecked,
         )
     }
 }

@@ -62,12 +62,18 @@ fun SettingsScreen(onBack: () -> Unit, onOpenPermissions: () -> Unit) {
     // P1：开关 UI 态 = 用户偏好 && 授权（「我开着它就该在」，与 App 启动自愈语义一致），
     // 不再绑运行态（force-stop 后服务死但 pref=true，开关不应显示关）。
     var overlayEnabledPref by remember { mutableStateOf(Prefs.overlayEnabled(context)) }
+    // 快照开关（ocr[79] 修复配套：RowSwitch 无状态化后由调用方写回驱动；跟随外部 pref 变化走 ON_RESUME——
+    // 原内联读每次重组生效，气泡开关可从悬浮窗菜单改，此处补齐等价刷新点）
+    var fullscreenTranscript by remember { mutableStateOf(Prefs.fullscreenTranscript(context)) }
+    var showBubble by remember { mutableStateOf(Prefs.showBubble(context)) }
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
                 overlayGranted = Settings.canDrawOverlays(context)
                 overlayEnabledPref = Prefs.overlayEnabled(context)
+                fullscreenTranscript = Prefs.fullscreenTranscript(context)
+                showBubble = Prefs.showBubble(context)
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -101,24 +107,28 @@ fun SettingsScreen(onBack: () -> Unit, onOpenPermissions: () -> Unit) {
                 checked = overlayGranted && overlayEnabledPref,
                 enabled = true,
             ) { checked ->
-                if (checked) {
-                    if (Settings.canDrawOverlays(context)) {
+                // 判定抽 OverlaySwitchPolicy（ocr[79] 失步根源契约：未授权请求开零写副作用，
+                // 无状态 RowSwitch 不产生乐观假象，Switch 保持外部真源 OFF）
+                when (OverlaySwitchPolicy.decide(checked, Settings.canDrawOverlays(context))) {
+                    OverlaySwitchAction.ENABLE -> {
                         Prefs.setOverlayEnabled(context, true)
                         overlayEnabledPref = true
                         PetLogger.i("Settings", "start overlay service")
                         context.startService(Intent(context, PetOverlayService::class.java))
-                    } else {
+                    }
+                    OverlaySwitchAction.BLOCKED_TO_PERMISSION -> {
                         PetLogger.w("Settings", "overlay toggle blocked: permission not granted")
                         overlayGranted = false
                         onOpenPermissions()
                     }
-                } else {
-                    // 显式关闭：先落 pref=false（P1 自愈不再拉起）再停服务——
-                    // 此顺序与 PetOverlayService.onDestroy 注释约定一致（stopService 前自管 pref）
-                    Prefs.setOverlayEnabled(context, false)
-                    overlayEnabledPref = false
-                    PetLogger.i("Settings", "stop overlay service")
-                    context.stopService(Intent(context, PetOverlayService::class.java))
+                    OverlaySwitchAction.DISABLE -> {
+                        // 显式关闭：先落 pref=false（P1 自愈不再拉起）再停服务——
+                        // 此顺序与 PetOverlayService.onDestroy 注释约定一致（stopService 前自管 pref）
+                        Prefs.setOverlayEnabled(context, false)
+                        overlayEnabledPref = false
+                        PetLogger.i("Settings", "stop overlay service")
+                        context.stopService(Intent(context, PetOverlayService::class.java))
+                    }
                 }
             }
             TextButtonRow("悬浮窗权限引导", onOpenPermissions)
@@ -144,10 +154,11 @@ fun SettingsScreen(onBack: () -> Unit, onOpenPermissions: () -> Unit) {
             RowSwitch(
                 title = "全屏转写",
                 subtitle = "全屏语音模式下在屏幕底部显示回复文字",
-                checked = Prefs.fullscreenTranscript(context),
+                checked = fullscreenTranscript,
                 enabled = true,
             ) { checked ->
                 Prefs.setFullscreenTranscript(context, checked)
+                fullscreenTranscript = checked
                 PetLogger.i("Settings", "fullscreen_transcript -> $checked")
             }
             // S7-e：AEC spike 取证入口（仅 debug 渲染，release 不可见）
@@ -161,10 +172,11 @@ fun SettingsScreen(onBack: () -> Unit, onOpenPermissions: () -> Unit) {
             RowSwitch(
                 title = "气泡开关",
                 subtitle = "关闭后悬浮窗不再弹出回复气泡",
-                checked = Prefs.showBubble(context),
+                checked = showBubble,
                 enabled = true,
             ) { checked ->
                 Prefs.setShowBubble(context, checked)
+                showBubble = checked
                 PetLogger.i("Settings", "show_bubble -> $checked")
             }
 
