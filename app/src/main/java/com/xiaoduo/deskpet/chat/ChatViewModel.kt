@@ -1,5 +1,6 @@
 package com.xiaoduo.deskpet.chat
 
+import com.xiaoduo.deskpet.api.ChatMessage
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
