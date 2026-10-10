@@ -1,6 +1,143 @@
 # 小朵 Android 开发日志
 
 
+## 2026-10-11（一）Phase 3 收口：opus 评审可合入 + P2 修复（remove 复活陷阱）+ 合 main
+
+**opus 独立评审**（隔离 worktree @ a045459，只收客观材料）：五项验收锚全 PASS（855/0/0 真重跑、
+构建绿、环 0+hub 8+buildgen 1、资产逐字不变、红线六条零触碰）；行为零变化抽查 6/6 通过；变异锚
+抽查 3/3 实测真红（含「No tests found 不计红」的口径自纠）。**总评：可合入**。
+
+**P2 修复（评审 finding #1，Phase 内闭环不留尾）**：SEC-3 迁移包装 `edit()` 返回包装
+Editor——remove 同步删 legacy 同键（消费方显式删除意图优先于迁移保护；否则升级板
+TokenStore.clear（AguiClient 401 重登 6 处链）后旧 token 经 LEGACY 回落复活再吃一轮 401）。
+remove 只动被显式删除的键，NetConfig 直读的端点/账号键不受影响；clear() 无消费方，透传新库
++KDoc 警告混居限制。TDD：红（复活复现）→绿→变异（删 legacy 分支）红→还原。**857 绿**
+（855+2）+ assembleDebug 绿。
+**P3×2 留痕不修**（评审判可缓）：①PetLogger.write 失去 @Synchronized（init 前并发行只进
+logcat，窗口极窄有兜底）；②logFilePath() 跨天瞬时显示未存在文件（无数据影响）。
+
+**T5 合入**（855 绿持平，纯收敛）：重复簇 5 处对齐（RMS_FLOOR/TtsVoice 兜底/AG-UI 双块/
+ShelfNav page id/ThinkCleaner 正则）+ 死代码 2 处实锤删除（AudioCapture.record 死字段、全屏页
+冗余预热）+ 5 条上报不动手（接口签名/root 红线区/存疑不变量）。
+
+**挂账（部署批，待领导逐次授权）**：①生产板换包（refactor/p3 版，回灌法）→ 语义三链路取证
+（spec §2）→ §5.4 指标复测不回退判定（空闲/KWS adb 自动 + 播报中/唤醒→应答音现场项）→
+OverlayBubbleHub P2 票（真机气泡/双击回归）→ 真机 Keystore 跨重启验证（SEC-3）；②ocr[394]
+原子化 gate（wakeack 地界小票）；③Phase 4 门槛评审（spec §6）。
+
+```evidence
+verify_cmd: export PATH="/c/Program Files/Microsoft/jdk-17.0.20.8-hotspot/bin:$PATH" && ./gradlew.bat testDebugUnitTest --rerun-tasks && ./gradlew.bat assembleDebug
+verify_claim: tests=857 failures+errors=0 skipped=0（855+2：SecurePrefsTest remove 语义×2）；变异（删 legacy 分支）红→还原绿；assembleDebug 绿
+files_touched: [app/src/main/java/com/xiaoduo/deskpet/util/SecurePrefs.kt, app/src/test/java/com/xiaoduo/deskpet/util/SecurePrefsTest.kt]
+```
+
+
+## 2026-10-10（九）Phase 3 进行中：T4 合入（合并树 793 绿）+ 主对话 P3-2 收口（796 绿）+ 查证 2 条闭环
+
+**T4 合入**（merge 58d8a6c ← refactor/p3-t4 三 commit：53ba724 SEC-3 / a1ba709 PrefContract /
+47cf230 PetLogger）：独立核对（3 commit 地界零越界、消费方接线 diff 抽查吻合）→ 合并树复跑
+**793 绿 skipped=0**（770+23）。agent 上报处置：①ocr[372] AppLauncher 改引 + ②Prefs 内联默认值
+收敛单源 → 归收尾「常量收敛」小票（对账测试已钉住漂移）；③security-crypto 1.1.0=Google 弃用库
+终版（附录 B 效果优先合规），长期替代（DataStore+Keystore）挂部署批评估；④PetLogger 强杀丢
+<8KB 缓冲尾部权衡在案（历史逐行 open/close 无此窗口）。
+
+**P3-2 静默降级+降级期禁写**（附录 B 4 拍板落地，refactor/p3，chat/ 地界）：
+- `ChatStore.createSession()` 改可空（degraded 时 logger 显式留痕返 null，不再 `error()` 抛）；
+- 新增 `ChatDegradedPolicy`（纯 JVM：Op 三类写/读分面 + shouldMarkDegraded + allowWrite）；
+- `ChatViewModel` 六点接线：init 建会话失败→降级运行不崩溃+只读态；send/upload 入口
+  allowWrite 守卫+createSession null 双保险；newSession 降级拒（保持当前会话）；
+  rotateSessionIfIdle 降级不轮转旧会话继续（原吞异常继续发送等价）；deleteSession 回落
+  建会话失败→无当前会话只读（next 可空化消息加载）。degradedWrites 进程级 @Volatile，
+  重启重试（ChatStore degraded 同生命周期）。
+- TDD：红₁（用例 15 期望改「降级返 null 不抛」——拍板推翻原「向上抛」口径，实测红）→
+  绿（chat 包全绿）→ 全量 **796 绿 skipped=0**（793+3：ChatDegradedPolicyTest）→
+  变异锚（allowWrite 恒放行）`degradedRefusesAllWrites` 红 ✓。UI 反馈按拍板最小面=显式
+  日志（不碰 Phase，避免新 UI 行为——拍板比较基线是「崩溃 vs 降级」）。
+
+**查证 2 条闭环（均维持 P3 不升级）**：①ocr[161] `NetConfig.saveAll` 唯一调用方
+（SettingsEndpointEditor:208）漏传 `llmCloudProvider`（每次保存覆盖回 "openai"），但
+`llmCloudProvider()` 全仓零消费方 + UI 无编辑入口 → 覆盖无观察面；footgun 记收尾清单
+（saveAll 收参或删死键）。②ocr[375] `org.json:json` 仅 testImplementation、生产
+debugRuntimeClasspath 零捆绑（依赖树实测）→ AsrClient JVM CCE 属 JVM-only 路径，
+Android 用平台完整实现不受影响。
+
+**ocr[382] 双开麦竞态根修**（T1 上报承接，refactor/p3）：VSM `captureMutex` 互斥门 +
+`captureExclusivity` 挂起入口；AmbientCalibrator.collectAmbient 复用决策原子化（锁内 check，
+采集锁外——订阅同流无双开，流停欠采样窗由 ocr[384] MIN_SAMPLES 兜底）、临时流整窗持锁；
+VSM ensureCollectLoop 的 start 同锁（runBlocking）。**线程/锁序审计**（注释留痕）：teardown
+不进锁（校准持锁窗内 VSM 流必未跑=no-op cancel，且消除主线程 stopIdleCapture 阻塞面）；
+runBlocking 仅在「采麦未跑+校准窗」组合等待（KWS 常开走幂等早退；校准只在设置页，现实
+互斥）；叶子锁无死锁环。跨实例双开根因：临时流是 AudioCapture 新实例，OnceGate 实例内
+门闩防不了（T1 侦察实锤）。互斥靠库原语无新守卫逻辑，不造伪测试——15 个既有 VSM 行为
+守卫测试 + 全量 855 绿为验证主体。
+
+```evidence
+verify_cmd: export PATH="/c/Program Files/Microsoft/jdk-17.0.20.8-hotspot/bin:$PATH" && ./gradlew.bat testDebugUnitTest --rerun-tasks && ./gradlew.bat assembleDebug
+verify_claim: tests=855 failures+errors=0 skipped=0；assembleDebug 绿；互斥接线编译过（Mutex/withLock import 修正后）
+files_touched: [app/src/main/java/com/xiaoduo/deskpet/voice/pipeline/VoiceSessionManager.kt, app/src/main/java/com/xiaoduo/deskpet/voice/audio/AmbientCalibrator.kt]
+```
+
+**WAV 族 cloud 侧收口**（T1 上报回灌，refactor/p3）：`AliyunAsrClient`/`VolcengineAsrClient`
+`stripWavPcm`（镜像双胞胎）三路径修复——巨量 data size `start+size` 回绕→无溢出钳位；负
+chunkSize 推进回绕致 IOOBE→契约化 IAE；剩余装不下本块→无溢出比较循环退出走 44B 回退（原
+行为等价化）。**契约裁定**：ROB-14 既有测试锁定「负 data size 抛 IAE（调用方映射
+Result.Error）」——首版「宽容回退」语义与族契约（WavCodec require 一律 IAE）冲突，改判契约
+化。新测 `WavPcmStripBoundsTest` 2（双胞胎同测五路径）+ 变异锚（回退旧溢出代码）红 ✓。
+843 绿 skipped=0（841+2）。
+
+```evidence
+verify_cmd: export PATH="/c/Program Files/Microsoft/jdk-17.0.20.8-hotspot/bin:$PATH" && ./gradlew.bat testDebugUnitTest --rerun-tasks
+verify_claim: tests=843 failures+errors=0 skipped=0（841+2）；ROB-14 既有契约保持绿；变异（旧溢出代码回灌）WavPcmStripBoundsTest 红
+files_touched: [app/src/main/java/com/xiaoduo/deskpet/cloud/AliyunAsrClient.kt, app/src/main/java/com/xiaoduo/deskpet/cloud/VolcengineAsrClient.kt, app/src/test/java/com/xiaoduo/deskpet/cloud/WavPcmStripBoundsTest.kt]
+```
+
+
+
+```evidence
+verify_cmd: export PATH="/c/Program Files/Microsoft/jdk-17.0.20.8-hotspot/bin:$PATH" && ./gradlew.bat testDebugUnitTest --rerun-tasks
+verify_claim: tests=796 failures+errors=0 skipped=0（793 合并树+3 policy 测）；T4 合并树独立复验 793；变异锚 allowWrite 恒放行→degradedRefusesAllWrites 红；用例 15 红转绿（拍板口径反转）
+files_touched: [app/src/main/java/com/xiaoduo/deskpet/chat/ChatStore.kt, app/src/main/java/com/xiaoduo/deskpet/chat/ChatDegradedPolicy.kt, app/src/main/java/com/xiaoduo/deskpet/chat/ChatViewModel.kt, app/src/test/java/com/xiaoduo/deskpet/chat/ChatStoreTest.kt, app/src/test/java/com/xiaoduo/deskpet/chat/ChatDegradedPolicyTest.kt]
+```
+
+
+## 2026-10-10（八）Phase 3 开工：切票 4 张并行（波 1 已下发）+ 主对话 root 两件收口
+
+**切票**（地界=子包前缀，两两无文件交集，冲突矩阵逐票对过）：T1=voice/kws+audio 健壮性 17 条
+（KwsCore decode 族 7 / VoicePlayer 族 6 / AmbientCalibrator 4 / WAV 族 audio 侧）→
+`.worktrees/p3-t1`；T4=util/net（SEC-3 透明迁移+PrefContract 族 5+PetLogger 锁）→
+`.worktrees/p3-t4`——波 1 两 agent 已下发。待发波 2：T2=voice/client+pipeline+seam+policy
+（VSM 续听/盲区拆分+AsrClient 可取消+Factory 纪律+policy TOCTOU）、T3=ui（Markdown 列宽/
+PetView 静止 invalidate/Settings 失步）。主对话串行项：root 两件（本轮）+ 查证 2 条 + 重复簇/
+死代码剩余/P3-2 接线（排并行票合入后）。任务书 `.scratch/phase3/ticket-t{1,2,3,4}-*.md`
+（spec §7.2 口径）。编号漂移裁定：设计文档所引 ocr[26]/[27] 按审计原文在 AudioCapture.kt
+（=T1 地界，归 T1）；root 件 2 实体=Thread→scope+runBlocking 校准→launch+stopSelf(startId)。
+
+**root 两件（refactor/p3，TDD 全闭环）**：
+- **件 1 ocr[202] onWake TOCTOU**：新增 `WakeEntryGate`（纯 JVM，ReentrantReadWriteLock——
+  runExclusive 持读锁执行、close 取写锁关门=天然等待 in-flight 完成，幂等）。service 接线：
+  onWake 的 startListening 包 runExclusive（destroyed 预检保留为快路径）；onDestroy 先
+  `wakeGate.close()` 等唤醒处理完成再清 sink（孤儿 capture 不可达）。死锁安全实证：startListening
+  链路全同步无主线程依赖（cancelCurrentTurn 全同步/playAckThenListen 仅 launch）。红₁编译→
+  红₂骨架（close 不等待）`closeWaitsForInFlightBlock` 红→实现绿→变异（去锁）红。
+- **件 2 ocr[205] 裸 Thread→service-scoped scope**：新增 `KwsBootstrap`（纯 JVM 骨架：在途拒绝
+  重入〔原 initGate/backlog #8a 语义〕+ 销毁后拒绝 + factory 结果交付前查 isActive + 失败
+  onFailure 回调〔CE 透传；失败 job 正常结束=可重试，等价原 initGate.release 放行〕）。
+  service：主构造 `bootstrapScope` 默认参数（无参构造保留，系统反射实例化兼容）；init/shadow
+  改 scope.launch；校准 runBlocking 桥移除改独立 launch（销毁即取消，AudioRecord 由
+  AmbientCalibrator 挂起点+finally 释放）；失败收尾 stopSelf() → **stopSelf(startId)**（防旧
+  请求失败收尾误停新请求）；onDestroy 单点 `bootstrapScope.cancel()`（先 cancel 后清 sink）。
+  initGate（OnceGate）从 service 退役（类本体保留——AudioCapture 仍用）。红→绿→变异 ×3
+  （删 isActive 丢弃检查 / 删在途拒绝 / 删 onFailure）全红。
+- **验收**：全量 **770 绿 skipped=0**（761+9：WakeEntryGateTest 4 + KwsBootstrapTest 5）；
+  assembleDebug 绿；770 之前 WakeEntryGate/KwsBootstrap 单类迭代均带 `--rerun-tasks`。
+
+```evidence
+verify_cmd: export PATH="/c/Program Files/Microsoft/jdk-17.0.20.8-hotspot/bin:$PATH" && ./gradlew.bat testDebugUnitTest --rerun-tasks && ./gradlew.bat assembleDebug
+verify_claim: tests=770 failures+errors=0 skipped=0（761 基线+9 守卫测）；assembleDebug 绿；变异锚 WakeEntryGate 去锁/KwsBootstrap ×3 全红实录（见正文）
+files_touched: [app/src/main/java/com/xiaoduo/deskpet/WakeEntryGate.kt, app/src/main/java/com/xiaoduo/deskpet/KwsBootstrap.kt, app/src/main/java/com/xiaoduo/deskpet/VoiceForegroundService.kt, app/src/test/java/com/xiaoduo/deskpet/WakeEntryGateTest.kt, app/src/test/java/com/xiaoduo/deskpet/KwsBootstrapTest.kt, .gitignore, .scratch/phase3/]
+```
+
+
 ## 2026-10-10（七）Phase 2 收口：voice 七子包化 + SettingsScreen 拆分 + 94 条死/幻影 import 清零
 
 **交付**（refactor/p2，12 commits 合 main @ 1f3a3bd）：①voice 32 文件七子包化（pipeline7/audio6/wakeack6/kws5/client2/seam3/policy3；对 spec 六组建议的偏离已记录：echo 并入 audio、client 新增）；②PetView 归位 ui/overlay；③**94 条死/幻影 import 清零**（三批：24 KDoc 误加 + 23 未使用 + 47 phantom 全量清，全部编译器裁决，台账 `docs/audit/2026-10-10-phase0/dead-code-removal-ledger.md`）；④**SettingsScreen 1099→339**（5 兄弟文件：AgentPicker/EndpointEditor/SelfCheck/Kws/Widgets，大文件评估 P1 票）；⑤大文件拆分评估报告入库（P2 气泡 Hub/P3×3 挂批次；ChatViewModel 负结论不立项）。

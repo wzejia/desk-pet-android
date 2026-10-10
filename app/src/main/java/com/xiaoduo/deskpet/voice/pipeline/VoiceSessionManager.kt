@@ -24,6 +24,7 @@ import com.xiaoduo.deskpet.voice.client.TtsClient
 import com.xiaoduo.deskpet.voice.kws.EnergyGate
 import com.xiaoduo.deskpet.voice.policy.BubbleHidePolicy
 import com.xiaoduo.deskpet.voice.policy.ListeningHintPolicy
+import com.xiaoduo.deskpet.voice.seam.BlindWindowBackfiller
 import com.xiaoduo.deskpet.voice.seam.StampedBlock
 import com.xiaoduo.deskpet.voice.seam.VadSeamPolicy
 import com.xiaoduo.deskpet.voice.seam.WakeBlindWindowBuffer
@@ -37,6 +38,9 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.isActive
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import java.util.concurrent.atomic.AtomicBoolean
@@ -132,45 +136,37 @@ class VoiceSessionManager(
         // default（纯悬浮窗无会话兕底，行为同旧版）。
         val threadKey = threadKeyProvider?.invoke()?.takeIf { it.isNotBlank() }
             ?: AguiClient.DEFAULT_THREAD_KEY
-        val ctx = appContext ?: return aguiFactory().chat(
-            stripped,
-            onDelta = onDelta,
-            threadKey = threadKey,
-            roundId = roundId,
-            onToolCallEvent = { name, runId ->
-                turnSawToolCall.set(true)
-                logger("MCP tool call seen (TOOL_CALL_START) name=$name runId=$runId")
-                shelfMcpSync(name, runId) // S41：动画联动；S67b：runId 供密集架判定同轮 START 不让位旧卡
-            },
-            onToolCallOutcome = { oc ->
-                oc?.let {
-                    logger("MCP tool result captured name=${it.toolCallName}")
-                    shelfMcpOutcome(it) // S43：结果卡转发（桥内过滤，失败只记日志）
-                }
-            },
-        )
-        if (!NetConfig.llmIsCloud(ctx)) return aguiFactory().chat(
-            stripped,
-            onDelta = onDelta,
-            threadKey = threadKey,
-            roundId = roundId,
-            onToolCallEvent = { name, runId ->
-                turnSawToolCall.set(true)
-                logger("MCP tool call seen (TOOL_CALL_START) name=$name runId=$runId")
-                shelfMcpSync(name, runId)
-            },
-            onToolCallOutcome = { oc ->
-                oc?.let {
-                    logger("MCP tool result captured name=${it.toolCallName}")
-                    shelfMcpOutcome(it)
-                }
-            },
-        )
+        val ctx = appContext ?: return aguiChat(stripped, onDelta, threadKey, roundId)
+        if (!NetConfig.llmIsCloud(ctx)) return aguiChat(stripped, onDelta, threadKey, roundId)
         return when (val r = CloudClientFactory.chat(ctx).chat(listOf(Message("user", stripped)), null, onDelta)) {
             is OpenAIChatClient.Result.Success -> AguiClient.ChatResult.Success(r.text, r.firstTokenLatencyMs, 1)
             is OpenAIChatClient.Result.Error -> AguiClient.ChatResult.Error(r.message)
         }
     }
+
+    /** F-VSM-6（P3-T5 收敛）：平台分支共用的 AG-UI 调用（tool 回调接线单一来源，行为同原两段逐字副本）。 */
+    private fun aguiChat(
+        stripped: String,
+        onDelta: (String) -> Unit,
+        threadKey: String,
+        roundId: String,
+    ): AguiClient.ChatResult = aguiFactory().chat(
+        stripped,
+        onDelta = onDelta,
+        threadKey = threadKey,
+        roundId = roundId,
+        onToolCallEvent = { name, runId ->
+            turnSawToolCall.set(true)
+            logger("MCP tool call seen (TOOL_CALL_START) name=$name runId=$runId")
+            shelfMcpSync(name, runId) // S41：动画联动；S67b：runId 供密集架判定同轮 START 不让位旧卡
+        },
+        onToolCallOutcome = { oc ->
+            oc?.let {
+                logger("MCP tool result captured name=${it.toolCallName}")
+                shelfMcpOutcome(it) // S43：结果卡转发（桥内过滤，失败只记日志）
+            }
+        },
+    )
 
     /** 气泡出口抽象（Android 侧适配 PetOverlayService.instance；show_bubble 开关在 S3 API 内）。 */
     interface BubbleSink {
@@ -367,28 +363,31 @@ class VoiceSessionManager(
 
     // ---------------- S40 唤醒应答期盲区 ----------------
 
-    /** 盲区环形缓冲：暂存唤醒接缝时代（唤醒命中→vad.start）采麦块，接缝后回灌 VAD。 */
-    private val wakeBlindBuffer = WakeBlindWindowBuffer()
+    /**
+     * 盲区回灌编排（P3-T2 拆分：接缝水位/挂账/回灌消费聚合于 [BlindWindowBackfiller]，
+     * 缓冲本体在 [WakeBlindWindowBuffer]；接缝去向判定 seamPolicy 与测试缝留本面）。
+     */
+    private val blindBackfiller = BlindWindowBackfiller(
+        buffer = WakeBlindWindowBuffer(),
+        echoCancelEnabled = { echoCancelProvider() },
+        processBlock = { echoCanceller.processBlock(it) },
+        feedVad = { vad.feed(it) },
+        onVadEvent = { handleVadEvent(it) },
+        vadStartDelayMs = { vadStartDelayMs },
+        logger = logger,
+    )
 
     /** 接缝水位策略：逐块判去向（ack 时代→缓冲 / 接缝后首块→回灌 / 平常→直通）。 */
     private val seamPolicy = VadSeamPolicy()
 
-    /** 回灌挂账：唤醒路径 vad.start 后置位，首个接缝后块触发回灌消费；打断清账。 */
-    @Volatile
-    private var pendingBlindBackfill = false
-
-    /** 接缝水位 = vad.start 瞬间（nanoTime，与采麦盖戳同域）：ack 时代判定基准。 */
-    @Volatile
-    private var vadSeamNs = 0L
-
     /** 测试缝：盲区缓冲占用（S40 单测断言用）。 */
-    internal val blindBufferSizeForTest: Int get() = wakeBlindBuffer.size
+    internal val blindBufferSizeForTest: Int get() = blindBackfiller.bufferSize
 
     /** 测试缝：回灌挂账标志（S40 单测断言用）。 */
-    internal val pendingBlindBackfillForTest: Boolean get() = pendingBlindBackfill
+    internal val pendingBlindBackfillForTest: Boolean get() = blindBackfiller.pending
 
     /** 测试缝：接缝水位（S65 单测构造 delay 窗迟到块时间戳用）。 */
-    internal val vadSeamNsForTest: Long get() = vadSeamNs
+    internal val vadSeamNsForTest: Long get() = blindBackfiller.seamNs
 
     // S23 遥测累加器：50 块窗口内进/出 RMS 均值（口径同 vad diag level，可直接对照校准分布）
     private var echoDiagIn = 0.0
@@ -481,7 +480,7 @@ class VoiceSessionManager(
      */
     private fun playAckThenListen() {
         val epoch = wozaiEpoch.incrementAndGet()
-        wakeBlindBuffer.clear() // S40：新唤醒清陈缓冲，防旧轮音频泄入新轮回灌
+        blindBackfiller.clearBuffer() // S40：新唤醒清陈缓冲，防旧轮音频泄入新轮回灌（原语义：不动挂账）
         _wakeAckActive.value = true
         PetOverlayService.setPetState(PetFrameTable.WAITING)
         transition(VoiceStateRouter.State.SPEAKING, "wake-ack wozai")
@@ -522,9 +521,9 @@ class VoiceSessionManager(
             delay(vadStartDelayMs)
             if (isActive && state == VoiceStateRouter.State.SPEAKING) {
                 // S40：接缝水位先于 vad.start 落笔（此后捕获的块均判接缝后）+ 挂账回灌
-                vadSeamNs = System.nanoTime()
+                blindBackfiller.markSeam(System.nanoTime())
                 vad.start()
-                pendingBlindBackfill = true
+                blindBackfiller.armPending()
                 // S15：置一次性抑制标——transition(LISTENING) 不当即显提示泡，
                 // 「我在」驻留 linger 后由 swap job 顶替（内容替换，无 hide 间隙）
                 suppressListeningHintOnce = true
@@ -548,8 +547,7 @@ class VoiceSessionManager(
     fun cancelCurrentTurn() {
         // S40：被打断轮的盲区缓冲/回灌挂账全清——防旧轮 ack 时代音频回灌进新轮
         // （重唤醒/打断均经此处，单点收口）
-        pendingBlindBackfill = false
-        wakeBlindBuffer.clear()
+        blindBackfiller.abortAndClear()
         when (state) {
             VoiceStateRouter.State.IDLE -> Unit
             VoiceStateRouter.State.LISTENING -> {
@@ -567,6 +565,7 @@ class VoiceSessionManager(
                 wozaiJob?.cancel()
                 wakeAck?.stop()
                 currentPlayer?.stop()
+                asr.cancelInFlight() // §5.4：封轮同步取消在途识别（阻塞 execute 立即解脱；无在途 no-op）
                 pipelineJob?.cancel()
                 bubble.hide()
                 _wakeAckActive.value = false // S8-7：唤醒被打断复位，防下次 SPEAKING 漏 TALKING
@@ -655,20 +654,14 @@ class VoiceSessionManager(
     @Volatile
     private var vadDiagTicks = 0
 
-    // ---- S51 断句续听状态（仅采麦消费线程写，cancel/停止跨线程清，续听锁保护）----
-    /** 续听片段累积（各片段均过 min_utterance 门，合并后交 ASR）。 */
-    private val continuationParts = ArrayList<ShortArray>()
-
-    /** 续听窗剩余块数（0=无挂起；语音级块冻结，连续静音递减）。 */
-    @Volatile
-    private var continuationTicksLeft = 0
-
-    /** 各片段 maxLevel 最大值（合并事件诊断用，「一值定层」口径）。 */
-    @Volatile
-    private var continuationMaxLevel = 0.0
-
-    /** 续听状态锁（routeBlock 消费线程 vs cancel 跨线程清理竞态收口）。 */
-    private val continuationLock = Any()
+    // ---- S51 断句续听（状态与判定聚合于 [ContinuationWindow]，P3-T2 拆分搬移；
+    //      vad 副作用与派发出口留本面接续，CONTINUATION_TICKS 测试锚保持 VSM 面）----
+    private val continuationWindow = ContinuationWindow(
+        windowTicks = CONTINUATION_TICKS,
+        isListening = { state == VoiceStateRouter.State.LISTENING },
+        frozen = { lvl -> lvl >= vad.currentEndThreshold() || vad.isSpeaking },
+        logger = logger,
+    )
 
     /** S19-2 空 ASR 续听剩余额度（真文本/新对话链复位）。 */
     @Volatile
@@ -689,9 +682,28 @@ class VoiceSessionManager(
     /** 校准用：采麦是否已在跑（KWS 常开期间为 true，校准复用同一条流防双开抢麦）。 */
     val captureRunning: Boolean get() = capture.isRunning
 
+    /**
+     * ocr[382] 根修：采麦起流互斥门。校准临时流（AudioCapture 新实例，OnceGate 实例内
+     * 门闩防不了跨实例双开）与 KWS 起流经此串行——AmbientCalibrator.collectAmbient 的
+     * 复用决策与临时流整窗走 [captureExclusivity]，本侧 [ensureCollectLoop] 的 start
+     * 同锁。teardownIdleCapture **不进锁**：校准持锁窗内 VSM 流必未跑（决策已判
+     * not-running），teardown 是 no-op cancel，无需互斥（也避免主线程 stopIdleCapture
+     * 阻塞在校准 5s 窗上）。
+     * 阻塞代价审计：[ensureCollectLoop] 的 runBlocking 仅在「采麦未跑 + 校准窗进行中」
+     * 才可能等待（最长 5s）——KWS 常开/对话期采麦已在跑走幂等早退不碰锁；校准只在
+     * 设置页触发，与起流路径现实互斥。锁为叶子锁（锁内无其他锁获取），无死锁环。
+     */
+    private val captureMutex = Mutex()
+
+    /** 校准侧互斥入口：块内决策/起流与 [ensureCollectLoop] 的 start 串行。 */
+    suspend fun <T> captureExclusivity(block: suspend () -> T): T = captureMutex.withLock { block() }
+
     private fun ensureCollectLoop() {
         if (collectJob?.isActive == true) return
-        capture.start(scope)
+        // ocr[382]：start 与校准临时流互斥（见 [captureMutex] 审计注释）
+        runBlocking {
+            captureMutex.withLock { capture.start(scope) }
+        }
         collectJob = scope.launch(Dispatchers.Default) {
             capture.stampedBlocks.collect { routeBlock(it) }
         }
@@ -704,7 +716,7 @@ class VoiceSessionManager(
                 // S40：唤醒接缝时代（唤醒命中→vad.start）块进盲区缓冲——S12 KWS 实时
                 // 解码不变；存原始块+捕获戳（S65：回灌按截止线滤回声纪元块），过 NLMS
                 // （ACK 参考已由钩子推入）。
-                if (_wakeAckActive.value) wakeBlindBuffer.add(block, stamped.capturedAtNs)
+                if (_wakeAckActive.value) blindBackfiller.add(block, stamped.capturedAtNs)
                 // S23：播放期麦块先过 NLMS 消回声再进 KWS（主+影子双引擎同受益）；
                 // 无参考/开关关=原样直通（processBlock 内部有新鲜度快路径）
                 val out = if (echoCancelProvider()) echoCanceller.processBlock(block) else block
@@ -731,14 +743,13 @@ class VoiceSessionManager(
                 // （533ms 窗口装下 1.2s 音频），且含「我在」回声抬 S19-1 阈值吞话头。
                 // FIFO 保证接缝后首块到达时 ack 时代块已全部到齐，回灌时序完整。
                 // 改道块跳过 S33 旁路与 diag（KWS 已实时解过/非实时音频不入电平轨迹）。
-                when (seamPolicy.onBlock(pendingBlindBackfill, stamped.capturedAtNs, vadSeamNs)) {
+                when (seamPolicy.onBlock(blindBackfiller.pending, stamped.capturedAtNs, blindBackfiller.seamNs)) {
                     VadSeamPolicy.Action.BUFFER -> {
-                        wakeBlindBuffer.add(block, stamped.capturedAtNs)
+                        blindBackfiller.add(block, stamped.capturedAtNs)
                         return
                     }
                     VadSeamPolicy.Action.BACKFILL_THEN_LIVE -> {
-                        pendingBlindBackfill = false
-                        backfillBlindWindow()
+                        blindBackfiller.disarmThenBackfill()
                     }
                     VadSeamPolicy.Action.LIVE -> Unit
                 }
@@ -789,75 +800,23 @@ class VoiceSessionManager(
 
     // ---------------- S51 断句续听 ----------------
 
-    /*
-     * 病灶（09-18 板端实锤）：固定静音窗判停天生吃不掉长句字组气口——用户说
-     * 「盘点当前有哪些档案」在「有哪」后换气，气口>判停窗即切尾，且切尾改变
-     * LLM 工具路由（盘点被当查询调 c_archive_query）。三轮对照实验（轻声/正常音量
-     * ×600/800ms 窗）钉死切尾位置=气口位置，与音量无关（更响反而切得更早）。
-     *
-     * 机制（Siri/小爱同款）：判停片段不即派发——累积 + 重启 VAD + 续听窗倒计时；
-     * 窗内出现语音级块（用户续说）则冻结倒计时交 VAD 判起，下一片段到达重置窗口；
-     * 连续静音耗尽窗口才合并派发。代价：每轮派发延迟 +[CONTINUATION_TICKS] 块。
-     *
-     * 直通例外：按住松开 stopListening（松开=明确说完）与单测直注 onUtterance
-     * 不经此路径，保持即时派发语义。
-     */
+    // 病灶/机制说明随状态搬移至 [ContinuationWindow]（P3-T2 拆分，注释原文保留）。
 
     /** 判停片段不即派发：累积 + 重启 VAD + 重置续听窗（状态保持 LISTENING，声纹续显）。 */
     private fun holdForContinuation(ev: VadDetector.Event.Utterance) {
-        synchronized(continuationLock) {
-            continuationParts.add(ev.pcm)
-            continuationMaxLevel = maxOf(continuationMaxLevel, ev.maxLevel)
-            continuationTicksLeft = CONTINUATION_TICKS
-        }
+        continuationWindow.hold(ev)
         vad.startLevelOverride = { VadDetector.SPEECH_END_LEVEL } // S51：续听期判起降敏到 end 线（轻声档案名可成型片段）
         vad.start() // 单发后已停机，重启接下一片段（listenTicks/preRoll 重置，多片段各自不超 8s）
-        logger(
-            "S51 continuation hold: parts=${continuationParts.size} " +
-                "samples=${continuationParts.sumOf { it.size }} window=$CONTINUATION_TICKS blocks",
-        )
     }
 
-    /** 续听窗倒计时（仅聆听活块驱动，每块一次）：≥当前判停阈值（end 线，全链单标“静音”定义）
-     *  或片段成型中冻结；真静音耗尽→合并派发。 */
+    /** 续听窗倒计时（仅聆听活块驱动，每块一次）：真静音耗尽→合并派发。 */
     private fun tickContinuation(lvl: Double) {
-        if (continuationTicksLeft <= 0) return
-        // 冻结线必须与判停同域（end 线 0.03）而非判起线 0.05：轻声续说（0.03~0.05 频段）
-        // 若被当静音倒数，会在用户开口说档案名时照常派发+停 VAD，整段丢弃（板端 17:00 实锤）
-        // S55（2026-09-21 双板实证）：噪声环境电平 0.19~0.29（判停线 0.03 的 7~10 倍）下
-        // 冻结永不解除 → hold 无限累积（实测 parts=8/66s 零派发）=「说完不回答」根因。
-        // 窗=1（暂关续听）时冻结短路——无条件倒数，判停后必派发；窗>1 恢复时冻结语义回归。
-        if (CONTINUATION_TICKS > 1 && (lvl >= vad.currentEndThreshold() || vad.isSpeaking)) return
-        val fire = synchronized(continuationLock) {
-            if (continuationTicksLeft > 0) continuationTicksLeft-- == 1 else false
-        }
-        if (fire) dispatchContinuation()
+        if (continuationWindow.tick(lvl)) dispatchContinuation()
     }
 
     /** 窗口耗尽：拼接片段成单条 utterance，走 onUtterance 原派发语义（防双控不重复）。 */
     private fun dispatchContinuation() {
-        val merged = synchronized(continuationLock) {
-            if (continuationTicksLeft != 0 || continuationParts.isEmpty() ||
-                state != VoiceStateRouter.State.LISTENING
-            ) {
-                continuationParts.clear()
-                continuationTicksLeft = 0
-                continuationMaxLevel = 0.0
-                null
-            } else {
-                val pcm = ShortArray(continuationParts.sumOf { it.size })
-                var off = 0
-                for (p in continuationParts) {
-                    p.copyInto(pcm, off)
-                    off += p.size
-                }
-                val ev = VadDetector.Event.Utterance(pcm, continuationMaxLevel)
-                continuationParts.clear()
-                continuationTicksLeft = 0
-                continuationMaxLevel = 0.0
-                ev
-            }
-        } ?: return
+        val merged = continuationWindow.takeForDispatch() ?: return
         vad.stop() // 派发后 VAD 停机（对齐单发不变式）；多轮/空 ASR 续听由管线侧重启
         vad.startLevelOverride = null // S51：退出续听态，判起线回归校准联动
         logger(
@@ -869,39 +828,7 @@ class VoiceSessionManager(
     /** 续听挂起全清（backToIdle 单点复位纪律，同 kwsPaused；新唤醒轮也走此清）。 */
     private fun clearContinuation() {
         vad.startLevelOverride = null // S51：判起线回归校准联动
-        synchronized(continuationLock) {
-            continuationParts.clear()
-            continuationTicksLeft = 0
-            continuationMaxLevel = 0.0
-        }
-    }
-
-    /**
-     * S40：回灌盲区缓冲到 VAD（接缝后首个块触发，采集序 FIFO——话头在前）。
-     * S65 回声纪元守卫：截止线 cutoff = seam - (vadStartDelayMs + ECHO_TAIL_GUARD_MS)
-     * ——wozai 播放期捕获的块（capturedAt < 写完时刻 ≈ seam - vadStartDelayMs，含旧 TTS
-     * 残声与「我在」回声）整段丢弃：回灌发生时 NLMS 参考已过期（>REF_FRESH_MS 直通）
-     * 零消除，直灌必产伪 utterance（2026-09-23 测试板三轮打断重唤醒实锤：活块 vad diag
-     * 全静却 96ms 后报 1.2s 语音，ASR 转出「告诉我我在。」假轮抢占聆听窗）。保留
-     * delay 窗尾部（写完+喇叭尾巴余量之后）捕获的迟到块——S40 话头找回收窄存续。
-     * 块仍过 NLMS（保底，若参考尚新鲜）；回灌不喂 kwsSink：KWS 分支已实时解过这些块，
-     * 双喂恐同声词尾二次命中触发重唤醒环。回灌途中 utterance 即刻进管线并中止回灌
-     * （VAD 已停机，余块放弃——本块之后的活块继续走正常路由）。
-     */
-    private fun backfillBlindWindow() {
-        val total = wakeBlindBuffer.size
-        if (total == 0) return
-        val cutoffNs = vadSeamNs - (vadStartDelayMs + ECHO_TAIL_GUARD_MS) * 1_000_000L
-        val blocks = wakeBlindBuffer.drainFrom(cutoffNs)
-        logger("S40 blind-window backfill: ${blocks.size} blocks, S65 echo-era dropped ${total - blocks.size}")
-        for (b in blocks) {
-            val out = if (echoCancelProvider()) echoCanceller.processBlock(b) else b
-            val ev = vad.feed(out)
-            if (ev != null) {
-                handleVadEvent(ev)
-                if (ev is VadDetector.Event.Utterance || ev is VadDetector.Event.Timeout) return
-            }
-        }
+        continuationWindow.clear()
     }
 
     // ---------------- 对话管线 ----------------
@@ -1320,8 +1247,5 @@ class VoiceSessionManager(
          *  2026-09-23 用户拍板：维持窗=1 现状（S60 尾垫已覆盖句尾弱音节场景，
          *  气口合并语义不恢复；此决策已闭环，勿再当悬案翻出）。 */
         internal const val CONTINUATION_TICKS = 1
-
-        /** S65 回声纪元尾巴余量：wozai 写完（playBlocking 返回）后喇叭/混响残余保护窗。 */
-        internal const val ECHO_TAIL_GUARD_MS = 150L
     }
 }

@@ -10,9 +10,10 @@ package com.xiaoduo.deskpet.chat
  */
 object ThinkCleaner {
 
-    private val BLOCK = Regex("<think>[\\s\\S]*?</think>")
     private const val OPEN = "<think>"
     private const val CLOSE = "</think>"
+    // P3-T5：正则内 <think>/</think> 改引上述常量（模板展开后与原字面量逐字相同）
+    private val BLOCK = Regex("$OPEN[\\s\\S]*?$CLOSE")
 
     /**
      * 剥除 think 内容：

@@ -44,7 +44,13 @@ object WavCodec {
         while (off + 8 <= wav.size) {
             val id = asciiAt(wav, off)
             val size = leIntAt(wav, off + 4)
-            require(size >= 0 && off + 8 + size <= wav.size) { "WAV chunk $id 越界（size=$size）" }
+            // ocr[41]：无溢出形式——旧 `off + 8 + size <= wav.size` 在 size=0x7FFFFFFF 时
+            // 回绕成负值误放行：非 data chunk 的 off 随后回绕负值，asciiAt 抛
+            // IndexOutOfBoundsException（破坏「损坏输入一律 IllegalArgumentException」契约）；
+            // data chunk 则 copyOfRange 收到 from>to（VM 限上限内 ~2GB 分配）。循环守卫
+            // `off + 8 <= wav.size` 已保证右式 ≥0，本式无溢出。变异锚：回退溢出形式 →
+            // WavCodecBoundsTest 红。
+            require(size >= 0 && size <= wav.size - off - 8) { "WAV chunk $id 越界（size=$size）" }
             if (id == "data") return wav.copyOfRange(off + 8, off + 8 + size)
             off += 8 + size + (size and 1) // chunk 数据按偶数字节对齐
         }

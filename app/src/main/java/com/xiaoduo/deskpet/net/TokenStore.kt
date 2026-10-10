@@ -1,6 +1,8 @@
 package com.xiaoduo.deskpet.net
 
 import android.content.Context
+import android.content.SharedPreferences
+import com.xiaoduo.deskpet.util.SecurePrefStore
 
 /**
  * 平台 token 条目：36 字符 UUID + 获取时间戳（Spec 数据模型 TokenEntry）。
@@ -38,12 +40,16 @@ object TokenPolicy {
     }
 }
 
-/** token 持久化（SharedPreferences）；写日志严禁带 token 明文。 */
+/** token 持久化（SEC-3 迁加密库，迁移收敛在本类内部，方法签名零变化）；写日志严禁带 token 明文。 */
 class TokenStore(
     context: Context,
     private val clock: () -> Long = System::currentTimeMillis,
 ) {
-    private val sp = context.getSharedPreferences(FILE, Context.MODE_PRIVATE)
+    // 新库 xiaoduo_net_secure（AES256-GCM）；旧明文库 xiaoduo_net 只读回落+搬迁写回、永不删除
+    //（同文件旧库仍被禁改的 NetConfig 直读——只搬不删，NetConfig 零影响）。
+    private val sp: SharedPreferences = SecurePrefStore.migrating(
+        context.applicationContext, SECURE_FILE, FILE,
+    )
 
     fun load(): TokenEntry? {
         val token = sp.getString(KEY_TOKEN, null) ?: return null
@@ -67,6 +73,7 @@ class TokenStore(
 
     companion object {
         private const val FILE = "xiaoduo_net"
+        private const val SECURE_FILE = "xiaoduo_net_secure"
         private const val KEY_TOKEN = "platform_token"
         private const val KEY_OBTAINED_AT = "platform_token_obtained_at"
     }

@@ -11,6 +11,8 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONObject
 import java.io.IOException
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicReference
+import okhttp3.Call
 
 /**
  * SenseVoice ASR 客户端（纯 Kotlin 零 Android import，JVM 可测）。
@@ -24,6 +26,13 @@ class AsrClient(
     private val endpoint: String, // 完整转写 URL，如 http://10.0.18.97:9802/audio/asr/transcribe
     private val logger: (String) -> Unit = {},
 ) {
+
+    /**
+     * 在途识别调用挂点（spec §5.4 可取消路径的注册点）：execute 前注册、finally 按
+     * CAS 清除（旧轮残跑未清时不得误清新轮注册的调用）。管线单飞（VSM pipelineJob
+     * 守卫）保证同时在途至多一个。
+     */
+    private val inFlightCall = AtomicReference<Call?>(null)
 
     /**
      * 整段 16kHz/Int16/mono PCM 一次无状态转写（VAD 判停后送，不含尾部静音防幻觉 #14）。
@@ -43,8 +52,10 @@ class AsrClient(
             .writeTimeout(TIMEOUT_S, TimeUnit.SECONDS)
             .build()
         logger("asr POST $endpoint, wav=${wav.size}B (pcm=${pcm16k.size}B)")
+        val call = client.newCall(req)
+        inFlightCall.set(call)
         val respText = try {
-            client.newCall(req).execute().use { resp ->
+            call.execute().use { resp ->
                 val text = resp.body?.string().orEmpty()
                 if (!resp.isSuccessful) {
                     return fail("ASR HTTP ${resp.code}: ${envelopeMsg(text)}")
@@ -53,6 +64,8 @@ class AsrClient(
             }
         } catch (e: IOException) {
             return fail("ASR 网络错误: ${e.message}")
+        } finally {
+            inFlightCall.compareAndSet(call, null) // 只清自己注册的：防旧轮残跑清掉新轮挂点
         }
         val json = runCatching { JSONObject(respText) }.getOrNull()
             ?: return fail("ASR 响应非 JSON 信封: ${respText.take(120)}")
@@ -67,6 +80,17 @@ class AsrClient(
         }
         logger("asr ok, text=${text.length} chars")
         return AsrContract.Result.Success(text)
+    }
+
+    /**
+     * 取消在途识别（spec §5.4 性能抓手）：调用方封轮链（VSM cancelCurrentTurn）显式调用
+     * ——OkHttp Call.cancel 传播，阻塞中的 execute 立即以 IOException 落地走既有失败路径
+     * （封轮后静默，无幽灵输出）。无在途/已收尾 no-op（Call.cancel 幂等安全）。
+     * 行为红线：正常识别语义零变化；取消仅在显式调用时发生。
+     * 变异锚：本方法空转或删注册 → AsrClientCancelTest 用例 1 红（超时）。
+     */
+    fun cancelInFlight() {
+        inFlightCall.get()?.cancel()
     }
 
     private fun fail(msg: String): AsrContract.Result {
