@@ -1,5 +1,6 @@
 package com.xiaoduo.deskpet.voice.kws
 
+import java.util.Locale
 import java.util.concurrent.ArrayBlockingQueue
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicLong
@@ -36,7 +37,7 @@ class KwsCore(
     private val logger: (String) -> Unit,
     private val sampleRate: Int,
     queueCapacity: Int,
-    private val now: () -> Long = System::currentTimeMillis,
+    private val now: () -> Long = MONOTONIC_NOW,
     private val statsIntervalMs: Long = STATS_INTERVAL_MS,
     private val hangoverBlocks: Int = KwsDefaults.GATE_HANGOVER_BLOCKS,
     /** 解码线程 Java 优先级：主引擎默认 [DEFAULT_DECODE_THREAD_PRIORITY]，影子传 MIN。 */
@@ -63,6 +64,13 @@ class KwsCore(
 
     @Volatile
     private var running = true
+
+    /**
+     * ocr[16]：命中派发段与 release 的 running=false 写互斥锁——running 复查+递增计数+
+     * 派发+命中 reset 收进同一临界区，release 翻 running 必须持同一把锁，旧 check-then-act
+     * 小窗（复查过后 release 整段返回、命中才派发）即被关闭。
+     */
+    private val dispatchLock = Any()
 
     private val released = AtomicBoolean(false)
 
@@ -125,15 +133,31 @@ class KwsCore(
         fed.incrementAndGet()
         // S11-6 延迟取证探针：armed 时入队块打一行（tag 随注入 logger，生产=KwsEngine），
         // 与 AudioCapture 侧 `cap rms=…` 行时间戳同域对照即得中段延迟；未 arm 零开销。
-        if (AudioProbe.armed) logger("feed rms=%.4f".format(rms))
+        if (AudioProbe.armed) logger(feedRmsLine(rms))
         offer(Work.Samples(samples))
     }
 
-    /** 入队（满丢最旧再入——音频块与 sentinel 同策；64 块 ≈6.4s 积压才丢 sentinel）。 */
+    /**
+     * 入队：满丢最旧（KWS 语义保最新音频，陈块无唤醒价值）。
+     * ocr[13] 守卫：GapReset sentinel 是 gap-reset 唯一边载体，被 drop-oldest 静默挤出 →
+     * 冻结部分分泄漏到下一声音事件成假命中，且 sentinel 丢失不可恢复（音频块可丢，
+     * sentinel 不可再造）——挤到 sentinel 时回插它、改丢一块陈旧 Samples。
+     * feed 单写者（采麦回调线程）+ decode 单读者，poll-then-offer 两步无中间竞态。
+     * 变异锚：回退纯 drop-oldest（不回插）→ KwsCoreRobustnessTest 红。
+     */
     private fun offer(work: Work) {
-        if (!queue.offer(work)) {
-            queue.poll()
-            queue.offer(work)
+        while (!queue.offer(work)) {
+            val oldest = queue.poll() ?: continue // 队列被并发抽干（理论不可达）：回重试
+            if (oldest !is Work.GapReset) continue // 挤掉陈旧音频块：已腾一格，回重试
+            // 挤到 sentinel：回插，改从队头再取一件处置
+            val second = queue.poll()
+            if (second is Work.GapReset) {
+                queue.offer(oldest) // 双 sentinel（理论不可达）：弃新保旧沿，已腾一格
+                continue
+            }
+            queue.offer(oldest)
+            if (second == null) return // 队列仅剩 sentinel（capacity=1 病态防御）：弃新块保 sentinel
+            // second = 陈旧 Samples 已弃：已腾一格，回重试 offer(work)
         }
     }
 
@@ -161,21 +185,34 @@ class KwsCore(
     private fun decodeBlock(samples: FloatArray) {
         try {
             native.acceptWaveform(samples, sampleRate)
+            var hitDroppedInRelease = false
             while (native.isReady()) {
                 native.decode()
                 val keyword = native.resultKeyword()
                 if (keyword.isNotBlank()) {
-                    // 回归守卫：release 进行中命中只记日志不派发（删此 → 已毁服务
-                    // 幻影唤醒 startListening → KwsCoreTest 红）
-                    if (!running) {
-                        logger("keyword hit dropped (release in progress): $keyword")
-                        runCatching { native.reset() }
-                        break
+                    // ocr[16]：running 复查+计数+派发+命中 reset 收进 dispatchLock，与
+                    // release 的 running=false 写互斥——旧 check-then-act 小窗（复查过后
+                    // release 整段返回、命中才派发）即被关闭。派发回调毫秒级，release 等
+                    // 锁远小于 JOIN 预算。变异锚：删 dispatchLock → KwsCoreRobustnessTest 红。
+                    synchronized(dispatchLock) {
+                        if (!running) {
+                            // 回归守卫：release 进行中命中只记日志不派发（删此 → 已毁服务
+                            // 幻影唤醒 startListening → KwsCoreTest 红）
+                            logger("keyword hit dropped (release in progress): $keyword")
+                            runCatching { native.reset() }
+                            hitDroppedInRelease = true
+                        } else {
+                            val n = hits.incrementAndGet()
+                            logger("keyword hit: $keyword (#$n, fed=${fed.get()}, gated=${gated.get()})")
+                            // ocr[14]：回调派发不是解码失败——单独隔离，坏监听器抛异常
+                            // 不得误报 decode error / 触发多余 native.reset / 漏记 decoded。
+                            // 变异锚：拆隔离 → KwsCoreRobustnessTest 红。
+                            runCatching { onKeyword(keyword) }
+                                .onFailure { logger("keyword callback failed: ${it.message}") }
+                            native.reset() // 命中即 reset（对账表）
+                        }
                     }
-                    val n = hits.incrementAndGet()
-                    logger("keyword hit: $keyword (#$n, fed=${fed.get()}, gated=${gated.get()})")
-                    onKeyword(keyword)
-                    native.reset() // 命中即 reset（对账表）
+                    if (hitDroppedInRelease) break
                 }
             }
             decoded.incrementAndGet()
@@ -183,6 +220,14 @@ class KwsCore(
             // 单块解码异常不杀线程：透传真实 msg，丢块续跑
             logger("decode error, block dropped: ${e.message}")
             runCatching { native.reset() }
+        } catch (t: Throwable) {
+            // ocr[15]：native 桥的 fatal Error（UnsatisfiedLinkError/OOM…）旧实现只 catch
+            // Exception → 线程静默死亡：running 挂真 → feed 空转 churn、KWS 全聋、release
+            // 无法分辨卡死与死亡。先落停机位（feed 即刻停收）再记日志并重抛：死亡可观测。
+            // 变异锚：删此分支 → KwsCoreRobustnessTest 红。
+            running = false
+            logger("decode fatal, thread exiting: ${t.message}")
+            throw t
         }
     }
 
@@ -210,10 +255,12 @@ class KwsCore(
     fun release() {
         // 回归守卫：CAS 单次放行（删此 → 并发/重复 release 双 free → KwsCoreTest 红）
         if (!released.compareAndSet(false, true)) return
-        running = false
+        // ocr[16]：running=false 写与派发段同锁——在飞派发进行中 release 在此等锁，
+        // 绝不越过派发提前返回（幻影唤醒窗收口）。
+        synchronized(dispatchLock) { running = false }
         decodeThread.interrupt()
         // 回归守卫：join（删此 → free 抢在 in-flight decode 前 → KwsCoreTest 红）
-        decodeThread.join(JOIN_TIMEOUT_MS)
+        joinDecodeThread()
         if (decodeThread.isAlive) {
             logger("release: decode thread stuck after ${JOIN_TIMEOUT_MS}ms, skip native free (leak over crash)")
             return
@@ -223,9 +270,43 @@ class KwsCore(
         logger(statsLine("released,"))
     }
 
+    /**
+     * ocr[19]：release 调用方自身被中断（如 onDestroy 期主线程带中断进入）时，裸
+     * join(JOIN_TIMEOUT_MS) 会把 InterruptedException 冲出 release()——released CAS 已
+     * 消费一次性放行，native.release() 永久跳过（泄漏）且调用方吃意外异常。分段 join：
+     * 中断只记账（清标志续等满预算），收尾还原中断标志；预算口径与旧单次 join 一致。
+     * 变异锚：回退裸 join → KwsCoreRobustnessTest 红。
+     */
+    private fun joinDecodeThread() {
+        var interrupted = false
+        val deadlineNs = System.nanoTime() + JOIN_TIMEOUT_MS * 1_000_000
+        while (decodeThread.isAlive) {
+            val remainingMs = (deadlineNs - System.nanoTime()) / 1_000_000
+            if (remainingMs <= 0) break
+            try {
+                decodeThread.join(minOf(JOIN_POLL_MS, remainingMs))
+            } catch (ie: InterruptedException) {
+                interrupted = true
+                Thread.interrupted() // 清标志：下轮 join 才能真等；收尾统一还原
+            }
+        }
+        if (interrupted) Thread.currentThread().interrupt()
+    }
+
     companion object {
         /** release 等 decode 线程退出的上限：单次 decode 毫秒级，2s 已极宽。 */
         internal const val JOIN_TIMEOUT_MS = 2_000L
+
+        /** ocr[19] 分段 join 的单段等待步长。 */
+        private const val JOIN_POLL_MS = 50L
+
+        /**
+         * ocr[18]：统计间隔/uptime 基准钟默认单调域（nanoTime/1e6 毫秒）——旧默认墙钟
+         * currentTimeMillis 被 NTP 步进时：回拨冻统计行、前跳瞬发 tick、uptime= 实为
+         * 墙钟时长而非开机时长。只取差值，域切换不影响间隔语义；测试注入缝保留。
+         * 变异锚：回退 System::currentTimeMillis → KwsCoreRobustnessTest 红。
+         */
+        internal val MONOTONIC_NOW: () -> Long = { System.nanoTime() / 1_000_000 }
 
         /** 检出率统计日志间隔（有音频活动时按块检查）。 */
         internal const val STATS_INTERVAL_MS = 60_000L
@@ -239,3 +320,11 @@ class KwsCore(
         internal const val DEFAULT_DECODE_THREAD_PRIORITY = 6
     }
 }
+
+/**
+ * ocr[17]：`feed rms=` 探针行（S11-6 延迟取证，与 AudioCapture 侧 `cap rms=` 行时间戳
+ * 同域对照）格式钉死 Locale.US——默认 locale 在逗号小数区（de/fr/ru/中文数字设置…）
+ * 渲染 "0,0421"，破坏日志 grep/解析口径。变异锚：回退 ".format"（默认 locale）→
+ * KwsCoreRobustnessTest 红。
+ */
+internal fun feedRmsLine(rms: Float): String = String.format(Locale.US, "feed rms=%.4f", rms)
