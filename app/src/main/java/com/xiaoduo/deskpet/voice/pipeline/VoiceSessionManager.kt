@@ -24,6 +24,7 @@ import com.xiaoduo.deskpet.voice.client.TtsClient
 import com.xiaoduo.deskpet.voice.kws.EnergyGate
 import com.xiaoduo.deskpet.voice.policy.BubbleHidePolicy
 import com.xiaoduo.deskpet.voice.policy.ListeningHintPolicy
+import com.xiaoduo.deskpet.voice.seam.BlindWindowBackfiller
 import com.xiaoduo.deskpet.voice.seam.StampedBlock
 import com.xiaoduo.deskpet.voice.seam.VadSeamPolicy
 import com.xiaoduo.deskpet.voice.seam.WakeBlindWindowBuffer
@@ -367,28 +368,31 @@ class VoiceSessionManager(
 
     // ---------------- S40 唤醒应答期盲区 ----------------
 
-    /** 盲区环形缓冲：暂存唤醒接缝时代（唤醒命中→vad.start）采麦块，接缝后回灌 VAD。 */
-    private val wakeBlindBuffer = WakeBlindWindowBuffer()
+    /**
+     * 盲区回灌编排（P3-T2 拆分：接缝水位/挂账/回灌消费聚合于 [BlindWindowBackfiller]，
+     * 缓冲本体在 [WakeBlindWindowBuffer]；接缝去向判定 seamPolicy 与测试缝留本面）。
+     */
+    private val blindBackfiller = BlindWindowBackfiller(
+        buffer = WakeBlindWindowBuffer(),
+        echoCancelEnabled = { echoCancelProvider() },
+        processBlock = { echoCanceller.processBlock(it) },
+        feedVad = { vad.feed(it) },
+        onVadEvent = { handleVadEvent(it) },
+        vadStartDelayMs = { vadStartDelayMs },
+        logger = logger,
+    )
 
     /** 接缝水位策略：逐块判去向（ack 时代→缓冲 / 接缝后首块→回灌 / 平常→直通）。 */
     private val seamPolicy = VadSeamPolicy()
 
-    /** 回灌挂账：唤醒路径 vad.start 后置位，首个接缝后块触发回灌消费；打断清账。 */
-    @Volatile
-    private var pendingBlindBackfill = false
-
-    /** 接缝水位 = vad.start 瞬间（nanoTime，与采麦盖戳同域）：ack 时代判定基准。 */
-    @Volatile
-    private var vadSeamNs = 0L
-
     /** 测试缝：盲区缓冲占用（S40 单测断言用）。 */
-    internal val blindBufferSizeForTest: Int get() = wakeBlindBuffer.size
+    internal val blindBufferSizeForTest: Int get() = blindBackfiller.bufferSize
 
     /** 测试缝：回灌挂账标志（S40 单测断言用）。 */
-    internal val pendingBlindBackfillForTest: Boolean get() = pendingBlindBackfill
+    internal val pendingBlindBackfillForTest: Boolean get() = blindBackfiller.pending
 
     /** 测试缝：接缝水位（S65 单测构造 delay 窗迟到块时间戳用）。 */
-    internal val vadSeamNsForTest: Long get() = vadSeamNs
+    internal val vadSeamNsForTest: Long get() = blindBackfiller.seamNs
 
     // S23 遥测累加器：50 块窗口内进/出 RMS 均值（口径同 vad diag level，可直接对照校准分布）
     private var echoDiagIn = 0.0
@@ -481,7 +485,7 @@ class VoiceSessionManager(
      */
     private fun playAckThenListen() {
         val epoch = wozaiEpoch.incrementAndGet()
-        wakeBlindBuffer.clear() // S40：新唤醒清陈缓冲，防旧轮音频泄入新轮回灌
+        blindBackfiller.clearBuffer() // S40：新唤醒清陈缓冲，防旧轮音频泄入新轮回灌（原语义：不动挂账）
         _wakeAckActive.value = true
         PetOverlayService.setPetState(PetFrameTable.WAITING)
         transition(VoiceStateRouter.State.SPEAKING, "wake-ack wozai")
@@ -522,9 +526,9 @@ class VoiceSessionManager(
             delay(vadStartDelayMs)
             if (isActive && state == VoiceStateRouter.State.SPEAKING) {
                 // S40：接缝水位先于 vad.start 落笔（此后捕获的块均判接缝后）+ 挂账回灌
-                vadSeamNs = System.nanoTime()
+                blindBackfiller.markSeam(System.nanoTime())
                 vad.start()
-                pendingBlindBackfill = true
+                blindBackfiller.armPending()
                 // S15：置一次性抑制标——transition(LISTENING) 不当即显提示泡，
                 // 「我在」驻留 linger 后由 swap job 顶替（内容替换，无 hide 间隙）
                 suppressListeningHintOnce = true
@@ -548,8 +552,7 @@ class VoiceSessionManager(
     fun cancelCurrentTurn() {
         // S40：被打断轮的盲区缓冲/回灌挂账全清——防旧轮 ack 时代音频回灌进新轮
         // （重唤醒/打断均经此处，单点收口）
-        pendingBlindBackfill = false
-        wakeBlindBuffer.clear()
+        blindBackfiller.abortAndClear()
         when (state) {
             VoiceStateRouter.State.IDLE -> Unit
             VoiceStateRouter.State.LISTENING -> {
@@ -698,7 +701,7 @@ class VoiceSessionManager(
                 // S40：唤醒接缝时代（唤醒命中→vad.start）块进盲区缓冲——S12 KWS 实时
                 // 解码不变；存原始块+捕获戳（S65：回灌按截止线滤回声纪元块），过 NLMS
                 // （ACK 参考已由钩子推入）。
-                if (_wakeAckActive.value) wakeBlindBuffer.add(block, stamped.capturedAtNs)
+                if (_wakeAckActive.value) blindBackfiller.add(block, stamped.capturedAtNs)
                 // S23：播放期麦块先过 NLMS 消回声再进 KWS（主+影子双引擎同受益）；
                 // 无参考/开关关=原样直通（processBlock 内部有新鲜度快路径）
                 val out = if (echoCancelProvider()) echoCanceller.processBlock(block) else block
@@ -725,14 +728,13 @@ class VoiceSessionManager(
                 // （533ms 窗口装下 1.2s 音频），且含「我在」回声抬 S19-1 阈值吞话头。
                 // FIFO 保证接缝后首块到达时 ack 时代块已全部到齐，回灌时序完整。
                 // 改道块跳过 S33 旁路与 diag（KWS 已实时解过/非实时音频不入电平轨迹）。
-                when (seamPolicy.onBlock(pendingBlindBackfill, stamped.capturedAtNs, vadSeamNs)) {
+                when (seamPolicy.onBlock(blindBackfiller.pending, stamped.capturedAtNs, blindBackfiller.seamNs)) {
                     VadSeamPolicy.Action.BUFFER -> {
-                        wakeBlindBuffer.add(block, stamped.capturedAtNs)
+                        blindBackfiller.add(block, stamped.capturedAtNs)
                         return
                     }
                     VadSeamPolicy.Action.BACKFILL_THEN_LIVE -> {
-                        pendingBlindBackfill = false
-                        backfillBlindWindow()
+                        blindBackfiller.disarmThenBackfill()
                     }
                     VadSeamPolicy.Action.LIVE -> Unit
                 }
@@ -812,34 +814,6 @@ class VoiceSessionManager(
     private fun clearContinuation() {
         vad.startLevelOverride = null // S51：判起线回归校准联动
         continuationWindow.clear()
-    }
-
-    /**
-     * S40：回灌盲区缓冲到 VAD（接缝后首个块触发，采集序 FIFO——话头在前）。
-     * S65 回声纪元守卫：截止线 cutoff = seam - (vadStartDelayMs + ECHO_TAIL_GUARD_MS)
-     * ——wozai 播放期捕获的块（capturedAt < 写完时刻 ≈ seam - vadStartDelayMs，含旧 TTS
-     * 残声与「我在」回声）整段丢弃：回灌发生时 NLMS 参考已过期（>REF_FRESH_MS 直通）
-     * 零消除，直灌必产伪 utterance（2026-09-23 测试板三轮打断重唤醒实锤：活块 vad diag
-     * 全静却 96ms 后报 1.2s 语音，ASR 转出「告诉我我在。」假轮抢占聆听窗）。保留
-     * delay 窗尾部（写完+喇叭尾巴余量之后）捕获的迟到块——S40 话头找回收窄存续。
-     * 块仍过 NLMS（保底，若参考尚新鲜）；回灌不喂 kwsSink：KWS 分支已实时解过这些块，
-     * 双喂恐同声词尾二次命中触发重唤醒环。回灌途中 utterance 即刻进管线并中止回灌
-     * （VAD 已停机，余块放弃——本块之后的活块继续走正常路由）。
-     */
-    private fun backfillBlindWindow() {
-        val total = wakeBlindBuffer.size
-        if (total == 0) return
-        val cutoffNs = vadSeamNs - (vadStartDelayMs + ECHO_TAIL_GUARD_MS) * 1_000_000L
-        val blocks = wakeBlindBuffer.drainFrom(cutoffNs)
-        logger("S40 blind-window backfill: ${blocks.size} blocks, S65 echo-era dropped ${total - blocks.size}")
-        for (b in blocks) {
-            val out = if (echoCancelProvider()) echoCanceller.processBlock(b) else b
-            val ev = vad.feed(out)
-            if (ev != null) {
-                handleVadEvent(ev)
-                if (ev is VadDetector.Event.Utterance || ev is VadDetector.Event.Timeout) return
-            }
-        }
     }
 
     // ---------------- 对话管线 ----------------
@@ -1258,8 +1232,5 @@ class VoiceSessionManager(
          *  2026-09-23 用户拍板：维持窗=1 现状（S60 尾垫已覆盖句尾弱音节场景，
          *  气口合并语义不恢复；此决策已闭环，勿再当悬案翻出）。 */
         internal const val CONTINUATION_TICKS = 1
-
-        /** S65 回声纪元尾巴余量：wozai 写完（playBlocking 返回）后喇叭/混响残余保护窗。 */
-        internal const val ECHO_TAIL_GUARD_MS = 150L
     }
 }
