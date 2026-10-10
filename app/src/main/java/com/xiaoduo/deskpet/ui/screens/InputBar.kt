@@ -38,14 +38,14 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
@@ -64,8 +64,8 @@ import com.xiaoduo.deskpet.agui.FileMeta
 import com.xiaoduo.deskpet.agui.UploadStatus
 import com.xiaoduo.deskpet.chat.FunctionKeyLogic
 import com.xiaoduo.deskpet.ui.theme.XiaoduoDimens
-import com.xiaoduo.deskpet.voice.EnergyGate
-import com.xiaoduo.deskpet.voice.VoiceClientFactory
+import com.xiaoduo.deskpet.voice.pipeline.VoiceClientFactory
+import com.xiaoduo.deskpet.voice.kws.EnergyGate
 
 /**
  * 底部输入条：单圆角矩形容器 + 内部横线分区（2026-08-06 用户拍板定稿——

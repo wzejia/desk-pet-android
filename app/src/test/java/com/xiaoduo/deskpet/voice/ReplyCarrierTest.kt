@@ -1,5 +1,8 @@
 package com.xiaoduo.deskpet.voice
 
+import com.xiaoduo.deskpet.voice.pipeline.ReplyCarrier
+import com.xiaoduo.deskpet.voice.pipeline.CarrierBubbleSink
+import com.xiaoduo.deskpet.voice.pipeline.VoiceSessionManager
 import org.junit.Assert.assertEquals
 import org.junit.Test
 

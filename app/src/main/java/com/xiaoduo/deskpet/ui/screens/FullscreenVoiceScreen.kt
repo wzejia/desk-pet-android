@@ -2,12 +2,7 @@ package com.xiaoduo.deskpet.ui.screens
 
 import android.Manifest
 import android.content.pm.PackageManager
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -39,16 +34,16 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -73,16 +68,16 @@ import com.xiaoduo.deskpet.api.ChatMessage
 import com.xiaoduo.deskpet.chat.ChatViewModel
 import com.xiaoduo.deskpet.pet.PetFrameTable
 import com.xiaoduo.deskpet.pet.PetState
-import com.xiaoduo.deskpet.ui.PetView
 import com.xiaoduo.deskpet.ui.components.MarkdownContent
 import com.xiaoduo.deskpet.ui.FullscreenVoiceLayout
+import com.xiaoduo.deskpet.ui.overlay.PetView
 import com.xiaoduo.deskpet.ui.theme.XiaoduoDimens
 import com.xiaoduo.deskpet.util.PetLogger
 import com.xiaoduo.deskpet.util.Prefs
-import com.xiaoduo.deskpet.voice.EnergyGate
-import com.xiaoduo.deskpet.voice.ReplyCarrier
-import com.xiaoduo.deskpet.voice.VoiceClientFactory
-import com.xiaoduo.deskpet.voice.VoiceStateRouter
+import com.xiaoduo.deskpet.voice.kws.EnergyGate
+import com.xiaoduo.deskpet.voice.pipeline.ReplyCarrier
+import com.xiaoduo.deskpet.voice.pipeline.VoiceClientFactory
+import com.xiaoduo.deskpet.voice.pipeline.VoiceStateRouter
 import kotlin.math.exp
 import kotlin.math.sin
 

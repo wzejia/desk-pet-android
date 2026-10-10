@@ -2,7 +2,6 @@ package com.xiaoduo.deskpet.util
 
 import android.content.Context
 import android.content.Intent
-import android.content.pm.PackageManager
 
 /**
  * 跳转目标 App（S27/S30/S31）：聊天页导航行中键与悬浮窗菜单「打开密集架」共用此入口。

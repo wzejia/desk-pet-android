@@ -20,7 +20,7 @@ import android.widget.FrameLayout
 import com.xiaoduo.deskpet.pet.EdgeDock
 import com.xiaoduo.deskpet.pet.OverlayClamp
 import com.xiaoduo.deskpet.pet.PetState
-import com.xiaoduo.deskpet.ui.PetView
+import com.xiaoduo.deskpet.ui.overlay.PetView
 import com.xiaoduo.deskpet.util.AppLauncher
 import com.xiaoduo.deskpet.api.BubbleOwner
 import com.xiaoduo.deskpet.ui.overlay.BubbleOwnership
@@ -31,9 +31,9 @@ import com.xiaoduo.deskpet.ui.overlay.VoiceIndicatorView
 import com.xiaoduo.deskpet.util.PetLogger
 import com.xiaoduo.deskpet.util.Prefs
 import com.xiaoduo.deskpet.util.TapGesture
-import com.xiaoduo.deskpet.voice.VoiceClientFactory
-import com.xiaoduo.deskpet.voice.VoiceSessionManager
-import com.xiaoduo.deskpet.voice.VoiceStateRouter
+import com.xiaoduo.deskpet.voice.pipeline.VoiceClientFactory
+import com.xiaoduo.deskpet.voice.pipeline.VoiceSessionManager
+import com.xiaoduo.deskpet.voice.pipeline.VoiceStateRouter
 import kotlin.math.abs
 
 /**

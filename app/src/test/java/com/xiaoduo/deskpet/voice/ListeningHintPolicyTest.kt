@@ -1,5 +1,7 @@
 package com.xiaoduo.deskpet.voice
 
+import com.xiaoduo.deskpet.voice.pipeline.VoiceStateRouter
+import com.xiaoduo.deskpet.voice.policy.ListeningHintPolicy
 import org.junit.Assert.assertEquals
 import org.junit.Test
 

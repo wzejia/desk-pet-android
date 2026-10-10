@@ -1,5 +1,8 @@
 package com.xiaoduo.deskpet.voice
 
+import com.xiaoduo.deskpet.voice.wakeack.WakeAckAudio
+import com.xiaoduo.deskpet.voice.wakeack.WakeAckCacheStore
+import com.xiaoduo.deskpet.voice.wakeack.WakeAckSelector
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull

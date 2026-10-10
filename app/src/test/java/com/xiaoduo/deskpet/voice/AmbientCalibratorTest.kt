@@ -1,5 +1,7 @@
 package com.xiaoduo.deskpet.voice
 
+import com.xiaoduo.deskpet.voice.audio.AmbientCalibrator
+import com.xiaoduo.deskpet.voice.kws.EnergyGate
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test

@@ -19,12 +19,12 @@ import com.xiaoduo.deskpet.cloud.OpenAIChatClient
 import com.xiaoduo.deskpet.cloud.TextChatRouter
 import com.xiaoduo.deskpet.net.NetConfig
 import com.xiaoduo.deskpet.util.Prefs
+import com.xiaoduo.deskpet.voice.pipeline.VoiceClientFactory
+import com.xiaoduo.deskpet.voice.pipeline.VoiceSessionManager
+import com.xiaoduo.deskpet.voice.pipeline.VoiceStateRouter
 import kotlinx.coroutines.withContext
 import com.xiaoduo.deskpet.api.BubbleOwner
 import com.xiaoduo.deskpet.util.PetLogger
-import com.xiaoduo.deskpet.voice.VoiceClientFactory
-import com.xiaoduo.deskpet.voice.VoiceSessionManager
-import com.xiaoduo.deskpet.voice.VoiceStateRouter
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job

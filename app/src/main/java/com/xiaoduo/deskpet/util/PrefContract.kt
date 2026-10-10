@@ -1,5 +1,6 @@
 package com.xiaoduo.deskpet.util
 
+
 /**
  * SharedPreferences 键/默认值契约（纯 Kotlin，零 Android import，JVM 可测）。
  * 防升级丢键：键集变更必须同步改 PrefContractTest。

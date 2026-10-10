@@ -1,5 +1,6 @@
 package com.xiaoduo.deskpet.voice
 
+import com.xiaoduo.deskpet.voice.pipeline.TtsSanitizer
 import org.junit.Assert.assertEquals
 import org.junit.Test
 

@@ -2,6 +2,7 @@ package com.xiaoduo.deskpet.voice
 
 import com.xiaoduo.deskpet.net.NetConfig
 import com.xiaoduo.deskpet.net.TtsVoiceDefaults
+import com.xiaoduo.deskpet.voice.wakeack.WakeAckSelector
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
