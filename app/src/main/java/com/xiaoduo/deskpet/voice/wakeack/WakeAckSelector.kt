@@ -1,6 +1,5 @@
 package com.xiaoduo.deskpet.voice.wakeack
 
-import com.xiaoduo.deskpet.net.NetConfig
 import com.xiaoduo.deskpet.net.TtsVoiceDefaults
 import java.security.MessageDigest
 

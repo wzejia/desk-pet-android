@@ -1,7 +1,6 @@
 package com.xiaoduo.deskpet.ui.screens
 
 import android.content.Context
-import android.provider.Settings
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.heightIn

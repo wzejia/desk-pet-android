@@ -1,6 +1,5 @@
 package com.xiaoduo.deskpet.voice.kws
 
-import com.xiaoduo.deskpet.voice.audio.AudioCapture
 
 /**
  * 延迟取证探针总开关（纯逻辑，JVM 可测，零 Android import）——S11-6 诊断票，只探不修。

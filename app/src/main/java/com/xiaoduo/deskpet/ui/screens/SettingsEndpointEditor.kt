@@ -1,7 +1,6 @@
 package com.xiaoduo.deskpet.ui.screens
 
 import android.content.Context
-import android.provider.Settings
 import android.widget.Toast
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -27,6 +26,7 @@ import com.xiaoduo.deskpet.util.PetLogger
 import com.xiaoduo.deskpet.voice.wakeack.WakeAckPrefetcher
 
 @Composable
+/** 端点编辑区：密码框 PasswordVisualTransformation，日志不回显明文。 */
 internal fun EndpointEditor(context: Context) {
     var platformBase by remember { mutableStateOf(NetConfig.platformBase(context)) }
     var asrBase by remember { mutableStateOf(NetConfig.asrBase(context)) }

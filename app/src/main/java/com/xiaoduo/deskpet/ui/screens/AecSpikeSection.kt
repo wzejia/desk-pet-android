@@ -16,8 +16,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import com.xiaoduo.deskpet.ui.theme.XiaoduoDimens
 import com.xiaoduo.deskpet.voice.kws.AudioProbe
-import com.xiaoduo.deskpet.voice.pipeline.VoiceStateRouter
-import com.xiaoduo.deskpet.voice.kws.KwsEngine
 import com.xiaoduo.deskpet.util.PetLogger
 
 /**

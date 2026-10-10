@@ -2,13 +2,11 @@ package com.xiaoduo.deskpet.voice.wakeack
 
 import android.content.Context
 import com.xiaoduo.deskpet.cloud.CloudClientFactory
-import com.xiaoduo.deskpet.net.NetConfig
 import com.xiaoduo.deskpet.net.TtsVoiceDefaults
 import com.xiaoduo.deskpet.util.PetLogger
 import com.xiaoduo.deskpet.api.TtsContract.Result
 import com.xiaoduo.deskpet.voice.audio.WavCodec
 import com.xiaoduo.deskpet.voice.pipeline.RevealScheduler
-import com.xiaoduo.deskpet.voice.pipeline.VoiceClientFactory
 import com.xiaoduo.deskpet.voice.policy.PrefetchBackoff
 import java.util.concurrent.atomic.AtomicBoolean
 

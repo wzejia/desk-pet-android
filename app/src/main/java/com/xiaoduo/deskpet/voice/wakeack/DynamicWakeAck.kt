@@ -1,7 +1,6 @@
 package com.xiaoduo.deskpet.voice.wakeack
 
 import com.xiaoduo.deskpet.voice.audio.VoicePlayer
-import com.xiaoduo.deskpet.voice.pipeline.VoiceClientFactory
 import com.xiaoduo.deskpet.voice.pipeline.VoiceSessionManager
 import java.io.IOException
 

@@ -1,6 +1,5 @@
 package com.xiaoduo.deskpet.voice.pipeline
 
-import com.xiaoduo.deskpet.voice.audio.VoicePlayer
 
 /**
  * 回复载体路由（S7-d 全屏语音模式，纯 Kotlin 零 Android import，JVM 可测）：

@@ -1,7 +1,5 @@
 package com.xiaoduo.deskpet.voice.seam
-import com.xiaoduo.deskpet.voice.pipeline.VoiceSessionManager
 
-import com.xiaoduo.deskpet.voice.audio.AudioCapture
 
 /**
  * 带采集时间戳的采麦块（S40）：时间戳在 producer（AudioCapture 读循环）侧盖戳，随块

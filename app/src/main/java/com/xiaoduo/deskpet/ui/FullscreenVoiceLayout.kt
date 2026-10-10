@@ -1,6 +1,5 @@
 package com.xiaoduo.deskpet.ui
 
-import com.xiaoduo.deskpet.ui.overlay.PetView
 import kotlin.math.max
 import kotlin.math.min
 

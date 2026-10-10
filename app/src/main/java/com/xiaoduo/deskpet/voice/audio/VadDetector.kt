@@ -1,7 +1,5 @@
 package com.xiaoduo.deskpet.voice.audio
 
-import com.xiaoduo.deskpet.util.Prefs
-import com.xiaoduo.deskpet.voice.pipeline.VoiceSessionManager
 import kotlin.math.sqrt
 
 /**

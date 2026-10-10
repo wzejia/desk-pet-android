@@ -18,11 +18,9 @@ import com.xiaoduo.deskpet.util.FeedReleaseGate
 import com.xiaoduo.deskpet.util.PetLogger
 import com.xiaoduo.deskpet.util.Prefs
 import com.xiaoduo.deskpet.voice.audio.OnceGate
-import com.xiaoduo.deskpet.voice.kws.KwsCore
 import com.xiaoduo.deskpet.voice.kws.KwsDefaults
 import com.xiaoduo.deskpet.voice.kws.KwsEngine
 import com.xiaoduo.deskpet.voice.pipeline.VoiceClientFactory
-import com.xiaoduo.deskpet.voice.pipeline.VoiceSessionManager
 import com.xiaoduo.deskpet.voice.pipeline.VoiceStateRouter
 import com.xiaoduo.deskpet.voice.audio.AmbientCalibrator
 

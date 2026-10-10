@@ -1,6 +1,5 @@
 package com.xiaoduo.deskpet.voice
 
-import com.xiaoduo.deskpet.voice.audio.AudioCapture
 import com.xiaoduo.deskpet.voice.audio.OnceGate
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull

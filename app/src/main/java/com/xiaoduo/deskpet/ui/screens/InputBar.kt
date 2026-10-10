@@ -65,7 +65,6 @@ import com.xiaoduo.deskpet.agui.UploadStatus
 import com.xiaoduo.deskpet.chat.FunctionKeyLogic
 import com.xiaoduo.deskpet.ui.theme.XiaoduoDimens
 import com.xiaoduo.deskpet.voice.pipeline.VoiceClientFactory
-import com.xiaoduo.deskpet.voice.pipeline.VoiceSessionManager
 import com.xiaoduo.deskpet.voice.kws.EnergyGate
 
 /**

@@ -3,7 +3,6 @@ package com.xiaoduo.deskpet.ui.screens
 import android.Manifest
 import android.content.pm.PackageManager
 import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -78,7 +77,6 @@ import com.xiaoduo.deskpet.util.Prefs
 import com.xiaoduo.deskpet.voice.kws.EnergyGate
 import com.xiaoduo.deskpet.voice.pipeline.ReplyCarrier
 import com.xiaoduo.deskpet.voice.pipeline.VoiceClientFactory
-import com.xiaoduo.deskpet.voice.pipeline.VoiceSessionManager
 import com.xiaoduo.deskpet.voice.pipeline.VoiceStateRouter
 import kotlin.math.exp
 import kotlin.math.sin

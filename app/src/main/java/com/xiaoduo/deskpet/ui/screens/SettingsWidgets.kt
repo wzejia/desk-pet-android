@@ -2,7 +2,6 @@ package com.xiaoduo.deskpet.ui.screens
 
 import android.content.Context
 import android.content.Intent
-import android.provider.Settings
 import android.widget.Toast
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -72,6 +71,7 @@ internal fun versionName(context: Context): String =    runCatching {
         context.packageManager.getPackageInfo(context.packageName, 0).versionName
     }.getOrNull() ?: "unknown"
 
+/** 导出日志（偏差 D 裁决补做，迁移自 M1）：系统分享面板，FileProvider 授权。 */
 internal fun exportLogs(context: Context) {
     val files = PetLogger.logFiles().filter { it.exists() }
     if (files.isEmpty()) {

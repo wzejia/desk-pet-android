@@ -1,8 +1,6 @@
 package com.xiaoduo.deskpet.voice
 
 import com.xiaoduo.deskpet.voice.kws.AudioProbe
-import com.xiaoduo.deskpet.voice.kws.EnergyGate
-import com.xiaoduo.deskpet.voice.kws.KwsCore
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse

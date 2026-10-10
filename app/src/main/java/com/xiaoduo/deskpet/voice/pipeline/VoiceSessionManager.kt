@@ -11,7 +11,6 @@ import com.xiaoduo.deskpet.device.DeviceIntentMatcher
 import com.xiaoduo.deskpet.cloud.CloudClientFactory
 import com.xiaoduo.deskpet.cloud.Message
 import com.xiaoduo.deskpet.cloud.OpenAIChatClient
-import com.xiaoduo.deskpet.device.ShelfMcpBridge
 import com.xiaoduo.deskpet.net.NetConfig
 import com.xiaoduo.deskpet.pet.PetFrameTable
 import com.xiaoduo.deskpet.util.PetLogger
@@ -23,7 +22,6 @@ import com.xiaoduo.deskpet.voice.audio.WavCodec
 import com.xiaoduo.deskpet.voice.client.AsrClient
 import com.xiaoduo.deskpet.voice.client.TtsClient
 import com.xiaoduo.deskpet.voice.kws.EnergyGate
-import com.xiaoduo.deskpet.voice.kws.KwsCore
 import com.xiaoduo.deskpet.voice.policy.BubbleHidePolicy
 import com.xiaoduo.deskpet.voice.policy.ListeningHintPolicy
 import com.xiaoduo.deskpet.voice.seam.StampedBlock

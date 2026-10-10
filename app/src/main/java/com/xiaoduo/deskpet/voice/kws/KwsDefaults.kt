@@ -1,6 +1,5 @@
 package com.xiaoduo.deskpet.voice.kws
 
-import com.xiaoduo.deskpet.voice.audio.VadDetector
 
 /**
  * KWS 调参默认值（纯 Kotlin 常量承载，零 Android import，JVM 可测）。
