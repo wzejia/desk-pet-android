@@ -1,6 +1,44 @@
 # 小朵 Android 开发日志
 
 
+## 2026-10-10（八）Phase 3 开工：切票 4 张并行（波 1 已下发）+ 主对话 root 两件收口
+
+**切票**（地界=子包前缀，两两无文件交集，冲突矩阵逐票对过）：T1=voice/kws+audio 健壮性 17 条
+（KwsCore decode 族 7 / VoicePlayer 族 6 / AmbientCalibrator 4 / WAV 族 audio 侧）→
+`.worktrees/p3-t1`；T4=util/net（SEC-3 透明迁移+PrefContract 族 5+PetLogger 锁）→
+`.worktrees/p3-t4`——波 1 两 agent 已下发。待发波 2：T2=voice/client+pipeline+seam+policy
+（VSM 续听/盲区拆分+AsrClient 可取消+Factory 纪律+policy TOCTOU）、T3=ui（Markdown 列宽/
+PetView 静止 invalidate/Settings 失步）。主对话串行项：root 两件（本轮）+ 查证 2 条 + 重复簇/
+死代码剩余/P3-2 接线（排并行票合入后）。任务书 `.scratch/phase3/ticket-t{1,2,3,4}-*.md`
+（spec §7.2 口径）。编号漂移裁定：设计文档所引 ocr[26]/[27] 按审计原文在 AudioCapture.kt
+（=T1 地界，归 T1）；root 件 2 实体=Thread→scope+runBlocking 校准→launch+stopSelf(startId)。
+
+**root 两件（refactor/p3，TDD 全闭环）**：
+- **件 1 ocr[202] onWake TOCTOU**：新增 `WakeEntryGate`（纯 JVM，ReentrantReadWriteLock——
+  runExclusive 持读锁执行、close 取写锁关门=天然等待 in-flight 完成，幂等）。service 接线：
+  onWake 的 startListening 包 runExclusive（destroyed 预检保留为快路径）；onDestroy 先
+  `wakeGate.close()` 等唤醒处理完成再清 sink（孤儿 capture 不可达）。死锁安全实证：startListening
+  链路全同步无主线程依赖（cancelCurrentTurn 全同步/playAckThenListen 仅 launch）。红₁编译→
+  红₂骨架（close 不等待）`closeWaitsForInFlightBlock` 红→实现绿→变异（去锁）红。
+- **件 2 ocr[205] 裸 Thread→service-scoped scope**：新增 `KwsBootstrap`（纯 JVM 骨架：在途拒绝
+  重入〔原 initGate/backlog #8a 语义〕+ 销毁后拒绝 + factory 结果交付前查 isActive + 失败
+  onFailure 回调〔CE 透传；失败 job 正常结束=可重试，等价原 initGate.release 放行〕）。
+  service：主构造 `bootstrapScope` 默认参数（无参构造保留，系统反射实例化兼容）；init/shadow
+  改 scope.launch；校准 runBlocking 桥移除改独立 launch（销毁即取消，AudioRecord 由
+  AmbientCalibrator 挂起点+finally 释放）；失败收尾 stopSelf() → **stopSelf(startId)**（防旧
+  请求失败收尾误停新请求）；onDestroy 单点 `bootstrapScope.cancel()`（先 cancel 后清 sink）。
+  initGate（OnceGate）从 service 退役（类本体保留——AudioCapture 仍用）。红→绿→变异 ×3
+  （删 isActive 丢弃检查 / 删在途拒绝 / 删 onFailure）全红。
+- **验收**：全量 **770 绿 skipped=0**（761+9：WakeEntryGateTest 4 + KwsBootstrapTest 5）；
+  assembleDebug 绿；770 之前 WakeEntryGate/KwsBootstrap 单类迭代均带 `--rerun-tasks`。
+
+```evidence
+verify_cmd: export PATH="/c/Program Files/Microsoft/jdk-17.0.20.8-hotspot/bin:$PATH" && ./gradlew.bat testDebugUnitTest --rerun-tasks && ./gradlew.bat assembleDebug
+verify_claim: tests=770 failures+errors=0 skipped=0（761 基线+9 守卫测）；assembleDebug 绿；变异锚 WakeEntryGate 去锁/KwsBootstrap ×3 全红实录（见正文）
+files_touched: [app/src/main/java/com/xiaoduo/deskpet/WakeEntryGate.kt, app/src/main/java/com/xiaoduo/deskpet/KwsBootstrap.kt, app/src/main/java/com/xiaoduo/deskpet/VoiceForegroundService.kt, app/src/test/java/com/xiaoduo/deskpet/WakeEntryGateTest.kt, app/src/test/java/com/xiaoduo/deskpet/KwsBootstrapTest.kt, .gitignore, .scratch/phase3/]
+```
+
+
 ## 2026-10-10（七）Phase 2 收口：voice 七子包化 + SettingsScreen 拆分 + 94 条死/幻影 import 清零
 
 **交付**（refactor/p2，12 commits 合 main @ 1f3a3bd）：①voice 32 文件七子包化（pipeline7/audio6/wakeack6/kws5/client2/seam3/policy3；对 spec 六组建议的偏离已记录：echo 并入 audio、client 新增）；②PetView 归位 ui/overlay；③**94 条死/幻影 import 清零**（三批：24 KDoc 误加 + 23 未使用 + 47 phantom 全量清，全部编译器裁决，台账 `docs/audit/2026-10-10-phase0/dead-code-removal-ledger.md`）；④**SettingsScreen 1099→339**（5 兄弟文件：AgentPicker/EndpointEditor/SelfCheck/Kws/Widgets，大文件评估 P1 票）；⑤大文件拆分评估报告入库（P2 气泡 Hub/P3×3 挂批次；ChatViewModel 负结论不立项）。
