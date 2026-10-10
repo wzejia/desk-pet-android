@@ -1,11 +1,13 @@
 # 小朵 Android M1 进度
 
-## 状态：结构重构 Spec v0.4 执行中——Phase 0（2026-10-10 开工）
+## 状态：结构重构执行中——Phase 0 ✅ + Phase 1 ✅（2026-10-10，main @ 1ced9fa，761 绿）
 
-- **权威方案权威 = `docs/spec/refactor-structure.spec.md`（v0.4，两轮三通道评审收敛，已认可执行）**，spec+DEV_LOG 已入库 b27dec3；执行编排 = Temp `HANDOFF-deskpet-spec-exec.md`（Temp 易失，重要结论以 spec/DEV_LOG/PROGRESS 为准）。
-- **Phase 0 清单**（主对话串行）：①依赖脚本 v3+JSON 入库 `docs/audit/2026-10-10-dep-analysis/`；②§5.4 指标基线（悬浮窗渲染锚 + 播放开始日志锚补点、抖动带宽前置）→ `docs/audit/2026-10-10-perf-baseline/`；③PetOverlayState stale-true 守卫定案（活性记账落 PetOverlayState，JVM 可测）+ 测试（红-绿证明）；④线程纪律 3 件守卫测试设计。
-- **基线核实（开工已做）**：脚本 v3 复跑对账 §3.2 ✓（环 4 对 / hub 例外边 8 / buildgen 1 / 矩阵逐格一致）；单测 **754 绿 skipped=0 实测**（JDK PATH 前缀 + `--rerun-tasks`）——**锚修正 755→754**：fafa28e trampoline 重写删了 extra 分叉（旧策略 3 测退役、新 OverlayLaunchPolicyTest 2 测补位），文档当时漏改；丢的测试守卫的「overlayOnly=false」输入已不存在（现行策略只看权限位且 1×2 决策表全覆盖），属架构演进减员非缺口。
-- **Phase 0 交付状态（2026-10-10，分支 refactor/p0 已推送）**：①脚本 v3+JSON 入库 ✓；②PetOverlayState 活性记账守卫 + 6 测 ✓（760 绿；红-绿+变异锚全闭环，变异存活→冗余守卫删除实录见 DEV_LOG）；③线程纪律 3 件守卫测试设计 ✓（docs/audit/2026-10-10-phase0/）；④§5.4 日志锚 3 处补点 ✓ + 生产板部署实测 ✓（回灌 151/151，**内存基线：空闲 219.2 / KWS 221.2 / 抖动带宽 ±1MB / 挂窗→首帧中位 276ms**）。**待现场**：播报中三态、唤醒→应答音、trampoline 端到端（喊话/按键时顺手采，全自动）。
+- **权威方案 = `docs/spec/refactor-structure.spec.md`（v0.4）**；编排 = Temp HANDOFF-deskpet-spec-exec.md（Temp 易失，以 spec/DEV_LOG/PROGRESS 为准）。
+- **Phase 0 ✅**（合 main bec0fa4）：脚本入库 / PetOverlayState 活性记账守卫+7 测（变异锚闭环）/ 线程纪律 3 件设计 / §5.4 日志锚×3 + 生产板部署（回灌 151/151）/ 指标基线（**空闲 219.2MB / KWS 221.2MB / 抖动带宽 ±1MB / 挂窗→首帧中位 276ms**；基线表 docs/audit/2026-10-10-perf-baseline/）。**待现场**：播报中三态、唤醒→应答音（喊话即自动采集）；trampoline 端到端须双包成对。
+- **Phase 1 ✅**（合 main 1ced9fa）：断环三刀（api.AsrContract/TtsContract/ChatMessage/BubbleOwner 下沉，无 typealias 全量改写）+ PetOverlayState 搬出 MainActivity。**包级环 4 对→0**；hub 例外边 8 不增；761 绿；资产哈希不变；两轮 opus 评审可合入（P3×6 全处置）。纯结构搬移不单独部署（语义验收累积到行为性 Phase）。
+- **Phase 2 待开工**：voice 32 文件子包化（侦察已完：spec 六组+audio/client 八组初分）、ui 梳理、大文件 >750 拆分评估、死代码剔除；纪律=搬移/行为 commit 分离。
+- **Phase 3 开工前置**：附录 B 4 项拍板（SEC-1/SEC-2/SEC-3/P3-2）须领导拍板——**即将到期，请领导安排**。
+- 单测基线：754（trampoline 重写后实测修正，原记 755 系文档漂移）→ 现 761。验证必带 JDK PATH 前缀 + `--rerun-tasks`。
 - **Phase 3 开工前置**：附录 B 4 项拍板（SEC-1 升级 / SEC-2 反代 / SEC-3 报批 / P3-2 createSession 口径）必须拿到领导拍板，不阻塞 Phase 0-2。
 - Phase 顺序：0 基线 → 1 断环三刀+PetOverlayState 搬出 → 2 voice 子包化+大文件评估 → 3 五维 P3 择优（并行）→ 4 module 门槛评审；每 Phase 独立分支 `refactor/pN` + 收尾 ce-code-review + triage。
 

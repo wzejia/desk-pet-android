@@ -1,6 +1,25 @@
 # 小朵 Android 开发日志
 
 
+## 2026-10-10（六）Phase 1 收口：断环三刀 + PetOverlayState 搬出，环 4 对清零
+
+**交付**（refactor/p1，4+1 commits 合 main @ 1ced9fa）：①PetOverlayState 搬出 MainActivity 成独立 root 文件（纯搬移）；②一刀 `api.AsrContract`（Result+LANGUAGE_ZH）/`api.TtsContract` 下沉——cloud↔voice 断；③二刀 `api.ChatMessage` 下沉——chat↔cloud 断；④三刀 `api.BubbleOwner` 下沉（BubbleOwnership 判定逻辑留 ui.overlay）——voice↔ui、ui↔chat 下半环断。全量改写引用（无 typealias，v0.3 定案）：主源 24 文件 + 测试 11 文件；api 包 4 文件 67 LOC 纯净（零 import 零可变态）。
+
+**施工坑 ×2**：①批量替换子串误伤——`AsrClient.Result` 命中 `VolcengineAsrClient.Result` 内部致 6 厂商类型被改成不存在的 `VolcengineAsrContract`，编译器当场兜底，恢复后用负向后顾断言 `(?<![A-Za-z])` 重做；②内部自用常量断引——AsrClient 删 companion LANGUAGE_ZH 后同文件 `addFormDataPart("language", LANGUAGE_ZH)` 断引，编译器兜底改指契约。教训：**批量改写的替换模式必须带词边界，且「删常量后先 grep 本文件内引用」**。
+
+**验收（全部过）**：761 绿 skipped=0（rerun-tasks）；**脚本 v3：包级环 0（原 4 对）+ hub 例外边 8 条不增 + buildgen 1 + 目录异常 0**；资产哈希与基线一致；assembleDebug 绿。**独立评审（opus）**：可合入，P1×0/P2×0/P3×2（KDoc 病句+import 排版，已修）；评审独立复现全部验收声称 + 37 文件 diff 逐文件核实「无一行逻辑变化」+ 批量替换误伤模式 0 命中。
+
+**决策**：Phase 1 纯结构搬移（行为零变化），**不单独部署生产板**——语义真机验收累积到有行为性改动的 Phase（Phase 3 起性能/安全修复）部署时统一取证；761 全绿+资产不变+评审核实为本 Phase 行为守卫主体。
+
+**Phase 2 侦察**（已完成，施工票定稿待做）：voice 32 文件初分 8 组（spec 六组建议 pipeline/kws/wakeack/echo/seam/policy + audio/client 两个自然分组——AudioCapture/VoicePlayer/WavCodec/VadDetector/AmbientCalibrator 归 audio，AsrClient/TtsClient 归 client）；大文件 5 个（>750 LOC）拆分评估待施工票。
+
+```evidence
+verify_cmd: export PATH="/c/Program Files/Microsoft/jdk-17.0.20.8-hotspot/bin:$PATH" && ./gradlew.bat testDebugUnitTest --rerun-tasks && MSYS2_ARG_CONV_EXCL="*" python "E:/desk-pet-android/.scratch/dep-analysis-20261010.py"
+verify_claim: tests=761 failures=0 skipped=0；包级环 0（原 4 对）；hub 8 不增；buildgen 1；资产哈希不变；assembleDebug 绿
+files_touched: [app/src/main/java/com/xiaoduo/deskpet/api/, app/src/main/java/com/xiaoduo/deskpet/PetOverlayState.kt, app/src/main/java/com/xiaoduo/deskpet/MainActivity.kt, (引用改写 37 文件全账见 merge 1ced9fa)]
+```
+
+
 ## 2026-10-10（五）Phase 0 收尾：独立评审可合入 + 4 条 P3 处置（3 修 1 记录）
 
 **独立评审（opus 异构，只喂 diff+spec+测试输出）**：总评**可合入**。评审员本机独立复现：760 绿 / 新增 6 删 0 / 变异锚 M1、M2 双红真守卫 / 红线零触碰 / 行为零变化逐路径核实（含 addView 失败路径、handler 串行性、OnDrawListener 合规）。
