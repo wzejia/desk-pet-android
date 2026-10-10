@@ -118,7 +118,38 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-/** 进程内记录悬浮窗服务运行态（M1 单进程足够）。 */
+/** 进程内记录悬浮窗服务运行态（M1 单进程足够）。
+ *  活性记账（spec §4.3，2026-10-10）：running 只能经 markStarted/markCleared 变更；
+ *  service 周期喂 markHeartbeat 续期，isAlive = 已启动且心跳未过期——
+ *  防 service 死于 onDestroy 之外（异常路径未清位）时设置页 stale-true 误判。 */
 object PetOverlayState {
-    @Volatile var running: Boolean = false
+    /** service 心跳周期。 */
+    const val HEARTBEAT_INTERVAL_MS: Long = 30_000L
+
+    /** 心跳超过该时长未续视为 stale（3 个周期，容忍单次调度抖动）。 */
+    const val STALE_AFTER_MS: Long = 90_000L
+
+    @Volatile private var startedFlag = false
+    @Volatile private var lastMarkUptimeMs = 0L
+
+    val running: Boolean get() = startedFlag
+
+    fun markStarted(nowUptimeMs: Long) {
+        startedFlag = true
+        lastMarkUptimeMs = nowUptimeMs
+    }
+
+    /** 续活性戳。不写 startedFlag（复活防线，PetOverlayStateTest 锁）——
+     *  startedFlag 短路在 isAlive 兜底，此处无需重复守卫。 */
+    fun markHeartbeat(nowUptimeMs: Long) {
+        lastMarkUptimeMs = nowUptimeMs
+    }
+
+    fun markCleared() {
+        startedFlag = false
+        lastMarkUptimeMs = 0L
+    }
+
+    fun isAlive(nowUptimeMs: Long): Boolean =
+        startedFlag && nowUptimeMs - lastMarkUptimeMs <= STALE_AFTER_MS
 }

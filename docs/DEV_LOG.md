@@ -1,6 +1,43 @@
 # 小朵 Android 开发日志
 
 
+## 2026-10-10（三）Phase 0 代码交付：PetOverlayState 活性记账守卫 + §5.4 日志锚补点 + 线程纪律守卫设计
+
+**PetOverlayState stale-true 守卫（spec §4.3 定案落地，TDD 全闭环）**：活性记账落 PetOverlayState（还在 MainActivity.kt，Phase 1 才搬出）——`markStarted(now)/markHeartbeat(now)/markCleared()/isAlive(now)`（时钟注入纯 JVM 可测）+ `running` 收窄只读（写入方契约显式化）；心跳 30s / stale 窗 90s（3 周期容忍调度抖动）。接线：PetOverlayService 窗口构建成功 markStarted+心跳循环（主线程 postDelayed 30s）、onDestroy removeCallbacks+markCleared；SettingsScreen scale 滑条重启判定读点改 `isAlive(SystemClock.elapsedRealtime())`。正常路径行为零变化（service 活着时 isAlive=true 与原 running 同值）。
+
+**红-绿证明**：①红₁编译（API 不存在）→②红₂行为（骨架 isAlive 无活性判定，恰边界+心跳 2 测失败）→③绿（活性判定补上 6 测全过）→④变异 1 删心跳记账=`heartbeatExtendsAlive` 红 ✓→⑤**变异 2a 删 markHeartbeat 的 startedFlag 守卫=存活（未红）→守卫冗余实锤，删除**（isAlive 的 startedFlag 短路完全覆盖其语义；「变异存活=不是真守卫=删」纪律首次实战）→⑥变异 2b 重设计（markHeartbeat 置 running=复活 bug 形态）=双红 ✓（复活防线由 initialState+clearedThenHeartbeat 双锚）。全量 **760 绿（754+6）skipped=0**（rerun-tasks）。
+
+**§5.4 日志锚补点（3 处，行为零变化纯日志行）**：①VoicePlayer.playBlocking `playback-start blocking bytes=N`；②流式首块 `playback-start stream bytes=N`（播报开始锚——此前无起点日志，响应基线的「播报开始后 3s」采样无法定位）；③PetOverlayService 交互窗首帧 `overlay first-frame drawn`（ViewTreeObserver.OnDrawListener 一次性标志，回调内禁止移除 listener 故标志短路；悬浮窗可见下界锚，上界仍录屏逐帧）。
+
+**线程纪律 3 件守卫测试设计**（Phase 0 只设计，施工 Phase 2 评审定案/Phase 3 修）：`docs/audit/2026-10-10-phase0/thread-discipline-guard-design.md`——ocr[202] onWake TOCTOU→WakeEntryGate 临界区门（close 等 in-flight）；ocr[205] 裸 Thread 生命周期→service-scoped scope 注入（随刀消解 ocr[26] stopSelf 竞态/ocr[27] 校准不可取消）；ocr[53] 进程级 scope→命名属性+resetForTest+契约 KDoc。三件全走「纯 JVM 抽取+薄接线」（无 Robolectric 下唯一可测路），变异锚逐件指定。
+
+**挂账**：§5.4 指标基线**实测**（三态 dumpsys+响应 logcat）需生产板部署带锚包——回灌法换包属破坏性操作，待用户逐次授权；mijijia 侧不升级时基础设置直拉退化为开 APP（旧行为），不影响内存/响应指标测量。
+
+```evidence
+verify_cmd: export PATH="/c/Program Files/Microsoft/jdk-17.0.20.8-hotspot/bin:$PATH" && ./gradlew.bat testDebugUnitTest --rerun-tasks
+verify_claim: tests=760 failures+errors=0 skipped=0（754 基线 + PetOverlayStateTest 6 测；变异 1/2b 红、2a 存活删守卫实录上文）；assembleDebug 绿
+files_touched: [app/src/main/java/com/xiaoduo/deskpet/MainActivity.kt, app/src/main/java/com/xiaoduo/deskpet/PetOverlayService.kt, app/src/main/java/com/xiaoduo/deskpet/ui/screens/SettingsScreen.kt, app/src/main/java/com/xiaoduo/deskpet/voice/VoicePlayer.kt, app/src/test/java/com/xiaoduo/deskpet/PetOverlayStateTest.kt, docs/audit/2026-10-10-phase0/thread-discipline-guard-design.md, docs/audit/2026-10-10-dep-analysis/]
+```
+
+
+## 2026-10-10（二）Spec v0.4 执行开工：Phase 0 启动 + 基线漂移修正 755→754
+
+**开工清单执行**（HANDOFF-deskpet-spec-exec 六步）：读 AGENTS/PROGRESS/spec v0.4/HANDOFF → git status 核实未提交 docs（spec v0.4 + DEV_LOG 收尾条目，无混入）→ 入库 `b27dec3` 已推送 → 验基线 → 更新 PROGRESS 接手指引（指向 spec 执行）→ 开 Phase 0。
+
+**基线漂移发现与修正（755→754）**：基线复验实测 **754 绿 skipped=0**（failures=0，`--rerun-tasks` 全量），与三处文档声明的 755 差 1。取证：`fafa28e`（trampoline 重写）删除 `MainActivityOverlayLaunchPolicyTest.kt`（3 测）换入 `OverlayLaunchPolicyTest.kt`（2 测）——被退役测试的守卫对象「overlayOnly=false 输入维度」随 v1 extra 分叉整体删除而消失（现行 `OverlayLaunchPolicy.resolve(granted)` 只看权限位，1×2 决策表已被 2 测全覆盖），**属架构演进的正常减员、非测试缺口**；事故在 fa fa28e 未同步改文档。数字链自洽：752（审计修复）+3（旧策略测）−3 +2 = 754。处置：AGENTS.md 基线行 / PROGRESS.md 执行状态段 / spec §2 锚表+硬约束+§5.3 共 4 处锚修正为 754，历史条目保留当时事实。
+
+**Phase 0 进展**：①依赖脚本 v3 复跑对账 §3.2 **全对账通过**（环 4 对：chat↔cloud/cloud↔voice/voice↔ui/ui↔chat；hub 例外边 8=chat1/ui5/voice2；buildgen 1；矩阵逐格一致；大文件 Top5 一致；声明包≠目录异常 0）——脚本+JSON 入库 `docs/audit/2026-10-10-dep-analysis/`。②余项（§5.4 指标基线含两日志锚补点 / PetOverlayState stale-true 守卫+测试 / 线程纪律 3 件守卫测试设计）进行中。
+
+**启示范例**（方法论）：交接声明的基线数必须实测复核后再开工——本轮直接沿 755 锚开工，后续所有「只增不减」判定会整体错位 1；实测一次即拦住。
+
+```evidence
+verify_cmd: export PATH="/c/Program Files/Microsoft/jdk-17.0.20.8-hotspot/bin:$PATH" && ./gradlew.bat testDebugUnitTest --rerun-tasks
+verify_claim: BUILD SUCCESSFUL；XML 求和 tests=754 failures+errors=0 skipped=0（锚修正 755→754）
+files_touched: [AGENTS.md, PROGRESS.md, docs/spec/refactor-structure.spec.md, docs/DEV_LOG.md, docs/audit/2026-10-10-dep-analysis/]
+```
+
+
+
 ## 2026-10-10 结构重构 Spec v0.3（两轮评审 + 实证修订；纯方案零代码，待评审）
 
 **背景**（用户令）：多维度优化 desk-pet + 原地重排包/module 结构 + 多 Agent 协同机制；本轮只出方案。产出 `docs/spec/refactor-structure.spec.md`（v0.3，经两轮三通道子智能体评审修订）。

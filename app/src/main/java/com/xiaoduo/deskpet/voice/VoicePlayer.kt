@@ -84,6 +84,7 @@ class VoicePlayer {
         activeTrack = track
         try {
             track.play()
+            PetLogger.i(TAG, "playback-start blocking bytes=${pcm.size}") // §5.4 播报开始锚
             writeAll(track, pcm)
             drainUntil(track, (pcm.size / 2).toLong())
             Thread.sleep(TAIL_MS)
@@ -112,6 +113,7 @@ class VoicePlayer {
                 activeTrack = t
                 streamWrittenFrames = 0
                 t.play()
+                PetLogger.i(TAG, "playback-start stream bytes=${pcm.size}") // §5.4 播报开始锚（首块）
                 startRefPacer(t)
                 t
             }

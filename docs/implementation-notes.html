@@ -232,6 +232,29 @@
 playCalls==2 断言取代原 ==1）。</p>
 </div>
 
+<h2>结构重构执行 Phase 0（2026-10-10）</h2>
+
+<div class="decision">
+<h3>PetOverlayState 活性记账守卫的参数与语义定案</h3>
+<p><strong>决策</strong>：心跳 30s / stale 窗 90s（3 周期容忍单次调度抖动）；isAlive = startedFlag 且 now−lastMark ≤ STALE_AFTER_MS（边界恰等判活）；<code>running</code> 收窄只读 val（写入只经 markStarted/markCleared——写入方契约显式化）；markHeartbeat 无条件记账、不写 startedFlag（复活防线由 isAlive 短路兜底，测试锚死）。<br>
+<strong>理由</strong>：service 活着时 isAlive 与原 running 同值（正常路径零变化）；心跳挂主线程 postDelayed（非唤醒式，doze 不打扰，30s 一次开销纳秒级）。<br>
+<strong>消费面</strong>：仅 SettingsScreen scale 滑条重启判定一处（全仓 grep 实证），stale-true 危害=误重启拉起悬浮窗，故守卫做轻不做重。</p>
+</div>
+
+<div class="note">
+<h3>方法论：变异存活 = 不是真守卫 = 删</h3>
+<p>PetOverlayStateTest 变异 2a 实证：markHeartbeat 内 <code>if (startedFlag)</code> 守卫被删后测试仍全绿（存活）——isAlive 的 startedFlag 短路已完全覆盖其语义，该守卫是冗余防御，删除并把测试锚改指真实语义面（markHeartbeat 不得置 running，复活 bug 形态变异双红验证）。教训：变异锚验证不仅证明测试有效，还反向审计实现——存活变异处的「防御代码」多半是死防御，留着会误导读者以为有独立防线。<strong>变异存活的三种处置：删冗余守卫 / 修测试锚位 / 记录为已知等价防御（仅当有文档化理由）。</strong></p>
+</div>
+
+<div class="deviation">
+<h3>单测基线 755→754（文档漂移修正，非测试缺口）</h3>
+<p>fafa28e trampoline 重写删除 extra 分叉维度时，旧 MainActivityOverlayLaunchPolicyTest（3 测）退役、
+新 OverlayLaunchPolicyTest（2 测）补位，但 AGENTS/PROGRESS/spec 三处锚未跟改。执行期实测 754 绿发现。
+被退役测试守卫的「overlayOnly=false」输入已不存在（现行策略只看权限位，1×2 决策表全覆盖），
+属架构演进正常减员。数字链：752+3−3+2=754。教训：<strong>交接声明的基线数必须实测复核后再开工</strong>。</p>
+</div>
+
+
 <div class="decision">
 <h3>wozaiEpoch 世代守卫（builder 自引入竞态的抓修）</h3>
 <p>唤醒打断唤醒时，旧 wozaiJob 的 finally 无条件写 <code>_wakeAckActive=false</code> 可落在新一轮
