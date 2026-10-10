@@ -16,6 +16,9 @@ import com.xiaoduo.deskpet.util.Prefs
 import com.xiaoduo.deskpet.voice.audio.AudioCapture
 import com.xiaoduo.deskpet.voice.client.AsrClient
 import com.xiaoduo.deskpet.voice.client.TtsClient
+import com.xiaoduo.deskpet.voice.wakeack.DynamicWakeAck
+import com.xiaoduo.deskpet.voice.wakeack.WakeAckPrefetcher
+import com.xiaoduo.deskpet.voice.wakeack.WakeAckResolver
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob

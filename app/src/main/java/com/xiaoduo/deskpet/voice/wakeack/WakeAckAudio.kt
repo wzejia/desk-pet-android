@@ -1,4 +1,4 @@
-package com.xiaoduo.deskpet.voice
+package com.xiaoduo.deskpet.voice.wakeack
 
 import kotlin.math.abs
 import kotlin.math.max

@@ -3,6 +3,11 @@ package com.xiaoduo.deskpet.voice
 import com.xiaoduo.deskpet.api.TtsContract
 import com.xiaoduo.deskpet.voice.audio.WavCodec
 import com.xiaoduo.deskpet.voice.policy.PrefetchBackoff
+import com.xiaoduo.deskpet.voice.wakeack.WakeAckAudio
+import com.xiaoduo.deskpet.voice.wakeack.WakeAckCacheStore
+import com.xiaoduo.deskpet.voice.wakeack.WakeAckPrefetcher
+import com.xiaoduo.deskpet.voice.wakeack.WakeAckResolver
+import com.xiaoduo.deskpet.voice.wakeack.WakeAckSelector
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Rule
