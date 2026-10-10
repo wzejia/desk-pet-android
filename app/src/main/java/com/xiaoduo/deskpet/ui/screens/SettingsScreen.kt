@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
+import android.os.SystemClock
 import android.provider.Settings
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -523,8 +524,8 @@ private fun ScaleSlider(context: Context) {
             },
             onValueChangeFinished = {
                 PetLogger.i("Settings", "scale changed -> ${Prefs.petScale(context)}")
-                // 悬浮窗在跑则重启应用新尺寸
-                if (PetOverlayState.running) {
+                // 悬浮窗在跑（活性未过期）则重启应用新尺寸——stale-true 防线读点（spec §4.3）
+                if (PetOverlayState.isAlive(SystemClock.elapsedRealtime())) {
                     PetLogger.i("Settings", "restart overlay for new scale")
                     context.stopService(Intent(context, PetOverlayService::class.java))
                     context.startService(Intent(context, PetOverlayService::class.java))

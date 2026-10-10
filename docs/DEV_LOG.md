@@ -1,6 +1,76 @@
 # 小朵 Android 开发日志
 
 
+## 2026-10-10（五）Phase 0 收尾：独立评审可合入 + 4 条 P3 处置（3 修 1 记录）
+
+**独立评审（opus 异构，只喂 diff+spec+测试输出）**：总评**可合入**。评审员本机独立复现：760 绿 / 新增 6 删 0 / 变异锚 M1、M2 双红真守卫 / 红线零触碰 / 行为零变化逐路径核实（含 addView 失败路径、handler 串行性、OnDrawListener 合规）。
+
+**findings 分诊与处置（4×P3，无 P1/P2）**：①markStarted 写序非原子→**修**（先 lastMark 后 startedFlag 的 volatile 序闭窗 + 主线程收编契约 KDoc）；②isAlive 负增量语义与时钟源契约未声明→**修**（KDoc：须同源 elapsedRealtime，负增量视为存活）；③测试常量调参盲区（STALE_AFTER_MS 调 <30s 仍绿）→**修**（新增不变式测试 staleWindow≥2×heartbeat，**761 绿**）；④主线程卡死 >90s 假阴性→**记录不修**（有界权衡：近 ANR 区、旧码同样受限、一次跳过自愈——notes 存证）。
+
+```evidence
+verify_cmd: export PATH="/c/Program Files/Microsoft/jdk-17.0.20.8-hotspot/bin:$PATH" && ./gradlew.bat testDebugUnitTest --rerun-tasks
+verify_claim: tests=761 failures+errors=0 skipped=0（760+不变式测试；评审 3 条 P3 修复）
+files_touched: [app/src/main/java/com/xiaoduo/deskpet/MainActivity.kt, app/src/test/java/com/xiaoduo/deskpet/PetOverlayStateTest.kt, docs/implementation-notes.html, docs/DEV_LOG.md]
+```
+
+
+## 2026-10-10（四）Phase 0 生产板部署 + §5.4 指标基线实测（用户授权）
+
+**部署（回灌法，逐次授权已拿到）**：生产板 10.0.14.18 换装 refactor/p0 @ 19ea825（含守卫+日志锚）。流程全记录：force-stop → 数据备份（shared_prefs×3 + chat_sessions×148 = 151 文件，tar 流拉回 + 双端 md5 **151/151 验通过**）→ 旧 APK 拉回备份（ba8931b2，96MB，回滚双保险）→ 卸载 → 装新包（5a0103eb）→ push tar 回灌（run-as tar xf）→ **回灌复验 151/151 全等** → 起活健康（149 sessions 恢复、双窗 added、KWS 常开 gate=0.015、采麦 source=7）。坑×1：备份完整性首验全红=对照脚本 bug（Git Bash md5sum 输出 ` *path` 星号分隔 vs 板端空格分隔，键不匹配假报错），修正键归一后 151/151 通过——**数据本身零问题**。新日志锚板端实证：`overlay first-frame drawn` 每轮冷启动都出。mijijia 侧未动（旧版兼容：基础设置直拉退化为开 APP，不影响指标）。
+
+**§5.4 指标基线（`docs/audit/2026-10-10-perf-baseline/`）**：
+- **内存三态**（dumpsys PSS）：空闲 5min=**219.2MB**（NH 86.3）；KWS 10min=**221.2MB**（NH 86.3，较空闲 +2.0MB 稳态带内）；播报中态待现场喊话。
+- **抖动带宽**（10×30s）：稳态 TOTAL PSS **<1MB 带宽**（215.8~216.7，分辨力 ±1MB）、NH ±0.3MB——后续「不回退」判定的最小可判差异。t=30s=192.9MB 是冷启动爬坡不计入。
+- **悬浮窗挂窗→首帧**（新增渲染锚）：7 轮样本 259/268/271/276/279/289/679，**中位 276ms**（679 为布局调度离群）。added（窗口挂上）→OnDrawListener 首帧，设备钟。
+- **待现场**：播报中三态（喊话触发，起播锚 `playback-start` 已备）/ 唤醒命中→应答音 / trampoline 端到端（mijijia 基础设置按键）/ Chat 首 token。
+- 板钟慢 PC ~3.5 分钟实证再现（jitter 文件 PC 钟进度戳 vs 板端数据钟差值吻合）——计时口径全程板钟未破。
+
+**Phase 0 状态**：脚本入库 ✓ / 守卫+测试 ✓（760 绿）/ 线程纪律设计 ✓ / 指标基线=自动化部分全落盘，现场配合项待喊话窗口。
+
+```evidence
+verify_cmd: adb shell run-as com.xiaoduo.deskpet sh -c 'find ./shared_prefs ./files/chat_sessions -type f | sort | xargs md5sum'（回灌后全量对照）
+verify_claim: 151/151 md5 全等；App 起活 149 sessions+双窗+KWS 健康；基线表 docs/audit/2026-10-10-perf-baseline/ 落盘
+files_touched: [docs/audit/2026-10-10-perf-baseline/, docs/DEV_LOG.md]
+```
+
+
+## 2026-10-10（三）Phase 0 代码交付：PetOverlayState 活性记账守卫 + §5.4 日志锚补点 + 线程纪律守卫设计
+
+**PetOverlayState stale-true 守卫（spec §4.3 定案落地，TDD 全闭环）**：活性记账落 PetOverlayState（还在 MainActivity.kt，Phase 1 才搬出）——`markStarted(now)/markHeartbeat(now)/markCleared()/isAlive(now)`（时钟注入纯 JVM 可测）+ `running` 收窄只读（写入方契约显式化）；心跳 30s / stale 窗 90s（3 周期容忍调度抖动）。接线：PetOverlayService 窗口构建成功 markStarted+心跳循环（主线程 postDelayed 30s）、onDestroy removeCallbacks+markCleared；SettingsScreen scale 滑条重启判定读点改 `isAlive(SystemClock.elapsedRealtime())`。正常路径行为零变化（service 活着时 isAlive=true 与原 running 同值）。
+
+**红-绿证明**：①红₁编译（API 不存在）→②红₂行为（骨架 isAlive 无活性判定，恰边界+心跳 2 测失败）→③绿（活性判定补上 6 测全过）→④变异 1 删心跳记账=`heartbeatExtendsAlive` 红 ✓→⑤**变异 2a 删 markHeartbeat 的 startedFlag 守卫=存活（未红）→守卫冗余实锤，删除**（isAlive 的 startedFlag 短路完全覆盖其语义；「变异存活=不是真守卫=删」纪律首次实战）→⑥变异 2b 重设计（markHeartbeat 置 running=复活 bug 形态）=双红 ✓（复活防线由 initialState+clearedThenHeartbeat 双锚）。全量 **760 绿（754+6）skipped=0**（rerun-tasks）。
+
+**§5.4 日志锚补点（3 处，行为零变化纯日志行）**：①VoicePlayer.playBlocking `playback-start blocking bytes=N`；②流式首块 `playback-start stream bytes=N`（播报开始锚——此前无起点日志，响应基线的「播报开始后 3s」采样无法定位）；③PetOverlayService 交互窗首帧 `overlay first-frame drawn`（ViewTreeObserver.OnDrawListener 一次性标志，回调内禁止移除 listener 故标志短路；悬浮窗可见下界锚，上界仍录屏逐帧）。
+
+**线程纪律 3 件守卫测试设计**（Phase 0 只设计，施工 Phase 2 评审定案/Phase 3 修）：`docs/audit/2026-10-10-phase0/thread-discipline-guard-design.md`——ocr[202] onWake TOCTOU→WakeEntryGate 临界区门（close 等 in-flight）；ocr[205] 裸 Thread 生命周期→service-scoped scope 注入（随刀消解 ocr[26] stopSelf 竞态/ocr[27] 校准不可取消）；ocr[53] 进程级 scope→命名属性+resetForTest+契约 KDoc。三件全走「纯 JVM 抽取+薄接线」（无 Robolectric 下唯一可测路），变异锚逐件指定。
+
+**挂账**：§5.4 指标基线**实测**（三态 dumpsys+响应 logcat）需生产板部署带锚包——回灌法换包属破坏性操作，待用户逐次授权；mijijia 侧不升级时基础设置直拉退化为开 APP（旧行为），不影响内存/响应指标测量。
+
+```evidence
+verify_cmd: export PATH="/c/Program Files/Microsoft/jdk-17.0.20.8-hotspot/bin:$PATH" && ./gradlew.bat testDebugUnitTest --rerun-tasks
+verify_claim: tests=760 failures+errors=0 skipped=0（754 基线 + PetOverlayStateTest 6 测；变异 1/2b 红、2a 存活删守卫实录上文）；assembleDebug 绿
+files_touched: [app/src/main/java/com/xiaoduo/deskpet/MainActivity.kt, app/src/main/java/com/xiaoduo/deskpet/PetOverlayService.kt, app/src/main/java/com/xiaoduo/deskpet/ui/screens/SettingsScreen.kt, app/src/main/java/com/xiaoduo/deskpet/voice/VoicePlayer.kt, app/src/test/java/com/xiaoduo/deskpet/PetOverlayStateTest.kt, docs/audit/2026-10-10-phase0/thread-discipline-guard-design.md, docs/audit/2026-10-10-dep-analysis/]
+```
+
+
+## 2026-10-10（二）Spec v0.4 执行开工：Phase 0 启动 + 基线漂移修正 755→754
+
+**开工清单执行**（HANDOFF-deskpet-spec-exec 六步）：读 AGENTS/PROGRESS/spec v0.4/HANDOFF → git status 核实未提交 docs（spec v0.4 + DEV_LOG 收尾条目，无混入）→ 入库 `b27dec3` 已推送 → 验基线 → 更新 PROGRESS 接手指引（指向 spec 执行）→ 开 Phase 0。
+
+**基线漂移发现与修正（755→754）**：基线复验实测 **754 绿 skipped=0**（failures=0，`--rerun-tasks` 全量），与三处文档声明的 755 差 1。取证：`fafa28e`（trampoline 重写）删除 `MainActivityOverlayLaunchPolicyTest.kt`（3 测）换入 `OverlayLaunchPolicyTest.kt`（2 测）——被退役测试的守卫对象「overlayOnly=false 输入维度」随 v1 extra 分叉整体删除而消失（现行 `OverlayLaunchPolicy.resolve(granted)` 只看权限位，1×2 决策表已被 2 测全覆盖），**属架构演进的正常减员、非测试缺口**；事故在 fa fa28e 未同步改文档。数字链自洽：752（审计修复）+3（旧策略测）−3 +2 = 754。处置：AGENTS.md 基线行 / PROGRESS.md 执行状态段 / spec §2 锚表+硬约束+§5.3 共 4 处锚修正为 754，历史条目保留当时事实。
+
+**Phase 0 进展**：①依赖脚本 v3 复跑对账 §3.2 **全对账通过**（环 4 对：chat↔cloud/cloud↔voice/voice↔ui/ui↔chat；hub 例外边 8=chat1/ui5/voice2；buildgen 1；矩阵逐格一致；大文件 Top5 一致；声明包≠目录异常 0）——脚本+JSON 入库 `docs/audit/2026-10-10-dep-analysis/`。②余项（§5.4 指标基线含两日志锚补点 / PetOverlayState stale-true 守卫+测试 / 线程纪律 3 件守卫测试设计）进行中。
+
+**启示范例**（方法论）：交接声明的基线数必须实测复核后再开工——本轮直接沿 755 锚开工，后续所有「只增不减」判定会整体错位 1；实测一次即拦住。
+
+```evidence
+verify_cmd: export PATH="/c/Program Files/Microsoft/jdk-17.0.20.8-hotspot/bin:$PATH" && ./gradlew.bat testDebugUnitTest --rerun-tasks
+verify_claim: BUILD SUCCESSFUL；XML 求和 tests=754 failures+errors=0 skipped=0（锚修正 755→754）
+files_touched: [AGENTS.md, PROGRESS.md, docs/spec/refactor-structure.spec.md, docs/DEV_LOG.md, docs/audit/2026-10-10-dep-analysis/]
+```
+
+
+
 ## 2026-10-10 结构重构 Spec v0.3（两轮评审 + 实证修订；纯方案零代码，待评审）
 
 **背景**（用户令）：多维度优化 desk-pet + 原地重排包/module 结构 + 多 Agent 协同机制；本轮只出方案。产出 `docs/spec/refactor-structure.spec.md`（v0.3，经两轮三通道子智能体评审修订）。
