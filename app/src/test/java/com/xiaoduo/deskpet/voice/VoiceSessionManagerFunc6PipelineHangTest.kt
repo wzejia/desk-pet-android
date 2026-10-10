@@ -21,7 +21,6 @@ import org.junit.Before
 import org.junit.Test
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.CountDownLatch
-import java.util.concurrent.TimeUnit
 
 /**
  * FUNC-6：runBlocking{sentences.send} 不可取消 → 生产者死亡后 IO 线程永久挂死。

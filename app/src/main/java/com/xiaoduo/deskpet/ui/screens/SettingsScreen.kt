@@ -70,19 +70,14 @@ import com.xiaoduo.deskpet.util.PetLogger
 import com.xiaoduo.deskpet.util.AppLauncher
 import com.xiaoduo.deskpet.util.PrefContract
 import com.xiaoduo.deskpet.util.Prefs
-import com.xiaoduo.deskpet.voice.audio.AudioCapture
 import com.xiaoduo.deskpet.voice.audio.AmbientCalibrator
 import com.xiaoduo.deskpet.voice.kws.EnergyGate
 import com.xiaoduo.deskpet.voice.pipeline.VoiceClientFactory
 import com.xiaoduo.deskpet.voice.pipeline.VoiceSessionManager
 import com.xiaoduo.deskpet.voice.wakeack.WakeAckPrefetcher
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.TimeoutCancellationException
-import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import kotlinx.coroutines.withTimeout
 
 /**
  * 设置页（S0 迁移自 M1 MainActivity，功能不丢）：

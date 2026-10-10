@@ -10,9 +10,7 @@ import com.xiaoduo.deskpet.device.DeviceClient
 import com.xiaoduo.deskpet.device.DeviceIntentMatcher
 import com.xiaoduo.deskpet.cloud.CloudClientFactory
 import com.xiaoduo.deskpet.cloud.Message
-import com.xiaoduo.deskpet.cloud.OpenAIAsrClient
 import com.xiaoduo.deskpet.cloud.OpenAIChatClient
-import com.xiaoduo.deskpet.cloud.OpenAITtsClient
 import com.xiaoduo.deskpet.device.ShelfMcpBridge
 import com.xiaoduo.deskpet.net.NetConfig
 import com.xiaoduo.deskpet.pet.PetFrameTable

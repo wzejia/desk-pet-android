@@ -6,7 +6,6 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.util.Random
-import kotlin.math.abs
 import kotlin.math.log10
 import kotlin.math.sqrt
 
