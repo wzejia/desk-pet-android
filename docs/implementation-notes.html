@@ -246,6 +246,11 @@ playCalls==2 断言取代原 ==1）。</p>
 <p>PetOverlayStateTest 变异 2a 实证：markHeartbeat 内 <code>if (startedFlag)</code> 守卫被删后测试仍全绿（存活）——isAlive 的 startedFlag 短路已完全覆盖其语义，该守卫是冗余防御，删除并把测试锚改指真实语义面（markHeartbeat 不得置 running，复活 bug 形态变异双红验证）。教训：变异锚验证不仅证明测试有效，还反向审计实现——存活变异处的「防御代码」多半是死防御，留着会误导读者以为有独立防线。<strong>变异存活的三种处置：删冗余守卫 / 修测试锚位 / 记录为已知等价防御（仅当有文档化理由）。</strong></p>
 </div>
 
+<div class="risk">
+<h3>已知有界权衡：主线程卡死 >90s 时 isAlive 假阴性（Phase 0 评审定案）</h3>
+<p>心跳挂主线程 handler——service 活着但主线程卡死 >90s → isAlive 误 false → 设置页跳过一次 scale 重启。有界性：主线程卡 ≥90s 已近 ANR 区，旧码（running 布尔）在同样卡死下重启请求同样排队无法执行；后果限一次跳过、下次松手自愈。评审判定可接受，记录在案（Phase 0 独立评审 2026-10-10，4 条 P3 中唯一不修条目）。</p>
+</div>
+
 <div class="deviation">
 <h3>单测基线 755→754（文档漂移修正，非测试缺口）</h3>
 <p>fafa28e trampoline 重写删除 extra 分叉维度时，旧 MainActivityOverlayLaunchPolicyTest（3 测）退役、

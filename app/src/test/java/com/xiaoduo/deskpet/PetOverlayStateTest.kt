@@ -68,6 +68,13 @@ class PetOverlayStateTest {
         assertFalse(PetOverlayState.isAlive(10_000L + PetOverlayState.STALE_AFTER_MS + 1L))
     }
 
+    /** 不变式（评审 P3：常量调参变异盲区）——stale 窗必须 ≥2 个心跳周期，
+     *  否则单次心跳抖动即误判 stale、设置页重启静默失效。调参破坏此关系必红。 */
+    @Test
+    fun constants_staleWindow_coversTwoHeartbeats() {
+        assertTrue(PetOverlayState.STALE_AFTER_MS >= 2 * PetOverlayState.HEARTBEAT_INTERVAL_MS)
+    }
+
     /** 变异锚：markHeartbeat 若置 running（复活 bug 形态）必红。 */
     @Test
     fun clearedThenHeartbeatDoesNotRevive() {

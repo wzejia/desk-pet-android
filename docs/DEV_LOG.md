@@ -1,6 +1,19 @@
 # 小朵 Android 开发日志
 
 
+## 2026-10-10（五）Phase 0 收尾：独立评审可合入 + 4 条 P3 处置（3 修 1 记录）
+
+**独立评审（opus 异构，只喂 diff+spec+测试输出）**：总评**可合入**。评审员本机独立复现：760 绿 / 新增 6 删 0 / 变异锚 M1、M2 双红真守卫 / 红线零触碰 / 行为零变化逐路径核实（含 addView 失败路径、handler 串行性、OnDrawListener 合规）。
+
+**findings 分诊与处置（4×P3，无 P1/P2）**：①markStarted 写序非原子→**修**（先 lastMark 后 startedFlag 的 volatile 序闭窗 + 主线程收编契约 KDoc）；②isAlive 负增量语义与时钟源契约未声明→**修**（KDoc：须同源 elapsedRealtime，负增量视为存活）；③测试常量调参盲区（STALE_AFTER_MS 调 <30s 仍绿）→**修**（新增不变式测试 staleWindow≥2×heartbeat，**761 绿**）；④主线程卡死 >90s 假阴性→**记录不修**（有界权衡：近 ANR 区、旧码同样受限、一次跳过自愈——notes 存证）。
+
+```evidence
+verify_cmd: export PATH="/c/Program Files/Microsoft/jdk-17.0.20.8-hotspot/bin:$PATH" && ./gradlew.bat testDebugUnitTest --rerun-tasks
+verify_claim: tests=761 failures+errors=0 skipped=0（760+不变式测试；评审 3 条 P3 修复）
+files_touched: [app/src/main/java/com/xiaoduo/deskpet/MainActivity.kt, app/src/test/java/com/xiaoduo/deskpet/PetOverlayStateTest.kt, docs/implementation-notes.html, docs/DEV_LOG.md]
+```
+
+
 ## 2026-10-10（四）Phase 0 生产板部署 + §5.4 指标基线实测（用户授权）
 
 **部署（回灌法，逐次授权已拿到）**：生产板 10.0.14.18 换装 refactor/p0 @ 19ea825（含守卫+日志锚）。流程全记录：force-stop → 数据备份（shared_prefs×3 + chat_sessions×148 = 151 文件，tar 流拉回 + 双端 md5 **151/151 验通过**）→ 旧 APK 拉回备份（ba8931b2，96MB，回滚双保险）→ 卸载 → 装新包（5a0103eb）→ push tar 回灌（run-as tar xf）→ **回灌复验 151/151 全等** → 起活健康（149 sessions 恢复、双窗 added、KWS 常开 gate=0.015、采麦 source=7）。坑×1：备份完整性首验全红=对照脚本 bug（Git Bash md5sum 输出 ` *path` 星号分隔 vs 板端空格分隔，键不匹配假报错），修正键归一后 151/151 通过——**数据本身零问题**。新日志锚板端实证：`overlay first-frame drawn` 每轮冷启动都出。mijijia 侧未动（旧版兼容：基础设置直拉退化为开 APP，不影响指标）。

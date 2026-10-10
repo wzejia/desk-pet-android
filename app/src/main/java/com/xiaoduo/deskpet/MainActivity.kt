@@ -134,9 +134,12 @@ object PetOverlayState {
 
     val running: Boolean get() = startedFlag
 
+    /** 起算活性戳。主线程收编契约：全部写者（onStartCommand 链/主线程 handler/onDestroy）
+     *  与唯一产线读者（SettingsScreen）同在主线程——双字段写序对并发读者不构成承诺。
+     *  先写 lastMark 再写 startedFlag：volatile 序使 startedFlag=true 可见时 lastMark 必已可见。 */
     fun markStarted(nowUptimeMs: Long) {
-        startedFlag = true
         lastMarkUptimeMs = nowUptimeMs
+        startedFlag = true
     }
 
     /** 续活性戳。不写 startedFlag（复活防线，PetOverlayStateTest 锁）——
@@ -150,6 +153,10 @@ object PetOverlayState {
         lastMarkUptimeMs = 0L
     }
 
+    /** 悬浮窗在跑且心跳未过期（读点唯一判定面）。
+     *  时钟契约：nowUptimeMs 须与 markStarted/markHeartbeat 同源（SystemClock.elapsedRealtime，
+     *  单机单调）——注入其他时钟（如 currentTimeMillis）则双向静默失真；负增量（now<lastMark）
+     *  视为存活（单调源下不可达，语义上倒拨偏保守）。 */
     fun isAlive(nowUptimeMs: Long): Boolean =
         startedFlag && nowUptimeMs - lastMarkUptimeMs <= STALE_AFTER_MS
 }
