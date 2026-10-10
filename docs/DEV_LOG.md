@@ -1,6 +1,23 @@
 # 小朵 Android 开发日志
 
 
+## 2026-10-10（七）Phase 2 收口：voice 七子包化 + SettingsScreen 拆分 + 94 条死/幻影 import 清零
+
+**交付**（refactor/p2，12 commits 合 main @ 1f3a3bd）：①voice 32 文件七子包化（pipeline7/audio6/wakeack6/kws5/client2/seam3/policy3；对 spec 六组建议的偏离已记录：echo 并入 audio、client 新增）；②PetView 归位 ui/overlay；③**94 条死/幻影 import 清零**（三批：24 KDoc 误加 + 23 未使用 + 47 phantom 全量清，全部编译器裁决，台账 `docs/audit/2026-10-10-phase0/dead-code-removal-ledger.md`）；④**SettingsScreen 1099→339**（5 兄弟文件：AgentPicker/EndpointEditor/SelfCheck/Kws/Widgets，大文件评估 P1 票）；⑤大文件拆分评估报告入库（P2 气泡 Hub/P3×3 挂批次；ChatViewModel 负结论不立项）。
+
+**验收（全部独立复现）**：761 绿 skipped=0 双重复现；**环 0 / hub 例外边 8 不增 / 分层零违规**；33 搬移正文与 main 逐字等价（评审剥 diff 核对）；rename 相似度 93-99%。**独立评审（opus，固定 commit 隔离 worktree）**：可合入；P2-1（phantom 漏网 37→实测 49 删 47 真死+2 误杀恢复）+ P3×4 全部处置。
+
+**施工方法论教训（三条，全实证）**：①**搬移脚本的引用判定必须剥注释**——KDoc/行注释/字符串里的类名提及（含「App 内」这种普通词）被当真实引用补 import，制造 24+47 条幻影边，其中部分在子包粒度成假环污染审计（顶层包粒度侥幸不显）；②**编译器是唯一裁判**——文本判定只做候选筛选，删/留以编译绿/红定（误杀 2 条 Date 因剥字符串器吞了 `${}` 插值内代码——剥注释器已知局限入台账）；③**评审与施工并发时验收锚必须在 quiet 树上复跑**（评审员中途扫到 hub=23 的中间态假象）。
+
+**决策**：Phase 2 纯结构搬移+死代码清理（行为零变化），不部署生产板（同 Phase 1 论证）；死代码簇剩余项（死分支/死参数/死常量甄别）归 Phase 3 工程族批。
+
+```evidence
+verify_cmd: export PATH="/c/Program Files/Microsoft/jdk-17.0.20.8-hotspot/bin:$PATH" && ./gradlew.bat testDebugUnitTest --rerun-tasks && MSYS2_ARG_CONV_EXCL="*" python "E:/desk-pet-android/.scratch/dep-analysis-20261010.py"
+verify_claim: tests=761 failures=0 skipped=0；环 0；hub 8 不增；分层审计零违规；评审独立复现（隔离 worktree 固定 d0f9643）
+files_touched: [app/src/main/java/com/xiaoduo/deskpet/voice/**(7子包32文件), app/src/main/java/com/xiaoduo/deskpet/ui/screens/Settings*(6文件), docs/audit/2026-10-10-phase0/(评估+台账)]
+```
+
+
 ## 2026-10-10（六）Phase 1 收口：断环三刀 + PetOverlayState 搬出，环 4 对清零
 
 **交付**（refactor/p1，4+1 commits 合 main @ 1ced9fa）：①PetOverlayState 搬出 MainActivity 成独立 root 文件（纯搬移）；②一刀 `api.AsrContract`（Result+LANGUAGE_ZH）/`api.TtsContract` 下沉——cloud↔voice 断；③二刀 `api.ChatMessage` 下沉——chat↔cloud 断；④三刀 `api.BubbleOwner` 下沉（BubbleOwnership 判定逻辑留 ui.overlay）——voice↔ui、ui↔chat 下半环断。全量改写引用（无 typealias，v0.3 定案）：主源 24 文件 + 测试 11 文件；api 包 4 文件 67 LOC 纯净（零 import 零可变态）。

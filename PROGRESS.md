@@ -1,11 +1,14 @@
 # 小朵 Android M1 进度
 
-## 状态：结构重构执行中——Phase 0 ✅ + Phase 1 ✅（2026-10-10，main @ 1ced9fa，761 绿）
+## 状态：结构重构执行中——Phase 0 ✅ + Phase 1 ✅ + Phase 2 ✅（2026-10-10，main @ 1f3a3bd，761 绿）
 
-- **权威方案 = `docs/spec/refactor-structure.spec.md`（v0.4）**；编排 = Temp HANDOFF-deskpet-spec-exec.md（Temp 易失，以 spec/DEV_LOG/PROGRESS 为准）。
-- **Phase 0 ✅**（合 main bec0fa4）：脚本入库 / PetOverlayState 活性记账守卫+7 测（变异锚闭环）/ 线程纪律 3 件设计 / §5.4 日志锚×3 + 生产板部署（回灌 151/151）/ 指标基线（**空闲 219.2MB / KWS 221.2MB / 抖动带宽 ±1MB / 挂窗→首帧中位 276ms**；基线表 docs/audit/2026-10-10-perf-baseline/）。**待现场**：播报中三态、唤醒→应答音（喊话即自动采集）；trampoline 端到端须双包成对。
-- **Phase 1 ✅**（合 main 1ced9fa）：断环三刀（api.AsrContract/TtsContract/ChatMessage/BubbleOwner 下沉，无 typealias 全量改写）+ PetOverlayState 搬出 MainActivity。**包级环 4 对→0**；hub 例外边 8 不增；761 绿；资产哈希不变；两轮 opus 评审可合入（P3×6 全处置）。纯结构搬移不单独部署（语义验收累积到行为性 Phase）。
-- **Phase 2 进行中**（refactor/p2，12 commits）：voice 32 文件七子包化 ✅（pipeline7/audio6/wakeack6/kws5/client2/seam3/policy3；echo 并入 audio、client 新增为对 spec 六组的偏离记录）+ PetView 归位 ui/overlay ✅ + 死/幻影 import 清理 94 条 ✅（三批，编译器裁决，台账 docs/audit/2026-10-10-phase0/dead-code-removal-ledger.md）+ SettingsScreen 拆分 1099→339 ✅（5 兄弟文件，大文件评估 P1）+ 大文件拆分评估报告入库 ✅（P2-P4 票挂批次）。验收：761 绿 / 环 0 / hub 8 / 分层零违规 / 评审可合入（P2-1 phantom 漏网 47 条已补刀，P3×4 全处置）。**待收口**：全量复跑 → 合 main。死代码簇剩余项（死分支/死参数/死常量）归 Phase 3 工程族批。
+- **权威方案 = `docs/spec/refactor-structure.spec.md`（v0.4）**；编排 = Temp HANDOFF-deskpet-spec-exec.md + `Temp/HANDOFF-deskpet-p012-done.md`（新交接，Temp 易失以本文件+DEV_LOG 为准）。
+- **Phase 0 ✅**（bec0fa4）：守卫+测试 / 线程纪律设计 / 日志锚 / 生产板部署 / 指标基线（**空闲 219.2MB / KWS 221.2MB / 抖动 ±1MB / 首帧中位 276ms**）。
+- **Phase 1 ✅**（1ced9fa）：断环三刀（api 包 4 契约）+ PetOverlayState 搬出；**环 4 对→0**。
+- **Phase 2 ✅**（1f3a3bd）：voice 七子包化（32 文件）/ PetView 归位 / SettingsScreen 1099→339（5 兄弟文件）/ 死·幻影 import 94 条清零（台账入库）/ 大文件拆分评估（P2-P4 票挂批次）。761 绿、环 0、hub 8、分层零违规；两轮 opus 评审可合入。
+- **Phase 3 待开工（并行批次）**：**前置门 = 附录 B 4 项拍板（SEC-1/SEC-2/SEC-3/P3-2）须领导拍板**。施工面：五维 P3 择优（语音族/工程族/性能四簇/重复簇/SEC 输入）+ 大文件评估 P2-P4 票 + 死代码剩余（死分支/死参数/死常量）+ 指标复测守门。
+- **挂账**：①指标基线现场项（播报中三态+唤醒→应答音——喊话即自动采集；trampoline 端到端须双包成对）；②纯结构 Phase 不部署，语义真机验收随 Phase 3 部署统一取证。
+- 单测基线：754（实测修正）→ 现 **761**。验证必带 JDK PATH 前缀 + `--rerun-tasks`。
 - **Phase 3 开工前置**：附录 B 4 项拍板（SEC-1/SEC-2/SEC-3/P3-2）须领导拍板——**即将到期，请领导安排**。
 - 单测基线：754（trampoline 重写后实测修正，原记 755 系文档漂移）→ 现 761。验证必带 JDK PATH 前缀 + `--rerun-tasks`。
 - **Phase 3 开工前置**：附录 B 4 项拍板（SEC-1 升级 / SEC-2 反代 / SEC-3 报批 / P3-2 createSession 口径）必须拿到领导拍板，不阻塞 Phase 0-2。
