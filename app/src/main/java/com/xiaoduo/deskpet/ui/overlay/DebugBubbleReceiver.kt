@@ -1,5 +1,6 @@
 package com.xiaoduo.deskpet.ui.overlay
 
+import com.xiaoduo.deskpet.api.BubbleOwner
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent

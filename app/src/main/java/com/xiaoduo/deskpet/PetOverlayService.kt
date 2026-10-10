@@ -22,7 +22,7 @@ import com.xiaoduo.deskpet.pet.OverlayClamp
 import com.xiaoduo.deskpet.pet.PetState
 import com.xiaoduo.deskpet.ui.PetView
 import com.xiaoduo.deskpet.util.AppLauncher
-import com.xiaoduo.deskpet.ui.overlay.BubbleOwner
+import com.xiaoduo.deskpet.api.BubbleOwner
 import com.xiaoduo.deskpet.ui.overlay.BubbleOwnership
 import com.xiaoduo.deskpet.ui.overlay.BubbleTextStrip
 import com.xiaoduo.deskpet.ui.overlay.BubbleView
