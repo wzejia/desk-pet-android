@@ -1,18 +1,20 @@
 # 小朵 Android M1 进度
 
-## 状态：结构重构执行中——Phase 0 ✅ + Phase 1 ✅ + Phase 2 ✅（2026-10-10，main @ 1f3a3bd，761 绿）
+## 状态：结构重构执行中——Phase 0 ✅ + Phase 1 ✅ + Phase 2 ✅ + Phase 3 ✅（2026-10-11，main @ 705dce5，**857 绿**）
 
-- **权威方案 = `docs/spec/refactor-structure.spec.md`（v0.4）**；编排 = Temp HANDOFF-deskpet-spec-exec.md + `Temp/HANDOFF-deskpet-p012-done.md`（新交接，Temp 易失以本文件+DEV_LOG 为准）。
+- **权威方案 = `docs/spec/refactor-structure.spec.md`（v0.4）**；本轮执行记录以本文件+`docs/DEV_LOG.md` 为准（Temp 交接易失）。
 - **Phase 0 ✅**（bec0fa4）：守卫+测试 / 线程纪律设计 / 日志锚 / 生产板部署 / 指标基线（**空闲 219.2MB / KWS 221.2MB / 抖动 ±1MB / 首帧中位 276ms**）。
 - **Phase 1 ✅**（1ced9fa）：断环三刀（api 包 4 契约）+ PetOverlayState 搬出；**环 4 对→0**。
-- **Phase 2 ✅**（1f3a3bd）：voice 七子包化（32 文件）/ PetView 归位 / SettingsScreen 1099→339（5 兄弟文件）/ 死·幻影 import 94 条清零（台账入库）/ 大文件拆分评估（P2-P4 票挂批次）。761 绿、环 0、hub 8、分层零违规；两轮 opus 评审可合入。
-- **Phase 3 待开工（并行批次）**：~~前置门~~ **已清**——附录 B 4 项拍板落盘（spec 附录 B @ ed96288）：SEC-1 维持 P2 / **SEC-2 关闭**（实测 443 POST /login=405 部署事实不成立，反代补路由后重开）/ SEC-3 批准（security-crypto 迁移施工）/ P3-2 静默降级+降级期禁写。领导示：板子现场人工测试暂不可用（adb 自动化与施工不受阻，现场指标项挂账）。施工面：五维 P3 择优（语音族/工程族/性能四簇/重复簇/SEC-3 迁移）+ 大文件评估 P2-P4 票 + 死代码剩余 + 指标复测守门。
-- **挂账**：①指标基线现场项（播报中三态+唤醒→应答音——喊话即自动采集；trampoline 端到端须双包成对）；②纯结构 Phase 不部署，语义真机验收随 Phase 3 部署统一取证。
-- 单测基线：754（实测修正）→ 现 **761**。验证必带 JDK PATH 前缀 + `--rerun-tasks`。
-- **Phase 3 开工前置**：附录 B 4 项拍板（SEC-1/SEC-2/SEC-3/P3-2）须领导拍板——**即将到期，请领导安排**。
-- 单测基线：754（trampoline 重写后实测修正，原记 755 系文档漂移）→ 现 761。验证必带 JDK PATH 前缀 + `--rerun-tasks`。
-- **Phase 3 开工前置**：附录 B 4 项拍板（SEC-1 升级 / SEC-2 反代 / SEC-3 报批 / P3-2 createSession 口径）必须拿到领导拍板，不阻塞 Phase 0-2。
-- Phase 顺序：0 基线 → 1 断环三刀+PetOverlayState 搬出 → 2 voice 子包化+大文件评估 → 3 五维 P3 择优（并行）→ 4 module 门槛评审；每 Phase 独立分支 `refactor/pN` + 收尾 ce-code-review + triage。
+- **Phase 2 ✅**（1f3a3bd）：voice 七子包化（32 文件）/ PetView 归位 / SettingsScreen 1099→339 / 死·幻影 import 94 条清零 / 大文件拆分评估。
+- **Phase 3 ✅**（705dce5，五维 P3 择优并行完毕，761→**857 绿**）：**切票编排**=T1 voice 健壮性 18 条（kws decode 族 7/VoicePlayer 6/AmbientCalibrator 4/WavCodec 1，变异锚 ×18 全红）+ T2 VSM 拆分×2（ContinuationWindow/BlindWindowBackfiller，既有测试零改动）+AsrClient 可取消+Factory/policy 纪律 + T3 ui 性能三簇（Markdown 列宽缓存/PetView 静止省绘/Settings 开关无状态化）+ T4 SEC-3 透明迁移（security-crypto 1.1.0）+PrefContract 键集对账+PetLogger 异步落盘 + T5 重复簇 5 处对齐+死代码 2 处；**主对话串行**=root 两件（WakeEntryGate 消解 onWake TOCTOU + KwsBootstrap 裸 Thread→scope）+ P3-2 静默降级（createSession 可空化+六点接线）+ ocr[382] 双开麦互斥 + WAV 族 cloud 侧 + 常量单源收敛；**opus 独立评审可合入**（锚 5/5、行为抽查 6/6、变异 3/3 真红），唯一 P2（SEC-3 remove 复活）已修。附录 B 4 项全部落地：SEC-1 维持 / SEC-2 关闭（405 实测）/ SEC-3 施工 / P3-2 施工。
+- **挂账（部署批，待领导逐次授权）**：①生产板换包（main @ 705dce5 版，回灌法）→ 语义三链路取证（spec §2）→ §5.4 指标复测不回退判定（空闲/KWS adb 自动；播报中三态+唤醒→应答音现场项喊话即采）；②OverlayBubbleHub P2 票（拆分+真机气泡/双击回归，随部署批）；③真机 Keystore 跨重启验证（SEC-3）；④ocr[394] 原子化 gate（wakeack 小票）。
+- 单测基线：761 → 现 **857**。验证必带 JDK PATH 前缀 + `--rerun-tasks`（不带会假绿）。
+- 依赖锚现行值：包级环 0 / root-hub 例外边 8（chat1/ui5/voice2）/ buildgen 1——复扫命令 `MSYS2_ARG_CONV_EXCL="*" python "E:/desk-pet-android/.scratch/dep-analysis-20261010.py"`。
+- 下一 Phase：**Phase 4 module 化门槛评审**（spec §6/§4.4：net 的 BuildConfig 边须先改注入；门槛 4 条全过才切，否决即停）。
+- 历史：Phase 0-2 详情见 git log 与 DEV_LOG 2026-10-10 条目。
+
+## 状态：入口功能——密集架基础设置直拉悬浮窗 + 菜单删「打开 App」 ✅（2026-10-09，755 绿，已推送）
+
 
 ## 状态：入口功能——密集架基础设置直拉悬浮窗 + 菜单删「打开 App」 ✅（2026-10-09，755 绿，已推送）
 
