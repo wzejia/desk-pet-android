@@ -247,16 +247,16 @@ MSYS2_ARG_CONV_EXCL="*" python "E:/desk-pet-android/.scratch/dep-analysis-202610
 
 **口径小注**（第二轮复审备案）：矩阵计数 = 每文件去重 import FQN 数（非物理行数）；白名单按短类名匹配，`X.Companion.Y` 形态 import（全仓现 0 条）理论上会逃出白名单成幽灵组——复扫若现未知组名先查此。
 
-## 附录 B：待拍板项（BLOCKED，等领导拍板后再进施工清单）
+## 附录 B：待拍板项（已拍板 2026-10-10 深夜，见下）
 
 > 依据 `fix-phase-dispositions.md` 末节 + 审计 digest 复核。**注意**：handoff 所列「5 项」与实况有出入——其中「af-integration 是否合入 main」已关闭（40 条 P2 已合 main，752 绿），且「分发形态三件套」是 SEC-1/4/5 一个安全决策包，非三项独立议题。以本清单（4 开放 + 2 挂账）为准。
 
-**开放 4 项**：
+**开放 4 项 → 已拍板（2026-10-10 深夜，领导令「按推荐来，以效果为主」）**：
 
-1. **SEC-1 是否升 P1**：议题 = TLS 白名单旁路证书校验，是否因「LAN 邻接即可利用、无用户交互」升 P1。选项 = 升 P1 并做证书锁定 / 维持 P2。支持升：codex high/high、confirmed、威胁模型含 LAN 攻击者；支持维持：利用前提是进入板子所在内网网段，且属项目文档明示的自签设计。审计判 P2，交领导拍板。
-2. **SEC-2 登录切 443 反代**：`NetEndpoints.loginUrl` 一行改动，**前提 = 部署事实**（反代已路由 /login），代码侧无法验证。待确认部署事实后执行。
-3. **SEC-3 主迁移报批**：引入 `security-crypto` 依赖做 EncryptedSharedPreferences 迁移（toString 脱敏已完成部分修）。选项 = 批准新依赖 / 维持明文+脱敏现状。
-4. **P3-2 createSession 口径**：磁盘 degraded 时 VM init **崩溃 vs 静默降级**（静默降级违背 DATA-1 初意）。崩溃-降级取舍 = 产品决策。
+1. **SEC-1 维持 P2**（按审计推荐）：利用前提=进入板子所在内网网段，且自签白名单属项目文档明示设计；**不施工证书锁定**。重估触发器：分发形态变化（对外部署/离开受控内网）时重开。
+2. **SEC-2 关闭（部署事实不成立，实测）**：2026-10-10 PC 侧实测 443 反代——GET 全回 200（前端 SPA fallback），**POST /login = 405**（反代未路由登录 API），切了即坏登录；8080 直连正常。维持 8080；**重开条件 = 反代补 /login POST 路由后**（届时一行改动）。
+3. **SEC-3 批准**：引入 `security-crypto` 依赖做 EncryptedSharedPreferences 迁移，Phase 3 施工（效果优先）；迁移须含旧值读取兼容 + 一次性搬迁 + 跨重启验证。
+4. **P3-2 静默降级**：磁盘 degraded 时 VM init 降级运行（不崩溃）+ 显式日志 + **降级期禁写防数据损坏**（只读保护，兼顾 DATA-1 初意的数据完整性）；Phase 3 施工（策略纯函数 + 变异锚测试）。
 
 **挂账待核实 2 条**（非决策，需有人查证）：ocr[161] `NetConfig.saveAll` 是否存在部分参数调用方（有则升 P2 数据丢失）；ocr[375] AsrClient JVM org.json CCE 是否因生产构建捆绑 org.json:json 而升 P2（依赖清单未核）。
 
