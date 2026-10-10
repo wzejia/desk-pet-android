@@ -30,6 +30,22 @@
 debugRuntimeClasspath 零捆绑（依赖树实测）→ AsrClient JVM CCE 属 JVM-only 路径，
 Android 用平台完整实现不受影响。
 
+**WAV 族 cloud 侧收口**（T1 上报回灌，refactor/p3）：`AliyunAsrClient`/`VolcengineAsrClient`
+`stripWavPcm`（镜像双胞胎）三路径修复——巨量 data size `start+size` 回绕→无溢出钳位；负
+chunkSize 推进回绕致 IOOBE→契约化 IAE；剩余装不下本块→无溢出比较循环退出走 44B 回退（原
+行为等价化）。**契约裁定**：ROB-14 既有测试锁定「负 data size 抛 IAE（调用方映射
+Result.Error）」——首版「宽容回退」语义与族契约（WavCodec require 一律 IAE）冲突，改判契约
+化。新测 `WavPcmStripBoundsTest` 2（双胞胎同测五路径）+ 变异锚（回退旧溢出代码）红 ✓。
+843 绿 skipped=0（841+2）。
+
+```evidence
+verify_cmd: export PATH="/c/Program Files/Microsoft/jdk-17.0.20.8-hotspot/bin:$PATH" && ./gradlew.bat testDebugUnitTest --rerun-tasks
+verify_claim: tests=843 failures+errors=0 skipped=0（841+2）；ROB-14 既有契约保持绿；变异（旧溢出代码回灌）WavPcmStripBoundsTest 红
+files_touched: [app/src/main/java/com/xiaoduo/deskpet/cloud/AliyunAsrClient.kt, app/src/main/java/com/xiaoduo/deskpet/cloud/VolcengineAsrClient.kt, app/src/test/java/com/xiaoduo/deskpet/cloud/WavPcmStripBoundsTest.kt]
+```
+
+
+
 ```evidence
 verify_cmd: export PATH="/c/Program Files/Microsoft/jdk-17.0.20.8-hotspot/bin:$PATH" && ./gradlew.bat testDebugUnitTest --rerun-tasks
 verify_claim: tests=796 failures+errors=0 skipped=0（793 合并树+3 policy 测）；T4 合并树独立复验 793；变异锚 allowWrite 恒放行→degradedRefusesAllWrites 红；用例 15 红转绿（拍板口径反转）
