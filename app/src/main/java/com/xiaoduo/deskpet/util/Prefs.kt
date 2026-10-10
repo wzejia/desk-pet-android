@@ -12,8 +12,21 @@ object Prefs {
     const val MIN_SCALE = PrefContract.MIN_SCALE
     const val MAX_SCALE = PrefContract.MAX_SCALE
 
-    private fun sp(context: Context): SharedPreferences =
-        context.getSharedPreferences(PrefContract.FILE_SETTINGS, Context.MODE_PRIVATE)
+    @Volatile
+    private var settingsStore: SharedPreferences? = null
+
+    /** SEC-3：settings 库迁加密存储（迁移收敛在本类内部，调用点签名零变化）。 */
+    private fun sp(context: Context): SharedPreferences {
+        settingsStore?.let { return it }
+        synchronized(this) {
+            settingsStore?.let { return it }
+            return SecurePrefStore.migrating(
+                context,
+                PrefContract.SECURE_FILE_SETTINGS,
+                PrefContract.FILE_SETTINGS,
+            ).also { settingsStore = it }
+        }
+    }
 
     fun petScale(context: Context): Float =
         sp(context).getFloat(KEY_PET_SCALE, DEFAULT_SCALE).coerceIn(MIN_SCALE, MAX_SCALE)

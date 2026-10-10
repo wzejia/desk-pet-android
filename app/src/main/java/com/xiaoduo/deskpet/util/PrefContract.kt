@@ -8,6 +8,9 @@ package com.xiaoduo.deskpet.util
 object PrefContract {
     const val FILE_SETTINGS = "xiaoduo_settings"
 
+    // SEC-3 迁移后的加密新库（旧明文库 FILE_SETTINGS 只读回落+搬迁写回，永不删除）
+    const val SECURE_FILE_SETTINGS = "xiaoduo_settings_secure"
+
     // ---- M1 既有键（不可改名，改名=丢用户配置）----
     const val KEY_PET_SCALE = "pet_scale"      // Float, 0.5 - 2.0
     const val KEY_SHOW_BUBBLE = "show_bubble"  // Boolean
