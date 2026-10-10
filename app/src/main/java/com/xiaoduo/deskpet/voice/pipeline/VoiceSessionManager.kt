@@ -655,20 +655,14 @@ class VoiceSessionManager(
     @Volatile
     private var vadDiagTicks = 0
 
-    // ---- S51 断句续听状态（仅采麦消费线程写，cancel/停止跨线程清，续听锁保护）----
-    /** 续听片段累积（各片段均过 min_utterance 门，合并后交 ASR）。 */
-    private val continuationParts = ArrayList<ShortArray>()
-
-    /** 续听窗剩余块数（0=无挂起；语音级块冻结，连续静音递减）。 */
-    @Volatile
-    private var continuationTicksLeft = 0
-
-    /** 各片段 maxLevel 最大值（合并事件诊断用，「一值定层」口径）。 */
-    @Volatile
-    private var continuationMaxLevel = 0.0
-
-    /** 续听状态锁（routeBlock 消费线程 vs cancel 跨线程清理竞态收口）。 */
-    private val continuationLock = Any()
+    // ---- S51 断句续听（状态与判定聚合于 [ContinuationWindow]，P3-T2 拆分搬移；
+    //      vad 副作用与派发出口留本面接续，CONTINUATION_TICKS 测试锚保持 VSM 面）----
+    private val continuationWindow = ContinuationWindow(
+        windowTicks = CONTINUATION_TICKS,
+        isListening = { state == VoiceStateRouter.State.LISTENING },
+        frozen = { lvl -> lvl >= vad.currentEndThreshold() || vad.isSpeaking },
+        logger = logger,
+    )
 
     /** S19-2 空 ASR 续听剩余额度（真文本/新对话链复位）。 */
     @Volatile
@@ -789,75 +783,23 @@ class VoiceSessionManager(
 
     // ---------------- S51 断句续听 ----------------
 
-    /*
-     * 病灶（09-18 板端实锤）：固定静音窗判停天生吃不掉长句字组气口——用户说
-     * 「盘点当前有哪些档案」在「有哪」后换气，气口>判停窗即切尾，且切尾改变
-     * LLM 工具路由（盘点被当查询调 c_archive_query）。三轮对照实验（轻声/正常音量
-     * ×600/800ms 窗）钉死切尾位置=气口位置，与音量无关（更响反而切得更早）。
-     *
-     * 机制（Siri/小爱同款）：判停片段不即派发——累积 + 重启 VAD + 续听窗倒计时；
-     * 窗内出现语音级块（用户续说）则冻结倒计时交 VAD 判起，下一片段到达重置窗口；
-     * 连续静音耗尽窗口才合并派发。代价：每轮派发延迟 +[CONTINUATION_TICKS] 块。
-     *
-     * 直通例外：按住松开 stopListening（松开=明确说完）与单测直注 onUtterance
-     * 不经此路径，保持即时派发语义。
-     */
+    // 病灶/机制说明随状态搬移至 [ContinuationWindow]（P3-T2 拆分，注释原文保留）。
 
     /** 判停片段不即派发：累积 + 重启 VAD + 重置续听窗（状态保持 LISTENING，声纹续显）。 */
     private fun holdForContinuation(ev: VadDetector.Event.Utterance) {
-        synchronized(continuationLock) {
-            continuationParts.add(ev.pcm)
-            continuationMaxLevel = maxOf(continuationMaxLevel, ev.maxLevel)
-            continuationTicksLeft = CONTINUATION_TICKS
-        }
+        continuationWindow.hold(ev)
         vad.startLevelOverride = { VadDetector.SPEECH_END_LEVEL } // S51：续听期判起降敏到 end 线（轻声档案名可成型片段）
         vad.start() // 单发后已停机，重启接下一片段（listenTicks/preRoll 重置，多片段各自不超 8s）
-        logger(
-            "S51 continuation hold: parts=${continuationParts.size} " +
-                "samples=${continuationParts.sumOf { it.size }} window=$CONTINUATION_TICKS blocks",
-        )
     }
 
-    /** 续听窗倒计时（仅聆听活块驱动，每块一次）：≥当前判停阈值（end 线，全链单标“静音”定义）
-     *  或片段成型中冻结；真静音耗尽→合并派发。 */
+    /** 续听窗倒计时（仅聆听活块驱动，每块一次）：真静音耗尽→合并派发。 */
     private fun tickContinuation(lvl: Double) {
-        if (continuationTicksLeft <= 0) return
-        // 冻结线必须与判停同域（end 线 0.03）而非判起线 0.05：轻声续说（0.03~0.05 频段）
-        // 若被当静音倒数，会在用户开口说档案名时照常派发+停 VAD，整段丢弃（板端 17:00 实锤）
-        // S55（2026-09-21 双板实证）：噪声环境电平 0.19~0.29（判停线 0.03 的 7~10 倍）下
-        // 冻结永不解除 → hold 无限累积（实测 parts=8/66s 零派发）=「说完不回答」根因。
-        // 窗=1（暂关续听）时冻结短路——无条件倒数，判停后必派发；窗>1 恢复时冻结语义回归。
-        if (CONTINUATION_TICKS > 1 && (lvl >= vad.currentEndThreshold() || vad.isSpeaking)) return
-        val fire = synchronized(continuationLock) {
-            if (continuationTicksLeft > 0) continuationTicksLeft-- == 1 else false
-        }
-        if (fire) dispatchContinuation()
+        if (continuationWindow.tick(lvl)) dispatchContinuation()
     }
 
     /** 窗口耗尽：拼接片段成单条 utterance，走 onUtterance 原派发语义（防双控不重复）。 */
     private fun dispatchContinuation() {
-        val merged = synchronized(continuationLock) {
-            if (continuationTicksLeft != 0 || continuationParts.isEmpty() ||
-                state != VoiceStateRouter.State.LISTENING
-            ) {
-                continuationParts.clear()
-                continuationTicksLeft = 0
-                continuationMaxLevel = 0.0
-                null
-            } else {
-                val pcm = ShortArray(continuationParts.sumOf { it.size })
-                var off = 0
-                for (p in continuationParts) {
-                    p.copyInto(pcm, off)
-                    off += p.size
-                }
-                val ev = VadDetector.Event.Utterance(pcm, continuationMaxLevel)
-                continuationParts.clear()
-                continuationTicksLeft = 0
-                continuationMaxLevel = 0.0
-                ev
-            }
-        } ?: return
+        val merged = continuationWindow.takeForDispatch() ?: return
         vad.stop() // 派发后 VAD 停机（对齐单发不变式）；多轮/空 ASR 续听由管线侧重启
         vad.startLevelOverride = null // S51：退出续听态，判起线回归校准联动
         logger(
@@ -869,11 +811,7 @@ class VoiceSessionManager(
     /** 续听挂起全清（backToIdle 单点复位纪律，同 kwsPaused；新唤醒轮也走此清）。 */
     private fun clearContinuation() {
         vad.startLevelOverride = null // S51：判起线回归校准联动
-        synchronized(continuationLock) {
-            continuationParts.clear()
-            continuationTicksLeft = 0
-            continuationMaxLevel = 0.0
-        }
+        continuationWindow.clear()
     }
 
     /**
