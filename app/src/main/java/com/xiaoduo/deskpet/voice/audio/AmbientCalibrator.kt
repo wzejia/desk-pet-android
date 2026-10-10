@@ -3,8 +3,8 @@ package com.xiaoduo.deskpet.voice.audio
 import android.content.Context
 import com.xiaoduo.deskpet.util.Prefs
 import com.xiaoduo.deskpet.util.PetLogger
-import com.xiaoduo.deskpet.voice.EnergyGate
 import com.xiaoduo.deskpet.voice.VoiceClientFactory
+import com.xiaoduo.deskpet.voice.kws.EnergyGate
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.TimeoutCancellationException

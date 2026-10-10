@@ -1,5 +1,6 @@
 package com.xiaoduo.deskpet.ui.overlay
 
+import com.xiaoduo.deskpet.voice.kws.EnergyGate
 import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.cos

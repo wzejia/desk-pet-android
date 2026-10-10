@@ -7,9 +7,9 @@ import android.media.AudioTimestamp
 import android.media.MediaRecorder
 import com.xiaoduo.deskpet.VoiceForegroundService
 import com.xiaoduo.deskpet.util.PetLogger
-import com.xiaoduo.deskpet.voice.AudioProbe
-import com.xiaoduo.deskpet.voice.EnergyGate
-import com.xiaoduo.deskpet.voice.KwsCore
+import com.xiaoduo.deskpet.voice.kws.AudioProbe
+import com.xiaoduo.deskpet.voice.kws.EnergyGate
+import com.xiaoduo.deskpet.voice.kws.KwsCore
 import com.xiaoduo.deskpet.voice.seam.StampedBlock
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.CoroutineScope

@@ -64,7 +64,7 @@ import com.xiaoduo.deskpet.agui.FileMeta
 import com.xiaoduo.deskpet.agui.UploadStatus
 import com.xiaoduo.deskpet.chat.FunctionKeyLogic
 import com.xiaoduo.deskpet.ui.theme.XiaoduoDimens
-import com.xiaoduo.deskpet.voice.EnergyGate
+import com.xiaoduo.deskpet.voice.kws.EnergyGate
 import com.xiaoduo.deskpet.voice.VoiceClientFactory
 
 /**

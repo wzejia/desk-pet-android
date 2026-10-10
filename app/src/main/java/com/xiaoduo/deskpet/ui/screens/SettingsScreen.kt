@@ -71,10 +71,10 @@ import com.xiaoduo.deskpet.util.AppLauncher
 import com.xiaoduo.deskpet.util.PrefContract
 import com.xiaoduo.deskpet.util.Prefs
 import com.xiaoduo.deskpet.voice.audio.AudioCapture
-import com.xiaoduo.deskpet.voice.EnergyGate
 import com.xiaoduo.deskpet.voice.VoiceClientFactory
 import com.xiaoduo.deskpet.voice.WakeAckPrefetcher
 import com.xiaoduo.deskpet.voice.audio.AmbientCalibrator
+import com.xiaoduo.deskpet.voice.kws.EnergyGate
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.TimeoutCancellationException

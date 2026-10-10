@@ -1,4 +1,4 @@
-package com.xiaoduo.deskpet.voice
+package com.xiaoduo.deskpet.voice.kws
 
 import android.content.res.AssetManager
 import com.k2fsa.sherpa.onnx.FeatureConfig

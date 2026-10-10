@@ -23,6 +23,8 @@ import com.xiaoduo.deskpet.voice.audio.VoicePlayer
 import com.xiaoduo.deskpet.voice.audio.WavCodec
 import com.xiaoduo.deskpet.voice.client.AsrClient
 import com.xiaoduo.deskpet.voice.client.TtsClient
+import com.xiaoduo.deskpet.voice.kws.EnergyGate
+import com.xiaoduo.deskpet.voice.kws.KwsCore
 import com.xiaoduo.deskpet.voice.policy.BubbleHidePolicy
 import com.xiaoduo.deskpet.voice.policy.ListeningHintPolicy
 import com.xiaoduo.deskpet.voice.seam.StampedBlock
