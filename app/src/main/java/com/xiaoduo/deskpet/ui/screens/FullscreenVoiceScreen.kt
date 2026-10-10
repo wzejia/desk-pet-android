@@ -71,6 +71,8 @@ import com.xiaoduo.deskpet.pet.PetState
 import com.xiaoduo.deskpet.ui.components.MarkdownContent
 import com.xiaoduo.deskpet.ui.FullscreenVoiceLayout
 import com.xiaoduo.deskpet.ui.overlay.PetView
+import com.xiaoduo.deskpet.ui.overlay.VoiceIndicatorModel.RMS_FLOOR
+import com.xiaoduo.deskpet.ui.overlay.VoiceIndicatorModel.RMS_SPAN
 import com.xiaoduo.deskpet.ui.theme.XiaoduoDimens
 import com.xiaoduo.deskpet.util.PetLogger
 import com.xiaoduo.deskpet.util.Prefs
@@ -601,7 +603,6 @@ private val StopIconColor = Color(0xFF3A3A3A)
 private val ExitRed = Color(0xFFFF3B30)
 private val DotColor = Color(0xFF9AA0A6)
 
-/** RMS→能级归一（对账表实测域：静音 ~0.001-0.006 / 说话 ~0.036 / 门控上限 0.05）。 */
-private const val RMS_FLOOR = 0.005f
-private const val RMS_SPAN = 0.045f
+// RMS_FLOOR/RMS_SPAN 已单源化至 VoiceIndicatorModel（对账表实测域：静音 ~0.001-0.006 /
+// 说话 ~0.036 / 门控上限 0.05；P3-T5 收敛，改值两处同变，勿再私有镜像）
 private const val RMS_EMA_KEEP = 0.6f // EMA 平滑：保留旧值比例，防逐块跳变
