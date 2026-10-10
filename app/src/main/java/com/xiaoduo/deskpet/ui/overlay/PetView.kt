@@ -13,6 +13,18 @@ import com.xiaoduo.deskpet.pet.PetFrameTable
 import com.xiaoduo.deskpet.pet.PetState
 
 /**
+ * 静止省绘判定（审计 ocr[307]）：源矩形（行+帧列）相同 ⇔ 待绘画面相同（同 sheet 同帧尺寸），
+ * 跳过 invalidate() 省一次 draw pass；矩形变化 → 必须重绘。帧时钟（tick/postFrameCallback）不受影响。
+ * S13 红线锚：setState 重置 frameIndex=0 且换状态必变行（sourceTop）或列（sourceLeft→0），
+ * 切换后首帧必绘；矩形不变 ⇒ 画面像素本就相同，跳过无感知差异。首绘以 (-1,-1) 哨兵保证必绘。
+ * 纯 Kotlin（无 Android API），判定抽文件级顶层以便 JVM 变异锚测试。
+ */
+internal object PetFrameRedrawPolicy {
+    fun shouldInvalidate(lastDrawnLeft: Int, lastDrawnTop: Int, sourceLeft: Int, sourceTop: Int): Boolean =
+        lastDrawnLeft != sourceLeft || lastDrawnTop != sourceTop
+}
+
+/**
  * 小朵渲染视图：从 assets/spritesheet.webp 按帧表切帧绘制。
  * App 内主页与悬浮窗复用同一个 View。
  */
@@ -33,6 +45,9 @@ class PetView(context: Context) : View(context) {
 
     private var attached = false
     private var lastFrameTimeNs = 0L
+    // 静止省绘（审计 ocr[307]）：上次实际绘制的源矩形左上角；(-1,-1) 哨兵=尚未绘制（必绘）。
+    private var lastDrawnLeft = -1
+    private var lastDrawnTop = -1
 
     private val frameCallback = object : Choreographer.FrameCallback {
         override fun doFrame(frameTimeNanos: Long) {
@@ -42,7 +57,13 @@ class PetView(context: Context) : View(context) {
                 animator.tick(deltaMs)
             }
             lastFrameTimeNs = frameTimeNanos
-            invalidate()
+            // 源矩形未变（画面无变化）→ 跳过 invalidate() 省一次 draw pass；
+            // 帧时钟（tick/postFrameCallback）保留。矩形变化（含 setState 换行/重置 0 帧）必绘。
+            if (PetFrameRedrawPolicy.shouldInvalidate(lastDrawnLeft, lastDrawnTop, animator.sourceLeft, animator.sourceTop)) {
+                lastDrawnLeft = animator.sourceLeft
+                lastDrawnTop = animator.sourceTop
+                invalidate()
+            }
             Choreographer.getInstance().postFrameCallback(this)
         }
     }
@@ -53,6 +74,9 @@ class PetView(context: Context) : View(context) {
         super.onAttachedToWindow()
         attached = true
         lastFrameTimeNs = 0L
+        // 重挂后表面可能已失效：哨兵复位保证重挂首绘必执行
+        lastDrawnLeft = -1
+        lastDrawnTop = -1
         Choreographer.getInstance().postFrameCallback(frameCallback)
     }
 
