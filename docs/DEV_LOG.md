@@ -1,6 +1,20 @@
 # 小朵 Android 开发日志
 
 
+## 2026-10-10 结构重构 Spec v0.3（两轮评审 + 实证修订；纯方案零代码，待评审）
+
+**背景**（用户令）：多维度优化 desk-pet + 原地重排包/module 结构 + 多 Agent 协同机制；本轮只出方案。产出 `docs/spec/refactor-structure.spec.md`（v0.3，经两轮三通道子智能体评审修订）。
+
+**核心增量**（全部实证）：①包级依赖分析脚本 `.scratch/dep-analysis-20261010.py`（v3 可复跑，评审三轮演进）——**新发现包级环 4 对**（chat↔cloud / cloud↔voice / voice↔ui / ui↔chat）+ root 枢纽例外边 8 条（3 类白名单）+ BuildConfig 产物边 1 条（`root→chat→agui→net→BuildConfig` 真链）；10-03 全量审计 489 条对此零命中（盲区首落档）。②「断环三刀」（v0.2/v0.3 修订）：AsrClient/TtsClient 实为**具体类非接口**，下沉对象为其嵌套 `Result` 密封类型 + `LANGUAGE_ZH` → `api.AsrContract/TtsContract`，另 Message（cloud）、ChatMessage（chat）、BubbleOwner（ui.overlay）——环清零；**typealias 保旧引用语法被 kotlin 1.9.24 实测证伪（v0.3），唯一路径=全量改写引用**。③root 枢纽白名单（8 边 3 类）；PetOverlayState = MainActivity.kt:122 object 可变全局态（不下沉 api），stale-true 防线守卫定义为活性记账落 PetOverlayState（JVM 可测，v0.3）。④待拍板复核「4 开放 + 2 挂账」+ 第五节逐项销账。
+
+**评审记录**：第一轮对抗评审 12 findings（P1×2 实证采纳）+ 事实核查 35 项（31 属实/3 勘误/1 存疑加注）；第二轮 delta 复审 16 条闭环核查（14 已闭环/2 部分闭环→v0.3 补齐）+ 新 findings N1-N4（P2×2 已修：typealias 证伪、守卫机制补定义；P3×2 已修：播放开始锚、口径措辞）+ 脚本 v3 代码审查与全量对账通过（环/hub/buildgen/矩阵逐格一致）。
+
+**零代码改动**；审计 digest 与代码地图由两个 Explore 子智能体产出，未落盘（结论已并入 Spec）。
+
+**v0.4（领导拍板收尾）**：①内存/响应指标**暂不设定目标值**——§5.4 改为「协议先行、实测后议」，唯一守门线=各 Phase 复测不回退，改善目标待实测数据后议；②状态改「已认可进入执行」，执行交接文档 `Temp/HANDOFF-deskpet-spec-exec.md`（多智能体编排打法），新会话从 Phase 0 起。spec/DEV_LOG 本会话未提交 git，交接文档已嘱新会话开工先核实入库。
+
+
+
 ## 2026-10-09 入口功能：密集架基础设置直拉悬浮窗 + 长按菜单删「打开 App」
 
 **背景**（用户令）：mijijia 侧重划入口职责——系统设置加「打开小朵」（拉起 APP），基础设置按键名不变改直拉悬浮窗。desk-pet 侧配两条：①MainActivity 新增 `extra_launch_overlay_only` 直拉路径（TDD：策略纯函数 3 测锁「无权限回落 UI 不黑屏」；`finish()` 在 `setContent` 前不闪屏；singleTask 下 onNewIntent 同路收 UI）；②长按菜单删「打开 App」行（同 `onOpenApp` 参数与 Service 拉起代码一并清）——入口归密集架设置页，菜单跳转类只剩「打开密集架」。755 绿（752+3）。
