@@ -6,6 +6,7 @@ import android.media.AudioRecord
 import android.media.AudioTimestamp
 import android.media.MediaRecorder
 import com.xiaoduo.deskpet.util.PetLogger
+import java.util.Locale
 import com.xiaoduo.deskpet.voice.kws.AudioProbe
 import com.xiaoduo.deskpet.voice.kws.EnergyGate
 import com.xiaoduo.deskpet.voice.seam.StampedBlock
@@ -219,7 +220,7 @@ class AudioCapture(
         if (!AudioProbe.shouldLog(rms, EnergyGate.DEFAULT_GATE)) return
         val lagText = runCatching { captureLagText(r) }
             .getOrElse { "NA(error:${it.message})" }
-        PetLogger.i(PROBE_TAG, "cap rms=%.4f lag=%s".format(rms, lagText))
+        PetLogger.i(PROBE_TAG, capProbeLine(rms, lagText))
     }
 
     private fun captureLagText(r: AudioRecord): String {
@@ -331,3 +332,11 @@ internal suspend fun CoroutineScope.pumpBlocks(
         }
     }
 }
+
+/**
+ * ocr[17]：`cap rms=` 探针行（S11-6 延迟取证，与 KwsCore 侧 `feed rms=` 行时间戳同域
+ * 对照，lag 字段被延迟分析脚本 grep）格式钉死 Locale.US——默认 locale 在逗号小数区
+ * 渲染 "0,0421" 破坏解析口径。顶层纯函数：JVM 单测可载（不触 AudioCapture 类体）。
+ */
+internal fun capProbeLine(rms: Float, lagText: String): String =
+    String.format(Locale.US, "cap rms=%.4f lag=%s", rms, lagText)

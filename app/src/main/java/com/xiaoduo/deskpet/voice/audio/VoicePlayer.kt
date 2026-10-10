@@ -22,9 +22,9 @@ import java.io.IOException
  */
 class VoicePlayer {
 
-    /** 打断标志（@Volatile：stop 由 UI/会话线程调，写循环在 IO 线程查）。 */
-    @Volatile
-    private var stopped = false
+    /** 打断门（@Volatile 态在门内：stop 由 UI/会话线程调，写循环在 IO 线程查；
+     *  ocr[424]：会话拆除（reset/finish）随门清位，实例复用可恢复）。 */
+    private val interruptGate = InterruptGate()
 
     /** S24 App 内播报音量（0..1，默认 1=跟随系统）：治板子满格音量致麦克风削波
      *  （2026-09-02 实证：系统音量 15→9 后 inRms 0.8~1.3 削波区降到 0.4 线性区，
@@ -51,6 +51,9 @@ class VoicePlayer {
     private var refPacerRunning = false
     private var refPacer: Thread? = null
 
+    /** ocr[426]：代际票根——join(200) 超时残活的陈旧 pacer 靠票失效自毁，不与新会话双跑。 */
+    private val refPacerGen = PacerGeneration()
+
     /** 在途 AudioTrack 引用（stop 需直接停硬件加速打断，不等下一轮写循环）。 */
     @Volatile
     private var activeTrack: AudioTrack? = null
@@ -71,7 +74,7 @@ class VoicePlayer {
 
     /** 打断在途播放（幂等；未在播仅置标志——开播即查，先于 cancel 的 stop 也生效）。 */
     fun stop() {
-        stopped = true
+        interruptGate.stop()
         runCatching { activeTrack?.stop() }
     }
 
@@ -81,10 +84,11 @@ class VoicePlayer {
         val minBuf = AudioTrack.getMinBufferSize(
             SR, AudioFormat.CHANNEL_OUT_MONO, AudioFormat.ENCODING_PCM_16BIT,
         )
-        val track = buildTrack(maxOf(minBuf, pcm.size.coerceAtMost(MAX_BLOCK_BUF_BYTES)))
+        // ocr[428]：空 PCM/负 minBuf 不再直进 setBufferSizeInBytes(0)（IAE 逃逸降级路径）
+        val track = buildTrack(trackBufBytes(minBuf, pcm.size.coerceAtMost(MAX_BLOCK_BUF_BYTES), STREAM_BUF_BYTES))
         activeTrack = track
         try {
-            track.play()
+            unpackAsIo { track.play() } // ocr[427]：并发 reset 的 ISE 转 IOException 走降级
             PetLogger.i(TAG, "playback-start blocking bytes=${pcm.size}") // §5.4 播报开始锚
             writeAll(track, pcm)
             drainUntil(track, (pcm.size / 2).toLong())
@@ -105,15 +109,16 @@ class VoicePlayer {
     fun play(pcm: ByteArray) {
         val track: AudioTrack = synchronized(streamLock) {
             streamTrack ?: run {
-                if (stopped) throw IOException("stopped")
+                if (interruptGate.isStopped()) throw IOException("stopped")
                 val minBuf = AudioTrack.getMinBufferSize(
                     SR, AudioFormat.CHANNEL_OUT_MONO, AudioFormat.ENCODING_PCM_16BIT,
                 )
-                val t = buildTrack(maxOf(minBuf, STREAM_BUF_BYTES))
+                // ocr[428]：minBuf 错误码不再直进建轨
+                val t = buildTrack(trackBufBytes(minBuf, STREAM_BUF_BYTES, STREAM_BUF_BYTES))
                 streamTrack = t
                 activeTrack = t
                 streamWrittenFrames = 0
-                t.play()
+                unpackAsIo { t.play() } // ocr[427]：并发 reset 的 ISE 转 IOException 走降级
                 PetLogger.i(TAG, "playback-start stream bytes=${pcm.size}") // §5.4 播报开始锚（首块）
                 startRefPacer(t)
                 t
@@ -144,8 +149,12 @@ class VoicePlayer {
     /** 强制释放流式 track（播放异常后下句重建 / finally 兜底 / barge-in 收尾）。幂等。 */
     fun reset() = releaseStream()
 
+    /** P3-T1 测试缝：打断门现状。 */
+    internal fun isStoppedForTest(): Boolean = interruptGate.isStopped()
+
     private fun releaseStream() {
         synchronized(streamLock) {
+            interruptGate.clear() // ocr[424]：会话显式拆除即复位打断位（reset 后下句重建可开播）
             stopRefPacer()
             val track = streamTrack ?: return
             streamTrack = null
@@ -160,14 +169,17 @@ class VoicePlayer {
 
     private fun startRefPacer(track: AudioTrack) {
         if (referenceListener == null || refPacerRunning) return
+        // ocr[426]：本会话领票——上会话 join(200) 超时残活的陈旧 pacer 票已作废，
+        // 在下一轮循环检查自毁，绝不与新 pacer 并发推参考。
+        val gen = refPacerGen.issue()
         refPacerRunning = true
         refPacer = Thread({
             // CONC-4：任何退出路径（playbackHeadPosition 抛 / sleep 中断 / running 翻 false）
             // 都必须清 refPacerRunning——否则线程死了标志还挂着，startRefPacer 永远早退，
             // refPending 无界增长（~48KB/s）且 AEC 参考静默死亡（NLMS 退化复发）。
-            val normal = runCatching { refPacerLoop({ refPacerRunning }, { refPacerRunning = it }, { track.playbackHeadPosition }, ::drainRefPending) { Thread.sleep(10) } }
+            val normal = runCatching { refPacerLoop({ refPacerRunning && refPacerGen.isValid(gen) }, { refPacerRunning = it }, { track.playbackHeadPosition }, ::drainRefPending) { Thread.sleep(10) } }
                 .getOrElse { false }
-            if (!normal) PetLogger.w(TAG, "ref-pacer 异常退出（头位置抛/中断），running 标志已清，下次 play 可重启")
+            if (!normal) PetLogger.w(TAG, "ref-pacer 异常退出（头位置抛/中断/票失效），running 标志已清，下次 play 可重启")
         }, "ref-pacer").apply {
             isDaemon = true
             priority = Thread.MIN_PRIORITY // S25b：音频后台线程不得与 UI 主线程同级抢 CPU（同 kws-decode）
@@ -201,6 +213,9 @@ class VoicePlayer {
     }
 
     private fun stopRefPacer() {
+        // ocr[426]：先作废在途票再停——join(200) 超时的残活 pacer 在下一轮循环检查票失效
+        // 自毁；即便新会话把 refPacerRunning 复位为真，陈旧票也不会复活（无双跑推参考）。
+        refPacerGen.invalidate()
         refPacerRunning = false
         refPacer?.join(200)
         refPacer = null
@@ -217,9 +232,11 @@ class VoicePlayer {
     private fun writeAll(track: AudioTrack, pcm: ByteArray) {
         var off = 0
         while (off < pcm.size) {
-            if (stopped) throw IOException("stopped")
-            val n = track.write(pcm, off, pcm.size - off)
-            if (n < 0) throw IOException("AudioTrack write error $n")
+            interruptGate.checkActiveOrThrow()
+            // ocr[427]：write 的 ISE（并发 reset）转 IOException；0 字节返回当错误
+            // （n=0 时 off 不进=死旋，只剩 stopped 能破）。
+            val n = unpackAsIo { track.write(pcm, off, pcm.size - off) }
+            if (isWriteFailure(n)) throw IOException("AudioTrack write error $n")
             // S23：入「已写未播」队列，由配速器按播放头位置推送（勿在此直推=写入节奏错位）
             if (referenceListener != null) synchronized(refLock) {
                 refPending.addLast(pcm.copyOfRange(off, off + n))
@@ -228,14 +245,16 @@ class VoicePlayer {
         }
     }
 
-    /** 等播放头追平 totalFrames（写返回 ≠ 出声完）+ 3s 上限防死等，每轮查打断。 */
+    /** 等播放头追平 totalFrames（写返回 ≠ 出声完）+ 3s 上限防死等，每轮查打断。
+     *  ocr[429]：死线换单调钟（NTP 回拨不再拉长死线）；播放头比较走无符号域
+     *  （2^31 帧回卷后裸比较恒「未追平」→ 只能靠死线退出的病灶收口）。 */
     @Throws(IOException::class)
     private fun drainUntil(track: AudioTrack, totalFrames: Long) {
-        val deadlineMs = System.currentTimeMillis() + totalFrames * 1000L / SR + 3000
-        while (track.playbackHeadPosition < totalFrames &&
-            System.currentTimeMillis() < deadlineMs
+        val deadlineMs = drainDeadlineMs(DRAIN_CLOCK_MS(), totalFrames, SR)
+        while (!headReached(track.playbackHeadPosition, totalFrames) &&
+            DRAIN_CLOCK_MS() < deadlineMs
         ) {
-            if (stopped) throw IOException("stopped")
+            interruptGate.checkActiveOrThrow()
             Thread.sleep(10)
         }
     }
@@ -274,6 +293,83 @@ class VoicePlayer {
         private val SR get() = RevealScheduler.TTS_SAMPLE_RATE
     }
 }
+
+// ---------------- P3-T1 守卫逻辑抽出（纯 JVM，VoicePlayerRobustnessTest 锚定） ----------------
+
+/**
+ * 打断门（ocr[424]）：stop() 置位、会话显式拆除（reset/finish→releaseStream）清位。
+ * 旧实现 stopped 永不复位——实例复用永久 IOException("stopped")，类注释承诺的
+ * 「单句播放异常可 reset 后下句重建」恢复流失效。变异锚：clear 回退 no-op →
+ * VoicePlayerRobustnessTest 红。
+ */
+internal class InterruptGate {
+    @Volatile private var stopped = false
+    fun stop() { stopped = true }
+
+    /** 会话拆除即复位：下一会话可正常开播（barge-in stop 的标志只属当次会话）。 */
+    fun clear() { stopped = false }
+
+    fun isStopped(): Boolean = stopped
+
+    /** 写循环/收尾每轮查：置位即抛 IOException("stopped") 走上层既有降级路径。 */
+    @Throws(IOException::class)
+    fun checkActiveOrThrow() { if (stopped) throw IOException("stopped") }
+}
+
+/**
+ * 配速器代际票根（ocr[426]）：stopRefPacer 作废在途票，join(200) 超时残活的陈旧
+ * pacer 在下一轮循环检查自毁——旧实现只靠共享 refPacerRunning 布尔，超时残活 + 新会话
+ * startRefPacer 复位置真 = 双 pacer 并发推参考（NLMS 交错退化）。变异锚：isValid 恒
+ * true → VoicePlayerRobustnessTest 红。
+ */
+internal class PacerGeneration {
+    @Volatile private var current = 0
+    fun issue(): Int = ++current
+    fun invalidate() { current++ }
+    fun isValid(token: Int): Boolean = token == current
+}
+
+/** ocr[427]：AudioTrack.write 返回值裁决——0 字节也当错误（n=0 时 off 不进=死旋，
+ *  只剩 stopped 能破）。变异锚：回退 n<0 → VoicePlayerRobustnessTest 红。 */
+internal fun isWriteFailure(n: Int): Boolean = n <= 0
+
+/**
+ * ocr[427]：track 调用（play/write）被并发 reset()/stop() 打断时抛 IllegalStateException，
+ * 裸逃上层 IOException 降级 catch——统一转为 IOException（原因链保留）。原生 IOException
+ * 与 fatal Error 原样穿透（不吞致命）。变异锚：回退直通 → VoicePlayerRobustnessTest 红。
+ */
+internal inline fun <T> unpackAsIo(block: () -> T): T =
+    try {
+        block()
+    } catch (e: IOException) {
+        throw e
+    } catch (e: RuntimeException) {
+        throw IOException("AudioTrack failed: ${e.message}", e)
+    }
+
+/**
+ * ocr[428]：建轨缓冲裁决——getMinBufferSize 负值是错误码（ERROR/ERROR_BAD_VALUE），
+ * 空 PCM wanted=0，直进 setBufferSizeInBytes(≤0) 对 MODE_STREAM 抛 IllegalArgumentException
+ * 逃逸降级路径：非法 minBuf 落 [floor]（~1s @24kHz）。变异锚：回退 maxOf 直通 → 红。
+ */
+internal fun trackBufBytes(minBuf: Int, wanted: Int, floor: Int): Int =
+    if (minBuf > 0) maxOf(minBuf, wanted) else maxOf(floor, wanted)
+
+/**
+ * ocr[429]：播放头追平判定（无符号域）——playbackHeadPosition 是 Int，2^31 帧
+ * （24kHz ≈24.8h）回卷成负数，裸比较恒「未追平」→ drain 只能靠 3s 死线退出。
+ * 会话时长内 totalFrames ≪ 2^31，无符号域比较回卷安全。变异锚：回退裸比较 → 红。
+ */
+internal fun headReached(head: Int, totalFrames: Long): Boolean =
+    (head.toLong() and 0xFFFF_FFFFL) >= totalFrames
+
+/** ocr[429]：drain 死线基准钟（nanoTime 单调域）——墙钟 NTP 回拨会拉长死线空转。
+ *  变异锚：回退 System::currentTimeMillis → VoicePlayerRobustnessTest 红。 */
+internal val DRAIN_CLOCK_MS: () -> Long = { System.nanoTime() / 1_000_000 }
+
+/** drain 死线：已写帧数折播放时长 + 3s 防死等余量（帧→毫秒换算纯锚，新抽函数）。 */
+internal fun drainDeadlineMs(nowMs: Long, totalFrames: Long, sampleRate: Int): Long =
+    nowMs + totalFrames * 1000L / sampleRate + 3000
 
 /**
  * 参考配速循环（纯逻辑，JVM 可测；CONC-4）：每 [sleep] 一步查 [trackHead] 推进参考推送，
