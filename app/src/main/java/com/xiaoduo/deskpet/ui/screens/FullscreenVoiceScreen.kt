@@ -125,7 +125,8 @@ fun FullscreenVoiceScreen(
 
     // 进/出配对（守卫四问#1：覆盖 popBackStack/手势退出全部出组合路径）
     DisposableEffect(Unit) {
-        VoiceClientFactory.session(context) // 预热：与 KWS 前台服务共享同一会话单例
+        // P3-T5：原此处另有一次 session(context)「预热」调用已删——113 行 remember 组合期
+        // 已建同一 DCL 单例（ocr[89]① 实锤冗余，行为零变）
         PetOverlayService.instance?.setWindowsHidden(true)
         VoiceClientFactory.replyCarrier = ReplyCarrier.FULLSCREEN
         PetLogger.i(TAG, "enter fullscreen voice: windows hidden, carrier=FULLSCREEN")
