@@ -7,9 +7,9 @@ import com.xiaoduo.deskpet.net.TtsVoiceDefaults
 import com.xiaoduo.deskpet.ui.screens.SettingsScreen
 import com.xiaoduo.deskpet.util.PetLogger
 import com.xiaoduo.deskpet.api.TtsContract.Result
-import com.xiaoduo.deskpet.voice.RevealScheduler
-import com.xiaoduo.deskpet.voice.VoiceClientFactory
 import com.xiaoduo.deskpet.voice.audio.WavCodec
+import com.xiaoduo.deskpet.voice.pipeline.RevealScheduler
+import com.xiaoduo.deskpet.voice.pipeline.VoiceClientFactory
 import com.xiaoduo.deskpet.voice.policy.PrefetchBackoff
 import java.util.concurrent.atomic.AtomicBoolean
 

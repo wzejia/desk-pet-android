@@ -1,4 +1,5 @@
 package com.xiaoduo.deskpet.voice.seam
+import com.xiaoduo.deskpet.voice.pipeline.VoiceSessionManager
 
 import com.xiaoduo.deskpet.voice.audio.AudioCapture
 

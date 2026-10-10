@@ -71,9 +71,10 @@ import com.xiaoduo.deskpet.util.AppLauncher
 import com.xiaoduo.deskpet.util.PrefContract
 import com.xiaoduo.deskpet.util.Prefs
 import com.xiaoduo.deskpet.voice.audio.AudioCapture
-import com.xiaoduo.deskpet.voice.VoiceClientFactory
 import com.xiaoduo.deskpet.voice.audio.AmbientCalibrator
 import com.xiaoduo.deskpet.voice.kws.EnergyGate
+import com.xiaoduo.deskpet.voice.pipeline.VoiceClientFactory
+import com.xiaoduo.deskpet.voice.pipeline.VoiceSessionManager
 import com.xiaoduo.deskpet.voice.wakeack.WakeAckPrefetcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers

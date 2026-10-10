@@ -79,10 +79,11 @@ import com.xiaoduo.deskpet.ui.FullscreenVoiceLayout
 import com.xiaoduo.deskpet.ui.theme.XiaoduoDimens
 import com.xiaoduo.deskpet.util.PetLogger
 import com.xiaoduo.deskpet.util.Prefs
-import com.xiaoduo.deskpet.voice.ReplyCarrier
-import com.xiaoduo.deskpet.voice.VoiceClientFactory
-import com.xiaoduo.deskpet.voice.VoiceStateRouter
 import com.xiaoduo.deskpet.voice.kws.EnergyGate
+import com.xiaoduo.deskpet.voice.pipeline.ReplyCarrier
+import com.xiaoduo.deskpet.voice.pipeline.VoiceClientFactory
+import com.xiaoduo.deskpet.voice.pipeline.VoiceSessionManager
+import com.xiaoduo.deskpet.voice.pipeline.VoiceStateRouter
 import kotlin.math.exp
 import kotlin.math.sin
 

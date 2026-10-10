@@ -64,8 +64,9 @@ import com.xiaoduo.deskpet.agui.FileMeta
 import com.xiaoduo.deskpet.agui.UploadStatus
 import com.xiaoduo.deskpet.chat.FunctionKeyLogic
 import com.xiaoduo.deskpet.ui.theme.XiaoduoDimens
+import com.xiaoduo.deskpet.voice.pipeline.VoiceClientFactory
+import com.xiaoduo.deskpet.voice.pipeline.VoiceSessionManager
 import com.xiaoduo.deskpet.voice.kws.EnergyGate
-import com.xiaoduo.deskpet.voice.VoiceClientFactory
 
 /**
  * 底部输入条：单圆角矩形容器 + 内部横线分区（2026-08-06 用户拍板定稿——

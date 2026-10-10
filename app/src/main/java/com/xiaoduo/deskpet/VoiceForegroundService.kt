@@ -17,13 +17,14 @@ import androidx.core.content.ContextCompat
 import com.xiaoduo.deskpet.util.FeedReleaseGate
 import com.xiaoduo.deskpet.util.PetLogger
 import com.xiaoduo.deskpet.util.Prefs
-import com.xiaoduo.deskpet.voice.VoiceStateRouter
 import com.xiaoduo.deskpet.voice.audio.OnceGate
 import com.xiaoduo.deskpet.voice.kws.KwsCore
 import com.xiaoduo.deskpet.voice.kws.KwsDefaults
 import com.xiaoduo.deskpet.voice.kws.KwsEngine
+import com.xiaoduo.deskpet.voice.pipeline.VoiceClientFactory
+import com.xiaoduo.deskpet.voice.pipeline.VoiceSessionManager
+import com.xiaoduo.deskpet.voice.pipeline.VoiceStateRouter
 import com.xiaoduo.deskpet.voice.audio.AmbientCalibrator
-import com.xiaoduo.deskpet.voice.VoiceClientFactory
 
 /**
  * KWS 常开前台服务（S5，对账表 KWS 节 + 知识包 §5）：

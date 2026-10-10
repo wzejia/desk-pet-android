@@ -1,11 +1,14 @@
-package com.xiaoduo.deskpet.voice
+package com.xiaoduo.deskpet.voice.pipeline
 
 import android.content.Context
+import com.xiaoduo.deskpet.App
 import com.xiaoduo.deskpet.PetOverlayService
 import com.xiaoduo.deskpet.agui.AguiClient
 import com.xiaoduo.deskpet.agui.AguiSseConsumer
 import com.xiaoduo.deskpet.api.AsrContract
 import com.xiaoduo.deskpet.api.TtsContract
+import com.xiaoduo.deskpet.chat.ChatViewModel
+import com.xiaoduo.deskpet.chat.ThinkCleaner
 import com.xiaoduo.deskpet.device.DeviceClient
 import com.xiaoduo.deskpet.device.DeviceIntentMatcher
 import com.xiaoduo.deskpet.cloud.CloudClientFactory
@@ -13,8 +16,10 @@ import com.xiaoduo.deskpet.cloud.Message
 import com.xiaoduo.deskpet.cloud.OpenAIAsrClient
 import com.xiaoduo.deskpet.cloud.OpenAIChatClient
 import com.xiaoduo.deskpet.cloud.OpenAITtsClient
+import com.xiaoduo.deskpet.device.ShelfMcpBridge
 import com.xiaoduo.deskpet.net.NetConfig
 import com.xiaoduo.deskpet.pet.PetFrameTable
+import com.xiaoduo.deskpet.ui.PetView
 import com.xiaoduo.deskpet.util.PetLogger
 import com.xiaoduo.deskpet.voice.audio.AudioCapture
 import com.xiaoduo.deskpet.voice.audio.NlmsEchoCanceller

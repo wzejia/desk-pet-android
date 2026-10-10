@@ -1,4 +1,4 @@
-package com.xiaoduo.deskpet.voice
+package com.xiaoduo.deskpet.voice.pipeline
 
 /**
  * TTS 朗读前消毒（纯逻辑）。气泡显示用原句，仅合成输入用清洗结果（听觉/视觉分离）。

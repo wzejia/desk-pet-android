@@ -1,6 +1,6 @@
 package com.xiaoduo.deskpet.voice.policy
+import com.xiaoduo.deskpet.voice.pipeline.VoiceStateRouter
 
-import com.xiaoduo.deskpet.voice.VoiceStateRouter
 
 /**
  * S49 聆听提示判定（纯逻辑，JVM 可测）：进 LISTENING 时指示/提示怎么显。

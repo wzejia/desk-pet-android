@@ -64,6 +64,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
+import com.xiaoduo.deskpet.voice.pipeline.VoiceClientFactory
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -90,7 +91,6 @@ import com.xiaoduo.deskpet.ui.icons.FullscreenVoiceIcon
 import com.xiaoduo.deskpet.ui.theme.XiaoduoDimens
 import com.xiaoduo.deskpet.util.AppLauncher
 import com.xiaoduo.deskpet.util.PetLogger
-import com.xiaoduo.deskpet.voice.VoiceClientFactory
 
 /**
  * Chat 主页（S27 底部导航改版）：ModalNavigationDrawer → 消息流 LazyColumn（顶到系统

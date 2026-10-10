@@ -1,4 +1,4 @@
-package com.xiaoduo.deskpet.voice
+package com.xiaoduo.deskpet.voice.pipeline
 
 /**
  * LLM token 流增量分句（纯逻辑）。

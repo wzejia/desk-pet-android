@@ -1,4 +1,4 @@
-package com.xiaoduo.deskpet.voice
+package com.xiaoduo.deskpet.voice.pipeline
 
 /**
  * 边念边出字 reveal 的纯函数计算器（不做真实延时，Android 层按返回值协程 delay）。

@@ -1,5 +1,6 @@
-package com.xiaoduo.deskpet.voice
+package com.xiaoduo.deskpet.voice.pipeline
 
+import com.xiaoduo.deskpet.App
 import com.xiaoduo.deskpet.device.DeviceClient
 import com.xiaoduo.deskpet.device.DeviceIntentMatcher
 import com.xiaoduo.deskpet.device.ShelfMcpBridge

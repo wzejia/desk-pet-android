@@ -6,6 +6,8 @@ import com.xiaoduo.deskpet.net.NetConfig
 import com.xiaoduo.deskpet.util.PetLogger
 import com.xiaoduo.deskpet.voice.client.AsrClient
 import com.xiaoduo.deskpet.voice.client.TtsClient
+import com.xiaoduo.deskpet.voice.pipeline.VoiceClientFactory
+import com.xiaoduo.deskpet.voice.pipeline.VoiceSessionManager
 import com.xiaoduo.deskpet.api.AsrContract
 import com.xiaoduo.deskpet.api.TtsContract
 

@@ -1,4 +1,6 @@
-package com.xiaoduo.deskpet.voice
+package com.xiaoduo.deskpet.voice.pipeline
+
+import com.xiaoduo.deskpet.VoiceForegroundService
 
 /**
  * 半双工四态麦块路由 + 唤醒词前缀剥除（纯逻辑，JVM 可测）。
