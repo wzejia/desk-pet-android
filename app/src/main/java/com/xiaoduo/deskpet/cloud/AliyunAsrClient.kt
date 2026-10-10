@@ -1,6 +1,6 @@
 package com.xiaoduo.deskpet.cloud
 
-import com.xiaoduo.deskpet.voice.AsrClient
+import com.xiaoduo.deskpet.api.AsrContract
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.Response
@@ -38,7 +38,7 @@ class AliyunAsrClient(
         data class Error(val message: String) : Result
     }
 
-    fun transcribe(wav: ByteArray, language: String = AsrClient.LANGUAGE_ZH): Result {
+    fun transcribe(wav: ByteArray, language: String = AsrContract.LANGUAGE_ZH): Result {
         return try {
             val pcm = stripWavPcm(wav)
             val taskId = UUID.randomUUID().toString().replace("-", "")

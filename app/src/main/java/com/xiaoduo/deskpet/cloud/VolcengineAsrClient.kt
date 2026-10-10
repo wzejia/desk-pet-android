@@ -1,6 +1,6 @@
 package com.xiaoduo.deskpet.cloud
 
-import com.xiaoduo.deskpet.voice.AsrClient
+import com.xiaoduo.deskpet.api.AsrContract
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.Response
@@ -39,7 +39,7 @@ class VolcengineAsrClient(
         data class Error(val message: String) : Result
     }
 
-    fun transcribe(wav: ByteArray, language: String = AsrClient.LANGUAGE_ZH): Result {
+    fun transcribe(wav: ByteArray, language: String = AsrContract.LANGUAGE_ZH): Result {
         val pcm = stripWavPcm(wav)
         val requestId = UUID.randomUUID().toString()
         val request = Request.Builder()
@@ -140,7 +140,7 @@ class VolcengineAsrClient(
             put("bits", 16)
             put("channel", 1)
             put("codec", "raw")
-            put("language", if (language.startsWith(AsrClient.LANGUAGE_ZH)) "zh-CN" else language)
+            put("language", if (language.startsWith(AsrContract.LANGUAGE_ZH)) "zh-CN" else language)
         })
         put("request", JSONObject().apply {
             put("model_name", asrModel)
