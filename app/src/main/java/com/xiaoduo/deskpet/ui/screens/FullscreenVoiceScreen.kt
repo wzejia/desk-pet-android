@@ -73,9 +73,9 @@ import com.xiaoduo.deskpet.api.ChatMessage
 import com.xiaoduo.deskpet.chat.ChatViewModel
 import com.xiaoduo.deskpet.pet.PetFrameTable
 import com.xiaoduo.deskpet.pet.PetState
-import com.xiaoduo.deskpet.ui.PetView
 import com.xiaoduo.deskpet.ui.components.MarkdownContent
 import com.xiaoduo.deskpet.ui.FullscreenVoiceLayout
+import com.xiaoduo.deskpet.ui.overlay.PetView
 import com.xiaoduo.deskpet.ui.theme.XiaoduoDimens
 import com.xiaoduo.deskpet.util.PetLogger
 import com.xiaoduo.deskpet.util.Prefs

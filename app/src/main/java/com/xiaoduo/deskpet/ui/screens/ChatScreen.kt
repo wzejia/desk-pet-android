@@ -3,6 +3,7 @@ package com.xiaoduo.deskpet.ui.screens
 import android.provider.Settings
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.navigationBars
+import com.xiaoduo.deskpet.ui.overlay.PetView
 import com.xiaoduo.deskpet.util.NavInsetPolicy
 import android.Manifest
 import android.content.Context
@@ -85,7 +86,6 @@ import com.xiaoduo.deskpet.api.ChatMessage
 import com.xiaoduo.deskpet.chat.ChatViewModel
 import com.xiaoduo.deskpet.ui.components.MarkdownContent
 import com.xiaoduo.deskpet.chat.SuggestedQuestions
-import com.xiaoduo.deskpet.ui.PetView
 import com.xiaoduo.deskpet.ui.icons.DenseShelfIcon
 import com.xiaoduo.deskpet.ui.icons.FullscreenVoiceIcon
 import com.xiaoduo.deskpet.ui.theme.XiaoduoDimens

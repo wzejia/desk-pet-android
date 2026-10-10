@@ -19,7 +19,7 @@ import com.xiaoduo.deskpet.cloud.OpenAITtsClient
 import com.xiaoduo.deskpet.device.ShelfMcpBridge
 import com.xiaoduo.deskpet.net.NetConfig
 import com.xiaoduo.deskpet.pet.PetFrameTable
-import com.xiaoduo.deskpet.ui.PetView
+import com.xiaoduo.deskpet.ui.overlay.PetView
 import com.xiaoduo.deskpet.util.PetLogger
 import com.xiaoduo.deskpet.voice.audio.AudioCapture
 import com.xiaoduo.deskpet.voice.audio.NlmsEchoCanceller

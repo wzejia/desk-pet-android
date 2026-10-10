@@ -1,4 +1,4 @@
-package com.xiaoduo.deskpet.ui
+package com.xiaoduo.deskpet.ui.overlay
 
 import android.content.Context
 import android.graphics.Bitmap

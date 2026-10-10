@@ -48,7 +48,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.xiaoduo.deskpet.chat.ChatSession
 import com.xiaoduo.deskpet.chat.SessionSummary
-import com.xiaoduo.deskpet.ui.PetView
+import com.xiaoduo.deskpet.ui.overlay.PetView
 import com.xiaoduo.deskpet.ui.theme.XiaoduoDimens
 import com.xiaoduo.deskpet.util.PetLogger
 import kotlinx.coroutines.Dispatchers

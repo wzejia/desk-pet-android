@@ -20,7 +20,7 @@ import android.widget.FrameLayout
 import com.xiaoduo.deskpet.pet.EdgeDock
 import com.xiaoduo.deskpet.pet.OverlayClamp
 import com.xiaoduo.deskpet.pet.PetState
-import com.xiaoduo.deskpet.ui.PetView
+import com.xiaoduo.deskpet.ui.overlay.PetView
 import com.xiaoduo.deskpet.util.AppLauncher
 import com.xiaoduo.deskpet.api.BubbleOwner
 import com.xiaoduo.deskpet.ui.overlay.BubbleOwnership

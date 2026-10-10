@@ -18,6 +18,7 @@ import com.xiaoduo.deskpet.cloud.CloudClientFactory
 import com.xiaoduo.deskpet.cloud.OpenAIChatClient
 import com.xiaoduo.deskpet.cloud.TextChatRouter
 import com.xiaoduo.deskpet.net.NetConfig
+import com.xiaoduo.deskpet.ui.overlay.PetView
 import com.xiaoduo.deskpet.util.Prefs
 import com.xiaoduo.deskpet.voice.pipeline.VoiceClientFactory
 import com.xiaoduo.deskpet.voice.pipeline.VoiceSessionManager
