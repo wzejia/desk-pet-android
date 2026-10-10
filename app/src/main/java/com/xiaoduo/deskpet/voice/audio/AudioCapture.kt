@@ -64,7 +64,6 @@ class AudioCapture(
         private set
 
     private var job: Job? = null
-    private var record: AudioRecord? = null
 
     /** start 双调门闩（backlog #8b）：见 [OnceGate] 类注释。 */
     private val startGate = OnceGate()
@@ -157,7 +156,6 @@ class AudioCapture(
             PetLogger.e(TAG, "RECORD_AUDIO 权限缺失，采麦无法启动: ${se.message}")
             return
         } ?: return
-        record = r
         try {
             // ROB-1：启动结果不得忽略——无参 startRecording() 返回 void（带 int 返回值的
             // 重载需 MediaSyncEvent，板端 HAL 异常态下照样可能静默失败），用 recordingState
@@ -188,7 +186,6 @@ class AudioCapture(
             isRunning = false
             runCatching { r.stop() }
             r.release()
-            record = null
             PetLogger.i(TAG, "capture stop")
         }
     }
