@@ -5,7 +5,7 @@
 > **v0.3 评审修正**（第二轮 delta 复审）：①§4.2 删 typealias「二选一」——嵌套类型引用语法无法用 typealias 保留（kotlin 1.9.24 实测证伪），唯一路径=全量改写引用；②stale-true 防线补守卫机制定义（活性记账落 PetOverlayState，JVM 可测）；③§5.4 补「播放开始」日志锚（现有日志无起点）；④头注 import android 口径措辞勘正。
 > **v0.2 评审修正**（对抗评审 + 事实核查双通道，main 对话逐条实证仲裁）：①一刀清单改判——AsrClient/TtsClient 为具体实现类非接口，下沉对象改为 cloud 实际消费面（嵌套 Result 类型 + LANGUAGE_ZH）；②依赖脚本 root 归并盲区修正（v1→v3），root 回边 8 条白名单化 + BuildConfig 产物边单列，验收口径 = 环清零 + 例外边不增；③§2 锚与例外清单表述自洽化；④§4.5/ocr 引用计数等标注级勘误（详见各节）。
 > **口径声明**：本 Spec 全部 LOC 为**非空行**（实测脚本统计，见附录 A）；交接口径 18222 为总行数（已复核一致）。§3.1「import android」列 = 含 android import 的**文件数**（全文正则口径，注释命中计入；严格按 import 语句行计为 ui=11、voice=8 个文件）。
-> **硬约束**：行为零变化；单测基线 755 只增不减（skipped=0）；4 条架构红线（见 §8）与 10-09 入口职责划分不得回退。
+> **硬约束**：行为零变化；单测基线 754 只增不减（skipped=0；2026-10-10 执行期修正——原记 755，fafa28e trampoline 重写退役旧策略 3 测、新策略 2 测补位，文档漏改）；4 条架构红线（见 §8）与 10-09 入口职责划分不得回退。
 
 ## 来源
 
@@ -32,7 +32,7 @@
 
 | 锚 | 判定 |
 |---|---|
-| 单测基线 | 755 绿且只增不减；验证命令 `export PATH="/c/Program Files/Microsoft/jdk-17.0.20.8-hotspot/bin:$PATH" && ./gradlew.bat testDebugUnitTest --rerun-tasks`（不带 `--rerun-tasks` 会假绿） |
+| 单测基线 | 754 绿且只增不减（2026-10-10 实测修正，见硬约束注）；验证命令 `export PATH="/c/Program Files/Microsoft/jdk-17.0.20.8-hotspot/bin:$PATH" && ./gradlew.bat testDebugUnitTest --rerun-tasks`（不带 `--rerun-tasks` 会假绿） |
 | 构建 | `assembleDebug` 绿 |
 | 资产哈希 | spritesheet.webp MD5 `53c81ce652518f7fc7bf70554f363f54`、pet_states.json SHA256 `60b45124…4366` 不变 |
 | 依赖结构 | 重跑附录 A 脚本（v3）：包级循环清零，**例外边白名单（§4.3，当前 8 条 import）之外 100% 符合 §4.1 分层，例外边计数不增** |
@@ -181,7 +181,7 @@ L0  api（新建）         纯 Kotlin 契约类型：密封结果类型 / 常�
 - **可维护性 98 簇头部**：PrefContract 族 5 条（键保全集无测试可拦/默认值只存在注释/Sprint 分组漂移/legacy 孤儿键）；「契约靠注释背书」族（TtsSanitizer 白名单、TtsVoiceDefaults、SessionRules timeoutMs）。
 - **并发 68 簇头部**：裸 volatile + TOCTOU 族（BubbleHidePolicy、PrefetchBackoff、SettingsScreen 开关失步）；claim-then-use 非原子（VoiceClientFactory voiceRound，ocr[49]）。
 - **健壮性补充**：WAV 解析负值/溢出同型族 4 处（WavCodec.kt:47、AliyunAsrClient.kt:163-168、VolcengineAsrClient.kt:177-178 等，审计跨通道并条 P3-WAV-FAMILY）。
-- **测试缺口**：随 §5.1/§5.2 每个修复同步补**变异锚测试**（删掉守卫后测试必须实测变红），维持 755 只增不减、skipped=0。
+- **测试缺口**：随 §5.1/§5.2 每个修复同步补**变异锚测试**（删掉守卫后测试必须实测变红），维持 754 只增不减、skipped=0。
 
 ### 5.4 内存与响应速度指标（协议先行；目标暂不设定，实测后议——领导 2026-10-10 拍板）
 

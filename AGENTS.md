@@ -45,7 +45,7 @@ M1（悬浮桌宠本体）与「助手化」大切片（S0-S8）均已收口；�
 
 ## 基线（不可退）
 
-- 单测基线 **755 个**（2026-10-09；656=S65 时代 → 665=S68b → 752=全量审计修复（2026-10-03，40 条 P2 并入）→ 755=入口功能）；skipped=0；新增只增不减；验证 `./gradlew.bat testDebugUnitTest --rerun-tasks`
+- 单测基线 **754 个**（2026-10-10 修正；656=S65 时代 → 665=S68b → 752=全量审计修复（2026-10-03，40 条 P2 并入）→ 755=入口功能（旧 MainActivity 策略 3 测）→ **754=fafa28e trampoline 重写**：extra 分叉维度整体删除，旧策略 3 测退役、新 OverlayLaunchPolicyTest 2 测补位，文档当时漏改，2026-10-10 执行期实测发现并修正锚）；skipped=0；新增只增不减；验证 `./gradlew.bat testDebugUnitTest --rerun-tasks`
 - `assembleDebug` 绿；spritesheet.webp MD5 `53c81ce652518f7fc7bf70554f363f54`；pet_states.json SHA256 `60b45124…4366`（S13 起 Android 行为有意偏离桌面镜像，见 implementation-notes 2026-08-24）
 
 ## 当前状态（2026-10-09，审计修复 + 入口功能后对齐）

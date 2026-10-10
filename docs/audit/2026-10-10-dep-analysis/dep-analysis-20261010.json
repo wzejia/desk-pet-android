@@ -1,0 +1,5119 @@
+{
+ "summary": {
+  "main_total": 110,
+  "test_total": 100,
+  "loc_total": 16685,
+  "groups": {
+   "(root)": {
+    "files": 5,
+    "loc": 1241,
+    "android": 5,
+    "compose": 0,
+    "coroutines": 1
+   },
+   "agui": {
+    "files": 4,
+    "loc": 1170,
+    "android": 1,
+    "compose": 0,
+    "coroutines": 0
+   },
+   "chat": {
+    "files": 16,
+    "loc": 1898,
+    "android": 2,
+    "compose": 0,
+    "coroutines": 1
+   },
+   "cloud": {
+    "files": 9,
+    "loc": 972,
+    "android": 1,
+    "compose": 0,
+    "coroutines": 0
+   },
+   "device": {
+    "files": 4,
+    "loc": 451,
+    "android": 0,
+    "compose": 0,
+    "coroutines": 0
+   },
+   "net": {
+    "files": 4,
+    "loc": 412,
+    "android": 2,
+    "compose": 0,
+    "coroutines": 0
+   },
+   "pet": {
+    "files": 4,
+    "loc": 199,
+    "android": 0,
+    "compose": 0,
+    "coroutines": 0
+   },
+   "ui": {
+    "files": 23,
+    "loc": 5249,
+    "android": 12,
+    "compose": 11,
+    "coroutines": 6
+   },
+   "util": {
+    "files": 9,
+    "loc": 533,
+    "android": 4,
+    "compose": 0,
+    "coroutines": 0
+   },
+   "voice": {
+    "files": 32,
+    "loc": 4560,
+    "android": 9,
+    "compose": 0,
+    "coroutines": 4
+   }
+  },
+  "matrix": {
+   "(root)": {
+    "util": 12,
+    "chat": 1,
+    "ui": 9,
+    "pet": 3,
+    "voice": 9
+   },
+   "agui": {
+    "net": 5,
+    "util": 2
+   },
+   "chat": {
+    "util": 3,
+    "(root-hub)": 1,
+    "agui": 6,
+    "cloud": 3,
+    "device": 5,
+    "net": 1,
+    "ui": 1,
+    "voice": 3
+   },
+   "cloud": {
+    "voice": 5,
+    "net": 2,
+    "util": 1,
+    "agui": 2,
+    "chat": 1
+   },
+   "device": {},
+   "net": {
+    "(buildgen)": 1
+   },
+   "pet": {},
+   "ui": {
+    "pet": 5,
+    "chat": 10,
+    "(root-hub)": 5,
+    "util": 14,
+    "voice": 13,
+    "agui": 4,
+    "net": 1
+   },
+   "util": {},
+   "voice": {
+    "util": 11,
+    "(root-hub)": 2,
+    "agui": 3,
+    "device": 6,
+    "net": 8,
+    "ui": 1,
+    "cloud": 6,
+    "pet": 1
+   }
+  },
+  "matrix_filelinks": {
+   "(root)": {
+    "util": [
+     "app/src/main/java/com/xiaoduo/deskpet/App.kt",
+     "app/src/main/java/com/xiaoduo/deskpet/MainActivity.kt",
+     "app/src/main/java/com/xiaoduo/deskpet/OverlayLaunchActivity.kt",
+     "app/src/main/java/com/xiaoduo/deskpet/PetOverlayService.kt",
+     "app/src/main/java/com/xiaoduo/deskpet/VoiceForegroundService.kt"
+    ],
+    "chat": [
+     "app/src/main/java/com/xiaoduo/deskpet/MainActivity.kt"
+    ],
+    "ui": [
+     "app/src/main/java/com/xiaoduo/deskpet/MainActivity.kt",
+     "app/src/main/java/com/xiaoduo/deskpet/PetOverlayService.kt"
+    ],
+    "pet": [
+     "app/src/main/java/com/xiaoduo/deskpet/PetOverlayService.kt"
+    ],
+    "voice": [
+     "app/src/main/java/com/xiaoduo/deskpet/PetOverlayService.kt",
+     "app/src/main/java/com/xiaoduo/deskpet/VoiceForegroundService.kt"
+    ]
+   },
+   "agui": {
+    "net": [
+     "app/src/main/java/com/xiaoduo/deskpet/agui/AguiClient.kt",
+     "app/src/main/java/com/xiaoduo/deskpet/agui/AguiClientFactory.kt"
+    ],
+    "util": [
+     "app/src/main/java/com/xiaoduo/deskpet/agui/AguiClientFactory.kt"
+    ]
+   },
+   "chat": {
+    "util": [
+     "app/src/main/java/com/xiaoduo/deskpet/chat/ChatStore.kt",
+     "app/src/main/java/com/xiaoduo/deskpet/chat/ChatViewModel.kt"
+    ],
+    "(root-hub)": [
+     "app/src/main/java/com/xiaoduo/deskpet/chat/ChatViewModel.kt"
+    ],
+    "agui": [
+     "app/src/main/java/com/xiaoduo/deskpet/chat/ChatViewModel.kt",
+     "app/src/main/java/com/xiaoduo/deskpet/chat/FileListRules.kt"
+    ],
+    "cloud": [
+     "app/src/main/java/com/xiaoduo/deskpet/chat/ChatViewModel.kt"
+    ],
+    "device": [
+     "app/src/main/java/com/xiaoduo/deskpet/chat/ChatViewModel.kt",
+     "app/src/main/java/com/xiaoduo/deskpet/chat/DeviceTurnRules.kt"
+    ],
+    "net": [
+     "app/src/main/java/com/xiaoduo/deskpet/chat/ChatViewModel.kt"
+    ],
+    "ui": [
+     "app/src/main/java/com/xiaoduo/deskpet/chat/ChatViewModel.kt"
+    ],
+    "voice": [
+     "app/src/main/java/com/xiaoduo/deskpet/chat/ChatViewModel.kt"
+    ]
+   },
+   "cloud": {
+    "voice": [
+     "app/src/main/java/com/xiaoduo/deskpet/cloud/AliyunAsrClient.kt",
+     "app/src/main/java/com/xiaoduo/deskpet/cloud/CloudClientFactory.kt",
+     "app/src/main/java/com/xiaoduo/deskpet/cloud/OpenAIAsrClient.kt",
+     "app/src/main/java/com/xiaoduo/deskpet/cloud/VolcengineAsrClient.kt"
+    ],
+    "net": [
+     "app/src/main/java/com/xiaoduo/deskpet/cloud/CloudClientFactory.kt"
+    ],
+    "util": [
+     "app/src/main/java/com/xiaoduo/deskpet/cloud/CloudClientFactory.kt"
+    ],
+    "agui": [
+     "app/src/main/java/com/xiaoduo/deskpet/cloud/TextChatRouter.kt"
+    ],
+    "chat": [
+     "app/src/main/java/com/xiaoduo/deskpet/cloud/TextChatRouter.kt"
+    ]
+   },
+   "device": {},
+   "net": {
+    "(buildgen)": [
+     "app/src/main/java/com/xiaoduo/deskpet/net/NetConfig.kt"
+    ]
+   },
+   "pet": {},
+   "ui": {
+    "pet": [
+     "app/src/main/java/com/xiaoduo/deskpet/ui/PetView.kt",
+     "app/src/main/java/com/xiaoduo/deskpet/ui/screens/FullscreenVoiceScreen.kt"
+    ],
+    "chat": [
+     "app/src/main/java/com/xiaoduo/deskpet/ui/components/MarkdownContent.kt",
+     "app/src/main/java/com/xiaoduo/deskpet/ui/navigation/AppNavHost.kt",
+     "app/src/main/java/com/xiaoduo/deskpet/ui/screens/ChatScreen.kt",
+     "app/src/main/java/com/xiaoduo/deskpet/ui/screens/FullscreenVoiceScreen.kt",
+     "app/src/main/java/com/xiaoduo/deskpet/ui/screens/InputBar.kt",
+     "app/src/main/java/com/xiaoduo/deskpet/ui/screens/SessionDrawer.kt"
+    ],
+    "(root-hub)": [
+     "app/src/main/java/com/xiaoduo/deskpet/ui/overlay/DebugBubbleReceiver.kt",
+     "app/src/main/java/com/xiaoduo/deskpet/ui/screens/FullscreenVoiceScreen.kt",
+     "app/src/main/java/com/xiaoduo/deskpet/ui/screens/SettingsScreen.kt"
+    ],
+    "util": [
+     "app/src/main/java/com/xiaoduo/deskpet/ui/overlay/DebugBubbleReceiver.kt",
+     "app/src/main/java/com/xiaoduo/deskpet/ui/overlay/OverlayMenu.kt",
+     "app/src/main/java/com/xiaoduo/deskpet/ui/screens/AecSpikeSection.kt",
+     "app/src/main/java/com/xiaoduo/deskpet/ui/screens/ChatScreen.kt",
+     "app/src/main/java/com/xiaoduo/deskpet/ui/screens/FullscreenVoiceScreen.kt",
+     "app/src/main/java/com/xiaoduo/deskpet/ui/screens/PermissionScreen.kt",
+     "app/src/main/java/com/xiaoduo/deskpet/ui/screens/SessionDrawer.kt",
+     "app/src/main/java/com/xiaoduo/deskpet/ui/screens/SettingsScreen.kt"
+    ],
+    "voice": [
+     "app/src/main/java/com/xiaoduo/deskpet/ui/screens/AecSpikeSection.kt",
+     "app/src/main/java/com/xiaoduo/deskpet/ui/screens/ChatScreen.kt",
+     "app/src/main/java/com/xiaoduo/deskpet/ui/screens/FullscreenVoiceScreen.kt",
+     "app/src/main/java/com/xiaoduo/deskpet/ui/screens/InputBar.kt",
+     "app/src/main/java/com/xiaoduo/deskpet/ui/screens/SettingsScreen.kt"
+    ],
+    "agui": [
+     "app/src/main/java/com/xiaoduo/deskpet/ui/screens/InputBar.kt",
+     "app/src/main/java/com/xiaoduo/deskpet/ui/screens/SettingsScreen.kt"
+    ],
+    "net": [
+     "app/src/main/java/com/xiaoduo/deskpet/ui/screens/SettingsScreen.kt"
+    ]
+   },
+   "util": {},
+   "voice": {
+    "util": [
+     "app/src/main/java/com/xiaoduo/deskpet/voice/AmbientCalibrator.kt",
+     "app/src/main/java/com/xiaoduo/deskpet/voice/AudioCapture.kt",
+     "app/src/main/java/com/xiaoduo/deskpet/voice/EnergyGate.kt",
+     "app/src/main/java/com/xiaoduo/deskpet/voice/KwsEngine.kt",
+     "app/src/main/java/com/xiaoduo/deskpet/voice/VoiceClientFactory.kt",
+     "app/src/main/java/com/xiaoduo/deskpet/voice/VoicePlayer.kt",
+     "app/src/main/java/com/xiaoduo/deskpet/voice/VoiceSessionManager.kt",
+     "app/src/main/java/com/xiaoduo/deskpet/voice/WakeAckPrefetcher.kt",
+     "app/src/main/java/com/xiaoduo/deskpet/voice/WakeAckResolver.kt"
+    ],
+    "(root-hub)": [
+     "app/src/main/java/com/xiaoduo/deskpet/voice/VoiceClientFactory.kt",
+     "app/src/main/java/com/xiaoduo/deskpet/voice/VoiceSessionManager.kt"
+    ],
+    "agui": [
+     "app/src/main/java/com/xiaoduo/deskpet/voice/VoiceClientFactory.kt",
+     "app/src/main/java/com/xiaoduo/deskpet/voice/VoiceSessionManager.kt"
+    ],
+    "device": [
+     "app/src/main/java/com/xiaoduo/deskpet/voice/VoiceClientFactory.kt",
+     "app/src/main/java/com/xiaoduo/deskpet/voice/VoiceSessionManager.kt"
+    ],
+    "net": [
+     "app/src/main/java/com/xiaoduo/deskpet/voice/VoiceClientFactory.kt",
+     "app/src/main/java/com/xiaoduo/deskpet/voice/VoiceSessionManager.kt",
+     "app/src/main/java/com/xiaoduo/deskpet/voice/WakeAckPrefetcher.kt",
+     "app/src/main/java/com/xiaoduo/deskpet/voice/WakeAckResolver.kt",
+     "app/src/main/java/com/xiaoduo/deskpet/voice/WakeAckSelector.kt"
+    ],
+    "ui": [
+     "app/src/main/java/com/xiaoduo/deskpet/voice/VoiceClientFactory.kt"
+    ],
+    "cloud": [
+     "app/src/main/java/com/xiaoduo/deskpet/voice/VoiceSessionManager.kt",
+     "app/src/main/java/com/xiaoduo/deskpet/voice/WakeAckPrefetcher.kt"
+    ],
+    "pet": [
+     "app/src/main/java/com/xiaoduo/deskpet/voice/VoiceSessionManager.kt"
+    ]
+   }
+  },
+  "cycles": [
+   [
+    "chat",
+    "cloud",
+    "voice",
+    "ui",
+    "chat"
+   ],
+   [
+    "voice",
+    "ui",
+    "voice"
+   ],
+   [
+    "cloud",
+    "voice",
+    "cloud"
+   ],
+   [
+    "chat",
+    "cloud",
+    "chat"
+   ]
+  ],
+  "top25_files": [
+   {
+    "path": "app/src/main/java/com/xiaoduo/deskpet/voice/VoiceSessionManager.kt",
+    "loc": 1208,
+    "pkg": "com.xiaoduo.deskpet.voice"
+   },
+   {
+    "path": "app/src/main/java/com/xiaoduo/deskpet/ui/screens/SettingsScreen.kt",
+    "loc": 1055,
+    "pkg": "com.xiaoduo.deskpet.ui.screens"
+   },
+   {
+    "path": "app/src/main/java/com/xiaoduo/deskpet/chat/ChatViewModel.kt",
+    "loc": 868,
+    "pkg": "com.xiaoduo.deskpet.chat"
+   },
+   {
+    "path": "app/src/main/java/com/xiaoduo/deskpet/agui/AguiClient.kt",
+    "loc": 819,
+    "pkg": "com.xiaoduo.deskpet.agui"
+   },
+   {
+    "path": "app/src/main/java/com/xiaoduo/deskpet/PetOverlayService.kt",
+    "loc": 775,
+    "pkg": "com.xiaoduo.deskpet"
+   },
+   {
+    "path": "app/src/main/java/com/xiaoduo/deskpet/ui/screens/ChatScreen.kt",
+    "loc": 699,
+    "pkg": "com.xiaoduo.deskpet.ui.screens"
+   },
+   {
+    "path": "app/src/main/java/com/xiaoduo/deskpet/ui/screens/FullscreenVoiceScreen.kt",
+    "loc": 587,
+    "pkg": "com.xiaoduo.deskpet.ui.screens"
+   },
+   {
+    "path": "app/src/main/java/com/xiaoduo/deskpet/ui/screens/InputBar.kt",
+    "loc": 556,
+    "pkg": "com.xiaoduo.deskpet.ui.screens"
+   },
+   {
+    "path": "app/src/main/java/com/xiaoduo/deskpet/ui/screens/SessionDrawer.kt",
+    "loc": 385,
+    "pkg": "com.xiaoduo.deskpet.ui.screens"
+   },
+   {
+    "path": "app/src/main/java/com/xiaoduo/deskpet/ui/overlay/BubbleTextStrip.kt",
+    "loc": 329,
+    "pkg": "com.xiaoduo.deskpet.ui.overlay"
+   },
+   {
+    "path": "app/src/main/java/com/xiaoduo/deskpet/voice/AudioCapture.kt",
+    "loc": 302,
+    "pkg": "com.xiaoduo.deskpet.voice"
+   },
+   {
+    "path": "app/src/main/java/com/xiaoduo/deskpet/voice/VadDetector.kt",
+    "loc": 298,
+    "pkg": "com.xiaoduo.deskpet.voice"
+   },
+   {
+    "path": "app/src/main/java/com/xiaoduo/deskpet/voice/NlmsEchoCanceller.kt",
+    "loc": 287,
+    "pkg": "com.xiaoduo.deskpet.voice"
+   },
+   {
+    "path": "app/src/main/java/com/xiaoduo/deskpet/voice/VoicePlayer.kt",
+    "loc": 280,
+    "pkg": "com.xiaoduo.deskpet.voice"
+   },
+   {
+    "path": "app/src/main/java/com/xiaoduo/deskpet/VoiceForegroundService.kt",
+    "loc": 273,
+    "pkg": "com.xiaoduo.deskpet"
+   },
+   {
+    "path": "app/src/main/java/com/xiaoduo/deskpet/ui/components/MarkdownContent.kt",
+    "loc": 265,
+    "pkg": "com.xiaoduo.deskpet.ui.components"
+   },
+   {
+    "path": "app/src/main/java/com/xiaoduo/deskpet/chat/ChatStore.kt",
+    "loc": 263,
+    "pkg": "com.xiaoduo.deskpet.chat"
+   },
+   {
+    "path": "app/src/main/java/com/xiaoduo/deskpet/chat/MarkdownRenderer.kt",
+    "loc": 247,
+    "pkg": "com.xiaoduo.deskpet.chat"
+   },
+   {
+    "path": "app/src/main/java/com/xiaoduo/deskpet/net/NetConfig.kt",
+    "loc": 237,
+    "pkg": "com.xiaoduo.deskpet.net"
+   },
+   {
+    "path": "app/src/main/java/com/xiaoduo/deskpet/voice/VoiceClientFactory.kt",
+    "loc": 229,
+    "pkg": "com.xiaoduo.deskpet.voice"
+   },
+   {
+    "path": "app/src/main/java/com/xiaoduo/deskpet/voice/KwsCore.kt",
+    "loc": 218,
+    "pkg": "com.xiaoduo.deskpet.voice"
+   },
+   {
+    "path": "app/src/main/java/com/xiaoduo/deskpet/cloud/VolcengineAsrClient.kt",
+    "loc": 210,
+    "pkg": "com.xiaoduo.deskpet.cloud"
+   },
+   {
+    "path": "app/src/main/java/com/xiaoduo/deskpet/agui/AguiSseConsumer.kt",
+    "loc": 202,
+    "pkg": "com.xiaoduo.deskpet.agui"
+   },
+   {
+    "path": "app/src/main/java/com/xiaoduo/deskpet/voice/TtsClient.kt",
+    "loc": 192,
+    "pkg": "com.xiaoduo.deskpet.voice"
+   },
+   {
+    "path": "app/src/main/java/com/xiaoduo/deskpet/util/Prefs.kt",
+    "loc": 181,
+    "pkg": "com.xiaoduo.deskpet.util"
+   }
+  ],
+  "anomalies": [],
+  "test_by_group": {
+   "(root)": 1,
+   "agui": 8,
+   "chat": 15,
+   "cloud": 2,
+   "device": 4,
+   "net": 1,
+   "pet": 4,
+   "ui": 10,
+   "util": 8,
+   "voice": 47
+  },
+  "root_files": [
+   "app/src/main/java/com/xiaoduo/deskpet/App.kt",
+   "app/src/main/java/com/xiaoduo/deskpet/MainActivity.kt",
+   "app/src/main/java/com/xiaoduo/deskpet/OverlayLaunchActivity.kt",
+   "app/src/main/java/com/xiaoduo/deskpet/PetOverlayService.kt",
+   "app/src/main/java/com/xiaoduo/deskpet/VoiceForegroundService.kt"
+  ]
+ },
+ "files": [
+  {
+   "path": "app/src/main/java/com/xiaoduo/deskpet/App.kt",
+   "pkg": "com.xiaoduo.deskpet",
+   "imports": [
+    "android.app.Application",
+    "com.xiaoduo.deskpet.util.CrashReporter",
+    "com.xiaoduo.deskpet.util.PetLogger"
+   ],
+   "loc": 13,
+   "has_android": true,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "(root)",
+   "internal": [
+    "com.xiaoduo.deskpet.util.CrashReporter",
+    "com.xiaoduo.deskpet.util.PetLogger"
+   ]
+  },
+  {
+   "path": "app/src/main/java/com/xiaoduo/deskpet/MainActivity.kt",
+   "pkg": "com.xiaoduo.deskpet",
+   "imports": [
+    "android.Manifest",
+    "android.content.Intent",
+    "android.content.pm.PackageManager",
+    "android.os.Bundle",
+    "android.provider.Settings",
+    "androidx.activity.ComponentActivity",
+    "androidx.activity.compose.setContent",
+    "androidx.activity.enableEdgeToEdge",
+    "androidx.core.content.ContextCompat",
+    "androidx.lifecycle.ViewModelProvider",
+    "com.xiaoduo.deskpet.chat.ChatViewModel",
+    "com.xiaoduo.deskpet.ui.navigation.AppNavHost",
+    "com.xiaoduo.deskpet.ui.theme.XiaoduoTheme",
+    "com.xiaoduo.deskpet.util.PetLogger",
+    "com.xiaoduo.deskpet.util.Prefs"
+   ],
+   "loc": 115,
+   "has_android": true,
+   "has_androidx": true,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "(root)",
+   "internal": [
+    "com.xiaoduo.deskpet.chat.ChatViewModel",
+    "com.xiaoduo.deskpet.ui.navigation.AppNavHost",
+    "com.xiaoduo.deskpet.ui.theme.XiaoduoTheme",
+    "com.xiaoduo.deskpet.util.PetLogger",
+    "com.xiaoduo.deskpet.util.Prefs"
+   ]
+  },
+  {
+   "path": "app/src/main/java/com/xiaoduo/deskpet/OverlayLaunchActivity.kt",
+   "pkg": "com.xiaoduo.deskpet",
+   "imports": [
+    "android.content.Intent",
+    "android.os.Build",
+    "android.os.Bundle",
+    "android.provider.Settings",
+    "androidx.activity.ComponentActivity",
+    "com.xiaoduo.deskpet.util.PetLogger"
+   ],
+   "loc": 65,
+   "has_android": true,
+   "has_androidx": true,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "(root)",
+   "internal": [
+    "com.xiaoduo.deskpet.util.PetLogger"
+   ]
+  },
+  {
+   "path": "app/src/main/java/com/xiaoduo/deskpet/PetOverlayService.kt",
+   "pkg": "com.xiaoduo.deskpet",
+   "imports": [
+    "android.animation.ValueAnimator",
+    "android.annotation.SuppressLint",
+    "android.app.Service",
+    "android.content.Intent",
+    "android.content.res.Configuration",
+    "android.graphics.PixelFormat",
+    "android.os.Binder",
+    "android.os.Handler",
+    "android.os.IBinder",
+    "android.os.Looper",
+    "android.view.Gravity",
+    "android.view.MotionEvent",
+    "android.view.View",
+    "android.view.ViewConfiguration",
+    "android.view.WindowManager",
+    "android.widget.FrameLayout",
+    "com.xiaoduo.deskpet.pet.EdgeDock",
+    "com.xiaoduo.deskpet.pet.OverlayClamp",
+    "com.xiaoduo.deskpet.pet.PetState",
+    "com.xiaoduo.deskpet.ui.PetView",
+    "com.xiaoduo.deskpet.ui.overlay.BubbleOwner",
+    "com.xiaoduo.deskpet.ui.overlay.BubbleOwnership",
+    "com.xiaoduo.deskpet.ui.overlay.BubbleTextStrip",
+    "com.xiaoduo.deskpet.ui.overlay.BubbleView",
+    "com.xiaoduo.deskpet.ui.overlay.OverlayMenu",
+    "com.xiaoduo.deskpet.ui.overlay.VoiceIndicatorView",
+    "com.xiaoduo.deskpet.util.AppLauncher",
+    "com.xiaoduo.deskpet.util.PetLogger",
+    "com.xiaoduo.deskpet.util.Prefs",
+    "com.xiaoduo.deskpet.util.TapGesture",
+    "com.xiaoduo.deskpet.voice.VoiceClientFactory",
+    "com.xiaoduo.deskpet.voice.VoiceSessionManager",
+    "com.xiaoduo.deskpet.voice.VoiceStateRouter",
+    "kotlin.math.abs"
+   ],
+   "loc": 775,
+   "has_android": true,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "(root)",
+   "internal": [
+    "com.xiaoduo.deskpet.pet.EdgeDock",
+    "com.xiaoduo.deskpet.pet.OverlayClamp",
+    "com.xiaoduo.deskpet.pet.PetState",
+    "com.xiaoduo.deskpet.ui.PetView",
+    "com.xiaoduo.deskpet.ui.overlay.BubbleOwner",
+    "com.xiaoduo.deskpet.ui.overlay.BubbleOwnership",
+    "com.xiaoduo.deskpet.ui.overlay.BubbleTextStrip",
+    "com.xiaoduo.deskpet.ui.overlay.BubbleView",
+    "com.xiaoduo.deskpet.ui.overlay.OverlayMenu",
+    "com.xiaoduo.deskpet.ui.overlay.VoiceIndicatorView",
+    "com.xiaoduo.deskpet.util.AppLauncher",
+    "com.xiaoduo.deskpet.util.PetLogger",
+    "com.xiaoduo.deskpet.util.Prefs",
+    "com.xiaoduo.deskpet.util.TapGesture",
+    "com.xiaoduo.deskpet.voice.VoiceClientFactory",
+    "com.xiaoduo.deskpet.voice.VoiceSessionManager",
+    "com.xiaoduo.deskpet.voice.VoiceStateRouter"
+   ]
+  },
+  {
+   "path": "app/src/main/java/com/xiaoduo/deskpet/VoiceForegroundService.kt",
+   "pkg": "com.xiaoduo.deskpet",
+   "imports": [
+    "android.Manifest",
+    "android.app.Notification",
+    "android.app.NotificationChannel",
+    "android.app.NotificationManager",
+    "android.app.PendingIntent",
+    "android.app.Service",
+    "android.content.Intent",
+    "android.content.pm.PackageManager",
+    "android.content.pm.ServiceInfo",
+    "android.os.Build",
+    "android.os.IBinder",
+    "androidx.core.app.NotificationCompat",
+    "androidx.core.app.ServiceCompat",
+    "androidx.core.content.ContextCompat",
+    "com.xiaoduo.deskpet.util.FeedReleaseGate",
+    "com.xiaoduo.deskpet.util.PetLogger",
+    "com.xiaoduo.deskpet.util.Prefs",
+    "com.xiaoduo.deskpet.voice.AmbientCalibrator",
+    "com.xiaoduo.deskpet.voice.KwsDefaults",
+    "com.xiaoduo.deskpet.voice.KwsEngine",
+    "com.xiaoduo.deskpet.voice.OnceGate",
+    "com.xiaoduo.deskpet.voice.VoiceClientFactory",
+    "com.xiaoduo.deskpet.voice.VoiceStateRouter"
+   ],
+   "loc": 273,
+   "has_android": true,
+   "has_androidx": true,
+   "has_compose": false,
+   "has_coroutines": true,
+   "group": "(root)",
+   "internal": [
+    "com.xiaoduo.deskpet.util.FeedReleaseGate",
+    "com.xiaoduo.deskpet.util.PetLogger",
+    "com.xiaoduo.deskpet.util.Prefs",
+    "com.xiaoduo.deskpet.voice.AmbientCalibrator",
+    "com.xiaoduo.deskpet.voice.KwsDefaults",
+    "com.xiaoduo.deskpet.voice.KwsEngine",
+    "com.xiaoduo.deskpet.voice.OnceGate",
+    "com.xiaoduo.deskpet.voice.VoiceClientFactory",
+    "com.xiaoduo.deskpet.voice.VoiceStateRouter"
+   ]
+  },
+  {
+   "path": "app/src/main/java/com/xiaoduo/deskpet/agui/AguiClient.kt",
+   "pkg": "com.xiaoduo.deskpet.agui",
+   "imports": [
+    "com.xiaoduo.deskpet.net.TokenPolicy",
+    "java.io.IOException",
+    "java.util.concurrent.atomic.AtomicInteger",
+    "okhttp3.MediaType.Companion.toMediaType",
+    "okhttp3.MultipartBody",
+    "okhttp3.OkHttpClient",
+    "okhttp3.Request",
+    "okhttp3.RequestBody.Companion.toRequestBody",
+    "org.json.JSONArray",
+    "org.json.JSONObject"
+   ],
+   "loc": 819,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "agui",
+   "internal": [
+    "com.xiaoduo.deskpet.net.TokenPolicy"
+   ]
+  },
+  {
+   "path": "app/src/main/java/com/xiaoduo/deskpet/agui/AguiClientFactory.kt",
+   "pkg": "com.xiaoduo.deskpet.agui",
+   "imports": [
+    "android.content.Context",
+    "com.xiaoduo.deskpet.net.HttpClients",
+    "com.xiaoduo.deskpet.net.NetConfig",
+    "com.xiaoduo.deskpet.net.NetEndpoints",
+    "com.xiaoduo.deskpet.net.TokenStore",
+    "com.xiaoduo.deskpet.util.PetLogger",
+    "com.xiaoduo.deskpet.util.Prefs"
+   ],
+   "loc": 103,
+   "has_android": true,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "agui",
+   "internal": [
+    "com.xiaoduo.deskpet.net.HttpClients",
+    "com.xiaoduo.deskpet.net.NetConfig",
+    "com.xiaoduo.deskpet.net.NetEndpoints",
+    "com.xiaoduo.deskpet.net.TokenStore",
+    "com.xiaoduo.deskpet.util.PetLogger",
+    "com.xiaoduo.deskpet.util.Prefs"
+   ]
+  },
+  {
+   "path": "app/src/main/java/com/xiaoduo/deskpet/agui/AguiSseConsumer.kt",
+   "pkg": "com.xiaoduo.deskpet.agui",
+   "imports": [
+    "org.json.JSONException",
+    "org.json.JSONObject"
+   ],
+   "loc": 202,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "agui",
+   "internal": []
+  },
+  {
+   "path": "app/src/main/java/com/xiaoduo/deskpet/agui/FileMeta.kt",
+   "pkg": "com.xiaoduo.deskpet.agui",
+   "imports": [
+    "java.util.UUID",
+    "org.json.JSONObject"
+   ],
+   "loc": 46,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "agui",
+   "internal": []
+  },
+  {
+   "path": "app/src/main/java/com/xiaoduo/deskpet/chat/ChatHistoryCodec.kt",
+   "pkg": "com.xiaoduo.deskpet.chat",
+   "imports": [
+    "org.json.JSONArray",
+    "org.json.JSONObject"
+   ],
+   "loc": 60,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "chat",
+   "internal": []
+  },
+  {
+   "path": "app/src/main/java/com/xiaoduo/deskpet/chat/ChatMessage.kt",
+   "pkg": "com.xiaoduo.deskpet.chat",
+   "imports": [],
+   "loc": 38,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "chat",
+   "internal": []
+  },
+  {
+   "path": "app/src/main/java/com/xiaoduo/deskpet/chat/ChatSession.kt",
+   "pkg": "com.xiaoduo.deskpet.chat",
+   "imports": [],
+   "loc": 34,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "chat",
+   "internal": []
+  },
+  {
+   "path": "app/src/main/java/com/xiaoduo/deskpet/chat/ChatStore.kt",
+   "pkg": "com.xiaoduo.deskpet.chat",
+   "imports": [
+    "android.content.Context",
+    "com.xiaoduo.deskpet.util.PetLogger",
+    "java.io.File",
+    "java.nio.file.Files",
+    "java.nio.file.StandardCopyOption",
+    "java.util.UUID"
+   ],
+   "loc": 263,
+   "has_android": true,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "chat",
+   "internal": [
+    "com.xiaoduo.deskpet.util.PetLogger"
+   ]
+  },
+  {
+   "path": "app/src/main/java/com/xiaoduo/deskpet/chat/ChatTurnLogic.kt",
+   "pkg": "com.xiaoduo.deskpet.chat",
+   "imports": [
+    "java.util.concurrent.ConcurrentHashMap",
+    "java.util.concurrent.atomic.AtomicInteger"
+   ],
+   "loc": 118,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "chat",
+   "internal": []
+  },
+  {
+   "path": "app/src/main/java/com/xiaoduo/deskpet/chat/ChatViewModel.kt",
+   "pkg": "com.xiaoduo.deskpet.chat",
+   "imports": [
+    "android.app.Application",
+    "androidx.lifecycle.AndroidViewModel",
+    "androidx.lifecycle.viewModelScope",
+    "com.xiaoduo.deskpet.PetOverlayService",
+    "com.xiaoduo.deskpet.agui.AguiClient",
+    "com.xiaoduo.deskpet.agui.AguiClientFactory",
+    "com.xiaoduo.deskpet.agui.FileMeta",
+    "com.xiaoduo.deskpet.agui.UploadStatus",
+    "com.xiaoduo.deskpet.chat.ChatSession",
+    "com.xiaoduo.deskpet.cloud.CloudClientFactory",
+    "com.xiaoduo.deskpet.cloud.OpenAIChatClient",
+    "com.xiaoduo.deskpet.cloud.TextChatRouter",
+    "com.xiaoduo.deskpet.device.DeviceClient",
+    "com.xiaoduo.deskpet.device.DeviceIntentMatcher",
+    "com.xiaoduo.deskpet.device.ShelfMcpBridge",
+    "com.xiaoduo.deskpet.device.ShelfNavIntentMatcher",
+    "com.xiaoduo.deskpet.net.NetConfig",
+    "com.xiaoduo.deskpet.ui.overlay.BubbleOwner",
+    "com.xiaoduo.deskpet.util.PetLogger",
+    "com.xiaoduo.deskpet.util.Prefs",
+    "com.xiaoduo.deskpet.voice.VoiceClientFactory",
+    "com.xiaoduo.deskpet.voice.VoiceSessionManager",
+    "com.xiaoduo.deskpet.voice.VoiceStateRouter",
+    "java.util.UUID",
+    "java.util.concurrent.ConcurrentHashMap",
+    "kotlinx.coroutines.CancellationException",
+    "kotlinx.coroutines.Dispatchers",
+    "kotlinx.coroutines.Job",
+    "kotlinx.coroutines.flow.MutableStateFlow",
+    "kotlinx.coroutines.flow.SharingStarted",
+    "kotlinx.coroutines.flow.StateFlow",
+    "kotlinx.coroutines.flow.combine",
+    "kotlinx.coroutines.flow.stateIn",
+    "kotlinx.coroutines.flow.update",
+    "kotlinx.coroutines.isActive",
+    "kotlinx.coroutines.launch",
+    "kotlinx.coroutines.withContext"
+   ],
+   "loc": 868,
+   "has_android": true,
+   "has_androidx": true,
+   "has_compose": false,
+   "has_coroutines": true,
+   "group": "chat",
+   "internal": [
+    "com.xiaoduo.deskpet.PetOverlayService",
+    "com.xiaoduo.deskpet.agui.AguiClient",
+    "com.xiaoduo.deskpet.agui.AguiClientFactory",
+    "com.xiaoduo.deskpet.agui.FileMeta",
+    "com.xiaoduo.deskpet.agui.UploadStatus",
+    "com.xiaoduo.deskpet.chat.ChatSession",
+    "com.xiaoduo.deskpet.cloud.CloudClientFactory",
+    "com.xiaoduo.deskpet.cloud.OpenAIChatClient",
+    "com.xiaoduo.deskpet.cloud.TextChatRouter",
+    "com.xiaoduo.deskpet.device.DeviceClient",
+    "com.xiaoduo.deskpet.device.DeviceIntentMatcher",
+    "com.xiaoduo.deskpet.device.ShelfMcpBridge",
+    "com.xiaoduo.deskpet.device.ShelfNavIntentMatcher",
+    "com.xiaoduo.deskpet.net.NetConfig",
+    "com.xiaoduo.deskpet.ui.overlay.BubbleOwner",
+    "com.xiaoduo.deskpet.util.PetLogger",
+    "com.xiaoduo.deskpet.util.Prefs",
+    "com.xiaoduo.deskpet.voice.VoiceClientFactory",
+    "com.xiaoduo.deskpet.voice.VoiceSessionManager",
+    "com.xiaoduo.deskpet.voice.VoiceStateRouter"
+   ]
+  },
+  {
+   "path": "app/src/main/java/com/xiaoduo/deskpet/chat/DeviceTurnRules.kt",
+   "pkg": "com.xiaoduo.deskpet.chat",
+   "imports": [
+    "com.xiaoduo.deskpet.device.DeviceIntentMatcher"
+   ],
+   "loc": 12,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "chat",
+   "internal": [
+    "com.xiaoduo.deskpet.device.DeviceIntentMatcher"
+   ]
+  },
+  {
+   "path": "app/src/main/java/com/xiaoduo/deskpet/chat/FileListRules.kt",
+   "pkg": "com.xiaoduo.deskpet.chat",
+   "imports": [
+    "com.xiaoduo.deskpet.agui.FileMeta",
+    "com.xiaoduo.deskpet.agui.UploadStatus"
+   ],
+   "loc": 27,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "chat",
+   "internal": [
+    "com.xiaoduo.deskpet.agui.FileMeta",
+    "com.xiaoduo.deskpet.agui.UploadStatus"
+   ]
+  },
+  {
+   "path": "app/src/main/java/com/xiaoduo/deskpet/chat/FunctionKeyLogic.kt",
+   "pkg": "com.xiaoduo.deskpet.chat",
+   "imports": [],
+   "loc": 28,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "chat",
+   "internal": []
+  },
+  {
+   "path": "app/src/main/java/com/xiaoduo/deskpet/chat/MarkdownRenderer.kt",
+   "pkg": "com.xiaoduo.deskpet.chat",
+   "imports": [],
+   "loc": 247,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "chat",
+   "internal": []
+  },
+  {
+   "path": "app/src/main/java/com/xiaoduo/deskpet/chat/SessionIndexCodec.kt",
+   "pkg": "com.xiaoduo.deskpet.chat",
+   "imports": [
+    "org.json.JSONArray",
+    "org.json.JSONObject"
+   ],
+   "loc": 55,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "chat",
+   "internal": []
+  },
+  {
+   "path": "app/src/main/java/com/xiaoduo/deskpet/chat/SessionRules.kt",
+   "pkg": "com.xiaoduo.deskpet.chat",
+   "imports": [],
+   "loc": 25,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "chat",
+   "internal": []
+  },
+  {
+   "path": "app/src/main/java/com/xiaoduo/deskpet/chat/SessionSearch.kt",
+   "pkg": "com.xiaoduo.deskpet.chat",
+   "imports": [],
+   "loc": 37,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "chat",
+   "internal": []
+  },
+  {
+   "path": "app/src/main/java/com/xiaoduo/deskpet/chat/SuggestedQuestions.kt",
+   "pkg": "com.xiaoduo.deskpet.chat",
+   "imports": [
+    "kotlin.random.Random"
+   ],
+   "loc": 31,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "chat",
+   "internal": []
+  },
+  {
+   "path": "app/src/main/java/com/xiaoduo/deskpet/chat/ThinkCleaner.kt",
+   "pkg": "com.xiaoduo.deskpet.chat",
+   "imports": [],
+   "loc": 39,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "chat",
+   "internal": []
+  },
+  {
+   "path": "app/src/main/java/com/xiaoduo/deskpet/chat/TurnGateRules.kt",
+   "pkg": "com.xiaoduo.deskpet.chat",
+   "imports": [],
+   "loc": 16,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "chat",
+   "internal": []
+  },
+  {
+   "path": "app/src/main/java/com/xiaoduo/deskpet/cloud/AliyunAsrClient.kt",
+   "pkg": "com.xiaoduo.deskpet.cloud",
+   "imports": [
+    "com.xiaoduo.deskpet.voice.AsrClient",
+    "java.nio.ByteBuffer",
+    "java.nio.ByteOrder",
+    "java.util.UUID",
+    "java.util.concurrent.CountDownLatch",
+    "java.util.concurrent.TimeUnit",
+    "okhttp3.OkHttpClient",
+    "okhttp3.Request",
+    "okhttp3.Response",
+    "okhttp3.WebSocket",
+    "okhttp3.WebSocketListener",
+    "okio.ByteString",
+    "okio.ByteString.Companion.toByteString",
+    "org.json.JSONArray",
+    "org.json.JSONObject"
+   ],
+   "loc": 166,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "cloud",
+   "internal": [
+    "com.xiaoduo.deskpet.voice.AsrClient"
+   ]
+  },
+  {
+   "path": "app/src/main/java/com/xiaoduo/deskpet/cloud/AliyunTtsClient.kt",
+   "pkg": "com.xiaoduo.deskpet.cloud",
+   "imports": [
+    "java.io.ByteArrayOutputStream",
+    "java.util.UUID",
+    "java.util.concurrent.CountDownLatch",
+    "java.util.concurrent.TimeUnit",
+    "okhttp3.OkHttpClient",
+    "okhttp3.Request",
+    "okhttp3.Response",
+    "okhttp3.WebSocket",
+    "okhttp3.WebSocketListener",
+    "okio.ByteString",
+    "org.json.JSONObject"
+   ],
+   "loc": 117,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "cloud",
+   "internal": []
+  },
+  {
+   "path": "app/src/main/java/com/xiaoduo/deskpet/cloud/CloudClientFactory.kt",
+   "pkg": "com.xiaoduo.deskpet.cloud",
+   "imports": [
+    "android.content.Context",
+    "com.xiaoduo.deskpet.net.HttpClients",
+    "com.xiaoduo.deskpet.net.NetConfig",
+    "com.xiaoduo.deskpet.util.PetLogger",
+    "com.xiaoduo.deskpet.voice.AsrClient",
+    "com.xiaoduo.deskpet.voice.TtsClient"
+   ],
+   "loc": 99,
+   "has_android": true,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "cloud",
+   "internal": [
+    "com.xiaoduo.deskpet.net.HttpClients",
+    "com.xiaoduo.deskpet.net.NetConfig",
+    "com.xiaoduo.deskpet.util.PetLogger",
+    "com.xiaoduo.deskpet.voice.AsrClient",
+    "com.xiaoduo.deskpet.voice.TtsClient"
+   ]
+  },
+  {
+   "path": "app/src/main/java/com/xiaoduo/deskpet/cloud/OpenAIAsrClient.kt",
+   "pkg": "com.xiaoduo.deskpet.cloud",
+   "imports": [
+    "com.xiaoduo.deskpet.voice.AsrClient",
+    "java.io.IOException",
+    "okhttp3.MediaType.Companion.toMediaType",
+    "okhttp3.MultipartBody",
+    "okhttp3.OkHttpClient",
+    "okhttp3.Request",
+    "okhttp3.RequestBody.Companion.toRequestBody",
+    "org.json.JSONObject"
+   ],
+   "loc": 65,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "cloud",
+   "internal": [
+    "com.xiaoduo.deskpet.voice.AsrClient"
+   ]
+  },
+  {
+   "path": "app/src/main/java/com/xiaoduo/deskpet/cloud/OpenAIChatClient.kt",
+   "pkg": "com.xiaoduo.deskpet.cloud",
+   "imports": [
+    "java.io.IOException",
+    "okhttp3.MediaType.Companion.toMediaType",
+    "okhttp3.OkHttpClient",
+    "okhttp3.Request",
+    "okhttp3.RequestBody.Companion.toRequestBody",
+    "org.json.JSONArray",
+    "org.json.JSONObject"
+   ],
+   "loc": 94,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "cloud",
+   "internal": []
+  },
+  {
+   "path": "app/src/main/java/com/xiaoduo/deskpet/cloud/OpenAITtsClient.kt",
+   "pkg": "com.xiaoduo.deskpet.cloud",
+   "imports": [
+    "java.io.IOException",
+    "okhttp3.MediaType.Companion.toMediaType",
+    "okhttp3.OkHttpClient",
+    "okhttp3.Request",
+    "okhttp3.RequestBody.Companion.toRequestBody",
+    "org.json.JSONObject"
+   ],
+   "loc": 60,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "cloud",
+   "internal": []
+  },
+  {
+   "path": "app/src/main/java/com/xiaoduo/deskpet/cloud/TextChatRouter.kt",
+   "pkg": "com.xiaoduo.deskpet.cloud",
+   "imports": [
+    "com.xiaoduo.deskpet.agui.AguiClient",
+    "com.xiaoduo.deskpet.agui.AguiSseConsumer",
+    "com.xiaoduo.deskpet.chat.ChatMessage"
+   ],
+   "loc": 74,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "cloud",
+   "internal": [
+    "com.xiaoduo.deskpet.agui.AguiClient",
+    "com.xiaoduo.deskpet.agui.AguiSseConsumer",
+    "com.xiaoduo.deskpet.chat.ChatMessage"
+   ]
+  },
+  {
+   "path": "app/src/main/java/com/xiaoduo/deskpet/cloud/VolcengineAsrClient.kt",
+   "pkg": "com.xiaoduo.deskpet.cloud",
+   "imports": [
+    "com.xiaoduo.deskpet.voice.AsrClient",
+    "java.nio.ByteBuffer",
+    "java.nio.ByteOrder",
+    "java.util.UUID",
+    "java.util.concurrent.CountDownLatch",
+    "java.util.concurrent.TimeUnit",
+    "okhttp3.OkHttpClient",
+    "okhttp3.Request",
+    "okhttp3.Response",
+    "okhttp3.WebSocket",
+    "okhttp3.WebSocketListener",
+    "okio.ByteString",
+    "okio.ByteString.Companion.toByteString",
+    "org.json.JSONArray",
+    "org.json.JSONObject"
+   ],
+   "loc": 210,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "cloud",
+   "internal": [
+    "com.xiaoduo.deskpet.voice.AsrClient"
+   ]
+  },
+  {
+   "path": "app/src/main/java/com/xiaoduo/deskpet/cloud/VolcengineTtsClient.kt",
+   "pkg": "com.xiaoduo.deskpet.cloud",
+   "imports": [
+    "java.io.BufferedReader",
+    "java.io.IOException",
+    "java.io.InputStreamReader",
+    "java.util.Base64",
+    "java.util.UUID",
+    "okhttp3.MediaType.Companion.toMediaType",
+    "okhttp3.OkHttpClient",
+    "okhttp3.Request",
+    "okhttp3.RequestBody.Companion.toRequestBody",
+    "org.json.JSONObject"
+   ],
+   "loc": 87,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "cloud",
+   "internal": []
+  },
+  {
+   "path": "app/src/main/java/com/xiaoduo/deskpet/device/DeviceClient.kt",
+   "pkg": "com.xiaoduo.deskpet.device",
+   "imports": [
+    "java.net.Proxy",
+    "java.util.concurrent.TimeUnit",
+    "okhttp3.OkHttpClient",
+    "okhttp3.Request",
+    "org.json.JSONObject"
+   ],
+   "loc": 126,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "device",
+   "internal": []
+  },
+  {
+   "path": "app/src/main/java/com/xiaoduo/deskpet/device/DeviceIntentMatcher.kt",
+   "pkg": "com.xiaoduo.deskpet.device",
+   "imports": [],
+   "loc": 97,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "device",
+   "internal": []
+  },
+  {
+   "path": "app/src/main/java/com/xiaoduo/deskpet/device/ShelfMcpBridge.kt",
+   "pkg": "com.xiaoduo.deskpet.device",
+   "imports": [
+    "java.io.IOException",
+    "java.net.Proxy",
+    "java.util.concurrent.TimeUnit",
+    "okhttp3.Call",
+    "okhttp3.Callback",
+    "okhttp3.MediaType.Companion.toMediaType",
+    "okhttp3.OkHttpClient",
+    "okhttp3.Request",
+    "okhttp3.RequestBody.Companion.toRequestBody",
+    "okhttp3.Response"
+   ],
+   "loc": 153,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "device",
+   "internal": []
+  },
+  {
+   "path": "app/src/main/java/com/xiaoduo/deskpet/device/ShelfNavIntentMatcher.kt",
+   "pkg": "com.xiaoduo.deskpet.device",
+   "imports": [],
+   "loc": 75,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "device",
+   "internal": []
+  },
+  {
+   "path": "app/src/main/java/com/xiaoduo/deskpet/net/HttpClients.kt",
+   "pkg": "com.xiaoduo.deskpet.net",
+   "imports": [
+    "java.net.Proxy",
+    "java.security.KeyStore",
+    "java.security.cert.X509Certificate",
+    "java.util.concurrent.TimeUnit",
+    "javax.net.ssl.HttpsURLConnection",
+    "javax.net.ssl.SSLContext",
+    "javax.net.ssl.SSLEngine",
+    "javax.net.ssl.TrustManager",
+    "javax.net.ssl.TrustManagerFactory",
+    "javax.net.ssl.X509ExtendedTrustManager",
+    "javax.net.ssl.X509TrustManager",
+    "okhttp3.OkHttpClient"
+   ],
+   "loc": 78,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "net",
+   "internal": []
+  },
+  {
+   "path": "app/src/main/java/com/xiaoduo/deskpet/net/NetConfig.kt",
+   "pkg": "com.xiaoduo.deskpet.net",
+   "imports": [
+    "android.content.Context",
+    "com.xiaoduo.deskpet.BuildConfig",
+    "java.net.URI"
+   ],
+   "loc": 237,
+   "has_android": true,
+   "has_androidx": true,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "net",
+   "internal": [
+    "com.xiaoduo.deskpet.BuildConfig"
+   ]
+  },
+  {
+   "path": "app/src/main/java/com/xiaoduo/deskpet/net/TokenStore.kt",
+   "pkg": "com.xiaoduo.deskpet.net",
+   "imports": [
+    "android.content.Context"
+   ],
+   "loc": 60,
+   "has_android": true,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "net",
+   "internal": []
+  },
+  {
+   "path": "app/src/main/java/com/xiaoduo/deskpet/net/TtsVoiceDefaults.kt",
+   "pkg": "com.xiaoduo.deskpet.net",
+   "imports": [],
+   "loc": 37,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "net",
+   "internal": []
+  },
+  {
+   "path": "app/src/main/java/com/xiaoduo/deskpet/pet/EdgeDock.kt",
+   "pkg": "com.xiaoduo.deskpet.pet",
+   "imports": [],
+   "loc": 59,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "pet",
+   "internal": []
+  },
+  {
+   "path": "app/src/main/java/com/xiaoduo/deskpet/pet/FrameAnimator.kt",
+   "pkg": "com.xiaoduo.deskpet.pet",
+   "imports": [],
+   "loc": 57,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "pet",
+   "internal": []
+  },
+  {
+   "path": "app/src/main/java/com/xiaoduo/deskpet/pet/OverlayClamp.kt",
+   "pkg": "com.xiaoduo.deskpet.pet",
+   "imports": [],
+   "loc": 44,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "pet",
+   "internal": []
+  },
+  {
+   "path": "app/src/main/java/com/xiaoduo/deskpet/pet/PetFrameTable.kt",
+   "pkg": "com.xiaoduo.deskpet.pet",
+   "imports": [],
+   "loc": 39,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "pet",
+   "internal": []
+  },
+  {
+   "path": "app/src/main/java/com/xiaoduo/deskpet/ui/FullscreenVoiceLayout.kt",
+   "pkg": "com.xiaoduo.deskpet.ui",
+   "imports": [
+    "kotlin.math.max",
+    "kotlin.math.min"
+   ],
+   "loc": 110,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "ui",
+   "internal": []
+  },
+  {
+   "path": "app/src/main/java/com/xiaoduo/deskpet/ui/PetView.kt",
+   "pkg": "com.xiaoduo.deskpet.ui",
+   "imports": [
+    "android.content.Context",
+    "android.graphics.Bitmap",
+    "android.graphics.BitmapFactory",
+    "android.graphics.Canvas",
+    "android.graphics.Paint",
+    "android.graphics.Rect",
+    "android.view.Choreographer",
+    "android.view.View",
+    "com.xiaoduo.deskpet.pet.FrameAnimator",
+    "com.xiaoduo.deskpet.pet.PetFrameTable",
+    "com.xiaoduo.deskpet.pet.PetState"
+   ],
+   "loc": 81,
+   "has_android": true,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "ui",
+   "internal": [
+    "com.xiaoduo.deskpet.pet.FrameAnimator",
+    "com.xiaoduo.deskpet.pet.PetFrameTable",
+    "com.xiaoduo.deskpet.pet.PetState"
+   ]
+  },
+  {
+   "path": "app/src/main/java/com/xiaoduo/deskpet/ui/components/MarkdownContent.kt",
+   "pkg": "com.xiaoduo.deskpet.ui.components",
+   "imports": [
+    "androidx.compose.foundation.BorderStroke",
+    "androidx.compose.foundation.background",
+    "androidx.compose.foundation.horizontalScroll",
+    "androidx.compose.foundation.layout.Arrangement",
+    "androidx.compose.foundation.layout.Box",
+    "androidx.compose.foundation.layout.Column",
+    "androidx.compose.foundation.layout.IntrinsicSize",
+    "androidx.compose.foundation.layout.Row",
+    "androidx.compose.foundation.layout.RowScope",
+    "androidx.compose.foundation.layout.fillMaxHeight",
+    "androidx.compose.foundation.layout.fillMaxWidth",
+    "androidx.compose.foundation.layout.height",
+    "androidx.compose.foundation.layout.padding",
+    "androidx.compose.foundation.layout.width",
+    "androidx.compose.foundation.rememberScrollState",
+    "androidx.compose.foundation.shape.RoundedCornerShape",
+    "androidx.compose.material3.HorizontalDivider",
+    "androidx.compose.material3.MaterialTheme",
+    "androidx.compose.material3.Surface",
+    "androidx.compose.material3.Text",
+    "androidx.compose.runtime.Composable",
+    "androidx.compose.runtime.remember",
+    "androidx.compose.ui.Alignment",
+    "androidx.compose.ui.Modifier",
+    "androidx.compose.ui.graphics.Brush",
+    "androidx.compose.ui.graphics.Color",
+    "androidx.compose.ui.text.AnnotatedString",
+    "androidx.compose.ui.text.SpanStyle",
+    "androidx.compose.ui.text.TextStyle",
+    "androidx.compose.ui.text.buildAnnotatedString",
+    "androidx.compose.ui.text.font.FontFamily",
+    "androidx.compose.ui.text.font.FontStyle",
+    "androidx.compose.ui.text.font.FontWeight",
+    "androidx.compose.ui.text.withStyle",
+    "androidx.compose.ui.unit.dp",
+    "androidx.compose.ui.unit.sp",
+    "com.xiaoduo.deskpet.chat.MarkdownRenderer",
+    "com.xiaoduo.deskpet.ui.theme.XiaoduoDimens"
+   ],
+   "loc": 265,
+   "has_android": false,
+   "has_androidx": true,
+   "has_compose": true,
+   "has_coroutines": false,
+   "group": "ui",
+   "internal": [
+    "com.xiaoduo.deskpet.chat.MarkdownRenderer",
+    "com.xiaoduo.deskpet.ui.theme.XiaoduoDimens"
+   ]
+  },
+  {
+   "path": "app/src/main/java/com/xiaoduo/deskpet/ui/icons/AppIcons.kt",
+   "pkg": "com.xiaoduo.deskpet.ui.icons",
+   "imports": [
+    "androidx.compose.ui.graphics.Color",
+    "androidx.compose.ui.graphics.SolidColor",
+    "androidx.compose.ui.graphics.StrokeCap",
+    "androidx.compose.ui.graphics.StrokeJoin",
+    "androidx.compose.ui.graphics.vector.ImageVector",
+    "androidx.compose.ui.graphics.vector.path",
+    "androidx.compose.ui.unit.dp"
+   ],
+   "loc": 81,
+   "has_android": false,
+   "has_androidx": true,
+   "has_compose": true,
+   "has_coroutines": false,
+   "group": "ui",
+   "internal": []
+  },
+  {
+   "path": "app/src/main/java/com/xiaoduo/deskpet/ui/navigation/AppNavHost.kt",
+   "pkg": "com.xiaoduo.deskpet.ui.navigation",
+   "imports": [
+    "androidx.compose.foundation.background",
+    "androidx.compose.foundation.layout.Box",
+    "androidx.compose.foundation.layout.Column",
+    "androidx.compose.foundation.layout.fillMaxSize",
+    "androidx.compose.foundation.layout.imePadding",
+    "androidx.compose.foundation.layout.navigationBarsPadding",
+    "androidx.compose.material3.MaterialTheme",
+    "androidx.compose.runtime.Composable",
+    "androidx.compose.ui.Modifier",
+    "androidx.lifecycle.viewmodel.compose.viewModel",
+    "androidx.navigation.compose.NavHost",
+    "androidx.navigation.compose.composable",
+    "androidx.navigation.compose.rememberNavController",
+    "com.xiaoduo.deskpet.chat.ChatViewModel",
+    "com.xiaoduo.deskpet.ui.screens.ChatScreen",
+    "com.xiaoduo.deskpet.ui.screens.FullscreenVoiceScreen",
+    "com.xiaoduo.deskpet.ui.screens.PermissionScreen",
+    "com.xiaoduo.deskpet.ui.screens.SettingsScreen"
+   ],
+   "loc": 85,
+   "has_android": false,
+   "has_androidx": true,
+   "has_compose": true,
+   "has_coroutines": false,
+   "group": "ui",
+   "internal": [
+    "com.xiaoduo.deskpet.chat.ChatViewModel",
+    "com.xiaoduo.deskpet.ui.screens.ChatScreen",
+    "com.xiaoduo.deskpet.ui.screens.FullscreenVoiceScreen",
+    "com.xiaoduo.deskpet.ui.screens.PermissionScreen",
+    "com.xiaoduo.deskpet.ui.screens.SettingsScreen"
+   ]
+  },
+  {
+   "path": "app/src/main/java/com/xiaoduo/deskpet/ui/overlay/BubbleOwnership.kt",
+   "pkg": "com.xiaoduo.deskpet.ui.overlay",
+   "imports": [],
+   "loc": 41,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "ui",
+   "internal": []
+  },
+  {
+   "path": "app/src/main/java/com/xiaoduo/deskpet/ui/overlay/BubbleScrollPolicy.kt",
+   "pkg": "com.xiaoduo.deskpet.ui.overlay",
+   "imports": [],
+   "loc": 30,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "ui",
+   "internal": []
+  },
+  {
+   "path": "app/src/main/java/com/xiaoduo/deskpet/ui/overlay/BubbleTextStrip.kt",
+   "pkg": "com.xiaoduo.deskpet.ui.overlay",
+   "imports": [],
+   "loc": 329,
+   "has_android": true,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "ui",
+   "internal": []
+  },
+  {
+   "path": "app/src/main/java/com/xiaoduo/deskpet/ui/overlay/BubbleView.kt",
+   "pkg": "com.xiaoduo.deskpet.ui.overlay",
+   "imports": [
+    "android.content.Context",
+    "android.content.res.Configuration",
+    "android.graphics.Typeface",
+    "android.graphics.drawable.GradientDrawable",
+    "android.os.Handler",
+    "android.os.Looper",
+    "android.text.SpannableString",
+    "android.text.Spanned",
+    "android.text.method.ScrollingMovementMethod",
+    "android.text.style.BackgroundColorSpan",
+    "android.text.style.StyleSpan",
+    "android.text.style.TypefaceSpan",
+    "android.view.MotionEvent",
+    "android.widget.TextView"
+   ],
+   "loc": 160,
+   "has_android": true,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "ui",
+   "internal": []
+  },
+  {
+   "path": "app/src/main/java/com/xiaoduo/deskpet/ui/overlay/DebugBubbleReceiver.kt",
+   "pkg": "com.xiaoduo.deskpet.ui.overlay",
+   "imports": [
+    "android.content.BroadcastReceiver",
+    "android.content.Context",
+    "android.content.Intent",
+    "android.content.pm.ApplicationInfo",
+    "com.xiaoduo.deskpet.PetOverlayService",
+    "com.xiaoduo.deskpet.util.PetLogger"
+   ],
+   "loc": 56,
+   "has_android": true,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "ui",
+   "internal": [
+    "com.xiaoduo.deskpet.PetOverlayService",
+    "com.xiaoduo.deskpet.util.PetLogger"
+   ]
+  },
+  {
+   "path": "app/src/main/java/com/xiaoduo/deskpet/ui/overlay/OverlayMenu.kt",
+   "pkg": "com.xiaoduo.deskpet.ui.overlay",
+   "imports": [
+    "android.content.Context",
+    "android.content.res.Configuration",
+    "android.graphics.drawable.ColorDrawable",
+    "android.graphics.drawable.GradientDrawable",
+    "android.view.Gravity",
+    "android.view.View",
+    "android.view.ViewGroup",
+    "android.widget.LinearLayout",
+    "android.widget.PopupWindow",
+    "android.widget.TextView",
+    "com.xiaoduo.deskpet.util.PetLogger"
+   ],
+   "loc": 176,
+   "has_android": true,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "ui",
+   "internal": [
+    "com.xiaoduo.deskpet.util.PetLogger"
+   ]
+  },
+  {
+   "path": "app/src/main/java/com/xiaoduo/deskpet/ui/overlay/VoiceIndicatorModel.kt",
+   "pkg": "com.xiaoduo.deskpet.ui.overlay",
+   "imports": [
+    "kotlin.math.PI",
+    "kotlin.math.abs",
+    "kotlin.math.cos",
+    "kotlin.math.sin"
+   ],
+   "loc": 71,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "ui",
+   "internal": []
+  },
+  {
+   "path": "app/src/main/java/com/xiaoduo/deskpet/ui/overlay/VoiceIndicatorView.kt",
+   "pkg": "com.xiaoduo.deskpet.ui.overlay",
+   "imports": [
+    "android.content.Context",
+    "android.content.res.Configuration",
+    "android.graphics.Canvas",
+    "android.graphics.Color",
+    "android.graphics.Paint",
+    "android.graphics.drawable.GradientDrawable",
+    "android.os.Handler",
+    "android.os.Looper",
+    "android.view.Choreographer",
+    "android.view.View"
+   ],
+   "loc": 166,
+   "has_android": true,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "ui",
+   "internal": []
+  },
+  {
+   "path": "app/src/main/java/com/xiaoduo/deskpet/ui/screens/AecSpikeSection.kt",
+   "pkg": "com.xiaoduo.deskpet.ui.screens",
+   "imports": [
+    "android.content.Context",
+    "android.content.pm.ApplicationInfo",
+    "androidx.compose.foundation.layout.Column",
+    "androidx.compose.foundation.layout.fillMaxWidth",
+    "androidx.compose.foundation.layout.padding",
+    "androidx.compose.material3.Button",
+    "androidx.compose.material3.MaterialTheme",
+    "androidx.compose.material3.Text",
+    "androidx.compose.runtime.Composable",
+    "androidx.compose.runtime.getValue",
+    "androidx.compose.runtime.mutableStateOf",
+    "androidx.compose.runtime.remember",
+    "androidx.compose.runtime.setValue",
+    "androidx.compose.ui.Modifier",
+    "com.xiaoduo.deskpet.ui.theme.XiaoduoDimens",
+    "com.xiaoduo.deskpet.util.PetLogger",
+    "com.xiaoduo.deskpet.voice.AudioProbe"
+   ],
+   "loc": 54,
+   "has_android": true,
+   "has_androidx": true,
+   "has_compose": true,
+   "has_coroutines": false,
+   "group": "ui",
+   "internal": [
+    "com.xiaoduo.deskpet.ui.theme.XiaoduoDimens",
+    "com.xiaoduo.deskpet.util.PetLogger",
+    "com.xiaoduo.deskpet.voice.AudioProbe"
+   ]
+  },
+  {
+   "path": "app/src/main/java/com/xiaoduo/deskpet/ui/screens/ChatScreen.kt",
+   "pkg": "com.xiaoduo.deskpet.ui.screens",
+   "imports": [
+    "android.Manifest",
+    "android.content.Context",
+    "android.content.pm.PackageManager",
+    "android.net.Uri",
+    "android.provider.OpenableColumns",
+    "android.provider.Settings",
+    "android.widget.Toast",
+    "androidx.activity.compose.BackHandler",
+    "androidx.activity.compose.rememberLauncherForActivityResult",
+    "androidx.activity.result.contract.ActivityResultContracts",
+    "androidx.compose.animation.core.LinearEasing",
+    "androidx.compose.animation.core.RepeatMode",
+    "androidx.compose.animation.core.animateFloat",
+    "androidx.compose.animation.core.infiniteRepeatable",
+    "androidx.compose.animation.core.rememberInfiniteTransition",
+    "androidx.compose.animation.core.tween",
+    "androidx.compose.foundation.background",
+    "androidx.compose.foundation.layout.Arrangement",
+    "androidx.compose.foundation.layout.Box",
+    "androidx.compose.foundation.layout.Column",
+    "androidx.compose.foundation.layout.Row",
+    "androidx.compose.foundation.layout.RowScope",
+    "androidx.compose.foundation.layout.Spacer",
+    "androidx.compose.foundation.layout.WindowInsets",
+    "androidx.compose.foundation.layout.fillMaxHeight",
+    "androidx.compose.foundation.layout.fillMaxSize",
+    "androidx.compose.foundation.layout.fillMaxWidth",
+    "androidx.compose.foundation.layout.height",
+    "androidx.compose.foundation.layout.navigationBars",
+    "androidx.compose.foundation.layout.navigationBarsPadding",
+    "androidx.compose.foundation.layout.padding",
+    "androidx.compose.foundation.layout.size",
+    "androidx.compose.foundation.layout.width",
+    "androidx.compose.foundation.layout.widthIn",
+    "androidx.compose.foundation.lazy.LazyColumn",
+    "androidx.compose.foundation.lazy.LazyListState",
+    "androidx.compose.foundation.lazy.items",
+    "androidx.compose.foundation.lazy.rememberLazyListState",
+    "androidx.compose.foundation.shape.CircleShape",
+    "androidx.compose.foundation.shape.RoundedCornerShape",
+    "androidx.compose.material.icons.Icons",
+    "androidx.compose.material.icons.filled.Menu",
+    "androidx.compose.material.icons.filled.Refresh",
+    "androidx.compose.material3.DrawerValue",
+    "androidx.compose.material3.Icon",
+    "androidx.compose.material3.IconButton",
+    "androidx.compose.material3.MaterialTheme",
+    "androidx.compose.material3.ModalNavigationDrawer",
+    "androidx.compose.material3.Scaffold",
+    "androidx.compose.material3.Surface",
+    "androidx.compose.material3.Text",
+    "androidx.compose.material3.TextButton",
+    "androidx.compose.material3.rememberDrawerState",
+    "androidx.compose.runtime.Composable",
+    "androidx.compose.runtime.LaunchedEffect",
+    "androidx.compose.runtime.collectAsState",
+    "androidx.compose.runtime.getValue",
+    "androidx.compose.runtime.mutableStateOf",
+    "androidx.compose.runtime.remember",
+    "androidx.compose.runtime.rememberCoroutineScope",
+    "androidx.compose.runtime.saveable.rememberSaveable",
+    "androidx.compose.runtime.setValue",
+    "androidx.compose.runtime.snapshotFlow",
+    "androidx.compose.ui.Alignment",
+    "androidx.compose.ui.Modifier",
+    "androidx.compose.ui.draw.alpha",
+    "androidx.compose.ui.graphics.Color",
+    "androidx.compose.ui.platform.LocalConfiguration",
+    "androidx.compose.ui.platform.LocalContext",
+    "androidx.compose.ui.platform.LocalDensity",
+    "androidx.compose.ui.text.AnnotatedString",
+    "androidx.compose.ui.unit.dp",
+    "androidx.compose.ui.unit.sp",
+    "androidx.compose.ui.viewinterop.AndroidView",
+    "androidx.core.content.ContextCompat",
+    "com.xiaoduo.deskpet.chat.ChatMessage",
+    "com.xiaoduo.deskpet.chat.ChatViewModel",
+    "com.xiaoduo.deskpet.chat.SuggestedQuestions",
+    "com.xiaoduo.deskpet.ui.PetView",
+    "com.xiaoduo.deskpet.ui.components.MarkdownContent",
+    "com.xiaoduo.deskpet.ui.icons.DenseShelfIcon",
+    "com.xiaoduo.deskpet.ui.icons.FullscreenVoiceIcon",
+    "com.xiaoduo.deskpet.ui.theme.XiaoduoDimens",
+    "com.xiaoduo.deskpet.util.AppLauncher",
+    "com.xiaoduo.deskpet.util.NavInsetPolicy",
+    "com.xiaoduo.deskpet.util.PetLogger",
+    "com.xiaoduo.deskpet.voice.VoiceClientFactory",
+    "kotlinx.coroutines.Dispatchers",
+    "kotlinx.coroutines.flow.first",
+    "kotlinx.coroutines.launch",
+    "kotlinx.coroutines.withContext"
+   ],
+   "loc": 699,
+   "has_android": true,
+   "has_androidx": true,
+   "has_compose": true,
+   "has_coroutines": true,
+   "group": "ui",
+   "internal": [
+    "com.xiaoduo.deskpet.chat.ChatMessage",
+    "com.xiaoduo.deskpet.chat.ChatViewModel",
+    "com.xiaoduo.deskpet.chat.SuggestedQuestions",
+    "com.xiaoduo.deskpet.ui.PetView",
+    "com.xiaoduo.deskpet.ui.components.MarkdownContent",
+    "com.xiaoduo.deskpet.ui.icons.DenseShelfIcon",
+    "com.xiaoduo.deskpet.ui.icons.FullscreenVoiceIcon",
+    "com.xiaoduo.deskpet.ui.theme.XiaoduoDimens",
+    "com.xiaoduo.deskpet.util.AppLauncher",
+    "com.xiaoduo.deskpet.util.NavInsetPolicy",
+    "com.xiaoduo.deskpet.util.PetLogger",
+    "com.xiaoduo.deskpet.voice.VoiceClientFactory"
+   ]
+  },
+  {
+   "path": "app/src/main/java/com/xiaoduo/deskpet/ui/screens/FullscreenVoiceScreen.kt",
+   "pkg": "com.xiaoduo.deskpet.ui.screens",
+   "imports": [
+    "android.Manifest",
+    "android.content.pm.PackageManager",
+    "androidx.compose.animation.core.FastOutSlowInEasing",
+    "androidx.compose.animation.core.RepeatMode",
+    "androidx.compose.animation.core.animateDpAsState",
+    "androidx.compose.animation.core.animateFloat",
+    "androidx.compose.animation.core.infiniteRepeatable",
+    "androidx.compose.animation.core.rememberInfiniteTransition",
+    "androidx.compose.animation.core.tween",
+    "androidx.compose.foundation.Canvas",
+    "androidx.compose.foundation.background",
+    "androidx.compose.foundation.clickable",
+    "androidx.compose.foundation.gestures.detectTapGestures",
+    "androidx.compose.foundation.gestures.detectVerticalDragGestures",
+    "androidx.compose.foundation.layout.Arrangement",
+    "androidx.compose.foundation.layout.Box",
+    "androidx.compose.foundation.layout.Column",
+    "androidx.compose.foundation.layout.Row",
+    "androidx.compose.foundation.layout.Spacer",
+    "androidx.compose.foundation.layout.fillMaxSize",
+    "androidx.compose.foundation.layout.fillMaxWidth",
+    "androidx.compose.foundation.layout.height",
+    "androidx.compose.foundation.layout.heightIn",
+    "androidx.compose.foundation.layout.navigationBarsPadding",
+    "androidx.compose.foundation.layout.offset",
+    "androidx.compose.foundation.layout.padding",
+    "androidx.compose.foundation.layout.size",
+    "androidx.compose.foundation.layout.statusBarsPadding",
+    "androidx.compose.foundation.layout.width",
+    "androidx.compose.foundation.rememberScrollState",
+    "androidx.compose.foundation.shape.CircleShape",
+    "androidx.compose.foundation.shape.RoundedCornerShape",
+    "androidx.compose.foundation.verticalScroll",
+    "androidx.compose.material.icons.Icons",
+    "androidx.compose.material.icons.filled.Close",
+    "androidx.compose.material3.Icon",
+    "androidx.compose.material3.IconButton",
+    "androidx.compose.material3.MaterialTheme",
+    "androidx.compose.material3.Text",
+    "androidx.compose.runtime.Composable",
+    "androidx.compose.runtime.DisposableEffect",
+    "androidx.compose.runtime.LaunchedEffect",
+    "androidx.compose.runtime.collectAsState",
+    "androidx.compose.runtime.getValue",
+    "androidx.compose.runtime.mutableFloatStateOf",
+    "androidx.compose.runtime.mutableLongStateOf",
+    "androidx.compose.runtime.mutableStateOf",
+    "androidx.compose.runtime.remember",
+    "androidx.compose.runtime.setValue",
+    "androidx.compose.runtime.withFrameNanos",
+    "androidx.compose.ui.Alignment",
+    "androidx.compose.ui.Modifier",
+    "androidx.compose.ui.draw.alpha",
+    "androidx.compose.ui.draw.shadow",
+    "androidx.compose.ui.geometry.CornerRadius",
+    "androidx.compose.ui.geometry.Offset",
+    "androidx.compose.ui.geometry.Size",
+    "androidx.compose.ui.graphics.Color",
+    "androidx.compose.ui.input.pointer.pointerInput",
+    "androidx.compose.ui.platform.LocalConfiguration",
+    "androidx.compose.ui.platform.LocalContext",
+    "androidx.compose.ui.platform.LocalDensity",
+    "androidx.compose.ui.text.style.TextAlign",
+    "androidx.compose.ui.unit.IntOffset",
+    "androidx.compose.ui.unit.dp",
+    "androidx.compose.ui.unit.sp",
+    "androidx.compose.ui.viewinterop.AndroidView",
+    "androidx.core.content.ContextCompat",
+    "com.xiaoduo.deskpet.PetOverlayService",
+    "com.xiaoduo.deskpet.chat.ChatMessage",
+    "com.xiaoduo.deskpet.chat.ChatViewModel",
+    "com.xiaoduo.deskpet.pet.PetFrameTable",
+    "com.xiaoduo.deskpet.pet.PetState",
+    "com.xiaoduo.deskpet.ui.FullscreenVoiceLayout",
+    "com.xiaoduo.deskpet.ui.PetView",
+    "com.xiaoduo.deskpet.ui.components.MarkdownContent",
+    "com.xiaoduo.deskpet.ui.theme.XiaoduoDimens",
+    "com.xiaoduo.deskpet.util.PetLogger",
+    "com.xiaoduo.deskpet.util.Prefs",
+    "com.xiaoduo.deskpet.voice.EnergyGate",
+    "com.xiaoduo.deskpet.voice.ReplyCarrier",
+    "com.xiaoduo.deskpet.voice.VoiceClientFactory",
+    "com.xiaoduo.deskpet.voice.VoiceStateRouter",
+    "kotlin.math.exp",
+    "kotlin.math.sin"
+   ],
+   "loc": 587,
+   "has_android": true,
+   "has_androidx": true,
+   "has_compose": true,
+   "has_coroutines": true,
+   "group": "ui",
+   "internal": [
+    "com.xiaoduo.deskpet.PetOverlayService",
+    "com.xiaoduo.deskpet.chat.ChatMessage",
+    "com.xiaoduo.deskpet.chat.ChatViewModel",
+    "com.xiaoduo.deskpet.pet.PetFrameTable",
+    "com.xiaoduo.deskpet.pet.PetState",
+    "com.xiaoduo.deskpet.ui.FullscreenVoiceLayout",
+    "com.xiaoduo.deskpet.ui.PetView",
+    "com.xiaoduo.deskpet.ui.components.MarkdownContent",
+    "com.xiaoduo.deskpet.ui.theme.XiaoduoDimens",
+    "com.xiaoduo.deskpet.util.PetLogger",
+    "com.xiaoduo.deskpet.util.Prefs",
+    "com.xiaoduo.deskpet.voice.EnergyGate",
+    "com.xiaoduo.deskpet.voice.ReplyCarrier",
+    "com.xiaoduo.deskpet.voice.VoiceClientFactory",
+    "com.xiaoduo.deskpet.voice.VoiceStateRouter"
+   ]
+  },
+  {
+   "path": "app/src/main/java/com/xiaoduo/deskpet/ui/screens/InputBar.kt",
+   "pkg": "com.xiaoduo.deskpet.ui.screens",
+   "imports": [
+    "android.content.Context",
+    "android.os.VibrationEffect",
+    "android.os.Vibrator",
+    "androidx.compose.foundation.Canvas",
+    "androidx.compose.foundation.background",
+    "androidx.compose.foundation.gestures.awaitEachGesture",
+    "androidx.compose.foundation.gestures.awaitFirstDown",
+    "androidx.compose.foundation.horizontalScroll",
+    "androidx.compose.foundation.layout.Arrangement",
+    "androidx.compose.foundation.layout.Box",
+    "androidx.compose.foundation.layout.Column",
+    "androidx.compose.foundation.layout.Row",
+    "androidx.compose.foundation.layout.Spacer",
+    "androidx.compose.foundation.layout.fillMaxSize",
+    "androidx.compose.foundation.layout.fillMaxWidth",
+    "androidx.compose.foundation.layout.height",
+    "androidx.compose.foundation.layout.heightIn",
+    "androidx.compose.foundation.layout.padding",
+    "androidx.compose.foundation.layout.size",
+    "androidx.compose.foundation.layout.widthIn",
+    "androidx.compose.foundation.rememberScrollState",
+    "androidx.compose.foundation.shape.CircleShape",
+    "androidx.compose.foundation.shape.RoundedCornerShape",
+    "androidx.compose.material.icons.Icons",
+    "androidx.compose.material.icons.automirrored.filled.Send",
+    "androidx.compose.material.icons.filled.Add",
+    "androidx.compose.material.icons.filled.Close",
+    "androidx.compose.material.icons.filled.Keyboard",
+    "androidx.compose.material.icons.filled.Mic",
+    "androidx.compose.material.icons.filled.Stop",
+    "androidx.compose.material3.HorizontalDivider",
+    "androidx.compose.material3.Icon",
+    "androidx.compose.material3.IconButton",
+    "androidx.compose.material3.MaterialTheme",
+    "androidx.compose.material3.Surface",
+    "androidx.compose.material3.Text",
+    "androidx.compose.material3.TextField",
+    "androidx.compose.material3.TextFieldDefaults",
+    "androidx.compose.runtime.Composable",
+    "androidx.compose.runtime.LaunchedEffect",
+    "androidx.compose.runtime.getValue",
+    "androidx.compose.runtime.mutableStateListOf",
+    "androidx.compose.runtime.mutableStateOf",
+    "androidx.compose.runtime.remember",
+    "androidx.compose.runtime.saveable.rememberSaveable",
+    "androidx.compose.runtime.setValue",
+    "androidx.compose.ui.Alignment",
+    "androidx.compose.ui.Modifier",
+    "androidx.compose.ui.geometry.CornerRadius",
+    "androidx.compose.ui.geometry.Offset",
+    "androidx.compose.ui.geometry.Size",
+    "androidx.compose.ui.graphics.Color",
+    "androidx.compose.ui.input.pointer.changedToUp",
+    "androidx.compose.ui.input.pointer.pointerInput",
+    "androidx.compose.ui.input.pointer.positionChange",
+    "androidx.compose.ui.platform.LocalContext",
+    "androidx.compose.ui.platform.LocalDensity",
+    "androidx.compose.ui.text.style.TextOverflow",
+    "androidx.compose.ui.unit.dp",
+    "androidx.compose.ui.util.lerp",
+    "com.xiaoduo.deskpet.agui.FileMeta",
+    "com.xiaoduo.deskpet.agui.UploadStatus",
+    "com.xiaoduo.deskpet.chat.FunctionKeyLogic",
+    "com.xiaoduo.deskpet.ui.theme.XiaoduoDimens",
+    "com.xiaoduo.deskpet.voice.EnergyGate",
+    "com.xiaoduo.deskpet.voice.VoiceClientFactory"
+   ],
+   "loc": 556,
+   "has_android": true,
+   "has_androidx": true,
+   "has_compose": true,
+   "has_coroutines": true,
+   "group": "ui",
+   "internal": [
+    "com.xiaoduo.deskpet.agui.FileMeta",
+    "com.xiaoduo.deskpet.agui.UploadStatus",
+    "com.xiaoduo.deskpet.chat.FunctionKeyLogic",
+    "com.xiaoduo.deskpet.ui.theme.XiaoduoDimens",
+    "com.xiaoduo.deskpet.voice.EnergyGate",
+    "com.xiaoduo.deskpet.voice.VoiceClientFactory"
+   ]
+  },
+  {
+   "path": "app/src/main/java/com/xiaoduo/deskpet/ui/screens/PermissionScreen.kt",
+   "pkg": "com.xiaoduo.deskpet.ui.screens",
+   "imports": [
+    "android.content.ActivityNotFoundException",
+    "android.content.Context",
+    "android.content.Intent",
+    "android.net.Uri",
+    "android.provider.Settings",
+    "androidx.compose.foundation.layout.Column",
+    "androidx.compose.foundation.layout.Row",
+    "androidx.compose.foundation.layout.fillMaxSize",
+    "androidx.compose.foundation.layout.fillMaxWidth",
+    "androidx.compose.foundation.layout.padding",
+    "androidx.compose.foundation.rememberScrollState",
+    "androidx.compose.foundation.verticalScroll",
+    "androidx.compose.material.icons.Icons",
+    "androidx.compose.material.icons.automirrored.filled.ArrowBack",
+    "androidx.compose.material3.Button",
+    "androidx.compose.material3.ExperimentalMaterial3Api",
+    "androidx.compose.material3.HorizontalDivider",
+    "androidx.compose.material3.Icon",
+    "androidx.compose.material3.IconButton",
+    "androidx.compose.material3.MaterialTheme",
+    "androidx.compose.material3.Scaffold",
+    "androidx.compose.material3.Text",
+    "androidx.compose.material3.TopAppBar",
+    "androidx.compose.runtime.Composable",
+    "androidx.compose.runtime.DisposableEffect",
+    "androidx.compose.runtime.getValue",
+    "androidx.compose.runtime.mutableStateOf",
+    "androidx.compose.runtime.remember",
+    "androidx.compose.runtime.setValue",
+    "androidx.compose.ui.Alignment",
+    "androidx.compose.ui.Modifier",
+    "androidx.compose.ui.platform.LocalContext",
+    "androidx.lifecycle.Lifecycle",
+    "androidx.lifecycle.LifecycleEventObserver",
+    "androidx.lifecycle.compose.LocalLifecycleOwner",
+    "com.xiaoduo.deskpet.ui.theme.XiaoduoDimens",
+    "com.xiaoduo.deskpet.util.PetLogger"
+   ],
+   "loc": 137,
+   "has_android": true,
+   "has_androidx": true,
+   "has_compose": true,
+   "has_coroutines": false,
+   "group": "ui",
+   "internal": [
+    "com.xiaoduo.deskpet.ui.theme.XiaoduoDimens",
+    "com.xiaoduo.deskpet.util.PetLogger"
+   ]
+  },
+  {
+   "path": "app/src/main/java/com/xiaoduo/deskpet/ui/screens/PickStreamLimit.kt",
+   "pkg": "com.xiaoduo.deskpet.ui.screens",
+   "imports": [
+    "java.io.ByteArrayOutputStream",
+    "java.io.InputStream"
+   ],
+   "loc": 32,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "ui",
+   "internal": []
+  },
+  {
+   "path": "app/src/main/java/com/xiaoduo/deskpet/ui/screens/SessionDrawer.kt",
+   "pkg": "com.xiaoduo.deskpet.ui.screens",
+   "imports": [
+    "androidx.compose.foundation.ExperimentalFoundationApi",
+    "androidx.compose.foundation.background",
+    "androidx.compose.foundation.clickable",
+    "androidx.compose.foundation.combinedClickable",
+    "androidx.compose.foundation.layout.Arrangement",
+    "androidx.compose.foundation.layout.Box",
+    "androidx.compose.foundation.layout.Column",
+    "androidx.compose.foundation.layout.Row",
+    "androidx.compose.foundation.layout.Spacer",
+    "androidx.compose.foundation.layout.fillMaxWidth",
+    "androidx.compose.foundation.layout.height",
+    "androidx.compose.foundation.layout.padding",
+    "androidx.compose.foundation.layout.size",
+    "androidx.compose.foundation.layout.width",
+    "androidx.compose.foundation.lazy.LazyColumn",
+    "androidx.compose.foundation.lazy.items",
+    "androidx.compose.foundation.shape.RoundedCornerShape",
+    "androidx.compose.material.icons.Icons",
+    "androidx.compose.material.icons.filled.Add",
+    "androidx.compose.material.icons.filled.Search",
+    "androidx.compose.material.icons.filled.Settings",
+    "androidx.compose.material3.AlertDialog",
+    "androidx.compose.material3.HorizontalDivider",
+    "androidx.compose.material3.Icon",
+    "androidx.compose.material3.MaterialTheme",
+    "androidx.compose.material3.ModalDrawerSheet",
+    "androidx.compose.material3.NavigationDrawerItem",
+    "androidx.compose.material3.NavigationDrawerItemDefaults",
+    "androidx.compose.material3.OutlinedTextField",
+    "androidx.compose.material3.Text",
+    "androidx.compose.material3.TextButton",
+    "androidx.compose.runtime.Composable",
+    "androidx.compose.runtime.getValue",
+    "androidx.compose.runtime.mutableStateOf",
+    "androidx.compose.runtime.produceState",
+    "androidx.compose.runtime.remember",
+    "androidx.compose.runtime.saveable.rememberSaveable",
+    "androidx.compose.runtime.setValue",
+    "androidx.compose.ui.Alignment",
+    "androidx.compose.ui.Modifier",
+    "androidx.compose.ui.draw.clip",
+    "androidx.compose.ui.graphics.Color",
+    "androidx.compose.ui.platform.LocalConfiguration",
+    "androidx.compose.ui.text.style.TextOverflow",
+    "androidx.compose.ui.unit.dp",
+    "androidx.compose.ui.viewinterop.AndroidView",
+    "com.xiaoduo.deskpet.chat.ChatSession",
+    "com.xiaoduo.deskpet.chat.SessionSummary",
+    "com.xiaoduo.deskpet.ui.PetView",
+    "com.xiaoduo.deskpet.ui.theme.XiaoduoDimens",
+    "com.xiaoduo.deskpet.util.PetLogger",
+    "java.text.SimpleDateFormat",
+    "java.util.Date",
+    "java.util.Locale",
+    "kotlinx.coroutines.Dispatchers",
+    "kotlinx.coroutines.withContext"
+   ],
+   "loc": 385,
+   "has_android": false,
+   "has_androidx": true,
+   "has_compose": true,
+   "has_coroutines": true,
+   "group": "ui",
+   "internal": [
+    "com.xiaoduo.deskpet.chat.ChatSession",
+    "com.xiaoduo.deskpet.chat.SessionSummary",
+    "com.xiaoduo.deskpet.ui.PetView",
+    "com.xiaoduo.deskpet.ui.theme.XiaoduoDimens",
+    "com.xiaoduo.deskpet.util.PetLogger"
+   ]
+  },
+  {
+   "path": "app/src/main/java/com/xiaoduo/deskpet/ui/screens/SettingsScreen.kt",
+   "pkg": "com.xiaoduo.deskpet.ui.screens",
+   "imports": [
+    "android.Manifest",
+    "android.content.Context",
+    "android.content.Intent",
+    "android.content.pm.PackageManager",
+    "android.os.Build",
+    "android.provider.Settings",
+    "android.widget.Toast",
+    "androidx.activity.compose.rememberLauncherForActivityResult",
+    "androidx.activity.result.contract.ActivityResultContracts",
+    "androidx.compose.foundation.clickable",
+    "androidx.compose.foundation.gestures.awaitEachGesture",
+    "androidx.compose.foundation.gestures.awaitFirstDown",
+    "androidx.compose.foundation.gestures.waitForUpOrCancellation",
+    "androidx.compose.foundation.layout.Column",
+    "androidx.compose.foundation.layout.Row",
+    "androidx.compose.foundation.layout.Spacer",
+    "androidx.compose.foundation.layout.fillMaxSize",
+    "androidx.compose.foundation.layout.fillMaxWidth",
+    "androidx.compose.foundation.layout.height",
+    "androidx.compose.foundation.layout.heightIn",
+    "androidx.compose.foundation.layout.padding",
+    "androidx.compose.foundation.rememberScrollState",
+    "androidx.compose.foundation.verticalScroll",
+    "androidx.compose.material.icons.Icons",
+    "androidx.compose.material.icons.automirrored.filled.ArrowBack",
+    "androidx.compose.material3.Button",
+    "androidx.compose.material3.ExperimentalMaterial3Api",
+    "androidx.compose.material3.HorizontalDivider",
+    "androidx.compose.material3.Icon",
+    "androidx.compose.material3.IconButton",
+    "androidx.compose.material3.MaterialTheme",
+    "androidx.compose.material3.OutlinedTextField",
+    "androidx.compose.material3.RadioButton",
+    "androidx.compose.material3.Scaffold",
+    "androidx.compose.material3.Slider",
+    "androidx.compose.material3.Switch",
+    "androidx.compose.material3.Text",
+    "androidx.compose.material3.TextButton",
+    "androidx.compose.material3.TopAppBar",
+    "androidx.compose.runtime.Composable",
+    "androidx.compose.runtime.DisposableEffect",
+    "androidx.compose.runtime.getValue",
+    "androidx.compose.runtime.mutableFloatStateOf",
+    "androidx.compose.runtime.mutableStateOf",
+    "androidx.compose.runtime.remember",
+    "androidx.compose.runtime.rememberCoroutineScope",
+    "androidx.compose.runtime.setValue",
+    "androidx.compose.ui.Alignment",
+    "androidx.compose.ui.Modifier",
+    "androidx.compose.ui.input.pointer.pointerInput",
+    "androidx.compose.ui.platform.LocalContext",
+    "androidx.compose.ui.text.input.PasswordVisualTransformation",
+    "androidx.compose.ui.unit.dp",
+    "androidx.core.content.ContextCompat",
+    "androidx.core.content.FileProvider",
+    "androidx.lifecycle.Lifecycle",
+    "androidx.lifecycle.LifecycleEventObserver",
+    "androidx.lifecycle.compose.LocalLifecycleOwner",
+    "com.xiaoduo.deskpet.PetOverlayService",
+    "com.xiaoduo.deskpet.PetOverlayState",
+    "com.xiaoduo.deskpet.VoiceForegroundService",
+    "com.xiaoduo.deskpet.agui.AguiClient",
+    "com.xiaoduo.deskpet.agui.AguiClientFactory",
+    "com.xiaoduo.deskpet.net.NetConfig",
+    "com.xiaoduo.deskpet.ui.theme.XiaoduoDimens",
+    "com.xiaoduo.deskpet.util.AppLauncher",
+    "com.xiaoduo.deskpet.util.PetLogger",
+    "com.xiaoduo.deskpet.util.PrefContract",
+    "com.xiaoduo.deskpet.util.Prefs",
+    "com.xiaoduo.deskpet.voice.AmbientCalibrator",
+    "com.xiaoduo.deskpet.voice.AudioCapture",
+    "com.xiaoduo.deskpet.voice.EnergyGate",
+    "com.xiaoduo.deskpet.voice.VoiceClientFactory",
+    "com.xiaoduo.deskpet.voice.WakeAckPrefetcher",
+    "kotlinx.coroutines.CoroutineScope",
+    "kotlinx.coroutines.Dispatchers",
+    "kotlinx.coroutines.TimeoutCancellationException",
+    "kotlinx.coroutines.cancel",
+    "kotlinx.coroutines.launch",
+    "kotlinx.coroutines.withContext",
+    "kotlinx.coroutines.withTimeout"
+   ],
+   "loc": 1055,
+   "has_android": true,
+   "has_androidx": true,
+   "has_compose": true,
+   "has_coroutines": true,
+   "group": "ui",
+   "internal": [
+    "com.xiaoduo.deskpet.PetOverlayService",
+    "com.xiaoduo.deskpet.PetOverlayState",
+    "com.xiaoduo.deskpet.VoiceForegroundService",
+    "com.xiaoduo.deskpet.agui.AguiClient",
+    "com.xiaoduo.deskpet.agui.AguiClientFactory",
+    "com.xiaoduo.deskpet.net.NetConfig",
+    "com.xiaoduo.deskpet.ui.theme.XiaoduoDimens",
+    "com.xiaoduo.deskpet.util.AppLauncher",
+    "com.xiaoduo.deskpet.util.PetLogger",
+    "com.xiaoduo.deskpet.util.PrefContract",
+    "com.xiaoduo.deskpet.util.Prefs",
+    "com.xiaoduo.deskpet.voice.AmbientCalibrator",
+    "com.xiaoduo.deskpet.voice.AudioCapture",
+    "com.xiaoduo.deskpet.voice.EnergyGate",
+    "com.xiaoduo.deskpet.voice.VoiceClientFactory",
+    "com.xiaoduo.deskpet.voice.WakeAckPrefetcher"
+   ]
+  },
+  {
+   "path": "app/src/main/java/com/xiaoduo/deskpet/ui/screens/UiCoroutineGuard.kt",
+   "pkg": "com.xiaoduo.deskpet.ui.screens",
+   "imports": [
+    "kotlinx.coroutines.CancellationException"
+   ],
+   "loc": 20,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": true,
+   "group": "ui",
+   "internal": []
+  },
+  {
+   "path": "app/src/main/java/com/xiaoduo/deskpet/ui/theme/Theme.kt",
+   "pkg": "com.xiaoduo.deskpet.ui.theme",
+   "imports": [
+    "androidx.compose.foundation.isSystemInDarkTheme",
+    "androidx.compose.foundation.shape.RoundedCornerShape",
+    "androidx.compose.material3.MaterialTheme",
+    "androidx.compose.material3.Shapes",
+    "androidx.compose.material3.Typography",
+    "androidx.compose.material3.darkColorScheme",
+    "androidx.compose.material3.lightColorScheme",
+    "androidx.compose.runtime.Composable",
+    "androidx.compose.ui.graphics.Color",
+    "androidx.compose.ui.text.TextStyle",
+    "androidx.compose.ui.text.font.FontWeight",
+    "androidx.compose.ui.unit.dp",
+    "androidx.compose.ui.unit.sp"
+   ],
+   "loc": 73,
+   "has_android": false,
+   "has_androidx": true,
+   "has_compose": true,
+   "has_coroutines": false,
+   "group": "ui",
+   "internal": []
+  },
+  {
+   "path": "app/src/main/java/com/xiaoduo/deskpet/util/AppLauncher.kt",
+   "pkg": "com.xiaoduo.deskpet.util",
+   "imports": [
+    "android.content.Context",
+    "android.content.Intent",
+    "android.content.pm.PackageManager"
+   ],
+   "loc": 72,
+   "has_android": true,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "util",
+   "internal": []
+  },
+  {
+   "path": "app/src/main/java/com/xiaoduo/deskpet/util/CrashReporter.kt",
+   "pkg": "com.xiaoduo.deskpet.util",
+   "imports": [
+    "android.content.Context",
+    "android.util.Log",
+    "java.io.File",
+    "java.text.SimpleDateFormat",
+    "java.util.Date",
+    "java.util.Locale"
+   ],
+   "loc": 45,
+   "has_android": true,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "util",
+   "internal": []
+  },
+  {
+   "path": "app/src/main/java/com/xiaoduo/deskpet/util/FeedReleaseGate.kt",
+   "pkg": "com.xiaoduo.deskpet.util",
+   "imports": [],
+   "loc": 29,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "util",
+   "internal": []
+  },
+  {
+   "path": "app/src/main/java/com/xiaoduo/deskpet/util/LogRotator.kt",
+   "pkg": "com.xiaoduo.deskpet.util",
+   "imports": [
+    "java.time.Instant",
+    "java.time.LocalDate",
+    "java.time.ZoneId",
+    "java.time.format.DateTimeFormatter",
+    "java.util.Locale"
+   ],
+   "loc": 35,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "util",
+   "internal": []
+  },
+  {
+   "path": "app/src/main/java/com/xiaoduo/deskpet/util/NavInsetPolicy.kt",
+   "pkg": "com.xiaoduo.deskpet.util",
+   "imports": [],
+   "loc": 23,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "util",
+   "internal": []
+  },
+  {
+   "path": "app/src/main/java/com/xiaoduo/deskpet/util/PetLogger.kt",
+   "pkg": "com.xiaoduo.deskpet.util",
+   "imports": [
+    "android.content.Context",
+    "android.util.Log",
+    "java.io.File",
+    "java.text.SimpleDateFormat",
+    "java.util.Date",
+    "java.util.Locale"
+   ],
+   "loc": 72,
+   "has_android": true,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "util",
+   "internal": []
+  },
+  {
+   "path": "app/src/main/java/com/xiaoduo/deskpet/util/PrefContract.kt",
+   "pkg": "com.xiaoduo.deskpet.util",
+   "imports": [],
+   "loc": 60,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "util",
+   "internal": []
+  },
+  {
+   "path": "app/src/main/java/com/xiaoduo/deskpet/util/Prefs.kt",
+   "pkg": "com.xiaoduo.deskpet.util",
+   "imports": [
+    "android.content.Context",
+    "android.content.SharedPreferences"
+   ],
+   "loc": 181,
+   "has_android": true,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "util",
+   "internal": []
+  },
+  {
+   "path": "app/src/main/java/com/xiaoduo/deskpet/util/TapGesture.kt",
+   "pkg": "com.xiaoduo.deskpet.util",
+   "imports": [
+    "kotlin.math.sqrt"
+   ],
+   "loc": 16,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "util",
+   "internal": []
+  },
+  {
+   "path": "app/src/main/java/com/xiaoduo/deskpet/voice/AmbientCalibrator.kt",
+   "pkg": "com.xiaoduo.deskpet.voice",
+   "imports": [
+    "android.content.Context",
+    "com.xiaoduo.deskpet.util.PetLogger",
+    "com.xiaoduo.deskpet.util.Prefs",
+    "kotlinx.coroutines.CoroutineScope",
+    "kotlinx.coroutines.Dispatchers",
+    "kotlinx.coroutines.TimeoutCancellationException",
+    "kotlinx.coroutines.cancel",
+    "kotlinx.coroutines.flow.Flow",
+    "kotlinx.coroutines.withTimeout"
+   ],
+   "loc": 89,
+   "has_android": true,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": true,
+   "group": "voice",
+   "internal": [
+    "com.xiaoduo.deskpet.util.PetLogger",
+    "com.xiaoduo.deskpet.util.Prefs"
+   ]
+  },
+  {
+   "path": "app/src/main/java/com/xiaoduo/deskpet/voice/AsrClient.kt",
+   "pkg": "com.xiaoduo.deskpet.voice",
+   "imports": [
+    "java.io.IOException",
+    "java.util.concurrent.TimeUnit",
+    "okhttp3.MediaType.Companion.toMediaType",
+    "okhttp3.MultipartBody",
+    "okhttp3.OkHttpClient",
+    "okhttp3.Request",
+    "okhttp3.RequestBody.Companion.toRequestBody",
+    "org.json.JSONObject"
+   ],
+   "loc": 85,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "voice",
+   "internal": []
+  },
+  {
+   "path": "app/src/main/java/com/xiaoduo/deskpet/voice/AudioCapture.kt",
+   "pkg": "com.xiaoduo.deskpet.voice",
+   "imports": [
+    "android.annotation.SuppressLint",
+    "android.media.AudioFormat",
+    "android.media.AudioRecord",
+    "android.media.AudioTimestamp",
+    "android.media.MediaRecorder",
+    "com.xiaoduo.deskpet.util.PetLogger",
+    "kotlinx.coroutines.CoroutineScope",
+    "kotlinx.coroutines.Dispatchers",
+    "kotlinx.coroutines.Job",
+    "kotlinx.coroutines.channels.BufferOverflow",
+    "kotlinx.coroutines.flow.Flow",
+    "kotlinx.coroutines.flow.MutableSharedFlow",
+    "kotlinx.coroutines.flow.SharedFlow",
+    "kotlinx.coroutines.flow.map",
+    "kotlinx.coroutines.isActive",
+    "kotlinx.coroutines.launch",
+    "kotlinx.coroutines.yield"
+   ],
+   "loc": 302,
+   "has_android": true,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": true,
+   "group": "voice",
+   "internal": [
+    "com.xiaoduo.deskpet.util.PetLogger"
+   ]
+  },
+  {
+   "path": "app/src/main/java/com/xiaoduo/deskpet/voice/AudioProbe.kt",
+   "pkg": "com.xiaoduo.deskpet.voice",
+   "imports": [],
+   "loc": 30,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "voice",
+   "internal": []
+  },
+  {
+   "path": "app/src/main/java/com/xiaoduo/deskpet/voice/BubbleHidePolicy.kt",
+   "pkg": "com.xiaoduo.deskpet.voice",
+   "imports": [],
+   "loc": 31,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "voice",
+   "internal": []
+  },
+  {
+   "path": "app/src/main/java/com/xiaoduo/deskpet/voice/DynamicWakeAck.kt",
+   "pkg": "com.xiaoduo.deskpet.voice",
+   "imports": [
+    "java.io.IOException"
+   ],
+   "loc": 52,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "voice",
+   "internal": []
+  },
+  {
+   "path": "app/src/main/java/com/xiaoduo/deskpet/voice/EnergyGate.kt",
+   "pkg": "com.xiaoduo.deskpet.voice",
+   "imports": [
+    "com.xiaoduo.deskpet.util.PrefContract",
+    "kotlin.math.ceil",
+    "kotlin.math.sqrt"
+   ],
+   "loc": 75,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "voice",
+   "internal": [
+    "com.xiaoduo.deskpet.util.PrefContract"
+   ]
+  },
+  {
+   "path": "app/src/main/java/com/xiaoduo/deskpet/voice/KwsCore.kt",
+   "pkg": "com.xiaoduo.deskpet.voice",
+   "imports": [
+    "java.util.concurrent.ArrayBlockingQueue",
+    "java.util.concurrent.atomic.AtomicBoolean",
+    "java.util.concurrent.atomic.AtomicLong"
+   ],
+   "loc": 218,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "voice",
+   "internal": []
+  },
+  {
+   "path": "app/src/main/java/com/xiaoduo/deskpet/voice/KwsDefaults.kt",
+   "pkg": "com.xiaoduo.deskpet.voice",
+   "imports": [],
+   "loc": 40,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "voice",
+   "internal": []
+  },
+  {
+   "path": "app/src/main/java/com/xiaoduo/deskpet/voice/KwsEngine.kt",
+   "pkg": "com.xiaoduo.deskpet.voice",
+   "imports": [
+    "android.content.res.AssetManager",
+    "com.k2fsa.sherpa.onnx.FeatureConfig",
+    "com.k2fsa.sherpa.onnx.KeywordSpotter",
+    "com.k2fsa.sherpa.onnx.KeywordSpotterConfig",
+    "com.k2fsa.sherpa.onnx.OnlineModelConfig",
+    "com.k2fsa.sherpa.onnx.OnlineStream",
+    "com.k2fsa.sherpa.onnx.OnlineTransducerModelConfig",
+    "com.xiaoduo.deskpet.util.PetLogger"
+   ],
+   "loc": 98,
+   "has_android": true,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "voice",
+   "internal": [
+    "com.xiaoduo.deskpet.util.PetLogger"
+   ]
+  },
+  {
+   "path": "app/src/main/java/com/xiaoduo/deskpet/voice/ListeningHintPolicy.kt",
+   "pkg": "com.xiaoduo.deskpet.voice",
+   "imports": [],
+   "loc": 33,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "voice",
+   "internal": []
+  },
+  {
+   "path": "app/src/main/java/com/xiaoduo/deskpet/voice/NlmsEchoCanceller.kt",
+   "pkg": "com.xiaoduo.deskpet.voice",
+   "imports": [
+    "kotlin.math.abs",
+    "kotlin.math.min"
+   ],
+   "loc": 287,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "voice",
+   "internal": []
+  },
+  {
+   "path": "app/src/main/java/com/xiaoduo/deskpet/voice/PrefetchBackoff.kt",
+   "pkg": "com.xiaoduo.deskpet.voice",
+   "imports": [
+    "java.util.concurrent.ConcurrentHashMap"
+   ],
+   "loc": 26,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "voice",
+   "internal": []
+  },
+  {
+   "path": "app/src/main/java/com/xiaoduo/deskpet/voice/ReplyCarrier.kt",
+   "pkg": "com.xiaoduo.deskpet.voice",
+   "imports": [],
+   "loc": 29,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "voice",
+   "internal": []
+  },
+  {
+   "path": "app/src/main/java/com/xiaoduo/deskpet/voice/RevealScheduler.kt",
+   "pkg": "com.xiaoduo.deskpet.voice",
+   "imports": [],
+   "loc": 36,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "voice",
+   "internal": []
+  },
+  {
+   "path": "app/src/main/java/com/xiaoduo/deskpet/voice/SentenceSplitter.kt",
+   "pkg": "com.xiaoduo.deskpet.voice",
+   "imports": [],
+   "loc": 60,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "voice",
+   "internal": []
+  },
+  {
+   "path": "app/src/main/java/com/xiaoduo/deskpet/voice/StampedBlock.kt",
+   "pkg": "com.xiaoduo.deskpet.voice",
+   "imports": [],
+   "loc": 10,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "voice",
+   "internal": []
+  },
+  {
+   "path": "app/src/main/java/com/xiaoduo/deskpet/voice/TtsClient.kt",
+   "pkg": "com.xiaoduo.deskpet.voice",
+   "imports": [
+    "java.io.ByteArrayOutputStream",
+    "java.io.IOException",
+    "java.util.Base64",
+    "okhttp3.MediaType.Companion.toMediaType",
+    "okhttp3.OkHttpClient",
+    "okhttp3.Request",
+    "okhttp3.RequestBody.Companion.toRequestBody",
+    "org.json.JSONArray",
+    "org.json.JSONObject"
+   ],
+   "loc": 192,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "voice",
+   "internal": []
+  },
+  {
+   "path": "app/src/main/java/com/xiaoduo/deskpet/voice/TtsSanitizer.kt",
+   "pkg": "com.xiaoduo.deskpet.voice",
+   "imports": [],
+   "loc": 30,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "voice",
+   "internal": []
+  },
+  {
+   "path": "app/src/main/java/com/xiaoduo/deskpet/voice/VadDetector.kt",
+   "pkg": "com.xiaoduo.deskpet.voice",
+   "imports": [
+    "kotlin.math.sqrt"
+   ],
+   "loc": 298,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "voice",
+   "internal": []
+  },
+  {
+   "path": "app/src/main/java/com/xiaoduo/deskpet/voice/VadSeamPolicy.kt",
+   "pkg": "com.xiaoduo.deskpet.voice",
+   "imports": [],
+   "loc": 25,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "voice",
+   "internal": []
+  },
+  {
+   "path": "app/src/main/java/com/xiaoduo/deskpet/voice/VoiceClientFactory.kt",
+   "pkg": "com.xiaoduo.deskpet.voice",
+   "imports": [
+    "android.content.Context",
+    "com.xiaoduo.deskpet.PetOverlayService",
+    "com.xiaoduo.deskpet.agui.AguiClientFactory",
+    "com.xiaoduo.deskpet.device.DeviceClient",
+    "com.xiaoduo.deskpet.device.DeviceIntentMatcher",
+    "com.xiaoduo.deskpet.device.ShelfMcpBridge",
+    "com.xiaoduo.deskpet.device.ShelfNavIntentMatcher",
+    "com.xiaoduo.deskpet.net.HttpClients",
+    "com.xiaoduo.deskpet.net.NetConfig",
+    "com.xiaoduo.deskpet.net.NetEndpoints",
+    "com.xiaoduo.deskpet.ui.overlay.BubbleOwner",
+    "com.xiaoduo.deskpet.util.PetLogger",
+    "com.xiaoduo.deskpet.util.Prefs",
+    "kotlinx.coroutines.CoroutineScope",
+    "kotlinx.coroutines.Dispatchers",
+    "kotlinx.coroutines.SupervisorJob"
+   ],
+   "loc": 229,
+   "has_android": true,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": true,
+   "group": "voice",
+   "internal": [
+    "com.xiaoduo.deskpet.PetOverlayService",
+    "com.xiaoduo.deskpet.agui.AguiClientFactory",
+    "com.xiaoduo.deskpet.device.DeviceClient",
+    "com.xiaoduo.deskpet.device.DeviceIntentMatcher",
+    "com.xiaoduo.deskpet.device.ShelfMcpBridge",
+    "com.xiaoduo.deskpet.device.ShelfNavIntentMatcher",
+    "com.xiaoduo.deskpet.net.HttpClients",
+    "com.xiaoduo.deskpet.net.NetConfig",
+    "com.xiaoduo.deskpet.net.NetEndpoints",
+    "com.xiaoduo.deskpet.ui.overlay.BubbleOwner",
+    "com.xiaoduo.deskpet.util.PetLogger",
+    "com.xiaoduo.deskpet.util.Prefs"
+   ]
+  },
+  {
+   "path": "app/src/main/java/com/xiaoduo/deskpet/voice/VoicePlayer.kt",
+   "pkg": "com.xiaoduo.deskpet.voice",
+   "imports": [
+    "android.media.AudioAttributes",
+    "android.media.AudioFormat",
+    "android.media.AudioTrack",
+    "com.xiaoduo.deskpet.util.PetLogger",
+    "java.io.IOException"
+   ],
+   "loc": 280,
+   "has_android": true,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "voice",
+   "internal": [
+    "com.xiaoduo.deskpet.util.PetLogger"
+   ]
+  },
+  {
+   "path": "app/src/main/java/com/xiaoduo/deskpet/voice/VoiceSessionManager.kt",
+   "pkg": "com.xiaoduo.deskpet.voice",
+   "imports": [
+    "android.content.Context",
+    "com.xiaoduo.deskpet.PetOverlayService",
+    "com.xiaoduo.deskpet.agui.AguiClient",
+    "com.xiaoduo.deskpet.agui.AguiSseConsumer",
+    "com.xiaoduo.deskpet.cloud.CloudClientFactory",
+    "com.xiaoduo.deskpet.cloud.Message",
+    "com.xiaoduo.deskpet.cloud.OpenAIAsrClient",
+    "com.xiaoduo.deskpet.cloud.OpenAIChatClient",
+    "com.xiaoduo.deskpet.cloud.OpenAITtsClient",
+    "com.xiaoduo.deskpet.device.DeviceClient",
+    "com.xiaoduo.deskpet.device.DeviceIntentMatcher",
+    "com.xiaoduo.deskpet.net.NetConfig",
+    "com.xiaoduo.deskpet.pet.PetFrameTable",
+    "com.xiaoduo.deskpet.util.PetLogger",
+    "java.util.concurrent.atomic.AtomicBoolean",
+    "java.util.concurrent.atomic.AtomicLong",
+    "kotlinx.coroutines.CancellationException",
+    "kotlinx.coroutines.CoroutineScope",
+    "kotlinx.coroutines.Dispatchers",
+    "kotlinx.coroutines.Job",
+    "kotlinx.coroutines.async",
+    "kotlinx.coroutines.channels.Channel",
+    "kotlinx.coroutines.delay",
+    "kotlinx.coroutines.flow.MutableStateFlow",
+    "kotlinx.coroutines.flow.StateFlow",
+    "kotlinx.coroutines.isActive",
+    "kotlinx.coroutines.launch",
+    "kotlinx.coroutines.runBlocking"
+   ],
+   "loc": 1208,
+   "has_android": true,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": true,
+   "group": "voice",
+   "internal": [
+    "com.xiaoduo.deskpet.PetOverlayService",
+    "com.xiaoduo.deskpet.agui.AguiClient",
+    "com.xiaoduo.deskpet.agui.AguiSseConsumer",
+    "com.xiaoduo.deskpet.cloud.CloudClientFactory",
+    "com.xiaoduo.deskpet.cloud.Message",
+    "com.xiaoduo.deskpet.cloud.OpenAIAsrClient",
+    "com.xiaoduo.deskpet.cloud.OpenAIChatClient",
+    "com.xiaoduo.deskpet.cloud.OpenAITtsClient",
+    "com.xiaoduo.deskpet.device.DeviceClient",
+    "com.xiaoduo.deskpet.device.DeviceIntentMatcher",
+    "com.xiaoduo.deskpet.net.NetConfig",
+    "com.xiaoduo.deskpet.pet.PetFrameTable",
+    "com.xiaoduo.deskpet.util.PetLogger"
+   ]
+  },
+  {
+   "path": "app/src/main/java/com/xiaoduo/deskpet/voice/VoiceStateRouter.kt",
+   "pkg": "com.xiaoduo.deskpet.voice",
+   "imports": [],
+   "loc": 88,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "voice",
+   "internal": []
+  },
+  {
+   "path": "app/src/main/java/com/xiaoduo/deskpet/voice/WakeAckAudio.kt",
+   "pkg": "com.xiaoduo.deskpet.voice",
+   "imports": [
+    "kotlin.math.abs",
+    "kotlin.math.max"
+   ],
+   "loc": 112,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "voice",
+   "internal": []
+  },
+  {
+   "path": "app/src/main/java/com/xiaoduo/deskpet/voice/WakeAckCacheStore.kt",
+   "pkg": "com.xiaoduo.deskpet.voice",
+   "imports": [
+    "java.io.File",
+    "java.io.IOException",
+    "java.nio.file.AtomicMoveNotSupportedException",
+    "java.nio.file.Files",
+    "java.nio.file.StandardCopyOption"
+   ],
+   "loc": 81,
+   "has_android": true,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "voice",
+   "internal": []
+  },
+  {
+   "path": "app/src/main/java/com/xiaoduo/deskpet/voice/WakeAckPrefetcher.kt",
+   "pkg": "com.xiaoduo.deskpet.voice",
+   "imports": [
+    "android.content.Context",
+    "com.xiaoduo.deskpet.cloud.CloudClientFactory",
+    "com.xiaoduo.deskpet.net.TtsVoiceDefaults",
+    "com.xiaoduo.deskpet.util.PetLogger",
+    "com.xiaoduo.deskpet.voice.TtsClient.Result",
+    "java.util.concurrent.atomic.AtomicBoolean"
+   ],
+   "loc": 125,
+   "has_android": true,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "voice",
+   "internal": [
+    "com.xiaoduo.deskpet.cloud.CloudClientFactory",
+    "com.xiaoduo.deskpet.net.TtsVoiceDefaults",
+    "com.xiaoduo.deskpet.util.PetLogger",
+    "com.xiaoduo.deskpet.voice.TtsClient.Result"
+   ]
+  },
+  {
+   "path": "app/src/main/java/com/xiaoduo/deskpet/voice/WakeAckResolver.kt",
+   "pkg": "com.xiaoduo.deskpet.voice",
+   "imports": [
+    "android.content.Context",
+    "com.xiaoduo.deskpet.net.NetConfig",
+    "com.xiaoduo.deskpet.net.TtsVoiceDefaults",
+    "com.xiaoduo.deskpet.util.PetLogger",
+    "java.io.File",
+    "java.util.concurrent.ConcurrentHashMap"
+   ],
+   "loc": 168,
+   "has_android": true,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "voice",
+   "internal": [
+    "com.xiaoduo.deskpet.net.NetConfig",
+    "com.xiaoduo.deskpet.net.TtsVoiceDefaults",
+    "com.xiaoduo.deskpet.util.PetLogger"
+   ]
+  },
+  {
+   "path": "app/src/main/java/com/xiaoduo/deskpet/voice/WakeAckSelector.kt",
+   "pkg": "com.xiaoduo.deskpet.voice",
+   "imports": [
+    "com.xiaoduo.deskpet.net.TtsVoiceDefaults",
+    "java.security.MessageDigest"
+   ],
+   "loc": 98,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "voice",
+   "internal": [
+    "com.xiaoduo.deskpet.net.TtsVoiceDefaults"
+   ]
+  },
+  {
+   "path": "app/src/main/java/com/xiaoduo/deskpet/voice/WakeBlindWindowBuffer.kt",
+   "pkg": "com.xiaoduo.deskpet.voice",
+   "imports": [],
+   "loc": 56,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "voice",
+   "internal": []
+  },
+  {
+   "path": "app/src/main/java/com/xiaoduo/deskpet/voice/WavCodec.kt",
+   "pkg": "com.xiaoduo.deskpet.voice",
+   "imports": [],
+   "loc": 69,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "voice",
+   "internal": []
+  },
+  {
+   "path": "app/src/test/java/com/xiaoduo/deskpet/OverlayLaunchPolicyTest.kt",
+   "pkg": "com.xiaoduo.deskpet",
+   "imports": [
+    "org.junit.Assert.assertEquals",
+    "org.junit.Test"
+   ],
+   "loc": 26,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "(root)",
+   "internal": []
+  },
+  {
+   "path": "app/src/test/java/com/xiaoduo/deskpet/agui/AguiClientAgentListTest.kt",
+   "pkg": "com.xiaoduo.deskpet.agui",
+   "imports": [
+    "java.util.concurrent.TimeUnit",
+    "okhttp3.OkHttpClient",
+    "okhttp3.mockwebserver.MockResponse",
+    "okhttp3.mockwebserver.MockWebServer",
+    "org.json.JSONObject",
+    "org.junit.After",
+    "org.junit.Assert.assertEquals",
+    "org.junit.Assert.assertTrue",
+    "org.junit.Before",
+    "org.junit.Test"
+   ],
+   "loc": 229,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "agui",
+   "internal": []
+  },
+  {
+   "path": "app/src/test/java/com/xiaoduo/deskpet/agui/AguiClientConcurrencyTest.kt",
+   "pkg": "com.xiaoduo.deskpet.agui",
+   "imports": [
+    "java.util.concurrent.CountDownLatch",
+    "java.util.concurrent.Executors",
+    "java.util.concurrent.TimeUnit",
+    "okhttp3.OkHttpClient",
+    "okhttp3.mockwebserver.MockResponse",
+    "okhttp3.mockwebserver.MockWebServer",
+    "org.json.JSONObject",
+    "org.junit.After",
+    "org.junit.Assert.assertEquals",
+    "org.junit.Assert.assertNotEquals",
+    "org.junit.Assert.assertTrue",
+    "org.junit.Before",
+    "org.junit.Test"
+   ],
+   "loc": 160,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "agui",
+   "internal": []
+  },
+  {
+   "path": "app/src/test/java/com/xiaoduo/deskpet/agui/AguiClientExceptionBoundaryTest.kt",
+   "pkg": "com.xiaoduo.deskpet.agui",
+   "imports": [
+    "okhttp3.OkHttpClient",
+    "org.junit.Assert.assertTrue",
+    "org.junit.Test"
+   ],
+   "loc": 67,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "agui",
+   "internal": []
+  },
+  {
+   "path": "app/src/test/java/com/xiaoduo/deskpet/agui/AguiClientFactoryThreadIdSlotsTest.kt",
+   "pkg": "com.xiaoduo.deskpet.agui",
+   "imports": [
+    "java.util.concurrent.CountDownLatch",
+    "java.util.concurrent.Executors",
+    "java.util.concurrent.TimeUnit",
+    "org.junit.Assert.assertEquals",
+    "org.junit.Assert.assertNull",
+    "org.junit.Assert.assertTrue",
+    "org.junit.Test"
+   ],
+   "loc": 93,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "agui",
+   "internal": []
+  },
+  {
+   "path": "app/src/test/java/com/xiaoduo/deskpet/agui/AguiClientTest.kt",
+   "pkg": "com.xiaoduo.deskpet.agui",
+   "imports": [
+    "java.util.concurrent.TimeUnit",
+    "okhttp3.OkHttpClient",
+    "okhttp3.mockwebserver.MockResponse",
+    "okhttp3.mockwebserver.MockWebServer",
+    "okhttp3.mockwebserver.SocketPolicy",
+    "org.json.JSONObject",
+    "org.junit.After",
+    "org.junit.Assert.assertEquals",
+    "org.junit.Assert.assertFalse",
+    "org.junit.Assert.assertNotNull",
+    "org.junit.Assert.assertTrue",
+    "org.junit.Before",
+    "org.junit.Test"
+   ],
+   "loc": 491,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "agui",
+   "internal": []
+  },
+  {
+   "path": "app/src/test/java/com/xiaoduo/deskpet/agui/AguiClientUploadTest.kt",
+   "pkg": "com.xiaoduo.deskpet.agui",
+   "imports": [
+    "java.util.concurrent.TimeUnit",
+    "okhttp3.OkHttpClient",
+    "okhttp3.mockwebserver.MockResponse",
+    "okhttp3.mockwebserver.MockWebServer",
+    "org.json.JSONObject",
+    "org.junit.After",
+    "org.junit.Assert.assertEquals",
+    "org.junit.Assert.assertFalse",
+    "org.junit.Assert.assertTrue",
+    "org.junit.Before",
+    "org.junit.Test"
+   ],
+   "loc": 214,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "agui",
+   "internal": []
+  },
+  {
+   "path": "app/src/test/java/com/xiaoduo/deskpet/agui/AguiSseConsumerTest.kt",
+   "pkg": "com.xiaoduo.deskpet.agui",
+   "imports": [
+    "org.junit.Assert.assertEquals",
+    "org.junit.Assert.assertTrue",
+    "org.junit.Test"
+   ],
+   "loc": 305,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "agui",
+   "internal": []
+  },
+  {
+   "path": "app/src/test/java/com/xiaoduo/deskpet/agui/FileMetaTest.kt",
+   "pkg": "com.xiaoduo.deskpet.agui",
+   "imports": [
+    "org.json.JSONObject",
+    "org.junit.Assert.assertEquals",
+    "org.junit.Assert.assertTrue",
+    "org.junit.Test"
+   ],
+   "loc": 74,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "agui",
+   "internal": []
+  },
+  {
+   "path": "app/src/test/java/com/xiaoduo/deskpet/chat/ChatHistoryCodecTest.kt",
+   "pkg": "com.xiaoduo.deskpet.chat",
+   "imports": [
+    "org.junit.Assert.assertEquals",
+    "org.junit.Assert.assertNull",
+    "org.junit.Assert.assertTrue",
+    "org.junit.Test"
+   ],
+   "loc": 62,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "chat",
+   "internal": []
+  },
+  {
+   "path": "app/src/test/java/com/xiaoduo/deskpet/chat/ChatSessionTest.kt",
+   "pkg": "com.xiaoduo.deskpet.chat",
+   "imports": [
+    "org.junit.Assert.assertEquals",
+    "org.junit.Test"
+   ],
+   "loc": 42,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "chat",
+   "internal": []
+  },
+  {
+   "path": "app/src/test/java/com/xiaoduo/deskpet/chat/ChatStoreTest.kt",
+   "pkg": "com.xiaoduo.deskpet.chat",
+   "imports": [
+    "java.io.File",
+    "org.junit.Assert.assertEquals",
+    "org.junit.Assert.assertFalse",
+    "org.junit.Assert.assertNotNull",
+    "org.junit.Assert.assertNull",
+    "org.junit.Assert.assertTrue",
+    "org.junit.Assert.fail",
+    "org.junit.Before",
+    "org.junit.Rule",
+    "org.junit.Test",
+    "org.junit.rules.TemporaryFolder"
+   ],
+   "loc": 297,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "chat",
+   "internal": []
+  },
+  {
+   "path": "app/src/test/java/com/xiaoduo/deskpet/chat/ChatTurnLogicTest.kt",
+   "pkg": "com.xiaoduo.deskpet.chat",
+   "imports": [
+    "org.junit.Assert.assertEquals",
+    "org.junit.Assert.assertNotEquals",
+    "org.junit.Assert.assertNull",
+    "org.junit.Assert.assertTrue",
+    "org.junit.Test"
+   ],
+   "loc": 263,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "chat",
+   "internal": []
+  },
+  {
+   "path": "app/src/test/java/com/xiaoduo/deskpet/chat/DeviceTurnRulesTest.kt",
+   "pkg": "com.xiaoduo.deskpet.chat",
+   "imports": [
+    "com.xiaoduo.deskpet.device.DeviceIntentMatcher",
+    "org.junit.Assert.assertEquals",
+    "org.junit.Assert.assertNull",
+    "org.junit.Test"
+   ],
+   "loc": 45,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "chat",
+   "internal": [
+    "com.xiaoduo.deskpet.device.DeviceIntentMatcher"
+   ]
+  },
+  {
+   "path": "app/src/test/java/com/xiaoduo/deskpet/chat/DrawerTimeLabelTest.kt",
+   "pkg": "com.xiaoduo.deskpet.chat",
+   "imports": [
+    "com.xiaoduo.deskpet.ui.screens.relativeTimeLabel",
+    "java.text.SimpleDateFormat",
+    "java.util.Date",
+    "java.util.Locale",
+    "org.junit.Assert.assertEquals",
+    "org.junit.Test"
+   ],
+   "loc": 44,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "chat",
+   "internal": [
+    "com.xiaoduo.deskpet.ui.screens.relativeTimeLabel"
+   ]
+  },
+  {
+   "path": "app/src/test/java/com/xiaoduo/deskpet/chat/FileListRulesTest.kt",
+   "pkg": "com.xiaoduo.deskpet.chat",
+   "imports": [
+    "com.xiaoduo.deskpet.agui.FileMeta",
+    "com.xiaoduo.deskpet.agui.UploadStatus",
+    "org.junit.Assert.assertEquals",
+    "org.junit.Assert.assertFalse",
+    "org.junit.Assert.assertTrue",
+    "org.junit.Test"
+   ],
+   "loc": 83,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "chat",
+   "internal": [
+    "com.xiaoduo.deskpet.agui.FileMeta",
+    "com.xiaoduo.deskpet.agui.UploadStatus"
+   ]
+  },
+  {
+   "path": "app/src/test/java/com/xiaoduo/deskpet/chat/FunctionKeyLogicTest.kt",
+   "pkg": "com.xiaoduo.deskpet.chat",
+   "imports": [
+    "org.junit.Assert.assertEquals",
+    "org.junit.Test"
+   ],
+   "loc": 83,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "chat",
+   "internal": []
+  },
+  {
+   "path": "app/src/test/java/com/xiaoduo/deskpet/chat/MarkdownRendererTest.kt",
+   "pkg": "com.xiaoduo.deskpet.chat",
+   "imports": [
+    "org.junit.Assert.assertEquals",
+    "org.junit.Assert.assertTrue",
+    "org.junit.Test"
+   ],
+   "loc": 266,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "chat",
+   "internal": []
+  },
+  {
+   "path": "app/src/test/java/com/xiaoduo/deskpet/chat/SessionIndexCodecTest.kt",
+   "pkg": "com.xiaoduo.deskpet.chat",
+   "imports": [
+    "org.junit.Assert.assertEquals",
+    "org.junit.Assert.assertFalse",
+    "org.junit.Assert.assertNull",
+    "org.junit.Assert.assertTrue",
+    "org.junit.Test"
+   ],
+   "loc": 82,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "chat",
+   "internal": []
+  },
+  {
+   "path": "app/src/test/java/com/xiaoduo/deskpet/chat/SessionRulesTest.kt",
+   "pkg": "com.xiaoduo.deskpet.chat",
+   "imports": [
+    "org.junit.Assert.assertEquals",
+    "org.junit.Assert.assertFalse",
+    "org.junit.Assert.assertNull",
+    "org.junit.Assert.assertTrue",
+    "org.junit.Test"
+   ],
+   "loc": 50,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "chat",
+   "internal": []
+  },
+  {
+   "path": "app/src/test/java/com/xiaoduo/deskpet/chat/SessionSearchTest.kt",
+   "pkg": "com.xiaoduo.deskpet.chat",
+   "imports": [
+    "org.junit.Assert.assertEquals",
+    "org.junit.Assert.assertTrue",
+    "org.junit.Test"
+   ],
+   "loc": 80,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "chat",
+   "internal": []
+  },
+  {
+   "path": "app/src/test/java/com/xiaoduo/deskpet/chat/SuggestedQuestionsTest.kt",
+   "pkg": "com.xiaoduo.deskpet.chat",
+   "imports": [
+    "kotlin.random.Random",
+    "org.junit.Assert.assertEquals",
+    "org.junit.Assert.assertTrue",
+    "org.junit.Test"
+   ],
+   "loc": 46,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "chat",
+   "internal": []
+  },
+  {
+   "path": "app/src/test/java/com/xiaoduo/deskpet/chat/ThinkCleanerTest.kt",
+   "pkg": "com.xiaoduo.deskpet.chat",
+   "imports": [
+    "org.junit.Assert.assertEquals",
+    "org.junit.Assert.assertTrue",
+    "org.junit.Test"
+   ],
+   "loc": 65,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "chat",
+   "internal": []
+  },
+  {
+   "path": "app/src/test/java/com/xiaoduo/deskpet/chat/TurnGateRulesTest.kt",
+   "pkg": "com.xiaoduo.deskpet.chat",
+   "imports": [
+    "org.junit.Assert.assertFalse",
+    "org.junit.Assert.assertTrue",
+    "org.junit.Test"
+   ],
+   "loc": 17,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "chat",
+   "internal": []
+  },
+  {
+   "path": "app/src/test/java/com/xiaoduo/deskpet/cloud/CloudClientsExceptionBoundaryTest.kt",
+   "pkg": "com.xiaoduo.deskpet.cloud",
+   "imports": [
+    "com.xiaoduo.deskpet.voice.TtsClient",
+    "java.nio.ByteBuffer",
+    "java.nio.ByteOrder",
+    "org.junit.Assert.assertTrue",
+    "org.junit.Test"
+   ],
+   "loc": 81,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "cloud",
+   "internal": [
+    "com.xiaoduo.deskpet.voice.TtsClient"
+   ]
+  },
+  {
+   "path": "app/src/test/java/com/xiaoduo/deskpet/cloud/TextChatRouterTest.kt",
+   "pkg": "com.xiaoduo.deskpet.cloud",
+   "imports": [
+    "com.xiaoduo.deskpet.agui.AguiClient",
+    "com.xiaoduo.deskpet.chat.ChatMessage",
+    "java.util.concurrent.TimeUnit",
+    "okhttp3.OkHttpClient",
+    "okhttp3.mockwebserver.MockResponse",
+    "okhttp3.mockwebserver.MockWebServer",
+    "org.json.JSONObject",
+    "org.junit.After",
+    "org.junit.Assert.assertEquals",
+    "org.junit.Assert.assertNotNull",
+    "org.junit.Assert.assertTrue",
+    "org.junit.Before",
+    "org.junit.Test"
+   ],
+   "loc": 248,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "cloud",
+   "internal": [
+    "com.xiaoduo.deskpet.agui.AguiClient",
+    "com.xiaoduo.deskpet.chat.ChatMessage"
+   ]
+  },
+  {
+   "path": "app/src/test/java/com/xiaoduo/deskpet/device/DeviceClientTest.kt",
+   "pkg": "com.xiaoduo.deskpet.device",
+   "imports": [
+    "com.xiaoduo.deskpet.device.DeviceIntentMatcher.Command",
+    "com.xiaoduo.deskpet.device.DeviceIntentMatcher.Device",
+    "okhttp3.mockwebserver.MockResponse",
+    "okhttp3.mockwebserver.MockWebServer",
+    "org.junit.After",
+    "org.junit.Assert.assertTrue",
+    "org.junit.Before",
+    "org.junit.Test"
+   ],
+   "loc": 121,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "device",
+   "internal": [
+    "com.xiaoduo.deskpet.device.DeviceIntentMatcher.Command",
+    "com.xiaoduo.deskpet.device.DeviceIntentMatcher.Device"
+   ]
+  },
+  {
+   "path": "app/src/test/java/com/xiaoduo/deskpet/device/DeviceIntentMatcherTest.kt",
+   "pkg": "com.xiaoduo.deskpet.device",
+   "imports": [
+    "org.junit.Assert.assertEquals",
+    "org.junit.Assert.assertNull",
+    "org.junit.Test"
+   ],
+   "loc": 144,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "device",
+   "internal": []
+  },
+  {
+   "path": "app/src/test/java/com/xiaoduo/deskpet/device/ShelfMcpBridgeTest.kt",
+   "pkg": "com.xiaoduo.deskpet.device",
+   "imports": [
+    "java.util.concurrent.TimeUnit",
+    "okhttp3.mockwebserver.MockResponse",
+    "okhttp3.mockwebserver.MockWebServer",
+    "org.junit.After",
+    "org.junit.Assert.assertEquals",
+    "org.junit.Assert.assertNull",
+    "org.junit.Assert.assertTrue",
+    "org.junit.Before",
+    "org.junit.Test"
+   ],
+   "loc": 187,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "device",
+   "internal": []
+  },
+  {
+   "path": "app/src/test/java/com/xiaoduo/deskpet/device/ShelfNavIntentMatcherTest.kt",
+   "pkg": "com.xiaoduo.deskpet.device",
+   "imports": [
+    "org.junit.Assert.assertEquals",
+    "org.junit.Assert.assertNull",
+    "org.junit.Test"
+   ],
+   "loc": 95,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "device",
+   "internal": []
+  },
+  {
+   "path": "app/src/test/java/com/xiaoduo/deskpet/net/NetworkSecurityConfigContractTest.kt",
+   "pkg": "com.xiaoduo.deskpet.net",
+   "imports": [
+    "com.xiaoduo.deskpet.util.PrefContract",
+    "java.io.File",
+    "org.junit.Assert.assertFalse",
+    "org.junit.Assert.assertTrue",
+    "org.junit.Test"
+   ],
+   "loc": 55,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "net",
+   "internal": [
+    "com.xiaoduo.deskpet.util.PrefContract"
+   ]
+  },
+  {
+   "path": "app/src/test/java/com/xiaoduo/deskpet/pet/EdgeDockTest.kt",
+   "pkg": "com.xiaoduo.deskpet.pet",
+   "imports": [
+    "org.junit.Assert.assertEquals",
+    "org.junit.Assert.assertNull",
+    "org.junit.Assert.assertTrue",
+    "org.junit.Test"
+   ],
+   "loc": 97,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "pet",
+   "internal": []
+  },
+  {
+   "path": "app/src/test/java/com/xiaoduo/deskpet/pet/FrameAnimatorTest.kt",
+   "pkg": "com.xiaoduo.deskpet.pet",
+   "imports": [
+    "org.junit.Assert.assertEquals",
+    "org.junit.Assert.assertFalse",
+    "org.junit.Assert.assertTrue",
+    "org.junit.Test"
+   ],
+   "loc": 100,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "pet",
+   "internal": []
+  },
+  {
+   "path": "app/src/test/java/com/xiaoduo/deskpet/pet/OverlayClampTest.kt",
+   "pkg": "com.xiaoduo.deskpet.pet",
+   "imports": [
+    "org.junit.Assert.assertEquals",
+    "org.junit.Assert.assertTrue",
+    "org.junit.Test"
+   ],
+   "loc": 136,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "pet",
+   "internal": []
+  },
+  {
+   "path": "app/src/test/java/com/xiaoduo/deskpet/pet/PetFrameTableContractTest.kt",
+   "pkg": "com.xiaoduo.deskpet.pet",
+   "imports": [
+    "java.io.File",
+    "org.json.JSONObject",
+    "org.junit.Assert.assertEquals",
+    "org.junit.Assert.assertNotNull",
+    "org.junit.Assert.assertTrue",
+    "org.junit.Test"
+   ],
+   "loc": 92,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "pet",
+   "internal": []
+  },
+  {
+   "path": "app/src/test/java/com/xiaoduo/deskpet/ui/FullscreenVoiceLayoutTest.kt",
+   "pkg": "com.xiaoduo.deskpet.ui",
+   "imports": [
+    "org.junit.Assert.assertEquals",
+    "org.junit.Assert.assertTrue",
+    "org.junit.Test"
+   ],
+   "loc": 79,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "ui",
+   "internal": []
+  },
+  {
+   "path": "app/src/test/java/com/xiaoduo/deskpet/ui/overlay/BubbleOwnershipTest.kt",
+   "pkg": "com.xiaoduo.deskpet.ui.overlay",
+   "imports": [
+    "org.junit.Assert.assertEquals",
+    "org.junit.Assert.assertFalse",
+    "org.junit.Assert.assertTrue",
+    "org.junit.Test"
+   ],
+   "loc": 97,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "ui",
+   "internal": []
+  },
+  {
+   "path": "app/src/test/java/com/xiaoduo/deskpet/ui/overlay/BubbleScrollPolicyTest.kt",
+   "pkg": "com.xiaoduo.deskpet.ui.overlay",
+   "imports": [
+    "org.junit.Assert.assertFalse",
+    "org.junit.Assert.assertTrue",
+    "org.junit.Test"
+   ],
+   "loc": 51,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "ui",
+   "internal": []
+  },
+  {
+   "path": "app/src/test/java/com/xiaoduo/deskpet/ui/overlay/BubbleTextStripTest.kt",
+   "pkg": "com.xiaoduo.deskpet.ui.overlay",
+   "imports": [
+    "org.junit.Assert.assertEquals",
+    "org.junit.Assert.assertFalse",
+    "org.junit.Assert.assertTrue",
+    "org.junit.Test"
+   ],
+   "loc": 314,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "ui",
+   "internal": []
+  },
+  {
+   "path": "app/src/test/java/com/xiaoduo/deskpet/ui/overlay/VoiceIndicatorModelTest.kt",
+   "pkg": "com.xiaoduo.deskpet.ui.overlay",
+   "imports": [
+    "kotlin.math.abs",
+    "org.junit.Assert.assertEquals",
+    "org.junit.Assert.assertTrue",
+    "org.junit.Test"
+   ],
+   "loc": 118,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "ui",
+   "internal": []
+  },
+  {
+   "path": "app/src/test/java/com/xiaoduo/deskpet/ui/screens/ChatScreenUploadOutcomeTest.kt",
+   "pkg": "com.xiaoduo.deskpet.ui.screens",
+   "imports": [
+    "org.junit.Assert.assertEquals",
+    "org.junit.Assert.assertNull",
+    "org.junit.Test"
+   ],
+   "loc": 26,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "ui",
+   "internal": []
+  },
+  {
+   "path": "app/src/test/java/com/xiaoduo/deskpet/ui/screens/PermissionScreenActionsTest.kt",
+   "pkg": "com.xiaoduo.deskpet.ui.screens",
+   "imports": [
+    "org.junit.Assert.assertEquals",
+    "org.junit.Assert.assertTrue",
+    "org.junit.Test"
+   ],
+   "loc": 26,
+   "has_android": true,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "ui",
+   "internal": []
+  },
+  {
+   "path": "app/src/test/java/com/xiaoduo/deskpet/ui/screens/PickStreamLimitTest.kt",
+   "pkg": "com.xiaoduo.deskpet.ui.screens",
+   "imports": [
+    "java.io.ByteArrayInputStream",
+    "org.junit.Assert.assertArrayEquals",
+    "org.junit.Assert.assertEquals",
+    "org.junit.Assert.assertFalse",
+    "org.junit.Assert.assertTrue",
+    "org.junit.Test"
+   ],
+   "loc": 48,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "ui",
+   "internal": []
+  },
+  {
+   "path": "app/src/test/java/com/xiaoduo/deskpet/ui/screens/SessionSearchGuardTest.kt",
+   "pkg": "com.xiaoduo.deskpet.ui.screens",
+   "imports": [
+    "kotlinx.coroutines.CancellationException",
+    "kotlinx.coroutines.runBlocking",
+    "org.junit.Assert.assertEquals",
+    "org.junit.Test"
+   ],
+   "loc": 29,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": true,
+   "group": "ui",
+   "internal": []
+  },
+  {
+   "path": "app/src/test/java/com/xiaoduo/deskpet/ui/screens/UiCoroutineGuardTest.kt",
+   "pkg": "com.xiaoduo.deskpet.ui.screens",
+   "imports": [
+    "kotlinx.coroutines.CancellationException",
+    "kotlinx.coroutines.runBlocking",
+    "org.junit.Assert.assertEquals",
+    "org.junit.Assert.assertTrue",
+    "org.junit.Test"
+   ],
+   "loc": 34,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": true,
+   "group": "ui",
+   "internal": []
+  },
+  {
+   "path": "app/src/test/java/com/xiaoduo/deskpet/util/AppLauncherTest.kt",
+   "pkg": "com.xiaoduo.deskpet.util",
+   "imports": [
+    "org.junit.Assert.assertEquals",
+    "org.junit.Assert.assertTrue",
+    "org.junit.Test"
+   ],
+   "loc": 66,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "util",
+   "internal": []
+  },
+  {
+   "path": "app/src/test/java/com/xiaoduo/deskpet/util/FeedReleaseGateTest.kt",
+   "pkg": "com.xiaoduo.deskpet.util",
+   "imports": [
+    "java.util.concurrent.CountDownLatch",
+    "java.util.concurrent.Executors",
+    "org.junit.Assert.assertEquals",
+    "org.junit.Assert.assertTrue",
+    "org.junit.Test"
+   ],
+   "loc": 69,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "util",
+   "internal": []
+  },
+  {
+   "path": "app/src/test/java/com/xiaoduo/deskpet/util/LogRotatorTest.kt",
+   "pkg": "com.xiaoduo.deskpet.util",
+   "imports": [
+    "java.time.ZoneId",
+    "org.junit.Assert.assertEquals",
+    "org.junit.Assert.assertFalse",
+    "org.junit.Assert.assertTrue",
+    "org.junit.Test"
+   ],
+   "loc": 69,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "util",
+   "internal": []
+  },
+  {
+   "path": "app/src/test/java/com/xiaoduo/deskpet/util/NavInsetPolicyTest.kt",
+   "pkg": "com.xiaoduo.deskpet.util",
+   "imports": [
+    "org.junit.Assert.assertEquals",
+    "org.junit.Test"
+   ],
+   "loc": 43,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "util",
+   "internal": []
+  },
+  {
+   "path": "app/src/test/java/com/xiaoduo/deskpet/util/NetEndpointsTest.kt",
+   "pkg": "com.xiaoduo.deskpet.util",
+   "imports": [
+    "com.xiaoduo.deskpet.net.NetEndpoints",
+    "org.junit.Assert.assertEquals",
+    "org.junit.Test"
+   ],
+   "loc": 73,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "util",
+   "internal": [
+    "com.xiaoduo.deskpet.net.NetEndpoints"
+   ]
+  },
+  {
+   "path": "app/src/test/java/com/xiaoduo/deskpet/util/PrefContractTest.kt",
+   "pkg": "com.xiaoduo.deskpet.util",
+   "imports": [
+    "org.junit.Assert.assertEquals",
+    "org.junit.Assert.assertTrue",
+    "org.junit.Test"
+   ],
+   "loc": 34,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "util",
+   "internal": []
+  },
+  {
+   "path": "app/src/test/java/com/xiaoduo/deskpet/util/TapGestureTest.kt",
+   "pkg": "com.xiaoduo.deskpet.util",
+   "imports": [
+    "kotlin.math.sqrt",
+    "org.junit.Assert.assertFalse",
+    "org.junit.Assert.assertTrue",
+    "org.junit.Test"
+   ],
+   "loc": 55,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "util",
+   "internal": []
+  },
+  {
+   "path": "app/src/test/java/com/xiaoduo/deskpet/util/TokenPolicyTest.kt",
+   "pkg": "com.xiaoduo.deskpet.util",
+   "imports": [
+    "com.xiaoduo.deskpet.net.TokenEntry",
+    "com.xiaoduo.deskpet.net.TokenPolicy",
+    "org.junit.Assert.assertEquals",
+    "org.junit.Assert.assertFalse",
+    "org.junit.Assert.assertTrue",
+    "org.junit.Test"
+   ],
+   "loc": 73,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "util",
+   "internal": [
+    "com.xiaoduo.deskpet.net.TokenEntry",
+    "com.xiaoduo.deskpet.net.TokenPolicy"
+   ]
+  },
+  {
+   "path": "app/src/test/java/com/xiaoduo/deskpet/voice/AmbientCalibratorTest.kt",
+   "pkg": "com.xiaoduo.deskpet.voice",
+   "imports": [
+    "org.junit.Assert.assertFalse",
+    "org.junit.Assert.assertTrue",
+    "org.junit.Test"
+   ],
+   "loc": 41,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "voice",
+   "internal": []
+  },
+  {
+   "path": "app/src/test/java/com/xiaoduo/deskpet/voice/AsrClientTest.kt",
+   "pkg": "com.xiaoduo.deskpet.voice",
+   "imports": [
+    "okhttp3.OkHttpClient",
+    "okhttp3.mockwebserver.MockResponse",
+    "okhttp3.mockwebserver.MockWebServer",
+    "org.junit.After",
+    "org.junit.Assert.assertEquals",
+    "org.junit.Assert.assertTrue",
+    "org.junit.Before",
+    "org.junit.Test"
+   ],
+   "loc": 87,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "voice",
+   "internal": []
+  },
+  {
+   "path": "app/src/test/java/com/xiaoduo/deskpet/voice/AudioCapturePumpTest.kt",
+   "pkg": "com.xiaoduo.deskpet.voice",
+   "imports": [
+    "kotlinx.coroutines.CompletableDeferred",
+    "kotlinx.coroutines.CoroutineStart",
+    "kotlinx.coroutines.Dispatchers",
+    "kotlinx.coroutines.channels.Channel",
+    "kotlinx.coroutines.launch",
+    "kotlinx.coroutines.runBlocking",
+    "kotlinx.coroutines.withTimeoutOrNull",
+    "kotlinx.coroutines.yield",
+    "org.junit.Assert.assertEquals",
+    "org.junit.Assert.assertNotNull",
+    "org.junit.Assert.assertTrue",
+    "org.junit.Test"
+   ],
+   "loc": 175,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": true,
+   "group": "voice",
+   "internal": []
+  },
+  {
+   "path": "app/src/test/java/com/xiaoduo/deskpet/voice/AudioProbeTest.kt",
+   "pkg": "com.xiaoduo.deskpet.voice",
+   "imports": [
+    "org.junit.After",
+    "org.junit.Assert.assertEquals",
+    "org.junit.Assert.assertFalse",
+    "org.junit.Assert.assertTrue",
+    "org.junit.Test"
+   ],
+   "loc": 54,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "voice",
+   "internal": []
+  },
+  {
+   "path": "app/src/test/java/com/xiaoduo/deskpet/voice/BubbleHidePolicyTest.kt",
+   "pkg": "com.xiaoduo.deskpet.voice",
+   "imports": [
+    "org.junit.Assert.assertEquals",
+    "org.junit.Assert.assertFalse",
+    "org.junit.Assert.assertTrue",
+    "org.junit.Test"
+   ],
+   "loc": 45,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "voice",
+   "internal": []
+  },
+  {
+   "path": "app/src/test/java/com/xiaoduo/deskpet/voice/EnergyGateTest.kt",
+   "pkg": "com.xiaoduo.deskpet.voice",
+   "imports": [
+    "org.junit.Assert.assertEquals",
+    "org.junit.Assert.assertFalse",
+    "org.junit.Assert.assertTrue",
+    "org.junit.Test"
+   ],
+   "loc": 101,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "voice",
+   "internal": []
+  },
+  {
+   "path": "app/src/test/java/com/xiaoduo/deskpet/voice/KwsCoreHangoverTest.kt",
+   "pkg": "com.xiaoduo.deskpet.voice",
+   "imports": [
+    "java.util.concurrent.CopyOnWriteArrayList",
+    "java.util.concurrent.CountDownLatch",
+    "java.util.concurrent.TimeUnit.SECONDS",
+    "java.util.concurrent.atomic.AtomicInteger",
+    "org.junit.Assert.assertEquals",
+    "org.junit.Assert.assertTrue",
+    "org.junit.Assert.fail",
+    "org.junit.Test"
+   ],
+   "loc": 165,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "voice",
+   "internal": []
+  },
+  {
+   "path": "app/src/test/java/com/xiaoduo/deskpet/voice/KwsCoreTest.kt",
+   "pkg": "com.xiaoduo.deskpet.voice",
+   "imports": [
+    "java.util.concurrent.CopyOnWriteArrayList",
+    "java.util.concurrent.CountDownLatch",
+    "java.util.concurrent.TimeUnit.SECONDS",
+    "java.util.concurrent.atomic.AtomicInteger",
+    "java.util.concurrent.atomic.AtomicLong",
+    "org.junit.Assert.assertEquals",
+    "org.junit.Assert.assertFalse",
+    "org.junit.Assert.assertTrue",
+    "org.junit.Assert.fail",
+    "org.junit.Test"
+   ],
+   "loc": 318,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "voice",
+   "internal": []
+  },
+  {
+   "path": "app/src/test/java/com/xiaoduo/deskpet/voice/KwsDefaultsTest.kt",
+   "pkg": "com.xiaoduo.deskpet.voice",
+   "imports": [
+    "org.junit.Assert.assertEquals",
+    "org.junit.Test"
+   ],
+   "loc": 29,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "voice",
+   "internal": []
+  },
+  {
+   "path": "app/src/test/java/com/xiaoduo/deskpet/voice/ListeningHintPolicyTest.kt",
+   "pkg": "com.xiaoduo.deskpet.voice",
+   "imports": [
+    "org.junit.Assert.assertEquals",
+    "org.junit.Test"
+   ],
+   "loc": 53,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "voice",
+   "internal": []
+  },
+  {
+   "path": "app/src/test/java/com/xiaoduo/deskpet/voice/NlmsEchoCancellerTest.kt",
+   "pkg": "com.xiaoduo.deskpet.voice",
+   "imports": [
+    "java.util.Random",
+    "kotlin.math.abs",
+    "kotlin.math.log10",
+    "kotlin.math.sqrt",
+    "org.junit.Assert.assertArrayEquals",
+    "org.junit.Assert.assertEquals",
+    "org.junit.Assert.assertTrue",
+    "org.junit.Test"
+   ],
+   "loc": 203,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "voice",
+   "internal": []
+  },
+  {
+   "path": "app/src/test/java/com/xiaoduo/deskpet/voice/OnceGateTest.kt",
+   "pkg": "com.xiaoduo.deskpet.voice",
+   "imports": [
+    "java.util.concurrent.CountDownLatch",
+    "java.util.concurrent.TimeUnit",
+    "java.util.concurrent.atomic.AtomicInteger",
+    "org.junit.Assert.assertEquals",
+    "org.junit.Assert.assertNotNull",
+    "org.junit.Assert.assertNull",
+    "org.junit.Assert.assertTrue",
+    "org.junit.Test"
+   ],
+   "loc": 75,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "voice",
+   "internal": []
+  },
+  {
+   "path": "app/src/test/java/com/xiaoduo/deskpet/voice/PrefetchBackoffTest.kt",
+   "pkg": "com.xiaoduo.deskpet.voice",
+   "imports": [
+    "org.junit.Assert.assertEquals",
+    "org.junit.Assert.assertFalse",
+    "org.junit.Assert.assertTrue",
+    "org.junit.Test"
+   ],
+   "loc": 46,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "voice",
+   "internal": []
+  },
+  {
+   "path": "app/src/test/java/com/xiaoduo/deskpet/voice/ReplyCarrierTest.kt",
+   "pkg": "com.xiaoduo.deskpet.voice",
+   "imports": [
+    "org.junit.Assert.assertEquals",
+    "org.junit.Test"
+   ],
+   "loc": 83,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "voice",
+   "internal": []
+  },
+  {
+   "path": "app/src/test/java/com/xiaoduo/deskpet/voice/RevealSchedulerTest.kt",
+   "pkg": "com.xiaoduo.deskpet.voice",
+   "imports": [
+    "org.junit.Assert.assertEquals",
+    "org.junit.Assert.assertTrue",
+    "org.junit.Test"
+   ],
+   "loc": 42,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "voice",
+   "internal": []
+  },
+  {
+   "path": "app/src/test/java/com/xiaoduo/deskpet/voice/SentenceSplitterTest.kt",
+   "pkg": "com.xiaoduo.deskpet.voice",
+   "imports": [
+    "org.junit.Assert.assertEquals",
+    "org.junit.Assert.assertNull",
+    "org.junit.Assert.assertTrue",
+    "org.junit.Test"
+   ],
+   "loc": 70,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "voice",
+   "internal": []
+  },
+  {
+   "path": "app/src/test/java/com/xiaoduo/deskpet/voice/TtsClientTest.kt",
+   "pkg": "com.xiaoduo.deskpet.voice",
+   "imports": [
+    "java.util.Base64",
+    "okhttp3.OkHttpClient",
+    "okhttp3.mockwebserver.MockResponse",
+    "okhttp3.mockwebserver.MockWebServer",
+    "org.json.JSONObject",
+    "org.junit.After",
+    "org.junit.Assert.assertArrayEquals",
+    "org.junit.Assert.assertEquals",
+    "org.junit.Assert.assertTrue",
+    "org.junit.Before",
+    "org.junit.Test"
+   ],
+   "loc": 140,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "voice",
+   "internal": []
+  },
+  {
+   "path": "app/src/test/java/com/xiaoduo/deskpet/voice/TtsSanitizerTest.kt",
+   "pkg": "com.xiaoduo.deskpet.voice",
+   "imports": [
+    "org.junit.Assert.assertEquals",
+    "org.junit.Test"
+   ],
+   "loc": 41,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "voice",
+   "internal": []
+  },
+  {
+   "path": "app/src/test/java/com/xiaoduo/deskpet/voice/VadDetectorConcurrencyTest.kt",
+   "pkg": "com.xiaoduo.deskpet.voice",
+   "imports": [
+    "java.util.concurrent.CopyOnWriteArrayList",
+    "java.util.concurrent.atomic.AtomicBoolean",
+    "org.junit.Assert.assertTrue",
+    "org.junit.Test"
+   ],
+   "loc": 60,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "voice",
+   "internal": []
+  },
+  {
+   "path": "app/src/test/java/com/xiaoduo/deskpet/voice/VadDetectorTest.kt",
+   "pkg": "com.xiaoduo.deskpet.voice",
+   "imports": [
+    "org.junit.Assert.assertEquals",
+    "org.junit.Assert.assertFalse",
+    "org.junit.Assert.assertNull",
+    "org.junit.Assert.assertTrue",
+    "org.junit.Test"
+   ],
+   "loc": 341,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "voice",
+   "internal": []
+  },
+  {
+   "path": "app/src/test/java/com/xiaoduo/deskpet/voice/VadSeamPolicyTest.kt",
+   "pkg": "com.xiaoduo.deskpet.voice",
+   "imports": [
+    "org.junit.Assert.assertEquals",
+    "org.junit.Test"
+   ],
+   "loc": 44,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "voice",
+   "internal": []
+  },
+  {
+   "path": "app/src/test/java/com/xiaoduo/deskpet/voice/VoicePlayerRefPacerTest.kt",
+   "pkg": "com.xiaoduo.deskpet.voice",
+   "imports": [
+    "org.junit.Assert.assertEquals",
+    "org.junit.Assert.assertFalse",
+    "org.junit.Assert.assertTrue",
+    "org.junit.Test"
+   ],
+   "loc": 73,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "voice",
+   "internal": []
+  },
+  {
+   "path": "app/src/test/java/com/xiaoduo/deskpet/voice/VoiceSessionManagerBargeInTest.kt",
+   "pkg": "com.xiaoduo.deskpet.voice",
+   "imports": [
+    "com.xiaoduo.deskpet.agui.AguiClient",
+    "java.util.Base64",
+    "java.util.concurrent.CopyOnWriteArrayList",
+    "java.util.concurrent.CountDownLatch",
+    "java.util.concurrent.TimeUnit",
+    "kotlinx.coroutines.CoroutineScope",
+    "kotlinx.coroutines.Dispatchers",
+    "kotlinx.coroutines.SupervisorJob",
+    "kotlinx.coroutines.cancel",
+    "kotlinx.coroutines.job",
+    "kotlinx.coroutines.launch",
+    "okhttp3.OkHttpClient",
+    "okhttp3.mockwebserver.MockResponse",
+    "okhttp3.mockwebserver.MockWebServer",
+    "org.junit.After",
+    "org.junit.Assert.assertEquals",
+    "org.junit.Assert.assertFalse",
+    "org.junit.Assert.assertTrue",
+    "org.junit.Assert.fail",
+    "org.junit.Before",
+    "org.junit.Test"
+   ],
+   "loc": 483,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": true,
+   "group": "voice",
+   "internal": [
+    "com.xiaoduo.deskpet.agui.AguiClient"
+   ]
+  },
+  {
+   "path": "app/src/test/java/com/xiaoduo/deskpet/voice/VoiceSessionManagerDeviceSkillTest.kt",
+   "pkg": "com.xiaoduo.deskpet.voice",
+   "imports": [
+    "com.xiaoduo.deskpet.agui.AguiClient",
+    "com.xiaoduo.deskpet.device.DeviceClient",
+    "com.xiaoduo.deskpet.device.DeviceIntentMatcher",
+    "java.util.concurrent.CopyOnWriteArrayList",
+    "java.util.concurrent.TimeUnit",
+    "kotlinx.coroutines.CoroutineScope",
+    "kotlinx.coroutines.Dispatchers",
+    "kotlinx.coroutines.SupervisorJob",
+    "kotlinx.coroutines.cancel",
+    "okhttp3.OkHttpClient",
+    "okhttp3.mockwebserver.MockResponse",
+    "okhttp3.mockwebserver.MockWebServer",
+    "org.junit.After",
+    "org.junit.Assert.assertEquals",
+    "org.junit.Assert.assertTrue",
+    "org.junit.Before",
+    "org.junit.Test"
+   ],
+   "loc": 141,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": true,
+   "group": "voice",
+   "internal": [
+    "com.xiaoduo.deskpet.agui.AguiClient",
+    "com.xiaoduo.deskpet.device.DeviceClient",
+    "com.xiaoduo.deskpet.device.DeviceIntentMatcher"
+   ]
+  },
+  {
+   "path": "app/src/test/java/com/xiaoduo/deskpet/voice/VoiceSessionManagerEmptyAsrResumeTest.kt",
+   "pkg": "com.xiaoduo.deskpet.voice",
+   "imports": [
+    "com.xiaoduo.deskpet.agui.AguiClient",
+    "kotlinx.coroutines.CoroutineScope",
+    "kotlinx.coroutines.Dispatchers",
+    "kotlinx.coroutines.SupervisorJob",
+    "kotlinx.coroutines.cancel",
+    "okhttp3.OkHttpClient",
+    "okhttp3.mockwebserver.MockResponse",
+    "okhttp3.mockwebserver.MockWebServer",
+    "org.junit.After",
+    "org.junit.Assert.assertEquals",
+    "org.junit.Assert.assertTrue",
+    "org.junit.Before",
+    "org.junit.Test"
+   ],
+   "loc": 161,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": true,
+   "group": "voice",
+   "internal": [
+    "com.xiaoduo.deskpet.agui.AguiClient"
+   ]
+  },
+  {
+   "path": "app/src/test/java/com/xiaoduo/deskpet/voice/VoiceSessionManagerFunc6PipelineHangTest.kt",
+   "pkg": "com.xiaoduo.deskpet.voice",
+   "imports": [
+    "com.xiaoduo.deskpet.agui.AguiClient",
+    "java.util.concurrent.CopyOnWriteArrayList",
+    "java.util.concurrent.CountDownLatch",
+    "java.util.concurrent.TimeUnit",
+    "kotlinx.coroutines.CoroutineScope",
+    "kotlinx.coroutines.Dispatchers",
+    "kotlinx.coroutines.SupervisorJob",
+    "kotlinx.coroutines.cancel",
+    "kotlinx.coroutines.job",
+    "okhttp3.OkHttpClient",
+    "okhttp3.mockwebserver.MockResponse",
+    "okhttp3.mockwebserver.MockWebServer",
+    "org.junit.After",
+    "org.junit.Assert.assertEquals",
+    "org.junit.Assert.assertTrue",
+    "org.junit.Before",
+    "org.junit.Test"
+   ],
+   "loc": 183,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": true,
+   "group": "voice",
+   "internal": [
+    "com.xiaoduo.deskpet.agui.AguiClient"
+   ]
+  },
+  {
+   "path": "app/src/test/java/com/xiaoduo/deskpet/voice/VoiceSessionManagerIdleCaptureTest.kt",
+   "pkg": "com.xiaoduo.deskpet.voice",
+   "imports": [
+    "java.util.concurrent.TimeUnit",
+    "kotlinx.coroutines.CoroutineScope",
+    "kotlinx.coroutines.Dispatchers",
+    "kotlinx.coroutines.SupervisorJob",
+    "kotlinx.coroutines.cancel",
+    "org.junit.After",
+    "org.junit.Assert.assertEquals",
+    "org.junit.Assert.assertFalse",
+    "org.junit.Assert.assertTrue",
+    "org.junit.Before",
+    "org.junit.Test"
+   ],
+   "loc": 101,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": true,
+   "group": "voice",
+   "internal": []
+  },
+  {
+   "path": "app/src/test/java/com/xiaoduo/deskpet/voice/VoiceSessionManagerIndicatorTest.kt",
+   "pkg": "com.xiaoduo.deskpet.voice",
+   "imports": [
+    "com.xiaoduo.deskpet.agui.AguiClient",
+    "java.util.concurrent.CopyOnWriteArrayList",
+    "java.util.concurrent.TimeUnit",
+    "kotlinx.coroutines.CoroutineScope",
+    "kotlinx.coroutines.Dispatchers",
+    "kotlinx.coroutines.SupervisorJob",
+    "kotlinx.coroutines.cancel",
+    "okhttp3.OkHttpClient",
+    "org.junit.After",
+    "org.junit.Assert.assertEquals",
+    "org.junit.Assert.assertTrue",
+    "org.junit.Before",
+    "org.junit.Test"
+   ],
+   "loc": 203,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": true,
+   "group": "voice",
+   "internal": [
+    "com.xiaoduo.deskpet.agui.AguiClient"
+   ]
+  },
+  {
+   "path": "app/src/test/java/com/xiaoduo/deskpet/voice/VoiceSessionManagerMcpMuteTest.kt",
+   "pkg": "com.xiaoduo.deskpet.voice",
+   "imports": [
+    "com.xiaoduo.deskpet.agui.AguiClient",
+    "java.util.concurrent.CopyOnWriteArrayList",
+    "java.util.concurrent.TimeUnit",
+    "kotlinx.coroutines.CoroutineScope",
+    "kotlinx.coroutines.Dispatchers",
+    "kotlinx.coroutines.SupervisorJob",
+    "kotlinx.coroutines.cancel",
+    "okhttp3.OkHttpClient",
+    "okhttp3.mockwebserver.MockResponse",
+    "okhttp3.mockwebserver.MockWebServer",
+    "org.junit.After",
+    "org.junit.Assert.assertEquals",
+    "org.junit.Assert.assertTrue",
+    "org.junit.Before",
+    "org.junit.Test"
+   ],
+   "loc": 236,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": true,
+   "group": "voice",
+   "internal": [
+    "com.xiaoduo.deskpet.agui.AguiClient"
+   ]
+  },
+  {
+   "path": "app/src/test/java/com/xiaoduo/deskpet/voice/VoiceSessionManagerPipelineCloseTest.kt",
+   "pkg": "com.xiaoduo.deskpet.voice",
+   "imports": [
+    "com.xiaoduo.deskpet.agui.AguiClient",
+    "java.util.concurrent.CopyOnWriteArrayList",
+    "java.util.concurrent.CountDownLatch",
+    "java.util.concurrent.TimeUnit",
+    "kotlinx.coroutines.CoroutineScope",
+    "kotlinx.coroutines.Dispatchers",
+    "kotlinx.coroutines.SupervisorJob",
+    "kotlinx.coroutines.cancel",
+    "kotlinx.coroutines.job",
+    "okhttp3.OkHttpClient",
+    "okhttp3.mockwebserver.MockResponse",
+    "okhttp3.mockwebserver.MockWebServer",
+    "org.junit.After",
+    "org.junit.Assert.assertEquals",
+    "org.junit.Assert.assertTrue",
+    "org.junit.Before",
+    "org.junit.Test"
+   ],
+   "loc": 176,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": true,
+   "group": "voice",
+   "internal": [
+    "com.xiaoduo.deskpet.agui.AguiClient"
+   ]
+  },
+  {
+   "path": "app/src/test/java/com/xiaoduo/deskpet/voice/VoiceSessionManagerS33BlindSpotTest.kt",
+   "pkg": "com.xiaoduo.deskpet.voice",
+   "imports": [
+    "java.util.concurrent.CountDownLatch",
+    "java.util.concurrent.TimeUnit",
+    "kotlinx.coroutines.CoroutineScope",
+    "kotlinx.coroutines.Dispatchers",
+    "kotlinx.coroutines.SupervisorJob",
+    "kotlinx.coroutines.cancel",
+    "org.junit.After",
+    "org.junit.Assert.assertEquals",
+    "org.junit.Assert.assertTrue",
+    "org.junit.Before",
+    "org.junit.Test"
+   ],
+   "loc": 146,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": true,
+   "group": "voice",
+   "internal": []
+  },
+  {
+   "path": "app/src/test/java/com/xiaoduo/deskpet/voice/VoiceSessionManagerS40BlindWindowTest.kt",
+   "pkg": "com.xiaoduo.deskpet.voice",
+   "imports": [
+    "java.util.concurrent.CountDownLatch",
+    "java.util.concurrent.TimeUnit",
+    "kotlinx.coroutines.CoroutineScope",
+    "kotlinx.coroutines.Dispatchers",
+    "kotlinx.coroutines.SupervisorJob",
+    "kotlinx.coroutines.cancel",
+    "org.junit.After",
+    "org.junit.Assert.assertEquals",
+    "org.junit.Assert.assertFalse",
+    "org.junit.Assert.assertTrue",
+    "org.junit.Before",
+    "org.junit.Test"
+   ],
+   "loc": 204,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": true,
+   "group": "voice",
+   "internal": []
+  },
+  {
+   "path": "app/src/test/java/com/xiaoduo/deskpet/voice/VoiceSessionManagerS51ContinuationTest.kt",
+   "pkg": "com.xiaoduo.deskpet.voice",
+   "imports": [
+    "kotlinx.coroutines.CoroutineScope",
+    "kotlinx.coroutines.Dispatchers",
+    "kotlinx.coroutines.SupervisorJob",
+    "kotlinx.coroutines.cancel",
+    "org.junit.After",
+    "org.junit.Assert.assertEquals",
+    "org.junit.Assert.assertTrue",
+    "org.junit.Before",
+    "org.junit.Test"
+   ],
+   "loc": 160,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": true,
+   "group": "voice",
+   "internal": []
+  },
+  {
+   "path": "app/src/test/java/com/xiaoduo/deskpet/voice/VoiceSessionManagerS65EchoEraGuardTest.kt",
+   "pkg": "com.xiaoduo.deskpet.voice",
+   "imports": [
+    "java.util.concurrent.CountDownLatch",
+    "java.util.concurrent.TimeUnit",
+    "kotlinx.coroutines.CoroutineScope",
+    "kotlinx.coroutines.Dispatchers",
+    "kotlinx.coroutines.SupervisorJob",
+    "kotlinx.coroutines.cancel",
+    "org.junit.After",
+    "org.junit.Assert.assertEquals",
+    "org.junit.Assert.assertFalse",
+    "org.junit.Assert.assertTrue",
+    "org.junit.Before",
+    "org.junit.Test"
+   ],
+   "loc": 161,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": true,
+   "group": "voice",
+   "internal": []
+  },
+  {
+   "path": "app/src/test/java/com/xiaoduo/deskpet/voice/VoiceSessionManagerSelfEchoTest.kt",
+   "pkg": "com.xiaoduo.deskpet.voice",
+   "imports": [
+    "org.junit.Assert.assertFalse",
+    "org.junit.Assert.assertTrue",
+    "org.junit.Test"
+   ],
+   "loc": 33,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "voice",
+   "internal": []
+  },
+  {
+   "path": "app/src/test/java/com/xiaoduo/deskpet/voice/VoiceSessionManagerTranscriptTest.kt",
+   "pkg": "com.xiaoduo.deskpet.voice",
+   "imports": [
+    "com.xiaoduo.deskpet.agui.AguiClient",
+    "java.util.concurrent.CopyOnWriteArrayList",
+    "java.util.concurrent.CountDownLatch",
+    "java.util.concurrent.TimeUnit",
+    "kotlinx.coroutines.CoroutineScope",
+    "kotlinx.coroutines.Dispatchers",
+    "kotlinx.coroutines.SupervisorJob",
+    "kotlinx.coroutines.cancel",
+    "okhttp3.OkHttpClient",
+    "okhttp3.mockwebserver.MockResponse",
+    "okhttp3.mockwebserver.MockWebServer",
+    "org.junit.After",
+    "org.junit.Assert.assertEquals",
+    "org.junit.Assert.assertTrue",
+    "org.junit.Before",
+    "org.junit.Test"
+   ],
+   "loc": 231,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": true,
+   "group": "voice",
+   "internal": [
+    "com.xiaoduo.deskpet.agui.AguiClient"
+   ]
+  },
+  {
+   "path": "app/src/test/java/com/xiaoduo/deskpet/voice/VoiceSessionManagerVoiceThreadKeyTest.kt",
+   "pkg": "com.xiaoduo.deskpet.voice",
+   "imports": [
+    "com.xiaoduo.deskpet.agui.AguiClient",
+    "java.util.concurrent.CountDownLatch",
+    "java.util.concurrent.TimeUnit",
+    "kotlinx.coroutines.CoroutineScope",
+    "kotlinx.coroutines.Dispatchers",
+    "kotlinx.coroutines.SupervisorJob",
+    "kotlinx.coroutines.cancel",
+    "okhttp3.OkHttpClient",
+    "okhttp3.mockwebserver.MockResponse",
+    "okhttp3.mockwebserver.MockWebServer",
+    "org.junit.After",
+    "org.junit.Assert.assertEquals",
+    "org.junit.Assert.assertTrue",
+    "org.junit.Before",
+    "org.junit.Test"
+   ],
+   "loc": 204,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": true,
+   "group": "voice",
+   "internal": [
+    "com.xiaoduo.deskpet.agui.AguiClient"
+   ]
+  },
+  {
+   "path": "app/src/test/java/com/xiaoduo/deskpet/voice/VoiceSessionManagerWakeAckTest.kt",
+   "pkg": "com.xiaoduo.deskpet.voice",
+   "imports": [
+    "com.xiaoduo.deskpet.agui.AguiClient",
+    "java.io.IOException",
+    "java.util.concurrent.CountDownLatch",
+    "java.util.concurrent.TimeUnit",
+    "kotlinx.coroutines.CoroutineScope",
+    "kotlinx.coroutines.Dispatchers",
+    "kotlinx.coroutines.SupervisorJob",
+    "kotlinx.coroutines.cancel",
+    "okhttp3.OkHttpClient",
+    "okhttp3.mockwebserver.MockResponse",
+    "okhttp3.mockwebserver.MockWebServer",
+    "org.junit.After",
+    "org.junit.Assert.assertEquals",
+    "org.junit.Assert.assertFalse",
+    "org.junit.Assert.assertTrue",
+    "org.junit.Before",
+    "org.junit.Test"
+   ],
+   "loc": 441,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": true,
+   "group": "voice",
+   "internal": [
+    "com.xiaoduo.deskpet.agui.AguiClient"
+   ]
+  },
+  {
+   "path": "app/src/test/java/com/xiaoduo/deskpet/voice/VoiceSessionManagerWakeInterruptTest.kt",
+   "pkg": "com.xiaoduo.deskpet.voice",
+   "imports": [
+    "com.xiaoduo.deskpet.agui.AguiClient",
+    "java.io.IOException",
+    "java.util.Base64",
+    "java.util.concurrent.CopyOnWriteArrayList",
+    "java.util.concurrent.CountDownLatch",
+    "java.util.concurrent.TimeUnit",
+    "java.util.concurrent.atomic.AtomicInteger",
+    "kotlinx.coroutines.CoroutineScope",
+    "kotlinx.coroutines.Dispatchers",
+    "kotlinx.coroutines.SupervisorJob",
+    "kotlinx.coroutines.cancel",
+    "kotlinx.coroutines.launch",
+    "okhttp3.OkHttpClient",
+    "okhttp3.mockwebserver.MockResponse",
+    "okhttp3.mockwebserver.MockWebServer",
+    "org.junit.After",
+    "org.junit.Assert.assertEquals",
+    "org.junit.Assert.assertFalse",
+    "org.junit.Assert.assertTrue",
+    "org.junit.Before",
+    "org.junit.Test"
+   ],
+   "loc": 412,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": true,
+   "group": "voice",
+   "internal": [
+    "com.xiaoduo.deskpet.agui.AguiClient"
+   ]
+  },
+  {
+   "path": "app/src/test/java/com/xiaoduo/deskpet/voice/VoiceStateRouterTest.kt",
+   "pkg": "com.xiaoduo.deskpet.voice",
+   "imports": [
+    "org.junit.Assert.assertEquals",
+    "org.junit.Test"
+   ],
+   "loc": 110,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "voice",
+   "internal": []
+  },
+  {
+   "path": "app/src/test/java/com/xiaoduo/deskpet/voice/WakeAckAssetsContractTest.kt",
+   "pkg": "com.xiaoduo.deskpet.voice",
+   "imports": [
+    "java.io.File",
+    "java.nio.ByteBuffer",
+    "java.nio.ByteOrder",
+    "org.junit.Assert.assertEquals",
+    "org.junit.Assert.assertTrue",
+    "org.junit.Test"
+   ],
+   "loc": 102,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "voice",
+   "internal": []
+  },
+  {
+   "path": "app/src/test/java/com/xiaoduo/deskpet/voice/WakeAckAudioTest.kt",
+   "pkg": "com.xiaoduo.deskpet.voice",
+   "imports": [
+    "java.io.File",
+    "java.nio.ByteBuffer",
+    "java.nio.ByteOrder",
+    "org.junit.Assert.assertArrayEquals",
+    "org.junit.Assert.assertEquals",
+    "org.junit.Assert.assertFalse",
+    "org.junit.Assert.assertTrue",
+    "org.junit.Test"
+   ],
+   "loc": 220,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "voice",
+   "internal": []
+  },
+  {
+   "path": "app/src/test/java/com/xiaoduo/deskpet/voice/WakeAckCacheStoreTest.kt",
+   "pkg": "com.xiaoduo.deskpet.voice",
+   "imports": [
+    "java.io.File",
+    "org.junit.Assert.assertArrayEquals",
+    "org.junit.Assert.assertFalse",
+    "org.junit.Assert.assertNotNull",
+    "org.junit.Assert.assertNull",
+    "org.junit.Assert.assertTrue",
+    "org.junit.Rule",
+    "org.junit.Test",
+    "org.junit.rules.TemporaryFolder"
+   ],
+   "loc": 148,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "voice",
+   "internal": []
+  },
+  {
+   "path": "app/src/test/java/com/xiaoduo/deskpet/voice/WakeAckPrefetcherTest.kt",
+   "pkg": "com.xiaoduo.deskpet.voice",
+   "imports": [
+    "java.io.File",
+    "org.junit.Assert.assertFalse",
+    "org.junit.Assert.assertTrue",
+    "org.junit.Rule",
+    "org.junit.Test",
+    "org.junit.rules.TemporaryFolder"
+   ],
+   "loc": 98,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "voice",
+   "internal": []
+  },
+  {
+   "path": "app/src/test/java/com/xiaoduo/deskpet/voice/WakeAckResolverTest.kt",
+   "pkg": "com.xiaoduo.deskpet.voice",
+   "imports": [
+    "com.xiaoduo.deskpet.net.TtsVoiceDefaults",
+    "java.io.File",
+    "org.junit.Assert.assertArrayEquals",
+    "org.junit.Assert.assertEquals",
+    "org.junit.Assert.assertNull",
+    "org.junit.Assert.assertTrue",
+    "org.junit.Rule",
+    "org.junit.Test",
+    "org.junit.rules.TemporaryFolder"
+   ],
+   "loc": 187,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "voice",
+   "internal": [
+    "com.xiaoduo.deskpet.net.TtsVoiceDefaults"
+   ]
+  },
+  {
+   "path": "app/src/test/java/com/xiaoduo/deskpet/voice/WakeAckSelectorTest.kt",
+   "pkg": "com.xiaoduo.deskpet.voice",
+   "imports": [
+    "com.xiaoduo.deskpet.net.NetConfig",
+    "com.xiaoduo.deskpet.net.TtsVoiceDefaults",
+    "org.junit.Assert.assertEquals",
+    "org.junit.Assert.assertFalse",
+    "org.junit.Assert.assertNotEquals",
+    "org.junit.Assert.assertTrue",
+    "org.junit.Test"
+   ],
+   "loc": 212,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "voice",
+   "internal": [
+    "com.xiaoduo.deskpet.net.NetConfig",
+    "com.xiaoduo.deskpet.net.TtsVoiceDefaults"
+   ]
+  },
+  {
+   "path": "app/src/test/java/com/xiaoduo/deskpet/voice/WakeBlindWindowBufferTest.kt",
+   "pkg": "com.xiaoduo.deskpet.voice",
+   "imports": [
+    "org.junit.Assert.assertEquals",
+    "org.junit.Assert.assertTrue",
+    "org.junit.Test"
+   ],
+   "loc": 118,
+   "has_android": false,
+   "has_androidx": false,
+   "has_compose": false,
+   "has_coroutines": false,
+   "group": "voice",
+   "internal": []
+  }
+ ]
+}

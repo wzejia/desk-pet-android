@@ -1,5 +1,13 @@
 # 小朵 Android M1 进度
 
+## 状态：结构重构 Spec v0.4 执行中——Phase 0（2026-10-10 开工）
+
+- **权威方案权威 = `docs/spec/refactor-structure.spec.md`（v0.4，两轮三通道评审收敛，已认可执行）**，spec+DEV_LOG 已入库 b27dec3；执行编排 = Temp `HANDOFF-deskpet-spec-exec.md`（Temp 易失，重要结论以 spec/DEV_LOG/PROGRESS 为准）。
+- **Phase 0 清单**（主对话串行）：①依赖脚本 v3+JSON 入库 `docs/audit/2026-10-10-dep-analysis/`；②§5.4 指标基线（悬浮窗渲染锚 + 播放开始日志锚补点、抖动带宽前置）→ `docs/audit/2026-10-10-perf-baseline/`；③PetOverlayState stale-true 守卫定案（活性记账落 PetOverlayState，JVM 可测）+ 测试（红-绿证明）；④线程纪律 3 件守卫测试设计。
+- **基线核实（开工已做）**：脚本 v3 复跑对账 §3.2 ✓（环 4 对 / hub 例外边 8 / buildgen 1 / 矩阵逐格一致）；单测 **754 绿 skipped=0 实测**（JDK PATH 前缀 + `--rerun-tasks`）——**锚修正 755→754**：fafa28e trampoline 重写删了 extra 分叉（旧策略 3 测退役、新 OverlayLaunchPolicyTest 2 测补位），文档当时漏改；丢的测试守卫的「overlayOnly=false」输入已不存在（现行策略只看权限位且 1×2 决策表全覆盖），属架构演进减员非缺口。
+- **Phase 3 开工前置**：附录 B 4 项拍板（SEC-1 升级 / SEC-2 反代 / SEC-3 报批 / P3-2 createSession 口径）必须拿到领导拍板，不阻塞 Phase 0-2。
+- Phase 顺序：0 基线 → 1 断环三刀+PetOverlayState 搬出 → 2 voice 子包化+大文件评估 → 3 五维 P3 择优（并行）→ 4 module 门槛评审；每 Phase 独立分支 `refactor/pN` + 收尾 ce-code-review + triage。
+
 ## 状态：入口功能——密集架基础设置直拉悬浮窗 + 菜单删「打开 App」 ✅（2026-10-09，755 绿，已推送）
 
 - **用户令**：mijijia 系统设置加「打开小朵」（拉 APP）+ 基础设置按键名不变改直拉悬浮窗（mijijia 侧改动在 mijijia 仓，见其 DEV_LOG 2026-10-09）。
@@ -423,8 +431,11 @@ S61 好了阈值 0.5 → S62 首页导航（mijijia 同票）→ S63/S64 打断�
 - **⚠️ 欠账/待做**：spike 真机观测（误触发 ≥5min 0 命中 + TTS 中真声检出 ≥8/10，双合格才立项实现）；
   S10-1/S10-2 critic 补审欠账（08-21 配额恢复后）。
 
-### 接手指引
-先读 `AGENTS.md`（项目规则+环境硬事实）→ `PROGRESS.md` 本段 → `docs/DEV_LOG.md` 顶部最新 3 条 →
-`C:/Users/Administrator/AppData/Local/Temp/HANDOFF-s54-multi-wake.md`（活跃交接，含全票据台账与挂账）。
-构建：worktree `E:/desk-pet-s54`，`GRADLE_OPTS="-Djava.net.preferIPv4Stack=true" ./gradlew.bat --no-daemon testDebugUnitTest`。
-双板 adb：`C:/platform-tools/adb.exe`，测试机 192.168.137.76:5555 / 生产板 10.0.14.18:5555（生产改动须用户确认）。
+### 接手指引（2026-10-10 更新：spec 执行期）
+先读 `AGENTS.md`（项目规则+环境硬事实）→ `PROGRESS.md` 顶部「结构重构 Spec v0.4 执行中」段 →
+`docs/spec/refactor-structure.spec.md`（v0.4，方案权威）→ `docs/DEV_LOG.md` 顶部最新条目 →
+Temp `HANDOFF-deskpet-spec-exec.md`（执行编排打法；Temp 易失，结论以 spec/DEV_LOG/PROGRESS 为准）。
+构建：`export PATH="/c/Program Files/Microsoft/jdk-17.0.20.8-hotspot/bin:$PATH"` 后 `./gradlew.bat testDebugUnitTest --rerun-tasks`（**不带 --rerun-tasks 会假绿**；声称 N 绿必带此前缀）。
+依赖复扫：`MSYS2_ARG_CONV_EXCL="*" python "E:/desk-pet-android/.scratch/dep-analysis-20261010.py"`（Phase 1/2 验收与周期复扫同一脚本，口径见 spec 附录 A）。
+双板 adb：`C:/platform-tools/adb.exe`；测试机 192.168.137.76 **离线勿推**；生产板 10.0.14.18:5555（改动须用户确认，破坏性操作逐次授权）；板钟比 PC 慢 ~3.5 分钟（计时全取设备钟）。
+指标协议 = spec §5.4（三态 dumpsys + logcat 设备钟差值）；基线表在 `docs/audit/2026-10-10-perf-baseline/`。
