@@ -5,7 +5,6 @@ import android.media.AudioFormat
 import android.media.AudioRecord
 import android.media.AudioTimestamp
 import android.media.MediaRecorder
-import com.xiaoduo.deskpet.VoiceForegroundService
 import com.xiaoduo.deskpet.util.PetLogger
 import com.xiaoduo.deskpet.voice.kws.AudioProbe
 import com.xiaoduo.deskpet.voice.kws.EnergyGate

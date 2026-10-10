@@ -1,6 +1,5 @@
 package com.xiaoduo.deskpet.util
 
-import com.xiaoduo.deskpet.voice.kws.EnergyGate
 
 /**
  * SharedPreferences 键/默认值契约（纯 Kotlin，零 Android import，JVM 可测）。

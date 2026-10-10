@@ -1,6 +1,5 @@
 package com.xiaoduo.deskpet.api
 
-import com.xiaoduo.deskpet.voice.client.AsrClient
 
 /** ASR 统一结果契约（spec §4.2 一刀：自 voice.AsrClient 嵌套类型原样下沉，2026-10-10；
  *  纯 Kotlin 零依赖，voice/cloud 两侧共同消费面）。 */

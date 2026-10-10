@@ -3,7 +3,6 @@ package com.xiaoduo.deskpet.voice.audio
 import android.media.AudioAttributes
 import android.media.AudioFormat
 import android.media.AudioTrack
-import com.xiaoduo.deskpet.App
 import com.xiaoduo.deskpet.util.PetLogger
 import com.xiaoduo.deskpet.voice.pipeline.RevealScheduler
 import java.io.IOException

@@ -1,6 +1,5 @@
 package com.xiaoduo.deskpet.cloud
 
-import com.xiaoduo.deskpet.voice.client.TtsClient
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
