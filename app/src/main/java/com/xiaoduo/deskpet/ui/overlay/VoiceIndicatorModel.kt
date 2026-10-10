@@ -13,11 +13,12 @@ import kotlin.math.sin
  * 状态区改为悬浮窗气泡（恒定 132×40dp，与单行文字泡同高，两态切换尺寸零变化）。
  *
  * RMS 口径：EnergyGate.rmsOf(block) × (32768/8000)（VAD diag / 全屏页同款），
- * 归一化 (rms−FLOOR)/SPAN 后 clamp——FLOOR/SPAN 与全屏页常量逐字同源。
+ * 归一化 (rms−FLOOR)/SPAN 后 clamp——FLOOR/SPAN 为单一来源（FullscreenVoiceScreen
+ * 直接引用本常量，P3-T5 收敛镜像，改这里两处同变）。
  */
 object VoiceIndicatorModel {
 
-    // ---- RMS 归一化（FullscreenVoiceScreen RMS_FLOOR/RMS_SPAN 同源， 勿单改一边） ----
+    // ---- RMS 归一化（单一来源：FullscreenVoiceScreen 亦引用，勿在他处私有镜像） ----
     const val RMS_FLOOR = 0.005f
     const val RMS_SPAN = 0.045f
 
