@@ -1,0 +1,50 @@
+-- t=30s 17:15:34
+  Native Heap    65547    65236      268       98    66320    73908    62955     6980
+        TOTAL   197498   142748    42620      306   197498    86437    69236    13228
+         Native Heap:    65236                          66320
+           TOTAL PSS:   197498            TOTAL RSS:   295132       TOTAL SWAP PSS:      306
+-- t=60s 17:16:06
+  Native Heap    87361    87060      264       98    88120   103036    90469     8259
+        TOTAL   221886   165140    44372      303   221886   115595    96749    14538
+         Native Heap:    87060                          88120
+           TOTAL PSS:   221886            TOTAL RSS:   320000       TOTAL SWAP PSS:      303
+-- t=90s 17:16:37
+  Native Heap    87323    87024      264       98    88080   103292    90475     8530
+        TOTAL   221874   165124    44176      303   221874   115947    96803    14857
+         Native Heap:    87024                          88080
+           TOTAL PSS:   221874            TOTAL RSS:   320044       TOTAL SWAP PSS:      303
+-- t=120s 17:17:08
+  Native Heap    87275    86976      264       98    88032   103292    90481     8523
+        TOTAL   221916   165100    44180      303   221916   115916    96809    14819
+         Native Heap:    86976                          88032
+           TOTAL PSS:   221916            TOTAL RSS:   320104       TOTAL SWAP PSS:      303
+-- t=150s 17:17:39
+  Native Heap    87371    87072      264       98    88128   103384    91069     8019
+        TOTAL   220976   164224    44116      304   220976   116039    97413    14330
+         Native Heap:    87072                          88128
+           TOTAL PSS:   220976            TOTAL RSS:   319408       TOTAL SWAP PSS:      304
+-- t=180s 17:18:10
+  Native Heap    87427    87128      264       98    88184   103292    90488     8516
+        TOTAL   221116   164300    44160      303   221116   115916    96816    14812
+         Native Heap:    87128                          88184
+           TOTAL PSS:   221116            TOTAL RSS:   319540       TOTAL SWAP PSS:      303
+-- t=210s 17:18:42
+  Native Heap    87359    87060      264       98    88116   103292    90492     8513
+        TOTAL   221177   164224    44180      303   221177   115916    96820    14809
+         Native Heap:    87060                          88116
+           TOTAL PSS:   221177            TOTAL RSS:   319556       TOTAL SWAP PSS:      303
+-- t=240s 17:19:13
+  Native Heap    87447    87148      264       98    88204   103292    90492     8513
+        TOTAL   221376   164444    44068      305   221376   115916    96804    14825
+         Native Heap:    87148                          88204
+           TOTAL PSS:   221376            TOTAL RSS:   319796       TOTAL SWAP PSS:      305
+-- t=270s 17:19:44
+  Native Heap    87475    87176      264       98    88232   103292    90493     8511
+        TOTAL   221256   164308    44172      303   221256   115948    96837    14823
+         Native Heap:    87176                          88232
+           TOTAL PSS:   221256            TOTAL RSS:   319660       TOTAL SWAP PSS:      303
+-- t=300s 17:20:15
+  Native Heap    87591    87292      264       98    88348   103292    90491     8559
+        TOTAL   221870   164864    44180      303   221870   115916    96803    14871
+         Native Heap:    87292                          88348
+           TOTAL PSS:   221870            TOTAL RSS:   320220       TOTAL SWAP PSS:      303

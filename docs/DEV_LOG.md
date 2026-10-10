@@ -1,6 +1,26 @@
 # 小朵 Android 开发日志
 
 
+## 2026-10-10（四）Phase 0 生产板部署 + §5.4 指标基线实测（用户授权）
+
+**部署（回灌法，逐次授权已拿到）**：生产板 10.0.14.18 换装 refactor/p0 @ 19ea825（含守卫+日志锚）。流程全记录：force-stop → 数据备份（shared_prefs×3 + chat_sessions×148 = 151 文件，tar 流拉回 + 双端 md5 **151/151 验通过**）→ 旧 APK 拉回备份（ba8931b2，96MB，回滚双保险）→ 卸载 → 装新包（5a0103eb）→ push tar 回灌（run-as tar xf）→ **回灌复验 151/151 全等** → 起活健康（149 sessions 恢复、双窗 added、KWS 常开 gate=0.015、采麦 source=7）。坑×1：备份完整性首验全红=对照脚本 bug（Git Bash md5sum 输出 ` *path` 星号分隔 vs 板端空格分隔，键不匹配假报错），修正键归一后 151/151 通过——**数据本身零问题**。新日志锚板端实证：`overlay first-frame drawn` 每轮冷启动都出。mijijia 侧未动（旧版兼容：基础设置直拉退化为开 APP，不影响指标）。
+
+**§5.4 指标基线（`docs/audit/2026-10-10-perf-baseline/`）**：
+- **内存三态**（dumpsys PSS）：空闲 5min=**219.2MB**（NH 86.3）；KWS 10min=**221.2MB**（NH 86.3，较空闲 +2.0MB 稳态带内）；播报中态待现场喊话。
+- **抖动带宽**（10×30s）：稳态 TOTAL PSS **<1MB 带宽**（215.8~216.7，分辨力 ±1MB）、NH ±0.3MB——后续「不回退」判定的最小可判差异。t=30s=192.9MB 是冷启动爬坡不计入。
+- **悬浮窗挂窗→首帧**（新增渲染锚）：7 轮样本 259/268/271/276/279/289/679，**中位 276ms**（679 为布局调度离群）。added（窗口挂上）→OnDrawListener 首帧，设备钟。
+- **待现场**：播报中三态（喊话触发，起播锚 `playback-start` 已备）/ 唤醒命中→应答音 / trampoline 端到端（mijijia 基础设置按键）/ Chat 首 token。
+- 板钟慢 PC ~3.5 分钟实证再现（jitter 文件 PC 钟进度戳 vs 板端数据钟差值吻合）——计时口径全程板钟未破。
+
+**Phase 0 状态**：脚本入库 ✓ / 守卫+测试 ✓（760 绿）/ 线程纪律设计 ✓ / 指标基线=自动化部分全落盘，现场配合项待喊话窗口。
+
+```evidence
+verify_cmd: adb shell run-as com.xiaoduo.deskpet sh -c 'find ./shared_prefs ./files/chat_sessions -type f | sort | xargs md5sum'（回灌后全量对照）
+verify_claim: 151/151 md5 全等；App 起活 149 sessions+双窗+KWS 健康；基线表 docs/audit/2026-10-10-perf-baseline/ 落盘
+files_touched: [docs/audit/2026-10-10-perf-baseline/, docs/DEV_LOG.md]
+```
+
+
 ## 2026-10-10（三）Phase 0 代码交付：PetOverlayState 活性记账守卫 + §5.4 日志锚补点 + 线程纪律守卫设计
 
 **PetOverlayState stale-true 守卫（spec §4.3 定案落地，TDD 全闭环）**：活性记账落 PetOverlayState（还在 MainActivity.kt，Phase 1 才搬出）——`markStarted(now)/markHeartbeat(now)/markCleared()/isAlive(now)`（时钟注入纯 JVM 可测）+ `running` 收窄只读（写入方契约显式化）；心跳 30s / stale 窗 90s（3 周期容忍调度抖动）。接线：PetOverlayService 窗口构建成功 markStarted+心跳循环（主线程 postDelayed 30s）、onDestroy removeCallbacks+markCleared；SettingsScreen scale 滑条重启判定读点改 `isAlive(SystemClock.elapsedRealtime())`。正常路径行为零变化（service 活着时 isAlive=true 与原 running 同值）。

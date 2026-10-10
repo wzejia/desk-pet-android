@@ -1,0 +1,8 @@
+2026-10-10 17:18:19.378 I/PetOverlay: onCreate
+2026-10-10 17:18:19.448 I/PetOverlay: dual windows added: interaction=206x223px(opaque pet) bubbleLayer=260x104px(NOT_TOUCHABLE) at (429,1514) scale=1.0742918
+2026-10-10 17:18:39.068 I/VoiceFgService: always-on KWS started (shadow=true), gate=0.015
+2026-10-10 17:19:23.198 I/MainActivity: onCreate, compose host started
+2026-10-10 17:19:23.218 I/MainActivity: self-heal: PetOverlayService start requested (pref=true, granted)
+2026-10-10 17:19:23.235 I/MainActivity: self-heal: VoiceForegroundService start requested (pref=true, mic granted)
+2026-10-10 17:19:29.688 I/PetOverlay: onCreate
+2026-10-10 17:19:29.765 I/PetOverlay: dual windows added: interaction=206x223px(opaque pet) bubbleLayer=260x104px(NOT_TOUCHABLE) at (429,1514) scale=1.0742918
