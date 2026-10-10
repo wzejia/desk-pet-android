@@ -1,6 +1,37 @@
 # 小朵 Android 开发日志
 
 
+## 2026-10-11（一）Phase 3 收口：opus 评审可合入 + P2 修复（remove 复活陷阱）+ 合 main
+
+**opus 独立评审**（隔离 worktree @ a045459，只收客观材料）：五项验收锚全 PASS（855/0/0 真重跑、
+构建绿、环 0+hub 8+buildgen 1、资产逐字不变、红线六条零触碰）；行为零变化抽查 6/6 通过；变异锚
+抽查 3/3 实测真红（含「No tests found 不计红」的口径自纠）。**总评：可合入**。
+
+**P2 修复（评审 finding #1，Phase 内闭环不留尾）**：SEC-3 迁移包装 `edit()` 返回包装
+Editor——remove 同步删 legacy 同键（消费方显式删除意图优先于迁移保护；否则升级板
+TokenStore.clear（AguiClient 401 重登 6 处链）后旧 token 经 LEGACY 回落复活再吃一轮 401）。
+remove 只动被显式删除的键，NetConfig 直读的端点/账号键不受影响；clear() 无消费方，透传新库
++KDoc 警告混居限制。TDD：红（复活复现）→绿→变异（删 legacy 分支）红→还原。**857 绿**
+（855+2）+ assembleDebug 绿。
+**P3×2 留痕不修**（评审判可缓）：①PetLogger.write 失去 @Synchronized（init 前并发行只进
+logcat，窗口极窄有兜底）；②logFilePath() 跨天瞬时显示未存在文件（无数据影响）。
+
+**T5 合入**（855 绿持平，纯收敛）：重复簇 5 处对齐（RMS_FLOOR/TtsVoice 兜底/AG-UI 双块/
+ShelfNav page id/ThinkCleaner 正则）+ 死代码 2 处实锤删除（AudioCapture.record 死字段、全屏页
+冗余预热）+ 5 条上报不动手（接口签名/root 红线区/存疑不变量）。
+
+**挂账（部署批，待领导逐次授权）**：①生产板换包（refactor/p3 版，回灌法）→ 语义三链路取证
+（spec §2）→ §5.4 指标复测不回退判定（空闲/KWS adb 自动 + 播报中/唤醒→应答音现场项）→
+OverlayBubbleHub P2 票（真机气泡/双击回归）→ 真机 Keystore 跨重启验证（SEC-3）；②ocr[394]
+原子化 gate（wakeack 地界小票）；③Phase 4 门槛评审（spec §6）。
+
+```evidence
+verify_cmd: export PATH="/c/Program Files/Microsoft/jdk-17.0.20.8-hotspot/bin:$PATH" && ./gradlew.bat testDebugUnitTest --rerun-tasks && ./gradlew.bat assembleDebug
+verify_claim: tests=857 failures+errors=0 skipped=0（855+2：SecurePrefsTest remove 语义×2）；变异（删 legacy 分支）红→还原绿；assembleDebug 绿
+files_touched: [app/src/main/java/com/xiaoduo/deskpet/util/SecurePrefs.kt, app/src/test/java/com/xiaoduo/deskpet/util/SecurePrefsTest.kt]
+```
+
+
 ## 2026-10-10（九）Phase 3 进行中：T4 合入（合并树 793 绿）+ 主对话 P3-2 收口（796 绿）+ 查证 2 条闭环
 
 **T4 合入**（merge 58d8a6c ← refactor/p3-t4 三 commit：53ba724 SEC-3 / a1ba709 PrefContract /

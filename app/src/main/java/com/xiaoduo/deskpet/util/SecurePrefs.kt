@@ -102,8 +102,34 @@ class MigratingSharedPreferences(
     override fun contains(key: String): Boolean =
         secure.contains(key) || legacy.contains(key)
 
-    /** 写路径唯一目的地 = 新加密库（旧库只读）。 */
-    override fun edit(): SharedPreferences.Editor = secure.edit()
+    /**
+     * 写路径：put 系只进新加密库（旧库只读不动）；[remove][SharedPreferences.Editor.remove]
+     * 同步删两库同键——消费方显式删除意图（TokenStore.clear 401 重登链）优先于「旧库只搬
+     * 不删」的迁移保护，否则旧键经 LEGACY 回落读复活（P2 评审实锤：升级板 clear 后旧 token
+     * 复活再吃一轮 401）。remove 只动被显式删除的键，不波及同文件其他消费者的存量键
+     * （NetConfig 直读 xiaoduo_net 的端点/账号键不受影响）。clear() 无消费方，透传新库；
+     * ⚠️ 若未来消费：legacy 不清（同文件混居防误删他方键），复活防护须逐键 remove。
+     * 变异锚：删包装 remove 的 legacy 分支 → SecurePrefsTest.removePropagatesToLegacy 红。
+     */
+    override fun edit(): SharedPreferences.Editor = object : SharedPreferences.Editor {
+        private val inner = secure.edit()
+
+        override fun putString(key: String?, value: String?) = apply { inner.putString(key, value) }
+        override fun putStringSet(key: String?, values: MutableSet<String>?) = apply { inner.putStringSet(key, values) }
+        override fun putInt(key: String?, value: Int) = apply { inner.putInt(key, value) }
+        override fun putLong(key: String?, value: Long) = apply { inner.putLong(key, value) }
+        override fun putFloat(key: String?, value: Float) = apply { inner.putFloat(key, value) }
+        override fun putBoolean(key: String?, value: Boolean) = apply { inner.putBoolean(key, value) }
+
+        override fun remove(key: String?): SharedPreferences.Editor = apply {
+            inner.remove(key)
+            if (key != null) legacy.edit().remove(key).apply()
+        }
+
+        override fun clear(): SharedPreferences.Editor = apply { inner.clear() }
+        override fun commit(): Boolean = inner.commit()
+        override fun apply() = inner.apply()
+    }
 
     override fun getAll(): MutableMap<String, *> =
         LinkedHashMap<String, Any?>(legacy.all).apply { putAll(secure.all) }

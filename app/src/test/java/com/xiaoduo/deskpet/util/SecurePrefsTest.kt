@@ -3,6 +3,7 @@ package com.xiaoduo.deskpet.util
 import android.content.SharedPreferences
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -194,4 +195,30 @@ class SecurePrefsTest {
         assertEquals("x", secure.getString("s", null))
         assertFalse("写路径不得触旧库", legacy.contains("w"))
     }
+
+    // ---- P2 评审修复：remove 同步删 legacy，防迁移键复活（401 重登 tokenCache.clear 链）----
+
+    @Test
+    fun `remove propagates to legacy so migrated key does not resurrect`() {
+        val (m, secure, legacy) = migrating()
+        legacy.edit().putString("platform_token", "old-token-value")
+        assertEquals("迁移期读到旧值", "old-token-value", m.getString("platform_token", null))
+
+        m.edit().remove("platform_token").commit()
+
+        assertNull("remove 后读不得复活 legacy 旧值", m.getString("platform_token", null))
+        assertFalse("新库键已删", secure.contains("platform_token"))
+        assertFalse("legacy 同键必须被同步删除（显式删除意图优先于只搬不删）", legacy.contains("platform_token"))
+    }
+
+    @Test
+    fun `remove on absent key is harmless across both stores`() {
+        val (m, secure, legacy) = migrating()
+        m.edit().remove("never-existed").commit()
+        assertFalse(secure.contains("never-existed"))
+        assertFalse(legacy.contains("never-existed"))
+        assertNull(m.getString("never-existed", null))
+    }
+
 }
+
