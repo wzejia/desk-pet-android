@@ -1,6 +1,42 @@
 # 小朵 Android 开发日志
 
 
+## 2026-10-10（九）Phase 3 进行中：T4 合入（合并树 793 绿）+ 主对话 P3-2 收口（796 绿）+ 查证 2 条闭环
+
+**T4 合入**（merge 58d8a6c ← refactor/p3-t4 三 commit：53ba724 SEC-3 / a1ba709 PrefContract /
+47cf230 PetLogger）：独立核对（3 commit 地界零越界、消费方接线 diff 抽查吻合）→ 合并树复跑
+**793 绿 skipped=0**（770+23）。agent 上报处置：①ocr[372] AppLauncher 改引 + ②Prefs 内联默认值
+收敛单源 → 归收尾「常量收敛」小票（对账测试已钉住漂移）；③security-crypto 1.1.0=Google 弃用库
+终版（附录 B 效果优先合规），长期替代（DataStore+Keystore）挂部署批评估；④PetLogger 强杀丢
+<8KB 缓冲尾部权衡在案（历史逐行 open/close 无此窗口）。
+
+**P3-2 静默降级+降级期禁写**（附录 B 4 拍板落地，refactor/p3，chat/ 地界）：
+- `ChatStore.createSession()` 改可空（degraded 时 logger 显式留痕返 null，不再 `error()` 抛）；
+- 新增 `ChatDegradedPolicy`（纯 JVM：Op 三类写/读分面 + shouldMarkDegraded + allowWrite）；
+- `ChatViewModel` 六点接线：init 建会话失败→降级运行不崩溃+只读态；send/upload 入口
+  allowWrite 守卫+createSession null 双保险；newSession 降级拒（保持当前会话）；
+  rotateSessionIfIdle 降级不轮转旧会话继续（原吞异常继续发送等价）；deleteSession 回落
+  建会话失败→无当前会话只读（next 可空化消息加载）。degradedWrites 进程级 @Volatile，
+  重启重试（ChatStore degraded 同生命周期）。
+- TDD：红₁（用例 15 期望改「降级返 null 不抛」——拍板推翻原「向上抛」口径，实测红）→
+  绿（chat 包全绿）→ 全量 **796 绿 skipped=0**（793+3：ChatDegradedPolicyTest）→
+  变异锚（allowWrite 恒放行）`degradedRefusesAllWrites` 红 ✓。UI 反馈按拍板最小面=显式
+  日志（不碰 Phase，避免新 UI 行为——拍板比较基线是「崩溃 vs 降级」）。
+
+**查证 2 条闭环（均维持 P3 不升级）**：①ocr[161] `NetConfig.saveAll` 唯一调用方
+（SettingsEndpointEditor:208）漏传 `llmCloudProvider`（每次保存覆盖回 "openai"），但
+`llmCloudProvider()` 全仓零消费方 + UI 无编辑入口 → 覆盖无观察面；footgun 记收尾清单
+（saveAll 收参或删死键）。②ocr[375] `org.json:json` 仅 testImplementation、生产
+debugRuntimeClasspath 零捆绑（依赖树实测）→ AsrClient JVM CCE 属 JVM-only 路径，
+Android 用平台完整实现不受影响。
+
+```evidence
+verify_cmd: export PATH="/c/Program Files/Microsoft/jdk-17.0.20.8-hotspot/bin:$PATH" && ./gradlew.bat testDebugUnitTest --rerun-tasks
+verify_claim: tests=796 failures+errors=0 skipped=0（793 合并树+3 policy 测）；T4 合并树独立复验 793；变异锚 allowWrite 恒放行→degradedRefusesAllWrites 红；用例 15 红转绿（拍板口径反转）
+files_touched: [app/src/main/java/com/xiaoduo/deskpet/chat/ChatStore.kt, app/src/main/java/com/xiaoduo/deskpet/chat/ChatDegradedPolicy.kt, app/src/main/java/com/xiaoduo/deskpet/chat/ChatViewModel.kt, app/src/test/java/com/xiaoduo/deskpet/chat/ChatStoreTest.kt, app/src/test/java/com/xiaoduo/deskpet/chat/ChatDegradedPolicyTest.kt]
+```
+
+
 ## 2026-10-10（八）Phase 3 开工：切票 4 张并行（波 1 已下发）+ 主对话 root 两件收口
 
 **切票**（地界=子包前缀，两两无文件交集，冲突矩阵逐票对过）：T1=voice/kws+audio 健壮性 17 条

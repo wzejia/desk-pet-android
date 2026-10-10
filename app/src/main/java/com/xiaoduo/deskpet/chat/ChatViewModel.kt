@@ -67,6 +67,14 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
     private val client: AguiClient = AguiClientFactory.create(app)
     private val turns = ChatTurnLogic()
 
+    /**
+     * 磁盘降级只读标志（P3-2 拍板 2026-10-10：静默降级 + 降级期禁写）。createSession
+     * 返 null 时置位；进程级，重启后随 store 重试（ChatStore degraded 同生命周期语义）。
+     * 置位后发送/上传/新建一律拒绝（显式日志），浏览旧会话不受限。
+     */
+    @Volatile
+    private var degradedWrites = false
+
     /** 云端 LLM 客户端（每轮现取配置：设置页改完下一轮即生效——jadx 取证的原始形态）。 */
     private fun cloudClient(): OpenAIChatClient = CloudClientFactory.chat(getApplication())
 
@@ -135,10 +143,18 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
         val index = store.loadIndex()
         val current = index.currentId?.let { cid -> index.sessions.firstOrNull { it.id == cid } }
             ?: index.sessions.maxByOrNull { it.updatedAt }?.also { store.setCurrent(it.id) }
-            ?: store.createSession()
+            ?: run {
+                // P3-2：init 期建会话失败 → 降级运行（不崩溃），显式日志，只读态
+                val created = store.createSession()
+                if (ChatDegradedPolicy.shouldMarkDegraded(created)) {
+                    degradedWrites = true
+                    PetLogger.w(TAG, "DEGRADED: session create failed at init, read-only mode (P3-2)")
+                }
+                created
+            }
         _currentSession.value = current
         _sessions.value = store.loadIndex().sessions.sortedByDescending { it.updatedAt }
-        _messages.value = store.loadMessages(current.id)
+        _messages.value = current?.let { store.loadMessages(it.id) } ?: emptyList()
         if (_messages.value.isNotEmpty()) {
             PetLogger.i(TAG, "session restored: ${_sessions.value.size} sessions, ${_messages.value.size} messages")
         }
@@ -367,10 +383,20 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
             PetLogger.w(TAG, "upload rejected: $fileName ${bytes.size} bytes > 20MB")
             return false
         }
-        val session = _currentSession.value ?: store.createSession().also {
-            _currentSession.value = it
-            refreshSessions()
+        if (!ChatDegradedPolicy.allowWrite(ChatDegradedPolicy.Op.UPLOAD_FILE, degradedWrites)) {
+            PetLogger.w(TAG, "DEGRADED: upload refused (read-only mode, P3-2)")
+            return false
         }
+        val session = _currentSession.value
+            ?: store.createSession()?.also {
+                _currentSession.value = it
+                refreshSessions()
+            }
+            ?: run {
+                degradedWrites = true
+                PetLogger.w(TAG, "DEGRADED: upload refused, session create failed (P3-2)")
+                return false
+            }
         val placeholder = FileMeta(
             fileId = "",
             fileName = fileName,
@@ -445,11 +471,21 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
         }
         // S48 惰性超时轮转：当前会话最后一条消息超 10 分钟无后续 → 先静默新建会话再发
         // （本轮消息入新会话，新 threadId=LLM 无上文；静默无提示，旧会话保留可切回）
-        rotateSessionIfIdle()
-        val session = _currentSession.value ?: store.createSession().also {
-            _currentSession.value = it
-            refreshSessions()
+        if (!ChatDegradedPolicy.allowWrite(ChatDegradedPolicy.Op.SEND_MESSAGE, degradedWrites)) {
+            PetLogger.w(TAG, "DEGRADED: send refused (read-only mode, P3-2)")
+            return
         }
+        rotateSessionIfIdle()
+        val session = _currentSession.value
+            ?: store.createSession()?.also {
+                _currentSession.value = it
+                refreshSessions()
+            }
+            ?: run {
+                degradedWrites = true
+                PetLogger.w(TAG, "DEGRADED: send refused, session create failed (P3-2)")
+                return
+            }
         val now = System.currentTimeMillis()
         val wireId = turns.nextWireId()
         val userMsg = ChatMessage(
@@ -633,6 +669,12 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
 
     private fun newSessionInternal() {
         val session = store.createSession()
+        if (session == null) {
+            // P3-2：降级期新建拒（不切走当前会话，显式日志）
+            degradedWrites = true
+            PetLogger.w(TAG, "DEGRADED: new session refused, keep current (P3-2)")
+            return
+        }
         turns.reset()
         resetFiles() // S7-f：文件绑定旧会话 thread，不可带入新会话
         _phase.value = Phase.IDLE
@@ -653,8 +695,14 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
         val lastTs = _messages.value.lastOrNull()?.ts
         val now = System.currentTimeMillis()
         if (!SessionRules.shouldRotateForIdle(lastTs, now)) return
+        val fresh = store.createSession()
         runCatching {
-            val fresh = store.createSession()
+            if (fresh == null) {
+                // P3-2：降级期不轮转，旧会话继续发送（原吞异常继续发送的等价行为）
+                degradedWrites = true
+                PetLogger.w(TAG, "DEGRADED: idle rotation aborted, keep current session (P3-2)")
+                return
+            }
             turns.reset()
             resetFiles() // 文件绑定旧会话 thread，不可带入新会话（S7-f 同 newSession）
             _phase.value = Phase.IDLE
@@ -699,12 +747,18 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
         val index = store.deleteSession(sessionId)
         if (sessionId == _currentSession.value?.id) {
             val next = index.currentId?.let { cid -> index.sessions.firstOrNull { it.id == cid } }
-                ?: store.createSession()
+                ?: store.createSession()?.also { refreshSessions() }
+                ?: run {
+                    // P3-2：删后回落建会话失败 → 无当前会话只读态（不崩溃）
+                    degradedWrites = true
+                    PetLogger.w(TAG, "DEGRADED: fallback session create failed after delete, read-only (P3-2)")
+                    null
+                }
             turns.reset()
             resetFiles() // S7-f：当前会话被删，其待发文件绑定随之作废
             _phase.value = Phase.IDLE
             _currentSession.value = next
-            _messages.value = store.loadMessages(next.id)
+            _messages.value = next?.let { store.loadMessages(it.id) } ?: emptyList()
         }
         refreshSessions()
         PetLogger.i(TAG, "session deleted, ${index.sessions.size} remaining")
