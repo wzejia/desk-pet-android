@@ -1,6 +1,7 @@
 package com.xiaoduo.deskpet.voice
 
 import com.xiaoduo.deskpet.api.TtsContract
+import com.xiaoduo.deskpet.voice.policy.PrefetchBackoff
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Rule

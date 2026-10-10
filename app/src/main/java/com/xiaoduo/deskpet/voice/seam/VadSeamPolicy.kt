@@ -1,4 +1,4 @@
-package com.xiaoduo.deskpet.voice
+package com.xiaoduo.deskpet.voice.seam
 
 /**
  * S40 唤醒接缝水位策略（纯逻辑，JVM 可测）：唤醒路径 vad.start 后、回灌消费前的过渡窗

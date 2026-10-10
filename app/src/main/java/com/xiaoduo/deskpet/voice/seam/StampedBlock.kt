@@ -1,4 +1,4 @@
-package com.xiaoduo.deskpet.voice
+package com.xiaoduo.deskpet.voice.seam
 
 /**
  * 带采集时间戳的采麦块（S40）：时间戳在 producer（AudioCapture 读循环）侧盖戳，随块

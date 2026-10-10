@@ -1,4 +1,7 @@
-package com.xiaoduo.deskpet.voice
+package com.xiaoduo.deskpet.voice.seam
+
+import com.xiaoduo.deskpet.voice.AudioCapture
+import com.xiaoduo.deskpet.voice.VoiceSessionManager
 
 /**
  * S40 唤醒盲区环形缓冲（纯逻辑，JVM 可测）：暂存唤醒接缝期（唤醒命中→vad.start，即

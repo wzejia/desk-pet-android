@@ -1,4 +1,4 @@
-package com.xiaoduo.deskpet.voice
+package com.xiaoduo.deskpet.voice.policy
 
 /**
  * 语音气泡自动收泡判定（纯逻辑，JVM 可测，零 Android import）。
