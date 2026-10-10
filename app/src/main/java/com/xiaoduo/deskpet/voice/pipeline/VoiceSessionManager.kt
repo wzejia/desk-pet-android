@@ -136,45 +136,37 @@ class VoiceSessionManager(
         // default（纯悬浮窗无会话兕底，行为同旧版）。
         val threadKey = threadKeyProvider?.invoke()?.takeIf { it.isNotBlank() }
             ?: AguiClient.DEFAULT_THREAD_KEY
-        val ctx = appContext ?: return aguiFactory().chat(
-            stripped,
-            onDelta = onDelta,
-            threadKey = threadKey,
-            roundId = roundId,
-            onToolCallEvent = { name, runId ->
-                turnSawToolCall.set(true)
-                logger("MCP tool call seen (TOOL_CALL_START) name=$name runId=$runId")
-                shelfMcpSync(name, runId) // S41：动画联动；S67b：runId 供密集架判定同轮 START 不让位旧卡
-            },
-            onToolCallOutcome = { oc ->
-                oc?.let {
-                    logger("MCP tool result captured name=${it.toolCallName}")
-                    shelfMcpOutcome(it) // S43：结果卡转发（桥内过滤，失败只记日志）
-                }
-            },
-        )
-        if (!NetConfig.llmIsCloud(ctx)) return aguiFactory().chat(
-            stripped,
-            onDelta = onDelta,
-            threadKey = threadKey,
-            roundId = roundId,
-            onToolCallEvent = { name, runId ->
-                turnSawToolCall.set(true)
-                logger("MCP tool call seen (TOOL_CALL_START) name=$name runId=$runId")
-                shelfMcpSync(name, runId)
-            },
-            onToolCallOutcome = { oc ->
-                oc?.let {
-                    logger("MCP tool result captured name=${it.toolCallName}")
-                    shelfMcpOutcome(it)
-                }
-            },
-        )
+        val ctx = appContext ?: return aguiChat(stripped, onDelta, threadKey, roundId)
+        if (!NetConfig.llmIsCloud(ctx)) return aguiChat(stripped, onDelta, threadKey, roundId)
         return when (val r = CloudClientFactory.chat(ctx).chat(listOf(Message("user", stripped)), null, onDelta)) {
             is OpenAIChatClient.Result.Success -> AguiClient.ChatResult.Success(r.text, r.firstTokenLatencyMs, 1)
             is OpenAIChatClient.Result.Error -> AguiClient.ChatResult.Error(r.message)
         }
     }
+
+    /** F-VSM-6（P3-T5 收敛）：平台分支共用的 AG-UI 调用（tool 回调接线单一来源，行为同原两段逐字副本）。 */
+    private fun aguiChat(
+        stripped: String,
+        onDelta: (String) -> Unit,
+        threadKey: String,
+        roundId: String,
+    ): AguiClient.ChatResult = aguiFactory().chat(
+        stripped,
+        onDelta = onDelta,
+        threadKey = threadKey,
+        roundId = roundId,
+        onToolCallEvent = { name, runId ->
+            turnSawToolCall.set(true)
+            logger("MCP tool call seen (TOOL_CALL_START) name=$name runId=$runId")
+            shelfMcpSync(name, runId) // S41：动画联动；S67b：runId 供密集架判定同轮 START 不让位旧卡
+        },
+        onToolCallOutcome = { oc ->
+            oc?.let {
+                logger("MCP tool result captured name=${it.toolCallName}")
+                shelfMcpOutcome(it) // S43：结果卡转发（桥内过滤，失败只记日志）
+            }
+        },
+    )
 
     /** 气泡出口抽象（Android 侧适配 PetOverlayService.instance；show_bubble 开关在 S3 API 内）。 */
     interface BubbleSink {
