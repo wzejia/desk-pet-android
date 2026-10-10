@@ -30,6 +30,22 @@
 debugRuntimeClasspath 零捆绑（依赖树实测）→ AsrClient JVM CCE 属 JVM-only 路径，
 Android 用平台完整实现不受影响。
 
+**ocr[382] 双开麦竞态根修**（T1 上报承接，refactor/p3）：VSM `captureMutex` 互斥门 +
+`captureExclusivity` 挂起入口；AmbientCalibrator.collectAmbient 复用决策原子化（锁内 check，
+采集锁外——订阅同流无双开，流停欠采样窗由 ocr[384] MIN_SAMPLES 兜底）、临时流整窗持锁；
+VSM ensureCollectLoop 的 start 同锁（runBlocking）。**线程/锁序审计**（注释留痕）：teardown
+不进锁（校准持锁窗内 VSM 流必未跑=no-op cancel，且消除主线程 stopIdleCapture 阻塞面）；
+runBlocking 仅在「采麦未跑+校准窗」组合等待（KWS 常开走幂等早退；校准只在设置页，现实
+互斥）；叶子锁无死锁环。跨实例双开根因：临时流是 AudioCapture 新实例，OnceGate 实例内
+门闩防不了（T1 侦察实锤）。互斥靠库原语无新守卫逻辑，不造伪测试——15 个既有 VSM 行为
+守卫测试 + 全量 855 绿为验证主体。
+
+```evidence
+verify_cmd: export PATH="/c/Program Files/Microsoft/jdk-17.0.20.8-hotspot/bin:$PATH" && ./gradlew.bat testDebugUnitTest --rerun-tasks && ./gradlew.bat assembleDebug
+verify_claim: tests=855 failures+errors=0 skipped=0；assembleDebug 绿；互斥接线编译过（Mutex/withLock import 修正后）
+files_touched: [app/src/main/java/com/xiaoduo/deskpet/voice/pipeline/VoiceSessionManager.kt, app/src/main/java/com/xiaoduo/deskpet/voice/audio/AmbientCalibrator.kt]
+```
+
 **WAV 族 cloud 侧收口**（T1 上报回灌，refactor/p3）：`AliyunAsrClient`/`VolcengineAsrClient`
 `stripWavPcm`（镜像双胞胎）三路径修复——巨量 data size `start+size` 回绕→无溢出钳位；负
 chunkSize 推进回绕致 IOOBE→契约化 IAE；剩余装不下本块→无溢出比较循环退出走 44B 回退（原

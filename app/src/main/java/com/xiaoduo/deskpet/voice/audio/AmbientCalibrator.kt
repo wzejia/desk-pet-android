@@ -94,21 +94,30 @@ object AmbientCalibrator {
         return true
     }
 
-    /** 采集 [seconds] 秒块级 RMS（KWS 常开中复用同一条流；未开则临时开一条采满即停）。 */
+    /**
+     * 采集 [seconds] 秒块级 RMS（KWS 常开中复用同一条流；未开则临时开一条采满即停）。
+     * ocr[382] 根修：复用决策与临时流全生命周期经 [VoiceSessionManager.captureExclusivity]
+     * 与 KWS 起流互斥（临时流是 AudioCapture 新实例，实例内门闩防不了跨实例双开）——
+     * 复用分支仅决策原子化（采集锁外：订阅同一条流无双开，流中途停止的欠采样窗由
+     * MIN_SAMPLES 门槛兜底）；临时分支整窗持锁（边缘代价：窗口内 KWS 起流延后 ≤5s）。
+     */
     suspend fun collectAmbient(context: Context, seconds: Int): List<Float> {
         val session = VoiceClientFactory.session(context)
         val out = mutableListOf<Float>()
-        if (session.captureRunning) {
+        val reuse = session.captureExclusivity { session.captureRunning }
+        if (reuse) {
             collectRmsFor(seconds, session.captureBlocks, out)
         } else {
-            val capture = AudioCapture(sourceMode = Prefs.micSourceMode(context))
-            val ioScope = CoroutineScope(Dispatchers.IO)
-            try {
-                capture.start(ioScope)
-                collectRmsFor(seconds, capture.blocks, out)
-            } finally {
-                capture.stop()
-                ioScope.cancel()
+            session.captureExclusivity {
+                val capture = AudioCapture(sourceMode = Prefs.micSourceMode(context))
+                val ioScope = CoroutineScope(Dispatchers.IO)
+                try {
+                    capture.start(ioScope)
+                    collectRmsFor(seconds, capture.blocks, out)
+                } finally {
+                    capture.stop()
+                    ioScope.cancel()
+                }
             }
         }
         return out

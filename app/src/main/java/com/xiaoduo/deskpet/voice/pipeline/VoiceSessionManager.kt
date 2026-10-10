@@ -38,6 +38,9 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.isActive
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import java.util.concurrent.atomic.AtomicBoolean
@@ -687,9 +690,28 @@ class VoiceSessionManager(
     /** 校准用：采麦是否已在跑（KWS 常开期间为 true，校准复用同一条流防双开抢麦）。 */
     val captureRunning: Boolean get() = capture.isRunning
 
+    /**
+     * ocr[382] 根修：采麦起流互斥门。校准临时流（AudioCapture 新实例，OnceGate 实例内
+     * 门闩防不了跨实例双开）与 KWS 起流经此串行——AmbientCalibrator.collectAmbient 的
+     * 复用决策与临时流整窗走 [captureExclusivity]，本侧 [ensureCollectLoop] 的 start
+     * 同锁。teardownIdleCapture **不进锁**：校准持锁窗内 VSM 流必未跑（决策已判
+     * not-running），teardown 是 no-op cancel，无需互斥（也避免主线程 stopIdleCapture
+     * 阻塞在校准 5s 窗上）。
+     * 阻塞代价审计：[ensureCollectLoop] 的 runBlocking 仅在「采麦未跑 + 校准窗进行中」
+     * 才可能等待（最长 5s）——KWS 常开/对话期采麦已在跑走幂等早退不碰锁；校准只在
+     * 设置页触发，与起流路径现实互斥。锁为叶子锁（锁内无其他锁获取），无死锁环。
+     */
+    private val captureMutex = Mutex()
+
+    /** 校准侧互斥入口：块内决策/起流与 [ensureCollectLoop] 的 start 串行。 */
+    suspend fun <T> captureExclusivity(block: suspend () -> T): T = captureMutex.withLock { block() }
+
     private fun ensureCollectLoop() {
         if (collectJob?.isActive == true) return
-        capture.start(scope)
+        // ocr[382]：start 与校准临时流互斥（见 [captureMutex] 审计注释）
+        runBlocking {
+            captureMutex.withLock { capture.start(scope) }
+        }
         collectJob = scope.launch(Dispatchers.Default) {
             capture.stampedBlocks.collect { routeBlock(it) }
         }
