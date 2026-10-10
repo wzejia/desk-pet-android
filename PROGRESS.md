@@ -5,7 +5,7 @@
 - **权威方案 = `docs/spec/refactor-structure.spec.md`（v0.4）**；编排 = Temp HANDOFF-deskpet-spec-exec.md（Temp 易失，以 spec/DEV_LOG/PROGRESS 为准）。
 - **Phase 0 ✅**（合 main bec0fa4）：脚本入库 / PetOverlayState 活性记账守卫+7 测（变异锚闭环）/ 线程纪律 3 件设计 / §5.4 日志锚×3 + 生产板部署（回灌 151/151）/ 指标基线（**空闲 219.2MB / KWS 221.2MB / 抖动带宽 ±1MB / 挂窗→首帧中位 276ms**；基线表 docs/audit/2026-10-10-perf-baseline/）。**待现场**：播报中三态、唤醒→应答音（喊话即自动采集）；trampoline 端到端须双包成对。
 - **Phase 1 ✅**（合 main 1ced9fa）：断环三刀（api.AsrContract/TtsContract/ChatMessage/BubbleOwner 下沉，无 typealias 全量改写）+ PetOverlayState 搬出 MainActivity。**包级环 4 对→0**；hub 例外边 8 不增；761 绿；资产哈希不变；两轮 opus 评审可合入（P3×6 全处置）。纯结构搬移不单独部署（语义验收累积到行为性 Phase）。
-- **Phase 2 待开工**：voice 32 文件子包化（侦察已完：spec 六组+audio/client 八组初分）、ui 梳理、大文件 >750 拆分评估、死代码剔除；纪律=搬移/行为 commit 分离。
+- **Phase 2 进行中**（refactor/p2，9 commits）：voice 32 文件七子包化 ✅（pipeline7/audio6/wakeack6/kws5/client2/seam3/policy3；echo 并入 audio、client 新增为对 spec 六组的偏离记录）+ PetView 归位 ui/overlay ✅ + 死 import 21 条剔除 ✅（编译器裁决）+ 15 条 KDoc 误加 import 清理 ✅（搬移脚本把 KDoc 类名提及当真实引用所致，分层审计归零）。验收：761 绿 / 环 0 / hub 8 / 分层零违规。**待收口**：大文件拆分评估（侦察中）→ 评审 → 合 main。死代码簇剩余项（死分支/死参数/死常量甄别）留 Phase 3 与工程族修复同批。
 - **Phase 3 开工前置**：附录 B 4 项拍板（SEC-1/SEC-2/SEC-3/P3-2）须领导拍板——**即将到期，请领导安排**。
 - 单测基线：754（trampoline 重写后实测修正，原记 755 系文档漂移）→ 现 761。验证必带 JDK PATH 前缀 + `--rerun-tasks`。
 - **Phase 3 开工前置**：附录 B 4 项拍板（SEC-1 升级 / SEC-2 反代 / SEC-3 报批 / P3-2 createSession 口径）必须拿到领导拍板，不阻塞 Phase 0-2。
