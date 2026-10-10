@@ -4,6 +4,7 @@ import okhttp3.OkHttpClient
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
 import org.junit.After
+import com.xiaoduo.deskpet.api.AsrContract
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -43,8 +44,8 @@ class AsrClientTest {
 
         val r = client().transcribe(ByteArray(VadDetector.MIN_UTTERANCE_BYTES))
 
-        assertTrue(r is AsrClient.Result.Success)
-        assertEquals("你好世界", (r as AsrClient.Result.Success).text)
+        assertTrue(r is AsrContract.Result.Success)
+        assertEquals("你好世界", (r as AsrContract.Result.Success).text)
         val recorded = server.takeRequest()
         assertEquals("/audio/asr/transcribe", recorded.path)
         assertEquals("POST", recorded.method)
@@ -69,8 +70,8 @@ class AsrClientTest {
 
         val r = client().transcribe(ByteArray(VadDetector.MIN_UTTERANCE_BYTES))
 
-        assertTrue(r is AsrClient.Result.Error)
-        assertTrue((r as AsrClient.Result.Error).message.contains("空文本"))
+        assertTrue(r is AsrContract.Result.Error)
+        assertTrue((r as AsrContract.Result.Error).message.contains("空文本"))
     }
 
     @Test
@@ -83,10 +84,10 @@ class AsrClientTest {
 
         val r = client().transcribe(ByteArray(VadDetector.MIN_UTTERANCE_BYTES))
 
-        assertTrue(r is AsrClient.Result.Error)
+        assertTrue(r is AsrContract.Result.Error)
         assertEquals(
             "ASR 失败: serviceName must be sensevoice or FunASR",
-            (r as AsrClient.Result.Error).message,
+            (r as AsrContract.Result.Error).message,
         )
     }
 
@@ -99,7 +100,7 @@ class AsrClientTest {
 
         val r = client().transcribe(ByteArray(VadDetector.MIN_UTTERANCE_BYTES))
 
-        assertTrue(r is AsrClient.Result.Error)
-        assertTrue((r as AsrClient.Result.Error).message.contains("engine busy"))
+        assertTrue(r is AsrContract.Result.Error)
+        assertTrue((r as AsrContract.Result.Error).message.contains("engine busy"))
     }
 }

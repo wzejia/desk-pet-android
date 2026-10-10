@@ -8,6 +8,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.io.ByteArrayOutputStream
 import java.io.IOException
+import com.xiaoduo.deskpet.api.TtsContract
 import java.util.Base64
 
 /**
@@ -37,14 +38,6 @@ class TtsClient(
         fun markUnsupported()
     }
 
-    sealed interface Result {
-        /** 成功：24kHz/Int16/mono 裸 PCM（多帧 WAV 已剥头拼接）。 */
-        data class Audio(val pcm: ByteArray) : Result
-
-        /** 失败：message 透传真实原因（平台 msg / 网络异常）。 */
-        data class Error(val message: String) : Result
-    }
-
     private sealed interface StreamOutcome {
         data class Ok(val pcm: ByteArray, val frames: Int) : StreamOutcome
         data object NotFound : StreamOutcome
@@ -52,7 +45,7 @@ class TtsClient(
     }
 
     /** 单句合成：流式主路径，失败按降级链走非流式兜底。 */
-    fun synthesize(sentence: String): Result {
+    fun synthesize(sentence: String): TtsContract.Result {
         if (!streamSupport.isUnsupported()) {
             // ROB-14：流路径 RuntimeException（url 构造 IAE / body 异常形态 / 帧解析越界等）
             // 就地转 Failure——保住「失败走非流式兜底一次」的文档化降级链，不击穿。
@@ -61,7 +54,7 @@ class TtsClient(
             }) {
                 is StreamOutcome.Ok -> {
                     logger("tts stream ok, ${r.frames} frame(s), pcm=${r.pcm.size}B")
-                    return Result.Audio(r.pcm)
+                    return TtsContract.Result.Audio(r.pcm)
                 }
                 StreamOutcome.NotFound -> {
                     logger("tts stream 404, 永久切非流式兜底")
@@ -145,7 +138,7 @@ class TtsClient(
     }
 
     /** 非流式兜底：text 传字符串，信封 code==200 取 data.audioData（base64 WAV 剥头）。 */
-    private fun synthesizeOnce(sentence: String): Result {
+    private fun synthesizeOnce(sentence: String): TtsContract.Result {
         val req = Request.Builder().url(synthesizeUrl)
             .post(
                 JSONObject()
@@ -182,12 +175,12 @@ class TtsClient(
             return fail("TTS 音频解析失败: ${e.message}")
         }
         logger("tts synthesize ok, pcm=${pcm.size}B")
-        return Result.Audio(pcm)
+        return TtsContract.Result.Audio(pcm)
     }
 
-    private fun fail(msg: String): Result {
+    private fun fail(msg: String): TtsContract.Result {
         logger(msg)
-        return Result.Error(msg)
+        return TtsContract.Result.Error(msg)
     }
 
     private fun envelopeMsg(body: String): String =

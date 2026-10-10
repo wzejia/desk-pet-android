@@ -4,6 +4,8 @@ import android.content.Context
 import com.xiaoduo.deskpet.PetOverlayService
 import com.xiaoduo.deskpet.agui.AguiClient
 import com.xiaoduo.deskpet.agui.AguiSseConsumer
+import com.xiaoduo.deskpet.api.AsrContract
+import com.xiaoduo.deskpet.api.TtsContract
 import com.xiaoduo.deskpet.device.DeviceClient
 import com.xiaoduo.deskpet.device.DeviceIntentMatcher
 import com.xiaoduo.deskpet.cloud.CloudClientFactory
@@ -91,7 +93,7 @@ class VoiceSessionManager(
 ) {
 
     /** ASR 模式分支：云端按配置厂商分发（pcm 包 WAV），平台走 AsrClient。 */
-    private fun transcribeAny(pcm: ByteArray): AsrClient.Result {
+    private fun transcribeAny(pcm: ByteArray): AsrContract.Result {
         val ctx = appContext ?: return asr.transcribe(pcm)
         if (!NetConfig.asrIsCloud(ctx)) return asr.transcribe(pcm)
         val wav = WavCodec.pcmToWav(pcm, VadDetector.SAMPLE_RATE)
@@ -99,7 +101,7 @@ class VoiceSessionManager(
     }
 
     /** TTS 模式分支：云端按配置厂商分发（返裸 PCM），平台走 TtsClient。 */
-    private fun synthesizeAny(text: String): TtsClient.Result {
+    private fun synthesizeAny(text: String): TtsContract.Result {
         val ctx = appContext ?: return tts.synthesize(text)
         if (!NetConfig.ttsIsCloud(ctx)) return tts.synthesize(text)
         return CloudClientFactory.ttsSynthesize(ctx, text)
@@ -911,7 +913,7 @@ class VoiceSessionManager(
         val asrStart = System.currentTimeMillis()
         // 1. ASR（VAD 截尾后干净语音，16k PCM 包 WAV 头）
         val userText = when (val r = transcribeAny(pcm)) {
-            is AsrClient.Result.Error -> {
+            is AsrContract.Result.Error -> {
                 logger("pipeline abort at ASR: ${r.message}")
                 // 封轮（cancel 先于 ASR 返回）：静默落地，错误泡/状态行都属幽灵输出
                 if (turn.sealed || currentTurn !== turn) return
@@ -935,7 +937,7 @@ class VoiceSessionManager(
                 backToIdle("asr failed")
                 return
             }
-            is AsrClient.Result.Success -> r.text
+            is AsrContract.Result.Success -> r.text
         }
         logger("ASR text: $userText")
         // 2. 唤醒词前缀兜底剥除；纯标点/空前缀不送对话（坑 #21）
@@ -1145,8 +1147,8 @@ class VoiceSessionManager(
                         continue
                     }
                     when (val r = synthesizeAny(clean)) {
-                        is TtsClient.Result.Audio -> audioQueue.send(r.pcm) // 队满背压，天然限速
-                        is TtsClient.Result.Error ->
+                        is TtsContract.Result.Audio -> audioQueue.send(r.pcm) // 队满背压，天然限速
+                        is TtsContract.Result.Error ->
                             logger("TTS 单句失败，降级跳过播放（气泡文字不受影响）: ${r.message}")
                     }
                 }

@@ -1,5 +1,6 @@
 package com.xiaoduo.deskpet.chat
 
+import com.xiaoduo.deskpet.api.ChatMessage
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
 

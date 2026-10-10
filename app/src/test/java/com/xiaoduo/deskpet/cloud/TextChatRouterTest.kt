@@ -1,7 +1,7 @@
 package com.xiaoduo.deskpet.cloud
 
 import com.xiaoduo.deskpet.agui.AguiClient
-import com.xiaoduo.deskpet.chat.ChatMessage
+import com.xiaoduo.deskpet.api.ChatMessage
 import okhttp3.OkHttpClient
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer

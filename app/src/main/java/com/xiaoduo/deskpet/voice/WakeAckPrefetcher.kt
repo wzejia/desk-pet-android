@@ -4,7 +4,7 @@ import android.content.Context
 import com.xiaoduo.deskpet.cloud.CloudClientFactory
 import com.xiaoduo.deskpet.net.TtsVoiceDefaults
 import com.xiaoduo.deskpet.util.PetLogger
-import com.xiaoduo.deskpet.voice.TtsClient.Result
+import com.xiaoduo.deskpet.api.TtsContract.Result
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**

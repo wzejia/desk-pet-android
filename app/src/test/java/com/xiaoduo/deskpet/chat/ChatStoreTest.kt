@@ -1,5 +1,6 @@
 package com.xiaoduo.deskpet.chat
 
+import com.xiaoduo.deskpet.api.ChatMessage
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull

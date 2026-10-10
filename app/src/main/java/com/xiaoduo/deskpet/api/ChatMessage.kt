@@ -1,8 +1,8 @@
-package com.xiaoduo.deskpet.chat
+package com.xiaoduo.deskpet.api
 
 /**
  * 聊天消息（spec 数据模型表）：单条流水，status 驱动 UI 反馈（R1）。
- * 纯 Kotlin 零 Android import（spec 领域层铁律），序列化见 [ChatHistoryCodec]。
+ * 纯 Kotlin 零 Android import（spec 领域层铁律），序列化见 chat 包 ChatHistoryCodec；chat 不再是唯一消费者，cloud/TextChatRouter 亦消费本类型。
  */
 data class ChatMessage(
     val id: String,

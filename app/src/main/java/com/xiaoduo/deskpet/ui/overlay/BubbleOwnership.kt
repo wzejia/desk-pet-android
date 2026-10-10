@@ -1,7 +1,6 @@
 package com.xiaoduo.deskpet.ui.overlay
 
-/** 气泡通道所有者：文字（S2 聊天）/ 语音（S4 会话）/ 调试（DebugBubbleReceiver）。 */
-enum class BubbleOwner { CHAT, VOICE, DEBUG }
+import com.xiaoduo.deskpet.api.BubbleOwner
 
 /**
  * 气泡所有权判定（纯逻辑，零 Android import；PetOverlayService 只做接线）。

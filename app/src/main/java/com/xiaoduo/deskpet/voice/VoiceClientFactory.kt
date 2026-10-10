@@ -10,7 +10,7 @@ import com.xiaoduo.deskpet.agui.AguiClientFactory
 import com.xiaoduo.deskpet.net.HttpClients
 import com.xiaoduo.deskpet.net.NetConfig
 import com.xiaoduo.deskpet.net.NetEndpoints
-import com.xiaoduo.deskpet.ui.overlay.BubbleOwner
+import com.xiaoduo.deskpet.api.BubbleOwner
 import com.xiaoduo.deskpet.util.PetLogger
 import com.xiaoduo.deskpet.util.Prefs
 import kotlinx.coroutines.CoroutineScope

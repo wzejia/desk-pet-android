@@ -1,5 +1,6 @@
 package com.xiaoduo.deskpet.voice
 
+import com.xiaoduo.deskpet.api.TtsContract
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -51,7 +52,7 @@ class WakeAckPrefetcherTest {
         var synthCalled = false
         WakeAckPrefetcher.runWith(
             resolver,
-            synth = { synthCalled = true; TtsClient.Result.Audio(pcm) },
+            synth = { synthCalled = true; TtsContract.Result.Audio(pcm) },
             backoff = backoff,
             log = { },
         )
@@ -81,7 +82,7 @@ class WakeAckPrefetcherTest {
         val resolver = newResolver { snap }
         WakeAckPrefetcher.runWith(
             resolver,
-            synth = { TtsClient.Result.Audio(pcm) },
+            synth = { TtsContract.Result.Audio(pcm) },
             backoff = backoff,
             log = { },
         )
@@ -100,7 +101,7 @@ class WakeAckPrefetcherTest {
         var synthCalled = false
         WakeAckPrefetcher.runWith(
             resolver,
-            synth = { synthCalled = true; TtsClient.Result.Audio(pcm) },
+            synth = { synthCalled = true; TtsContract.Result.Audio(pcm) },
             backoff = backoff,
             log = { },
         )

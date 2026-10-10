@@ -1,5 +1,6 @@
 package com.xiaoduo.deskpet.chat
 
+import com.xiaoduo.deskpet.api.ChatMessage
 import android.content.Context
 import com.xiaoduo.deskpet.util.PetLogger
 import java.io.File

@@ -1,5 +1,6 @@
 package com.xiaoduo.deskpet.voice
 
+import com.xiaoduo.deskpet.api.AsrContract
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.MultipartBody
 import okhttp3.OkHttpClient
@@ -22,23 +23,15 @@ class AsrClient(
     private val logger: (String) -> Unit = {},
 ) {
 
-    sealed interface Result {
-        /** 成功：strip 后的识别文本。 */
-        data class Success(val text: String) : Result
-
-        /** 失败：message 透传真实原因（平台 msg / 网络异常）。 */
-        data class Error(val message: String) : Result
-    }
-
     /**
      * 整段 16kHz/Int16/mono PCM 一次无状态转写（VAD 判停后送，不含尾部静音防幻觉 #14）。
      */
-    fun transcribe(pcm16k: ByteArray): Result {
+    fun transcribe(pcm16k: ByteArray): AsrContract.Result {
         val wav = WavCodec.pcmToWav(pcm16k, VadDetector.SAMPLE_RATE)
         val body = MultipartBody.Builder()
             .setType(MultipartBody.FORM)
             .addFormDataPart("file", "utterance.wav", wav.toRequestBody(WAV_MIME))
-            .addFormDataPart("language", LANGUAGE_ZH) // #13：auto 会把中文误判韩文/英文
+            .addFormDataPart("language", AsrContract.LANGUAGE_ZH) // #13：auto 会把中文误判韩文/英文
             .addFormDataPart("serviceName", SERVICE_NAME)
             .build()
         val req = Request.Builder().url(endpoint).post(body).build()
@@ -71,12 +64,12 @@ class AsrClient(
             return fail("ASR 返回空文本（无语音或全噪声）")
         }
         logger("asr ok, text=${text.length} chars")
-        return Result.Success(text)
+        return AsrContract.Result.Success(text)
     }
 
-    private fun fail(msg: String): Result {
+    private fun fail(msg: String): AsrContract.Result {
         logger(msg)
-        return Result.Error(msg)
+        return AsrContract.Result.Error(msg)
     }
 
     private fun envelopeMsg(body: String): String =
@@ -85,7 +78,6 @@ class AsrClient(
             ?: body.take(120)
 
     companion object {
-        const val LANGUAGE_ZH = "zh"
         const val SERVICE_NAME = "sensevoice"
         const val TIMEOUT_S = 30L
         private val WAV_MIME = "audio/wav".toMediaType()
