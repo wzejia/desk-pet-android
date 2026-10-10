@@ -69,32 +69,33 @@ object VoiceClientFactory {
      * 气泡出口 → S3 PetOverlayService 服务级 API（overlay 未运行时 no-op）。
      * round/owner 令牌（backlog #4）：每次 show 认领新语音 round（接管气泡），
      * 后续 append/hide 带同一 round；被文字轮接管后本 round 调用自动失效（服务侧丢弃+日志）。
+     * ocr[49]：claim 经 [voiceRounds] 原子化（原 @Volatile voiceRound 裸读写）。
      */
     private object OverlayBubbleSink : VoiceSessionManager.BubbleSink {
         override fun show(text: String) {
             val svc = PetOverlayService.instance ?: return
-            voiceRound = svc.showBubble(BubbleOwner.VOICE, text)
+            voiceRounds.claim { svc.showBubble(BubbleOwner.VOICE, text) }
         }
         override fun append(delta: String) {
-            PetOverlayService.instance?.appendBubble(BubbleOwner.VOICE, voiceRound, delta)
+            PetOverlayService.instance?.appendBubble(BubbleOwner.VOICE, voiceRounds.current(), delta)
         }
         override fun hide() {
-            PetOverlayService.instance?.hideBubble(BubbleOwner.VOICE, voiceRound)
+            PetOverlayService.instance?.hideBubble(BubbleOwner.VOICE, voiceRounds.current())
         }
         override fun hideLater(delayMs: Long) {
-            PetOverlayService.instance?.hideBubbleLater(BubbleOwner.VOICE, voiceRound, delayMs)
+            PetOverlayService.instance?.hideBubbleLater(BubbleOwner.VOICE, voiceRounds.current(), delayMs)
         }
     }
 
     /**
      * S49 指示层出口 → PetOverlayService 服务级 API（overlay 未运行时 no-op）。
-     * 与 OverlayBubbleSink 共用 voiceRound 登记：指示泡 show 认领的新 round 同样是
+     * 与 OverlayBubbleSink 共用 [voiceRounds] 登记：指示泡 show 认领的新 round 同样是
      * 后续回复 delta append 的令牌基础（原「在听…」文字泡同款接管语义）。
      */
     private object OverlayIndicatorSink : VoiceSessionManager.IndicatorSink {
         override fun show(mode: VoiceSessionManager.IndicatorMode) {
             val svc = PetOverlayService.instance ?: return
-            voiceRound = svc.showVoiceIndicator(mode)
+            voiceRounds.claim { svc.showVoiceIndicator(mode) }
         }
         override fun onLevel(rms: Float) {
             PetOverlayService.instance?.updateVoiceIndicatorLevel(rms)
@@ -103,6 +104,9 @@ object VoiceClientFactory {
             PetOverlayService.instance?.hideVoiceIndicator()
         }
     }
+
+    /** ocr[49]：两 sink 共用的 round 登记（claim 原子化，替换原 @Volatile voiceRound 裸读写）。 */
+    private val voiceRounds = VoiceRoundRegistry()
 
     /**
      * 进程级协程作用域（ocr[53]/thread-discipline 件 3 定案：自 session() 内联 hoist 为
@@ -133,10 +137,6 @@ object VoiceClientFactory {
      *  生产代码只经 [session] 装配读写）。 */
     @Volatile
     internal var session: VoiceSessionManager? = null
-
-    /** S49 语音侧 round 登记处（文字泡/指示泡共用：谁 show 谁接管，append/hide 带同一 round）。 */
-    @Volatile
-    private var voiceRound = 0
 
     /** 唤醒应答解析器进程内单例（S9-3：memo 挂实例上，跨唤醒复用；播放热路径共用）。 */
     @Volatile
