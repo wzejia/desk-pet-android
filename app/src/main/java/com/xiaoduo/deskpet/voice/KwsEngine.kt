@@ -6,6 +6,7 @@ import com.k2fsa.sherpa.onnx.KeywordSpotter
 import com.k2fsa.sherpa.onnx.KeywordSpotterConfig
 import com.k2fsa.sherpa.onnx.OnlineModelConfig
 import com.k2fsa.sherpa.onnx.OnlineStream
+import com.xiaoduo.deskpet.voice.audio.AudioCapture
 import com.k2fsa.sherpa.onnx.OnlineTransducerModelConfig
 import com.xiaoduo.deskpet.util.PetLogger
 

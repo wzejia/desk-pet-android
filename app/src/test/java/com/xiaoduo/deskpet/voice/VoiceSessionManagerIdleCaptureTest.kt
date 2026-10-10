@@ -1,5 +1,8 @@
 package com.xiaoduo.deskpet.voice
 
+import com.xiaoduo.deskpet.voice.audio.AudioCapture
+import com.xiaoduo.deskpet.voice.client.AsrClient
+import com.xiaoduo.deskpet.voice.client.TtsClient
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers

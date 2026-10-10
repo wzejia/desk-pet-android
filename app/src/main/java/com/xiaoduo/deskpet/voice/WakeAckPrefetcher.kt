@@ -5,6 +5,7 @@ import com.xiaoduo.deskpet.cloud.CloudClientFactory
 import com.xiaoduo.deskpet.net.TtsVoiceDefaults
 import com.xiaoduo.deskpet.util.PetLogger
 import com.xiaoduo.deskpet.api.TtsContract.Result
+import com.xiaoduo.deskpet.voice.audio.WavCodec
 import com.xiaoduo.deskpet.voice.policy.PrefetchBackoff
 import java.util.concurrent.atomic.AtomicBoolean
 

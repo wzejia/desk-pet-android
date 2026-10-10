@@ -1,11 +1,15 @@
-package com.xiaoduo.deskpet.voice
+package com.xiaoduo.deskpet.voice.audio
 
 import android.annotation.SuppressLint
 import android.media.AudioFormat
 import android.media.AudioRecord
 import android.media.AudioTimestamp
 import android.media.MediaRecorder
+import com.xiaoduo.deskpet.VoiceForegroundService
 import com.xiaoduo.deskpet.util.PetLogger
+import com.xiaoduo.deskpet.voice.AudioProbe
+import com.xiaoduo.deskpet.voice.EnergyGate
+import com.xiaoduo.deskpet.voice.KwsCore
 import com.xiaoduo.deskpet.voice.seam.StampedBlock
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.CoroutineScope

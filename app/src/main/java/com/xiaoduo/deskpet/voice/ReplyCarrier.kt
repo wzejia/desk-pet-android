@@ -1,5 +1,7 @@
 package com.xiaoduo.deskpet.voice
 
+import com.xiaoduo.deskpet.voice.audio.VoicePlayer
+
 /**
  * 回复载体路由（S7-d 全屏语音模式，纯 Kotlin 零 Android import，JVM 可测）：
  * 语音轮回复按「当前活跃载体」分发——悬浮窗＝气泡文字（不变），全屏＝无文字

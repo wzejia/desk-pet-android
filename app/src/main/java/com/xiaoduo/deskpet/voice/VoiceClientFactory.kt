@@ -13,6 +13,9 @@ import com.xiaoduo.deskpet.net.NetEndpoints
 import com.xiaoduo.deskpet.api.BubbleOwner
 import com.xiaoduo.deskpet.util.PetLogger
 import com.xiaoduo.deskpet.util.Prefs
+import com.xiaoduo.deskpet.voice.audio.AudioCapture
+import com.xiaoduo.deskpet.voice.client.AsrClient
+import com.xiaoduo.deskpet.voice.client.TtsClient
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob

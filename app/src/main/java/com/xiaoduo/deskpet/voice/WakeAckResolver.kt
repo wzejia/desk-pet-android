@@ -4,6 +4,7 @@ import android.content.Context
 import com.xiaoduo.deskpet.net.NetConfig
 import com.xiaoduo.deskpet.net.TtsVoiceDefaults
 import com.xiaoduo.deskpet.util.PetLogger
+import com.xiaoduo.deskpet.voice.audio.WavCodec
 import java.io.File
 import java.util.concurrent.ConcurrentHashMap
 

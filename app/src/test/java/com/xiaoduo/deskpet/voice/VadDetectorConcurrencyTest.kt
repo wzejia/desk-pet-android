@@ -1,5 +1,6 @@
 package com.xiaoduo.deskpet.voice
 
+import com.xiaoduo.deskpet.voice.audio.VadDetector
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.util.concurrent.CopyOnWriteArrayList

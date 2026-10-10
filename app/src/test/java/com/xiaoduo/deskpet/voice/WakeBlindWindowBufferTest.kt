@@ -1,5 +1,6 @@
 package com.xiaoduo.deskpet.voice
 
+import com.xiaoduo.deskpet.voice.audio.AudioCapture
 import com.xiaoduo.deskpet.voice.seam.WakeBlindWindowBuffer
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue

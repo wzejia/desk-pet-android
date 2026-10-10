@@ -1,6 +1,8 @@
-package com.xiaoduo.deskpet.voice
+package com.xiaoduo.deskpet.voice.client
 
 import com.xiaoduo.deskpet.api.AsrContract
+import com.xiaoduo.deskpet.voice.audio.VadDetector
+import com.xiaoduo.deskpet.voice.audio.WavCodec
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.MultipartBody
 import okhttp3.OkHttpClient

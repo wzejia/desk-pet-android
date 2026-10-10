@@ -1,5 +1,7 @@
 package com.xiaoduo.deskpet.voice.seam
 
+import com.xiaoduo.deskpet.voice.audio.AudioCapture
+
 /**
  * 带采集时间戳的采麦块（S40）：时间戳在 producer（AudioCapture 读循环）侧盖戳，随块
  * 过 SharedFlow 队列——消费侧停顿恢复后仍可判定块的时代（捕获早于/晚于唤醒接缝水位），

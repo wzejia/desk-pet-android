@@ -1,5 +1,9 @@
 package com.xiaoduo.deskpet.voice
 
+import com.xiaoduo.deskpet.voice.audio.AudioCapture
+import com.xiaoduo.deskpet.voice.audio.VadDetector
+import com.xiaoduo.deskpet.voice.client.AsrClient
+import com.xiaoduo.deskpet.voice.client.TtsClient
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob

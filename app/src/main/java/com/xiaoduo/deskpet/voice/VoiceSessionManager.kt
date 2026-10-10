@@ -16,6 +16,13 @@ import com.xiaoduo.deskpet.cloud.OpenAITtsClient
 import com.xiaoduo.deskpet.net.NetConfig
 import com.xiaoduo.deskpet.pet.PetFrameTable
 import com.xiaoduo.deskpet.util.PetLogger
+import com.xiaoduo.deskpet.voice.audio.AudioCapture
+import com.xiaoduo.deskpet.voice.audio.NlmsEchoCanceller
+import com.xiaoduo.deskpet.voice.audio.VadDetector
+import com.xiaoduo.deskpet.voice.audio.VoicePlayer
+import com.xiaoduo.deskpet.voice.audio.WavCodec
+import com.xiaoduo.deskpet.voice.client.AsrClient
+import com.xiaoduo.deskpet.voice.client.TtsClient
 import com.xiaoduo.deskpet.voice.policy.BubbleHidePolicy
 import com.xiaoduo.deskpet.voice.policy.ListeningHintPolicy
 import com.xiaoduo.deskpet.voice.seam.StampedBlock

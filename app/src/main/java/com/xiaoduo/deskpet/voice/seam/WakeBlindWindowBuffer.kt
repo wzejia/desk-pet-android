@@ -1,6 +1,6 @@
 package com.xiaoduo.deskpet.voice.seam
 
-import com.xiaoduo.deskpet.voice.AudioCapture
+import com.xiaoduo.deskpet.voice.audio.AudioCapture
 import com.xiaoduo.deskpet.voice.VoiceSessionManager
 
 /**

@@ -1,6 +1,7 @@
 package com.xiaoduo.deskpet.voice
 
 import com.xiaoduo.deskpet.net.TtsVoiceDefaults
+import com.xiaoduo.deskpet.voice.audio.WavCodec
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull

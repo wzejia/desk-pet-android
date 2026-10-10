@@ -1,4 +1,4 @@
-package com.xiaoduo.deskpet.voice
+package com.xiaoduo.deskpet.voice.audio
 
 /**
  * WAV 头封装/剥离（纯逻辑，JVM 可测）。

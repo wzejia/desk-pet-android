@@ -1,5 +1,6 @@
-package com.xiaoduo.deskpet.voice
+package com.xiaoduo.deskpet.voice.audio
 
+import com.xiaoduo.deskpet.voice.EnergyGate
 import kotlin.math.abs
 import kotlin.math.min
 

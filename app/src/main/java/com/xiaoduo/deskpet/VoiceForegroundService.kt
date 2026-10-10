@@ -20,8 +20,8 @@ import com.xiaoduo.deskpet.util.Prefs
 import com.xiaoduo.deskpet.voice.KwsEngine
 import com.xiaoduo.deskpet.voice.KwsDefaults
 import com.xiaoduo.deskpet.voice.VoiceStateRouter
-import com.xiaoduo.deskpet.voice.OnceGate
-import com.xiaoduo.deskpet.voice.AmbientCalibrator
+import com.xiaoduo.deskpet.voice.audio.OnceGate
+import com.xiaoduo.deskpet.voice.audio.AmbientCalibrator
 import com.xiaoduo.deskpet.voice.VoiceClientFactory
 
 /**
