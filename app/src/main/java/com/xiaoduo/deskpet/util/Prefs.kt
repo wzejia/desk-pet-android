@@ -229,7 +229,7 @@ object Prefs {
     /** S26：设备技能地址（整理台+净化柜一体机）。空串=禁用设备技能。 */
     const val KEY_DEVICE_BASE_URL = PrefContract.KEY_DEVICE_BASE_URL
 
-    const val DEFAULT_DEVICE_BASE_URL = "http://10.0.18.47:8080"
+    const val DEFAULT_DEVICE_BASE_URL = PrefContract.DEFAULT_DEVICE_BASE_URL // 单源收敛（T4 收尾）
 
     fun deviceBaseUrl(context: Context): String =
         sp(context).getString(KEY_DEVICE_BASE_URL, DEFAULT_DEVICE_BASE_URL).orEmpty()
