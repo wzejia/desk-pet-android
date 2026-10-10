@@ -5,6 +5,7 @@ import com.xiaoduo.deskpet.device.DeviceIntentMatcher
 import com.xiaoduo.deskpet.device.ShelfMcpBridge
 import com.xiaoduo.deskpet.device.ShelfNavIntentMatcher
 import android.content.Context
+import androidx.annotation.VisibleForTesting
 import com.xiaoduo.deskpet.PetOverlayService
 import com.xiaoduo.deskpet.agui.AguiClientFactory
 import com.xiaoduo.deskpet.net.HttpClients
@@ -22,6 +23,7 @@ import com.xiaoduo.deskpet.voice.wakeack.WakeAckResolver
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 
 /**
  * 语音链路 Android 装配层（IO 胶水，不放协议逻辑）：
@@ -102,8 +104,35 @@ object VoiceClientFactory {
         }
     }
 
+    /**
+     * 进程级协程作用域（ocr[53]/thread-discipline 件 3 定案：自 session() 内联 hoist 为
+     * 命名属性 + 显式契约）。
+     *
+     * 契约：与 [session] 单例同生命周期——进程内只此一份、生产路径**永不 cancel**、
+     * 不暴露生产 teardown 路径（session 单例永不重建是显式前提：VSM 持有的
+     * AudioCapture/播放器资源由该 scope 承载）。唯一重建入口 = [resetForTest]（测试专用）。
+     */
     @Volatile
-    private var session: VoiceSessionManager? = null
+    internal var processScope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+        private set
+
+    /**
+     * 件 3 测试专用 reset（生产禁调）：cancel 旧 scope（其上 VSM 协程全量拆解）+
+     * session 单例失效（下次 [session] 调用走 DCL 重建新实例、挂新 scope）+ 重建空 scope。
+     * 变异锚：漏 cancel 旧 scope → VoiceClientFactoryProcessScopeTest 用例 1 红。
+     */
+    @VisibleForTesting
+    internal fun resetForTest() {
+        val old = processScope
+        old.cancel()
+        session = null
+        processScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    }
+
+    /** 进程内 VoiceSessionManager 单例。internal var = 件 3 测试缝（seed/失效断言用；
+     *  生产代码只经 [session] 装配读写）。 */
+    @Volatile
+    internal var session: VoiceSessionManager? = null
 
     /** S49 语音侧 round 登记处（文字泡/指示泡共用：谁 show 谁接管，append/hide 带同一 round）。 */
     @Volatile
@@ -149,7 +178,7 @@ object VoiceClientFactory {
                         if (replyCarrier == ReplyCarrier.OVERLAY) OverlayIndicatorSink.hide()
                     }
                 },
-                scope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
+                scope = processScope,
                 wakeAck = wakeAck(app),
                 // S18：VAD 阈值校准联动（每块现读，校准写入即时生效）
                 vadSpeechLevel = { Prefs.vadSpeechLevel(app) },
