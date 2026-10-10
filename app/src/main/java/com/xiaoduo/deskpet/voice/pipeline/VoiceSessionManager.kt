@@ -570,6 +570,7 @@ class VoiceSessionManager(
                 wozaiJob?.cancel()
                 wakeAck?.stop()
                 currentPlayer?.stop()
+                asr.cancelInFlight() // §5.4：封轮同步取消在途识别（阻塞 execute 立即解脱；无在途 no-op）
                 pipelineJob?.cancel()
                 bubble.hide()
                 _wakeAckActive.value = false // S8-7：唤醒被打断复位，防下次 SPEAKING 漏 TALKING
