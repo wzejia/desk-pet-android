@@ -4,10 +4,10 @@ import android.content.Context
 import com.xiaoduo.deskpet.PetOverlayService
 import com.xiaoduo.deskpet.agui.AguiClient
 import com.xiaoduo.deskpet.agui.AguiSseConsumer
-import com.xiaoduo.deskpet.device.DeviceClient
-import com.xiaoduo.deskpet.device.DeviceIntentMatcher
 import com.xiaoduo.deskpet.api.AsrContract
 import com.xiaoduo.deskpet.api.TtsContract
+import com.xiaoduo.deskpet.device.DeviceClient
+import com.xiaoduo.deskpet.device.DeviceIntentMatcher
 import com.xiaoduo.deskpet.cloud.CloudClientFactory
 import com.xiaoduo.deskpet.cloud.Message
 import com.xiaoduo.deskpet.cloud.OpenAIAsrClient

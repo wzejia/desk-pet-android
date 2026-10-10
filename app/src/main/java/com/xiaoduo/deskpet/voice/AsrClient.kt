@@ -1,5 +1,6 @@
 package com.xiaoduo.deskpet.voice
 
+import com.xiaoduo.deskpet.api.AsrContract
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.MultipartBody
 import okhttp3.OkHttpClient
@@ -7,7 +8,6 @@ import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONObject
 import java.io.IOException
-import com.xiaoduo.deskpet.api.AsrContract
 import java.util.concurrent.TimeUnit
 
 /**
