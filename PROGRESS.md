@@ -9,10 +9,10 @@
 - **Phase 3 ✅**（705dce5，五维 P3 择优并行完毕，761→**857 绿**）：**切票编排**=T1 voice 健壮性 18 条（kws decode 族 7/VoicePlayer 6/AmbientCalibrator 4/WavCodec 1，变异锚 ×18 全红）+ T2 VSM 拆分×2（ContinuationWindow/BlindWindowBackfiller，既有测试零改动）+AsrClient 可取消+Factory/policy 纪律 + T3 ui 性能三簇（Markdown 列宽缓存/PetView 静止省绘/Settings 开关无状态化）+ T4 SEC-3 透明迁移（security-crypto 1.1.0）+PrefContract 键集对账+PetLogger 异步落盘 + T5 重复簇 5 处对齐+死代码 2 处；**主对话串行**=root 两件（WakeEntryGate 消解 onWake TOCTOU + KwsBootstrap 裸 Thread→scope）+ P3-2 静默降级（createSession 可空化+六点接线）+ ocr[382] 双开麦互斥 + WAV 族 cloud 侧 + 常量单源收敛；**opus 独立评审可合入**（锚 5/5、行为抽查 6/6、变异 3/3 真红），唯一 P2（SEC-3 remove 复活）已修。附录 B 4 项全部落地：SEC-1 维持 / SEC-2 关闭（405 实测）/ SEC-3 施工 / P3-2 施工。
 - **部署批 ✅ 步骤 A 换包**（2026-10-11，用户授权）：生产板已上 main 版（APK md5 `e646b5f3`，回灌法 151/151 + 起活健康全绿 + SEC-3 双 secure 库落地；回滚保险 `.scratch/prod-deskpet-data-backup-20261011/`，详情 DEV_LOG 2026-10-11（二））。
 - **挂账（部署批剩余；现场项待另约）**：①语义三链路取证（spec §2）→ §5.4 指标复测不回退判定（空闲/KWS adb 自动；播报中三态+唤醒→应答音现场项喊话即采）；②OverlayBubbleHub P2 票（拆分+真机气泡/双击回归）；③真机 Keystore 跨重启读回验证（SEC-3，写路径已实证）；④ocr[394] 原子化 gate（wakeack 小票）。
-- 单测基线：761 → 现 **857**。验证必带 JDK PATH 前缀 + `--rerun-tasks`（不带会假绿）。
+- **下一 Phase：Phase 4 module 化门槛评审 ✅（2026-10-11）——本周期否决切换**（门槛 1 时钟 1/14 天，复评 ≥**2026-10-24**）；报告 `docs/audit/2026-10-11-phase4-gate-review/`；前置清单=①net BuildConfig 注入 ②3 测试归位 ③（可选）hub 接口化（面已清点 ~20 成员）。
+- 单测基线：761 → 现 **859**（+2 PrefetchSingleFlightTest，ocr[394] 收口）。验证必带 JDK PATH 前缀 + `--rerun-tasks`（不带会假绿）。
 - 依赖锚现行值：包级环 0 / root-hub 例外边 8（chat1/ui5/voice2）/ buildgen 1——复扫命令 `MSYS2_ARG_CONV_EXCL="*" python "E:/desk-pet-android/.scratch/dep-analysis-20261010.py"`。
-- 下一 Phase：**Phase 4 module 化门槛评审**（spec §6/§4.4：net 的 BuildConfig 边须先改注入；门槛 4 条全过才切，否决即停）。
-- 历史：Phase 0-2 详情见 git log 与 DEV_LOG 2026-10-10 条目。
+- **下一 Phase**：Phase 4 已评审（见上），复评时点 2026-10-24 后；历史：Phase 0-2 详情见 git log 与 DEV_LOG 2026-10-10 条目。
 
 ## 状态：入口功能——密集架基础设置直拉悬浮窗 + 菜单删「打开 App」 ✅（2026-10-09，755 绿，已推送）
 
