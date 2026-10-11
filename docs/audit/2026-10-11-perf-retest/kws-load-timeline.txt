@@ -1,0 +1,26 @@
+t=1x3s board=23:37:11  Native Heap: 1464 2756 
+t=2x3s board=23:37:15  Native Heap: 4436 5388 
+t=3x3s board=23:37:18  Native Heap: 5608 6428 
+t=4x3s board=23:37:22  Native Heap: 20236 21344 
+t=5x3s board=23:37:25  Native Heap: 63700 64780 
+t=6x3s board=23:37:29  Native Heap: 70676 71756 
+t=7x3s board=23:37:32  Native Heap: 86036 87116 
+t=8x3s board=23:37:36  Native Heap: 90256 91336 
+t=9x3s board=23:37:39  Native Heap: 83580 84656 
+t=10x3s board=23:37:43  Native Heap: 86116 87192 
+t=11x3s board=23:37:46  Native Heap: 86028 87104 
+t=12x3s board=23:37:50  Native Heap: 85928 87004 
+t=13x3s board=23:37:54  Native Heap: 85900 86976 
+t=14x3s board=23:37:57  Native Heap: 86020 87084 
+t=15x3s board=23:38:01  Native Heap: 86272 87336 
+t=16x3s board=23:38:04  Native Heap: 86036 87100 
+t=17x3s board=23:38:08  Native Heap: 86076 87140 
+t=18x3s board=23:38:11  Native Heap: 86060 87124 
+t=19x3s board=23:38:15  Native Heap: 86036 87100 
+t=20x3s board=23:38:19  Native Heap: 86124 87188 
+t=21x3s board=23:38:23  Native Heap: 86108 87172 
+t=22x3s board=23:38:26  Native Heap: 85992 87056 
+2026-10-11 23:37:23.533  7803  8658 W sherpa-onnx: /home/runner/work/sherpa-onnx/sherpa-onnx/sherpa-onnx/jni/keyword-spotter.cc:Java_com_k2fsa_sherpa_onnx_KeywordSpotter_newFromAsset:93
+2026-10-11 23:37:23.739  7803  7803 I PetOverlay: overlay first-frame drawn
+2026-10-11 23:37:31.824  7803  8658 W sherpa-onnx: /home/runner/work/sherpa-onnx/sherpa-onnx/sherpa-onnx/jni/keyword-spotter.cc:Java_com_k2fsa_sherpa_onnx_KeywordSpotter_newFromAsset:93
+2026-10-11 23:37:39.720  7803  8658 I VoiceFgService: always-on KWS started (shadow=true), gate=0.015
