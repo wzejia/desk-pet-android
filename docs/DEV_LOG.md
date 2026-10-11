@@ -1,6 +1,33 @@
 # 小朵 Android 开发日志
 
 
+## 2026-10-11（六）用户拍板：优化不做了，生产板回滚 refactor/p0（main 版下板）
+
+**决策**：用户审阅归因分析后拍板——优化不施工、**生产板改回换包前版本**（refactor/p0 @
+19ea825，APK `5a0103eb`）。main 分支代码与 859 绿基线原样保留，随时可再部署。
+
+**回滚流程**（本日（二）换包的逆操作，全流程零新坑）：快照当前 main 态数据（153 文件含
+2 个 secure 库，tar 679KB → `.scratch/prod-deskpet-data-backup-20261011-rollback-snapshot/`，
+今日 3 个变动会话文件在其中可追）→ 卸载 main → 装回 p0 APK（装前 md5 复核 `5a0103eb`）→
+push 晨间 backup.tar（md5 对上）→ run-as tar xf 回灌 → **复验 151/151 全等** → 起活。
+
+**起活健康全绿**：无 FATAL；149 sessions 恢复；双窗+first-frame 锚；always-on KWS
+（shadow=true, gate=0.015）+ 采麦 source=7；shared_prefs 恰 3 个 legacy（secure 库随卸载清除，
+零残留）。顺带观察：p0 本轮冷启动首帧 334ms（added→drawn），与 main 复测中位 296 同量级——
+佐证复测的 +20ms 主要是板况噪声而非 main 回退（单样本，仅记录不定案）。
+
+**状态影响**：部署批剩余真机项（三链路取证/Keystore 跨重启/OverlayBubbleHub 真机回归）随
+main 下板**作废挂起**；优化菜单（影子引擎 −15MB / R8 −20~30MB）文档留存
+`docs/audit/2026-10-11-perf-retest/optimization-analysis.md` 待未来重启。板上版本口径回到
+spec §2 基线态（空闲 219.2 / KWS 221.2）。
+
+```evidence
+verify_cmd: 回灌复验 diff 晨间 manifest（151/151 全等）+ logcat 健康锚（无 FATAL/session restored/dual windows/capture start）
+verify_claim: 板上 com.xiaoduo.deskpet=refactor/p0（5a0103eb），prefs 3 legacy 零残留，进程健康
+files_touched: [docs/DEV_LOG.md, PROGRESS.md]
+```
+
+
 ## 2026-10-11（五）部署批 §5.4 自动项复测：TOTAL 改善 / NH 台阶 +1.7⚠ / 首帧中位 +20ms⚠（均待定性）
 
 **口径**：生产板 main 版（e646b5f3），协议同 Phase 0；**NH 同列纠正**（App Summary RSS 位，
