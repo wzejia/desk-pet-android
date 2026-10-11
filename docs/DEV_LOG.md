@@ -1,6 +1,36 @@
 # 小朵 Android 开发日志
 
 
+## 2026-10-11（四）Phase 4 module 化门槛评审：本周期否决切换（门槛 1 时钟 1/14 天），数据做全待 10-24 复评
+
+**结论**：结构面全绿（复扫环 0/例外边 8 不增/buildgen 1），但 spec §4.4 门槛 1 的 **≥2 周无环
+回流**时钟客观未满（Phase 1 落地 10-10 → 窗口至 **2026-10-24**，评审日第 1 天）——按「全过才
+切、否决即停」**本周期不切**。报告 `docs/audit/2026-10-11-phase4-gate-review/`。
+
+**门槛 2 闭包代理**（新脚本 `.scratch/phase4-gate2-closure.py`，候选序 DAG 判定，main+test 分开
+量）：PASS=api/device/pet/agui（net 修 BuildConfig 后 PASS）；**test 放置违规 3 文件**首次量出
+（util×2→net 对账测试、cloud×1→voice、chat×1→ui，主源全净）；hub 硬阻断 8 边=8 文件
+（voice2/chat1/ui5）。
+
+**门槛 3**：工厂模式已一致（随被装配包走、调用全向下、无 kapt/ksp）——无需新决策。
+**门槛 4**：双基线建成——结构传播面（api 102/util 117/voice 89/chat 53/ui 37 文件，上界）+
+实测增量墙钟（热 daemon ABI 真变更探针：api 1.9s / voice 1.5s，即改即还原零残留）；IC 脏集
+文件数无公开读数，以两把尺同测对比为切时口径。
+
+**Hub 接口化评估**（voice/chat/ui 硬前置）：面清点完毕=instance 句柄 13+companion 4 法+VFS 2
+钩+PetOverlayState 5 成员 ≈20 成员接口，diff 中等机械；建议复评通过后随第一张切分票同刀，
+不单独预研。
+
+**前置工程清单**（复评前可做、互不阻塞）：①net BuildConfig 注入（解锁 net）；②3 测试归位
+（解锁 util/cloud/chat 闭包）；③（可选）hub 接口化（解锁 voice/chat/ui）。
+
+```evidence
+verify_cmd: MSYS2_ARG_CONV_EXCL="*" python "E:/desk-pet-android/.scratch/dep-analysis-20261010.py" && python .scratch/phase4-gate2-closure.py
+verify_claim: 环 0/例外边 8/buildgen 1 复现；闭包 PASS×4；探针即改即还原（git status 干净，859 绿基线未动）
+files_touched: [docs/audit/2026-10-11-phase4-gate-review/README.md, .scratch/phase4-gate2-closure.py]
+```
+
+
 ## 2026-10-11（三）ocr[394] wakeack 小票收口：单飞保证提为可测微类+并发变异锚（859 绿）
 
 **裁定（T2 上报两案择一，原文两可）**：PrefetchBackoff 内原子化 gate（failures.compute
