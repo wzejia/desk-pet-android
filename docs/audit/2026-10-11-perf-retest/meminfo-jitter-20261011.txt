@@ -1,0 +1,520 @@
+-- t=30s 23:10:22
+Applications Memory Usage (in Kilobytes):
+Uptime: 311523474 Realtime: 311523474
+
+** MEMINFO in pid 14628 [com.xiaoduo.deskpet] **
+                   Pss  Private  Private  SwapPss      Rss     Heap     Heap     Heap
+                 Total    Dirty    Clean    Dirty    Total     Size    Alloc     Free
+                ------   ------   ------   ------   ------   ------   ------   ------
+  Native Heap    89400    89100      264       99    90164   105744    92491     8945
+  Dalvik Heap     8140     6156     1920       55     8772    13375     6688     6687
+ Dalvik Other     6674     5188      124        0     8416                           
+        Stack     1452     1452        0        0     1460                           
+       Ashmem       20        0        0        0       44                           
+    Other dev       13        0       12        0      280                           
+     .so mmap    21794      224    17464       71    53204                           
+    .jar mmap     3116        0       44        0    27832                           
+    .apk mmap    17760      540    16492        0    41324                           
+    .ttf mmap      117        0       16        0      240                           
+    .dex mmap    59495    59472       12        0    59560                           
+    .oat mmap      126        0       40        0     2436                           
+    .art mmap     9207     7568     1252       74    17844                           
+   Other mmap     1796       32       64        0     4764                           
+      Unknown      623      568       20        4      940                           
+        TOTAL   220036   170300    37724      303   220036   119119    99179    15632
+ 
+ App Summary
+                       Pss(KB)                        Rss(KB)
+                        ------                         ------
+           Java Heap:    14976                          26616
+         Native Heap:    89100                          90164
+                Code:    94332                         187408
+               Stack:     1452                           1460
+            Graphics:        0                              0
+       Private Other:     8164
+              System:    12012
+             Unknown:                                   11632
+ 
+           TOTAL PSS:   220036            TOTAL RSS:   317280       TOTAL SWAP PSS:      303
+ 
+ Objects
+               Views:       14         ViewRootImpl:        3
+         AppContexts:        7           Activities:        1
+              Assets:        4        AssetManagers:        0
+       Local Binders:       13        Proxy Binders:       31
+       Parcel memory:        7         Parcel count:       28
+    Death Recipients:        0      OpenSSL Sockets:        0
+            WebViews:        0
+ 
+ SQL
+         MEMORY_USED:        0
+  PAGECACHE_OVERFLOW:        0          MALLOC_SIZE:        0
+ 
+-- t=60s 23:10:53
+Applications Memory Usage (in Kilobytes):
+Uptime: 311554044 Realtime: 311554044
+
+** MEMINFO in pid 14628 [com.xiaoduo.deskpet] **
+                   Pss  Private  Private  SwapPss      Rss     Heap     Heap     Heap
+                 Total    Dirty    Clean    Dirty    Total     Size    Alloc     Free
+                ------   ------   ------   ------   ------   ------   ------   ------
+  Native Heap    89392    89092      264       99    90156   105652    92170     9182
+  Dalvik Heap     9007     7052     1868       55     9668    13380     6706     6674
+ Dalvik Other     6802     5316      124        0     8544                           
+        Stack     1452     1452        0        0     1460                           
+       Ashmem       20        0        0        0       44                           
+    Other dev       13        0       12        0      280                           
+     .so mmap    21763      224    17464       71    53204                           
+    .jar mmap     3082        0       44        0    27832                           
+    .apk mmap    17758      540    16492        0    41324                           
+    .ttf mmap      117        0       16        0      240                           
+    .dex mmap    59495    59472       12        0    59560                           
+    .oat mmap      124        0       40        0     2436                           
+    .art mmap     9176     7556     1204       75    17844                           
+   Other mmap     1790       32       64        0     4764                           
+      Unknown      623      568       20        4      940                           
+        TOTAL   220918   171304    37624      304   220918   119032    98876    15856
+ 
+ App Summary
+                       Pss(KB)                        Rss(KB)
+                        ------                         ------
+           Java Heap:    15812                          27512
+         Native Heap:    89092                          90156
+                Code:    94332                         187408
+               Stack:     1452                           1460
+            Graphics:        0                              0
+       Private Other:     8240
+              System:    11990
+             Unknown:                                   11760
+ 
+           TOTAL PSS:   220918            TOTAL RSS:   318296       TOTAL SWAP PSS:      304
+ 
+ Objects
+               Views:       14         ViewRootImpl:        3
+         AppContexts:        7           Activities:        1
+              Assets:        4        AssetManagers:        0
+       Local Binders:       13        Proxy Binders:       31
+       Parcel memory:        7         Parcel count:       28
+    Death Recipients:        0      OpenSSL Sockets:        0
+            WebViews:        0
+ 
+ SQL
+         MEMORY_USED:        0
+  PAGECACHE_OVERFLOW:        0          MALLOC_SIZE:        0
+ 
+-- t=90s 23:11:23
+Applications Memory Usage (in Kilobytes):
+Uptime: 311584719 Realtime: 311584719
+
+** MEMINFO in pid 14628 [com.xiaoduo.deskpet] **
+                   Pss  Private  Private  SwapPss      Rss     Heap     Heap     Heap
+                 Total    Dirty    Clean    Dirty    Total     Size    Alloc     Free
+                ------   ------   ------   ------   ------   ------   ------   ------
+  Native Heap    89440    89140      264       94    90204   105652    92180     9172
+  Dalvik Heap     9061     7108     1864       55     9724    13382     6707     6675
+ Dalvik Other     6806     5316      124        0     8552                           
+        Stack     1452     1452        0        0     1460                           
+       Ashmem       20        0        0        0       44                           
+    Other dev       13        0       12        0      280                           
+     .so mmap    21742      224    17464       68    53204                           
+    .jar mmap     3076        0       44        0    27832                           
+    .apk mmap    17758      540    16492        0    41324                           
+    .ttf mmap      117        0       16        0      240                           
+    .dex mmap    59495    59472       12        0    59560                           
+    .oat mmap      123        0       40        0     2436                           
+    .art mmap     9171     7556     1196       75    17844                           
+   Other mmap     1790       32       64        0     4764                           
+      Unknown      623      568       20        4      940                           
+        TOTAL   220983   171408    37612      296   220983   119034    98887    15847
+ 
+ App Summary
+                       Pss(KB)                        Rss(KB)
+                        ------                         ------
+           Java Heap:    15860                          27568
+         Native Heap:    89140                          90204
+                Code:    94332                         187416
+               Stack:     1452                           1460
+            Graphics:        0                              0
+       Private Other:     8236
+              System:    11963
+             Unknown:                                   11760
+ 
+           TOTAL PSS:   220983            TOTAL RSS:   318408       TOTAL SWAP PSS:      296
+ 
+ Objects
+               Views:       14         ViewRootImpl:        3
+         AppContexts:        7           Activities:        1
+              Assets:        4        AssetManagers:        0
+       Local Binders:       13        Proxy Binders:       31
+       Parcel memory:        7         Parcel count:       29
+    Death Recipients:        0      OpenSSL Sockets:        0
+            WebViews:        0
+ 
+ SQL
+         MEMORY_USED:        0
+  PAGECACHE_OVERFLOW:        0          MALLOC_SIZE:        0
+ 
+-- t=120s 23:11:54
+Applications Memory Usage (in Kilobytes):
+Uptime: 311615478 Realtime: 311615478
+
+** MEMINFO in pid 14628 [com.xiaoduo.deskpet] **
+                   Pss  Private  Private  SwapPss      Rss     Heap     Heap     Heap
+                 Total    Dirty    Clean    Dirty    Total     Size    Alloc     Free
+                ------   ------   ------   ------   ------   ------   ------   ------
+  Native Heap    89504    89204      264       99    90268   105652    92166     9186
+  Dalvik Heap     9084     7100     1920       55     9716    13380     6706     6674
+ Dalvik Other     6810     5316      124        0     8560                           
+        Stack     1452     1452        0        0     1460                           
+       Ashmem       20        0        0        0       44                           
+    Other dev       13        0       12        0      280                           
+     .so mmap    21798      224    17464       71    53204                           
+    .jar mmap     3116        0       44        0    27832                           
+    .apk mmap    17760      540    16492        0    41324                           
+    .ttf mmap      117        0       16        0      240                           
+    .dex mmap    59495    59472       12        0    59560                           
+    .oat mmap      126        0       40        0     2436                           
+    .art mmap     9207     7568     1252       74    17844                           
+   Other mmap     1796       32       64        0     4764                           
+      Unknown      623      568       20        4      940                           
+        TOTAL   221224   171476    37724      303   221224   119032    98872    15860
+ 
+ App Summary
+                       Pss(KB)                        Rss(KB)
+                        ------                         ------
+           Java Heap:    15920                          27560
+         Native Heap:    89204                          90268
+                Code:    94332                         187424
+               Stack:     1452                           1460
+            Graphics:        0                              0
+       Private Other:     8292
+              System:    12024
+             Unknown:                                   11760
+ 
+           TOTAL PSS:   221224            TOTAL RSS:   318472       TOTAL SWAP PSS:      303
+ 
+ Objects
+               Views:       14         ViewRootImpl:        3
+         AppContexts:        7           Activities:        1
+              Assets:        4        AssetManagers:        0
+       Local Binders:       13        Proxy Binders:       31
+       Parcel memory:        7         Parcel count:       28
+    Death Recipients:        0      OpenSSL Sockets:        0
+            WebViews:        0
+ 
+ SQL
+         MEMORY_USED:        0
+  PAGECACHE_OVERFLOW:        0          MALLOC_SIZE:        0
+ 
+-- t=150s 23:12:25
+Applications Memory Usage (in Kilobytes):
+Uptime: 311646087 Realtime: 311646087
+
+** MEMINFO in pid 14628 [com.xiaoduo.deskpet] **
+                   Pss  Private  Private  SwapPss      Rss     Heap     Heap     Heap
+                 Total    Dirty    Clean    Dirty    Total     Size    Alloc     Free
+                ------   ------   ------   ------   ------   ------   ------   ------
+  Native Heap    89412    89112      264       99    90176   105652    92166     9186
+  Dalvik Heap     9104     7120     1920       55     9736    13412     6706     6706
+ Dalvik Other     6810     5316      124        0     8560                           
+        Stack     1452     1452        0        0     1460                           
+       Ashmem       20        0        0        0       44                           
+    Other dev       13        0       12        0      280                           
+     .so mmap    21760      224    17464       71    53204                           
+    .jar mmap     3125        0       44        0    27832                           
+    .apk mmap    17779      540    16492        0    41324                           
+    .ttf mmap      117        0       16        0      240                           
+    .dex mmap    59495    59472       12        0    59560                           
+    .oat mmap      127        0       40        0     2436                           
+    .art mmap     9210     7568     1252       74    17844                           
+   Other mmap     1795       32       64        0     4764                           
+      Unknown      623      568       20        4      940                           
+        TOTAL   221145   171404    37724      303   221145   119064    98872    15892
+ 
+ App Summary
+                       Pss(KB)                        Rss(KB)
+                        ------                         ------
+           Java Heap:    15940                          27580
+         Native Heap:    89112                          90176
+                Code:    94332                         187424
+               Stack:     1452                           1460
+            Graphics:        0                              0
+       Private Other:     8292
+              System:    12017
+             Unknown:                                   11760
+ 
+           TOTAL PSS:   221145            TOTAL RSS:   318400       TOTAL SWAP PSS:      303
+ 
+ Objects
+               Views:       14         ViewRootImpl:        3
+         AppContexts:        7           Activities:        1
+              Assets:        4        AssetManagers:        0
+       Local Binders:       13        Proxy Binders:       31
+       Parcel memory:        7         Parcel count:       28
+    Death Recipients:        0      OpenSSL Sockets:        0
+            WebViews:        0
+ 
+ SQL
+         MEMORY_USED:        0
+  PAGECACHE_OVERFLOW:        0          MALLOC_SIZE:        0
+ 
+-- t=180s 23:12:55
+Applications Memory Usage (in Kilobytes):
+Uptime: 311676708 Realtime: 311676708
+
+** MEMINFO in pid 14628 [com.xiaoduo.deskpet] **
+                   Pss  Private  Private  SwapPss      Rss     Heap     Heap     Heap
+                 Total    Dirty    Clean    Dirty    Total     Size    Alloc     Free
+                ------   ------   ------   ------   ------   ------   ------   ------
+  Native Heap    89480    89180      264       99    90244   105744    92662     8775
+  Dalvik Heap     9055     7076     1912       55     9692    13518     6759     6759
+ Dalvik Other     6822     5324      124        0     8576                           
+        Stack     1452     1452        0        0     1460                           
+       Ashmem       20        0        0        0       44                           
+    Other dev       13        0       12        0      280                           
+     .so mmap    21739      224    17464       71    53204                           
+    .jar mmap     3100        0       44        0    27832                           
+    .apk mmap    17758      540    16492        0    41324                           
+    .ttf mmap      117        0       16        0      240                           
+    .dex mmap    59495    59472       12        0    59560                           
+    .oat mmap      124        0       40        0     2436                           
+    .art mmap     9193     7560     1236       74    17844                           
+   Other mmap     1789       32       64        0     4764                           
+      Unknown      623      568       20        4      940                           
+        TOTAL   221083   171428    37700      303   221083   119262    99421    15534
+ 
+ App Summary
+                       Pss(KB)                        Rss(KB)
+                        ------                         ------
+           Java Heap:    15872                          27536
+         Native Heap:    89180                          90244
+                Code:    94340                         187440
+               Stack:     1452                           1460
+            Graphics:        0                              0
+       Private Other:     8284
+              System:    11955
+             Unknown:                                   11760
+ 
+           TOTAL PSS:   221083            TOTAL RSS:   318440       TOTAL SWAP PSS:      303
+ 
+ Objects
+               Views:       14         ViewRootImpl:        3
+         AppContexts:        7           Activities:        1
+              Assets:        4        AssetManagers:        0
+       Local Binders:       13        Proxy Binders:       31
+       Parcel memory:        7         Parcel count:       28
+    Death Recipients:        0      OpenSSL Sockets:        0
+            WebViews:        0
+ 
+ SQL
+         MEMORY_USED:        0
+  PAGECACHE_OVERFLOW:        0          MALLOC_SIZE:        0
+ 
+-- t=210s 23:13:26
+Applications Memory Usage (in Kilobytes):
+Uptime: 311707382 Realtime: 311707382
+
+** MEMINFO in pid 14628 [com.xiaoduo.deskpet] **
+                   Pss  Private  Private  SwapPss      Rss     Heap     Heap     Heap
+                 Total    Dirty    Clean    Dirty    Total     Size    Alloc     Free
+                ------   ------   ------   ------   ------   ------   ------   ------
+  Native Heap    89436    89136      264       99    90200   105652    92143     9209
+  Dalvik Heap     8910     6928     1916       55     9544    13241     6669     6572
+ Dalvik Other     6824     5324      120        0     8584                           
+        Stack     1452     1452        0        0     1460                           
+       Ashmem       20        0        0        0       44                           
+    Other dev       13        0       12        0      280                           
+     .so mmap    21762      224    17464       71    53204                           
+    .jar mmap     3114        0       44        0    27832                           
+    .apk mmap    17759      540    16492        0    41324                           
+    .ttf mmap      117        0       16        0      240                           
+    .dex mmap    59495    59472       12        0    59560                           
+    .oat mmap      124        0       40        0     2436                           
+    .art mmap     9202     7564     1248       74    17844                           
+   Other mmap     1795       32       64        0     4764                           
+      Unknown      623      568       20        4      940                           
+        TOTAL   220949   171240    37712      303   220949   118893    98812    15781
+ 
+ App Summary
+                       Pss(KB)                        Rss(KB)
+                        ------                         ------
+           Java Heap:    15740                          27388
+         Native Heap:    89136                          90200
+                Code:    94340                         187448
+               Stack:     1452                           1460
+            Graphics:        0                              0
+       Private Other:     8284
+              System:    11997
+             Unknown:                                   11760
+ 
+           TOTAL PSS:   220949            TOTAL RSS:   318256       TOTAL SWAP PSS:      303
+ 
+ Objects
+               Views:       14         ViewRootImpl:        3
+         AppContexts:        7           Activities:        1
+              Assets:        4        AssetManagers:        0
+       Local Binders:       13        Proxy Binders:       31
+       Parcel memory:        7         Parcel count:       28
+    Death Recipients:        0      OpenSSL Sockets:        0
+            WebViews:        0
+ 
+ SQL
+         MEMORY_USED:        0
+  PAGECACHE_OVERFLOW:        0          MALLOC_SIZE:        0
+ 
+-- t=240s 23:13:56
+Applications Memory Usage (in Kilobytes):
+Uptime: 311737852 Realtime: 311737852
+
+** MEMINFO in pid 14628 [com.xiaoduo.deskpet] **
+                   Pss  Private  Private  SwapPss      Rss     Heap     Heap     Heap
+                 Total    Dirty    Clean    Dirty    Total     Size    Alloc     Free
+                ------   ------   ------   ------   ------   ------   ------   ------
+  Native Heap    89460    89160      264       99    90224   105652    92199     9154
+  Dalvik Heap     9253     7268     1920       57     9884    13390     6711     6679
+ Dalvik Other     6830     5328      124        0     8588                           
+        Stack     1452     1452        0        0     1460                           
+       Ashmem       20        0        0        0       44                           
+    Other dev       13        0       12        0      280                           
+     .so mmap    21800      224    17464       72    53204                           
+    .jar mmap     3127        0       44        0    27832                           
+    .apk mmap    17779      540    16492        0    41324                           
+    .ttf mmap      117        0       16        0      240                           
+    .dex mmap    59495    59472       12        0    59560                           
+    .oat mmap      127        0       40        0     2436                           
+    .art mmap     9220     7568     1252       78    17844                           
+   Other mmap     1796       32       64        0     4764                           
+      Unknown      623      568       20        4      940                           
+        TOTAL   221422   171612    37724      310   221422   119042    98910    15833
+ 
+ App Summary
+                       Pss(KB)                        Rss(KB)
+                        ------                         ------
+           Java Heap:    16088                          27728
+         Native Heap:    89160                          90224
+                Code:    94344                         187452
+               Stack:     1452                           1460
+            Graphics:        0                              0
+       Private Other:     8292
+              System:    12086
+             Unknown:                                   11760
+ 
+           TOTAL PSS:   221422            TOTAL RSS:   318624       TOTAL SWAP PSS:      310
+ 
+ Objects
+               Views:       14         ViewRootImpl:        3
+         AppContexts:        7           Activities:        1
+              Assets:        4        AssetManagers:        0
+       Local Binders:       13        Proxy Binders:       31
+       Parcel memory:        7         Parcel count:       28
+    Death Recipients:        0      OpenSSL Sockets:        0
+            WebViews:        0
+ 
+ SQL
+         MEMORY_USED:        0
+  PAGECACHE_OVERFLOW:        0          MALLOC_SIZE:        0
+ 
+-- t=270s 23:14:27
+Applications Memory Usage (in Kilobytes):
+Uptime: 311768373 Realtime: 311768373
+
+** MEMINFO in pid 14628 [com.xiaoduo.deskpet] **
+                   Pss  Private  Private  SwapPss      Rss     Heap     Heap     Heap
+                 Total    Dirty    Clean    Dirty    Total     Size    Alloc     Free
+                ------   ------   ------   ------   ------   ------   ------   ------
+  Native Heap    89372    89072      264       99    90136   105652    92158     9194
+  Dalvik Heap     8787     6832     1868       55     9448    13408     6704     6704
+ Dalvik Other     6702     5196      124        0     8464                           
+        Stack     1452     1452        0        0     1460                           
+       Ashmem       20        0        0        0       44                           
+    Other dev       13        0       12        0      280                           
+     .so mmap    21680      224    17412       71    53152                           
+    .jar mmap     3092        0       44        0    27824                           
+    .apk mmap    17758      540    16492        0    41324                           
+    .ttf mmap      117        0       16        0      240                           
+    .dex mmap    59495    59472       12        0    59560                           
+    .oat mmap      104        0       20        0     2416                           
+    .art mmap     9194     7556     1240       75    17844                           
+   Other mmap     1789       32       64        0     4764                           
+      Unknown      623      568       20        4      940                           
+        TOTAL   220502   170944    37588      304   220502   119060    98862    15898
+ 
+ App Summary
+                       Pss(KB)                        Rss(KB)
+                        ------                         ------
+           Java Heap:    15628                          27292
+         Native Heap:    89072                          90136
+                Code:    94268                         187376
+               Stack:     1452                           1460
+            Graphics:        0                              0
+       Private Other:     8112
+              System:    11970
+             Unknown:                                   11632
+ 
+           TOTAL PSS:   220502            TOTAL RSS:   317896       TOTAL SWAP PSS:      304
+ 
+ Objects
+               Views:       14         ViewRootImpl:        3
+         AppContexts:        7           Activities:        1
+              Assets:        4        AssetManagers:        0
+       Local Binders:       13        Proxy Binders:       31
+       Parcel memory:        7         Parcel count:       28
+    Death Recipients:        0      OpenSSL Sockets:        0
+            WebViews:        0
+ 
+ SQL
+         MEMORY_USED:        0
+  PAGECACHE_OVERFLOW:        0          MALLOC_SIZE:        0
+ 
+-- t=300s 23:14:57
+Applications Memory Usage (in Kilobytes):
+Uptime: 311798973 Realtime: 311798973
+
+** MEMINFO in pid 14628 [com.xiaoduo.deskpet] **
+                   Pss  Private  Private  SwapPss      Rss     Heap     Heap     Heap
+                 Total    Dirty    Clean    Dirty    Total     Size    Alloc     Free
+                ------   ------   ------   ------   ------   ------   ------   ------
+  Native Heap    89400    89100      264       99    90152   105652    92190     9163
+  Dalvik Heap     9060     7076     1920       55     9692    13429     6731     6698
+ Dalvik Other     6850     5324      124        0     8632                           
+        Stack     1452     1452        0        0     1460                           
+       Ashmem       20        0        0        0       44                           
+    Other dev       13        0       12        0      280                           
+     .so mmap    21745      224    17412       71    53152                           
+    .jar mmap     3117        0       44        0    27824                           
+    .apk mmap    17779      540    16492        0    41324                           
+    .ttf mmap      117        0       16        0      240                           
+    .dex mmap    59495    59472       12        0    59560                           
+    .oat mmap      107        0       20        0     2416                           
+    .art mmap     9207     7568     1252       74    17844                           
+   Other mmap     1796       32       64        0     4764                           
+      Unknown      623      568       20        4      940                           
+        TOTAL   221084   171356    37652      303   221084   119081    98921    15861
+ 
+ App Summary
+                       Pss(KB)                        Rss(KB)
+                        ------                         ------
+           Java Heap:    15896                          27536
+         Native Heap:    89100                          90152
+                Code:    94268                         187416
+               Stack:     1452                           1460
+            Graphics:        0                              0
+       Private Other:     8292
+              System:    12076
+             Unknown:                                   11760
+ 
+           TOTAL PSS:   221084            TOTAL RSS:   318324       TOTAL SWAP PSS:      303
+ 
+ Objects
+               Views:       14         ViewRootImpl:        3
+         AppContexts:        7           Activities:        1
+              Assets:        4        AssetManagers:        0
+       Local Binders:       13        Proxy Binders:       31
+       Parcel memory:        7         Parcel count:       28
+    Death Recipients:        0      OpenSSL Sockets:        0
+            WebViews:        0
+ 
+ SQL
+         MEMORY_USED:        0
+  PAGECACHE_OVERFLOW:        0          MALLOC_SIZE:        0
+ 

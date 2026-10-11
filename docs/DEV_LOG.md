@@ -1,6 +1,27 @@
 # 小朵 Android 开发日志
 
 
+## 2026-10-11（五）部署批 §5.4 自动项复测：TOTAL 改善 / NH 台阶 +1.7⚠ / 首帧中位 +20ms⚠（均待定性）
+
+**口径**：生产板 main 版（e646b5f3），协议同 Phase 0；**NH 同列纠正**（App Summary RSS 位，
+初解析误取表格行 PSS 列差 1MB——已纠，基线同列复核 86.3 吻合）。现场项未测待现场批。
+
+- **TOTAL PSS 不回退 ✓**：空闲 219.2→**217.1**（−2.1）/ KWS 221.2→**215.3**（−5.9）；
+  抖动稳态带 215.8~216.7→215.3~216.2（左移带内），序列无爬坡无泄漏形态。
+- **NH +1.7~2.0MB 稳态台阶 ⚠**：88.0~88.2 紧带（10 样本零漂移，非泄漏）；假设=Phase 3 缓存
+  结构性成本（Markdown 列宽缓存/ESP 池化/PetLogger 缓冲），未归因 → heap dump 差分待
+  10-24 复评或现场批。
+- **首帧中位 276→296ms（+20ms）⚠**：n=10 带 269~382 与基线 n=7 带 259~289 重叠过半（两版各
+  有离群 679/484）；ESP 初始化在 added 之前不在首帧段，非首嫌疑 → 现场批追加 n≥15 定性。
+- 产物 `docs/audit/2026-10-11-perf-retest/`（含 protocol.sh 可复跑，末尾自动还原 mijijia 前台）。
+
+```evidence
+verify_cmd: bash .scratch/perf-retest-20261011/protocol.sh（+追加 5 轮冷启动）后 python 解析
+verify_claim: 空闲 217.1/88.0、KWS 215.3/88.0、抖动带 215.3~216.2、首帧 n=10 中位 296ms；原始 dumpsys/锚行入库 audit 目录
+files_touched: [docs/audit/2026-10-11-perf-retest/README.md, docs/audit/2026-10-11-perf-retest/protocol.sh]
+```
+
+
 ## 2026-10-11（四）Phase 4 module 化门槛评审：本周期否决切换（门槛 1 时钟 1/14 天），数据做全待 10-24 复评
 
 **结论**：结构面全绿（复扫环 0/例外边 8 不增/buildgen 1），但 spec §4.4 门槛 1 的 **≥2 周无环

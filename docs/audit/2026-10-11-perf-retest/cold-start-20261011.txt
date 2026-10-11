@@ -1,0 +1,30 @@
+## round 1
+2026-10-11 23:15:44.556 16371 16371 I PetOverlay: dual windows added: interaction=206x223px(opaque pet) bubbleLayer=260x104px(NOT_TOUCHABLE) at (429,1514) scale=1.0742918
+2026-10-11 23:15:44.852 16371 16371 I PetOverlay: overlay first-frame drawn
+## round 2
+2026-10-11 23:16:13.194 18597 18597 I PetOverlay: dual windows added: interaction=206x223px(opaque pet) bubbleLayer=260x104px(NOT_TOUCHABLE) at (429,1514) scale=1.0742918
+2026-10-11 23:16:13.479 18597 18597 I PetOverlay: overlay first-frame drawn
+## round 3
+2026-10-11 23:16:41.116 20838 20838 I PetOverlay: dual windows added: interaction=206x223px(opaque pet) bubbleLayer=260x104px(NOT_TOUCHABLE) at (429,1514) scale=1.0742918
+2026-10-11 23:16:41.498 20838 20838 I PetOverlay: overlay first-frame drawn
+## round 4
+2026-10-11 23:17:10.862 22946 22946 I PetOverlay: dual windows added: interaction=206x223px(opaque pet) bubbleLayer=260x104px(NOT_TOUCHABLE) at (429,1514) scale=1.0742918
+2026-10-11 23:17:11.195 22946 22946 I PetOverlay: overlay first-frame drawn
+## round 5
+2026-10-11 23:17:40.818 25168 25168 I PetOverlay: dual windows added: interaction=206x223px(opaque pet) bubbleLayer=260x104px(NOT_TOUCHABLE) at (429,1514) scale=1.0742918
+2026-10-11 23:17:41.302 25168 25168 I PetOverlay: overlay first-frame drawn
+## round 6
+2026-10-11 23:20:50.213  6085  6085 I PetOverlay: dual windows added: interaction=206x223px(opaque pet) bubbleLayer=260x104px(NOT_TOUCHABLE) at (429,1514) scale=1.0742918
+2026-10-11 23:20:50.504  6085  6085 I PetOverlay: overlay first-frame drawn
+## round 7
+2026-10-11 23:21:19.170  8288  8288 I PetOverlay: dual windows added: interaction=206x223px(opaque pet) bubbleLayer=260x104px(NOT_TOUCHABLE) at (429,1514) scale=1.0742918
+2026-10-11 23:21:19.439  8288  8288 I PetOverlay: overlay first-frame drawn
+## round 8
+2026-10-11 23:21:47.110 10484 10484 I PetOverlay: dual windows added: interaction=206x223px(opaque pet) bubbleLayer=260x104px(NOT_TOUCHABLE) at (429,1514) scale=1.0742918
+2026-10-11 23:21:47.478 10484 10484 I PetOverlay: overlay first-frame drawn
+## round 9
+2026-10-11 23:22:17.205 12514 12514 I PetOverlay: dual windows added: interaction=206x223px(opaque pet) bubbleLayer=260x104px(NOT_TOUCHABLE) at (429,1514) scale=1.0742918
+2026-10-11 23:22:17.488 12514 12514 I PetOverlay: overlay first-frame drawn
+## round 10
+2026-10-11 23:22:46.052 14760 14760 I PetOverlay: dual windows added: interaction=206x223px(opaque pet) bubbleLayer=260x104px(NOT_TOUCHABLE) at (429,1514) scale=1.0742918
+2026-10-11 23:22:46.348 14760 14760 I PetOverlay: overlay first-frame drawn

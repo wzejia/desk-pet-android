@@ -1,0 +1,51 @@
+Applications Memory Usage (in Kilobytes):
+Uptime: 311522738 Realtime: 311522738
+
+** MEMINFO in pid 14628 [com.xiaoduo.deskpet] **
+                   Pss  Private  Private  SwapPss      Rss     Heap     Heap     Heap
+                 Total    Dirty    Clean    Dirty    Total     Size    Alloc     Free
+                ------   ------   ------   ------   ------   ------   ------   ------
+  Native Heap    89380    89080      264       99    90148   105652    92865     8487
+  Dalvik Heap    11517    11336      144      122    12104    13719     6860     6859
+ Dalvik Other     6662     5188      116        0     8400                           
+        Stack     1444     1444        0        0     1452                           
+       Ashmem       20        0        0        0       44                           
+    Other dev       13        0       12        0      280                           
+     .so mmap    21770      216    17464       71    53040                           
+    .jar mmap     3116        0       44        0    27832                           
+    .apk mmap    17760      540    16492        0    41324                           
+    .ttf mmap      117        0       16        0      240                           
+    .dex mmap    59495    59472       12        0    59560                           
+    .oat mmap      126        0       40        0     2436                           
+    .art mmap     8104     7556      204      114    16692                           
+   Other mmap     1796       32       64        0     4764                           
+      Unknown      623      568       20        4      940                           
+        TOTAL   222353   175432    34892      410   222353   119371    99725    15346
+ 
+ App Summary
+                       Pss(KB)                        Rss(KB)
+                        ------                         ------
+           Java Heap:    19096                          28796
+         Native Heap:    89080                          90148
+                Code:    94324                         187236
+               Stack:     1444                           1452
+            Graphics:        0                              0
+       Private Other:     6380
+              System:    12029
+             Unknown:                                   11624
+ 
+           TOTAL PSS:   222353            TOTAL RSS:   319256       TOTAL SWAP PSS:      410
+ 
+ Objects
+               Views:       14         ViewRootImpl:        3
+         AppContexts:        7           Activities:        1
+              Assets:        4        AssetManagers:        0
+       Local Binders:       13        Proxy Binders:       31
+       Parcel memory:        7         Parcel count:       28
+    Death Recipients:        0      OpenSSL Sockets:        0
+            WebViews:        0
+ 
+ SQL
+         MEMORY_USED:        0
+  PAGECACHE_OVERFLOW:        0          MALLOC_SIZE:        0
+ 
