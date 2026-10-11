@@ -16,9 +16,11 @@ import java.util.concurrent.ConcurrentHashMap
  *   变异锚：删负差值放行门 → PrefetchBackoffGuardTest 时钟回拨用例红。
  * - ocr[392] 过期条目顺手清理：两参 remove（值不同=并发新失败则不覆盖），防 key 空间
  *   动态时台账无界慢泄漏。变异锚：删清理 → 过期清理用例红（sizeForTest 不归零）。
- * - ocr[394] 单飞假设（文档不动代码）：shouldSkip→预取→record 非原子，依赖唯一调用方
- *   WakeAckPrefetcher 对同 key 串行（单飞）；本类只保 map 完整性。调用方在 wakeack 地界
- *   （本票禁改），原子化 gate 若要做须随 wakeack 票——上报清单留痕。
+ * - ocr[394] 单飞保证（2026-10-11 wakeack 票收口）：shouldSkip→预取→record 非原子，
+ *   结构前提=唯一调用方 WakeAckPrefetcher 经 PrefetchSingleFlight 全局单飞（生产路径
+ *   唯一入口 maybePrefetch；并发契约由 PrefetchSingleFlightTest 变异锚钉死）。本类只保
+ *   map 完整性。原子化 gate（failures.compute 预留协议）裁定不做——并发同 key 预取
+ *   结构上不可达，为不可达竞态叠第二套机制不值，裁定理由见 PrefetchSingleFlight KDoc。
  * - ocr[395] 边界 '<' 语义钉死：恰满 windowMs 放行重试（S9-2「10min 窗内」口径=严格
  *   小于；PinTest 边界用例锁，变异 '<'→'<=' → 红）。
  */

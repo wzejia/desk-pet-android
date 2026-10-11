@@ -1,6 +1,29 @@
 # 小朵 Android 开发日志
 
 
+## 2026-10-11（三）ocr[394] wakeack 小票收口：单飞保证提为可测微类+并发变异锚（859 绿）
+
+**裁定（T2 上报两案择一，原文两可）**：PrefetchBackoff 内原子化 gate（failures.compute
+预留协议）**不做**——ocr 实证前置条件不成立：生产路径唯一入口 `WakeAckPrefetcher.
+maybePrefetch` 已有全局单飞 CAS（两触发点 SettingsEndpointEditor:222 /
+VoiceClientFactory:222 同门），并发同 key 预取结构上不可达；原子化是为不可达竞态叠第二套
+机制，且预留协议自带「占位后放弃」新失效面（需 TTL 兜底）。**实际缺口=单飞保证零测试**
+（藏于 maybePrefetch，绑 Context+真线程 JVM 不可测；ocr[392]/[393]/[395] 均有变异锚，
+唯独 [394] 靠 KDoc 裸奔）。
+
+**施工**：单飞门提取为 `voice/wakeack/PrefetchSingleFlight`（internal，9 行，tryEnter/leave），
+WakeAckPrefetcher 换用（行为零变化——同 CAS 语义，daemon finally 清不变）；新增
+PrefetchSingleFlightTest 并发契约×2（8 线程×8 轮仅一飞 / leave 后重开）。**变异锚双红实证**：
+CAS→check-then-act → winners≠1 红；leave 空操作 → 双用例红（门永不重开+下轮全撞死门）。
+PrefetchBackoff KDoc [394] 条目同步收口（指向门类+裁定理由）。
+
+```evidence
+verify_cmd: export PATH="/c/Program Files/Microsoft/jdk-17.0.20.8-hotspot/bin:$PATH" && ./gradlew.bat testDebugUnitTest --rerun-tasks && ./gradlew.bat assembleDebug
+verify_claim: tests=859 failures=0 errors=0 skipped=0（857+2 PrefetchSingleFlightTest）；变异×2 实证红→还原绿；assembleDebug 绿（APK e13649dd）
+files_touched: [app/src/main/java/com/xiaoduo/deskpet/voice/wakeack/PrefetchSingleFlight.kt, app/src/test/java/com/xiaoduo/deskpet/voice/PrefetchSingleFlightTest.kt, app/src/main/java/com/xiaoduo/deskpet/voice/wakeack/WakeAckPrefetcher.kt, app/src/main/java/com/xiaoduo/deskpet/voice/policy/PrefetchBackoff.kt]
+```
+
+
 ## 2026-10-11（二）部署批步骤 A：生产板换包 main @ dce2399（回灌法，用户逐次授权拿到）
 
 **换包全流程**（照 Phase 0 2026-10-10（四）打法）：force-stop → 数据备份（shared_prefs×3 +

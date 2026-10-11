@@ -8,13 +8,12 @@ import com.xiaoduo.deskpet.api.TtsContract.Result
 import com.xiaoduo.deskpet.voice.audio.WavCodec
 import com.xiaoduo.deskpet.voice.pipeline.RevealScheduler
 import com.xiaoduo.deskpet.voice.policy.PrefetchBackoff
-import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * 唤醒应答冷路径预取器（S9-3，方案 C 的「保存即合成 + 启动补漏」半边）。
  *
  * 触发点：设置页保存（SettingsScreen）+ 语音会话装配尾（VoiceClientFactory.session）。
- * caller 线程**仅 AtomicBoolean CAS 占位（零 IO）**；合成/校验/写盘全在
+ * caller 线程**仅单飞门占位（PrefetchSingleFlight，零 IO）**；合成/校验/写盘全在
  * daemon Thread("wake-ack-prefetch")，绝不与唤醒播放热路径交叉（热路径零网络约束）。
  *
  * 链路：resolver 同路取 snapshot/availability → [WakeAckSelector.needsPrefetch]
@@ -32,18 +31,18 @@ object WakeAckPrefetcher {
     private const val TAG = "WakeAckPrefetch"
     private const val THREAD_NAME = "wake-ack-prefetch"
 
-    /** 单飞标志：caller 线程 CAS 置位，daemon finally 清（守卫四问①：谁开窗谁关窗）。 */
-    private val inflight = AtomicBoolean(false)
+    /** 单飞门（ocr[394] 收口）：caller 线程 CAS 占位，daemon finally 清（守卫四问①：谁开窗谁关窗）。 */
+    private val gate = PrefetchSingleFlight()
 
     /** 失败退避台账（进程内存；同 key 失败 10min 窗内不再打同一合成）。 */
     private val backoff = PrefetchBackoff()
 
     /**
-     * 预取入口（幂等可重入）：CAS 拿不到=已在飞，直接退（零等待零排队）。
+     * 预取入口（幂等可重入）：单飞门拿不到=已在飞，直接退（零等待零排队）。
      * 保存连点 / session 装配与保存交叠：同一时刻至多一个 daemon 在跑（守卫四问④）。
      */
     fun maybePrefetch(context: Context) {
-        if (!inflight.compareAndSet(false, true)) return
+        if (!gate.tryEnter()) return
         val app = context.applicationContext
         Thread(
             {
@@ -52,7 +51,7 @@ object WakeAckPrefetcher {
                 } finally {
                     // S9-3 回归守卫：finally 清单飞标志，异常路径也不留死锁
                     //（删此 → 一次异常后标志永置位，预取永久哑掉，改配置也不再补）
-                    inflight.set(false)
+                    gate.leave()
                 }
             },
             THREAD_NAME,
