@@ -1,6 +1,30 @@
 # 小朵 Android 开发日志
 
 
+## 2026-10-11（二）部署批步骤 A：生产板换包 main @ dce2399（回灌法，用户逐次授权拿到）
+
+**换包全流程**（照 Phase 0 2026-10-10（四）打法）：force-stop → 数据备份（shared_prefs×3 +
+chat_sessions×148 = 151 文件，exec-out tar 流拉回 + 双端 md5 **151/151 全对**，存
+`.scratch/prod-deskpet-data-backup-20261011/`；尺寸 674304B 与 Phase 0 备份一致，数据未变）→
+旧 APK 拉回（md5 `5a0103eb`，96MB，与 Phase 0 装板包一致——板上确为 refactor/p0 版，回滚双保险）→
+卸载 → 装 main 版（app-debug.apk md5 `e646b5f3`，92.5MB @ main dce2399；00:31 P2 修复后构建，
+gradle up-to-date 判定与 HEAD 同源——dce2399 起仅 PROGRESS 文档差异）→ push tmp（md5 对上，
+命名带日期防陈旧文件坑）→ run-as tar xf 回灌 → **复验 151/151 全等** → 清 tmp → 起活。
+
+**起活健康全绿**：无 FATAL；`session restored: 149 sessions, 8 messages`；双窗 added +
+`overlay first-frame drawn` 锚；双 KWS 引擎 newFromAsset 无异常；`capture start, source=7`；
+`always-on KWS started (shadow=true), gate=0.015`。**SEC-3 首启实证**：
+`xiaoduo_net_secure.xml` + `xiaoduo_settings_secure.xml` 双加密库创建，无 "encrypted prefs
+unavailable" fallback 警告，logcat 无 401（迁移写路径已走通；**跨重启读回路径待验**=挂账 Keystore 跨重启项）。
+
+**坑重演×1（已按既有解法规避）**：adb push 本地路径 POSIX 形式报 cannot stat——按 09-23 沉淀
+改 Windows 形式 `E:/...` + `MSYS_NO_PATHCONV=1` 一次过。
+
+**挂账（部署批剩余，现场项另约）**：语义三链路取证（spec §2）+ §5.4 指标复测（播报中三态/
+唤醒→应答音喊话即采；空闲/KWS dumpsys 可 adb 自动）→ OverlayBubbleHub P2 票（拆分+真机回归）→
+SEC-3 真机 Keystore 跨重启读回 → 之后本地两件：ocr[394] 原子化 gate（wakeack 小票）、Phase 4
+module 化门槛评审（spec §4.4 四条，net BuildConfig 边先改注入）。
+
 ## 2026-10-11（一）Phase 3 收口：opus 评审可合入 + P2 修复（remove 复活陷阱）+ 合 main
 
 **opus 独立评审**（隔离 worktree @ a045459，只收客观材料）：五项验收锚全 PASS（855/0/0 真重跑、
