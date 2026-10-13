@@ -1,6 +1,32 @@
 # 小朵 Android 开发日志
 
 
+## 2026-10-11（七）main 定型：代码回退重构前 e288037 态 + 经验文档全保留，重构版封存 refactor/complete
+
+**用户令**：保留重构后的经验文档，但 main 对应代码=重构前版本，且方便回退。
+
+**施工**：重构完整版封存**分支 `refactor/complete` + tag `refactor-complete-20261011`**（=
+aa79fbd，859 绿，已推送）；main 上 `git checkout e288037 -- app/` 整目录还原。
+
+**坑×1（已修）**：`git checkout <commit> -- <dir>` **只还原源树已有文件、不删源树外新增文件**
+——首轮漏删 73 个重构期新增文件（api 包/voice 子包化/SEC-3/S22/守卫件及其测试），与还原后
+旧文件并存 → 重声明冲突构建红（PetOverlayState 双声明/Settings 拆分件与单体并存）。
+修正=comm 差集（ls-tree e288037 vs ls-files）补删 73 文件。
+
+**验证**：`git diff e288037 HEAD -- app/` = **0 行（字节一致）**；全量
+`testDebugUnitTest --rerun-tasks` = **754 绿 skipped=0**（e288037 基线吻合）。
+
+**现状**：main `c6e7243` = 重构前代码（754 绿）+ docs/ 21 文件经验文档全保留
+（spec v0.4/Phase0-4 审计/§5.4 复测/内存归因/Phase4 门槛评审）；
+**回退到重构版 = `git checkout refactor/complete`**（板上部署走回灌法，DEV_LOG（二）流程）。
+
+```evidence
+verify_cmd: export PATH="/c/Program Files/Microsoft/jdk-17.0.20.8-hotspot/bin:$PATH" && ./gradlew.bat testDebugUnitTest --rerun-tasks
+verify_claim: tests=754 failures=0 errors=0 skipped=0；git diff e288037 HEAD -- app/ 空（字节一致）
+files_touched: [app/（73 删+还原）, PROGRESS.md, docs/DEV_LOG.md]
+```
+
+
 ## 2026-10-11（六）用户拍板：优化不做了，生产板回滚 refactor/p0（main 版下板）
 
 **决策**：用户审阅归因分析后拍板——优化不施工、**生产板改回换包前版本**（refactor/p0 @

@@ -1,8 +1,14 @@
 # 小朵 Android M1 进度
 
-## 状态：结构重构执行中——Phase 0 ✅ + Phase 1 ✅ + Phase 2 ✅ + Phase 3 ✅ + 部署批换包 ✅（2026-10-11，main @ dce2399，**857 绿**）
+## 状态：main=重构前代码+重构经验文档全保留（2026-10-11 深夜用户拍板）；重构完整版封存 refactor/complete @ aa79fbd（859 绿）
 
-- **权威方案 = `docs/spec/refactor-structure.spec.md`（v0.4）**；本轮执行记录以本文件+`docs/DEV_LOG.md` 为准（Temp 交接易失）。
+- **main 现状**（`c6e7243`）：`app/` 代码=**重构前 e288037 态**（字节一致 diff 0 行，**754 绿** skipped=0，验证带 JDK PATH 前缀 + `--rerun-tasks`）；`docs/` 21 文件重构经验文档全保留（spec v0.4/Phase0-4 审计/§5.4 复测/内存归因/optimization-analysis）。
+- **重构完整版封存**：分支 `refactor/complete` + tag `refactor-complete-20261011` = `aa79fbd`（Phase 0-3 全合入 + ocr[394]，859 绿）。**回退到重构版** = `git checkout refactor/complete`（板上部署走既有回灌法，流程见 DEV_LOG 2026-10-11（二）/（六））。refactor/p0..p3 分支照旧保留。
+- **板上现=refactor/p0 @ 19ea825**（5a0103eb，行为等价包，2026-10-11 深夜回滚，回滚全绿 151/151；main 态快照 `.scratch/prod-deskpet-data-backup-20261011-rollback-snapshot/`）。
+- **坑沉淀**：`git checkout <commit> -- <dir>` 只还原源树已有文件、**不删源树外新增文件**——整目录回退须补 `comm ls-tree/ls-files` 差集删除（本轮 73 文件漏删致重声明冲突，验证 diff=0 才过）。
+- 单测基线口径：**main=754**；refactor/complete=859。验证必带 JDK PATH 前缀 + `--rerun-tasks`（不带会假绿）。
+
+## 历史：结构重构执行记录（Phase 0-3 ✅ + Phase 4 评审 + 部署批始末，2026-10-10~11）
 - **Phase 0 ✅**（bec0fa4）：守卫+测试 / 线程纪律设计 / 日志锚 / 生产板部署 / 指标基线（**空闲 219.2MB / KWS 221.2MB / 抖动 ±1MB / 首帧中位 276ms**）。
 - **Phase 1 ✅**（1ced9fa）：断环三刀（api 包 4 契约）+ PetOverlayState 搬出；**环 4 对→0**。
 - **Phase 2 ✅**（1f3a3bd）：voice 七子包化（32 文件）/ PetView 归位 / SettingsScreen 1099→339 / 死·幻影 import 94 条清零 / 大文件拆分评估。
@@ -10,9 +16,9 @@
 - **部署批终态（2026-10-11 深夜，用户拍板）**：步骤 A 换包 main 版已执行并验证；**随后用户决定优化不做、生产板回滚 refactor/p0**（回滚全绿：151/151+健康锚，快照 `.scratch/prod-deskpet-data-backup-20261011-rollback-snapshot/`，详情 DEV_LOG 2026-10-11（六））。**板上现=p0（5a0103eb）**；main 分支（859 绿）保留可随时再部署。
 - **挂账（随 main 下板作废挂起，未来再部署时重启）**：语义三链路取证+指标现场项（空闲/KWS 自动项已于（五）复测过：TOTAL 改善/NH +1.7⚠/首帧 +20⚠ 待定性）；OverlayBubbleHub P2 票；SEC-3 Keystore 跨重启读回。优化菜单留存 `docs/audit/2026-10-11-perf-retest/optimization-analysis.md`（影子引擎 −15MB / R8 −20~30MB / 天花板 ~180-202MB）。
 - **下一 Phase：Phase 4 module 化门槛评审 ✅（2026-10-11）——本周期否决切换**（门槛 1 时钟 1/14 天，复评 ≥**2026-10-24**）；报告 `docs/audit/2026-10-11-phase4-gate-review/`；前置清单=①net BuildConfig 注入 ②3 测试归位 ③（可选）hub 接口化（面已清点 ~20 成员）。
-- 单测基线：761 → 现 **859**（+2 PrefetchSingleFlightTest，ocr[394] 收口）。验证必带 JDK PATH 前缀 + `--rerun-tasks`（不带会假绿）。
+- 单测基线（历史口径，封存于 refactor/complete）：761 → **859**（+2 PrefetchSingleFlightTest，ocr[394] 收口）。
 - 依赖锚现行值：包级环 0 / root-hub 例外边 8（chat1/ui5/voice2）/ buildgen 1——复扫命令 `MSYS2_ARG_CONV_EXCL="*" python "E:/desk-pet-android/.scratch/dep-analysis-20261010.py"`。
-- **下一 Phase**：Phase 4 已评审（见上），复评时点 2026-10-24 后；历史：Phase 0-2 详情见 git log 与 DEV_LOG 2026-10-10 条目。
+- Phase 4 module 化评审已完成（结论：本周期否决切换，复评 ≥2026-10-24，且仅对 refactor/complete 有意义）；历史：Phase 0-2 详情见 git log 与 DEV_LOG 2026-10-10 条目。
 
 ## 状态：入口功能——密集架基础设置直拉悬浮窗 + 菜单删「打开 App」 ✅（2026-10-09，755 绿，已推送）
 
