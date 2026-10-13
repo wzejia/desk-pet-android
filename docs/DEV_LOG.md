@@ -1,6 +1,21 @@
 # 小朵 Android 开发日志
 
 
+## 2026-10-13（一）带密钥 APK 构建（main 重构前态）——产物留存未部署，用户令暂不构建
+
+**背景**：用户要求按既往做法构建带 API 密钥的 APK（secrets/cloud.properties → BuildConfig，
+机制自 2026-08-13 起未变）。
+
+**构建**：`assembleDebug` 绿 → `app-debug.apk` 96,002,614B，md5 前缀 `6edaebcc`；代码=当前
+main（重构前 e288037 态，754 绿口径）；debug 签名（与板上 5a0103eb 同源，可 install -r）。
+
+**密钥核验**（只验长度不验值）：`CLOUD_KEY` ✅116 / `ALIYUN_SPEECH_KEY` ✅116 /
+`VOLC_SPEECH_KEY` ⚠️**空**——secrets 文件该键自 08-19 起即空，**既往所有带密钥构建（含板上
+5a0103eb）同此状态**：火山链路走 NetConfig 回退（SP → BuildConfig → 空），板上 prefs 配过
+即不受影响。如需内置：补 `secrets/cloud.properties` 后重建即可。
+
+**用户令**：暂不进一步构建/部署，文档先行。产物未安装任何设备。
+
 ## 2026-10-11（七）main 定型：代码回退重构前 e288037 态 + 经验文档全保留，重构版封存 refactor/complete
 
 **用户令**：保留重构后的经验文档，但 main 对应代码=重构前版本，且方便回退。
