@@ -1,7 +1,5 @@
 package com.xiaoduo.deskpet.chat
 
-import com.xiaoduo.deskpet.api.ChatMessage
-
 /**
  * 会话（多会话扩 scope：implementation-notes 2026-07-31 用户三问拍板，推翻契约 R2
  * 「不做多会话管理」）。纯 Kotlin 零 Android import（spec 领域层铁律）。

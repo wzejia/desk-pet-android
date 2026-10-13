@@ -10,7 +10,6 @@ import android.os.Binder
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
-import android.os.SystemClock
 import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
@@ -20,9 +19,9 @@ import android.widget.FrameLayout
 import com.xiaoduo.deskpet.pet.EdgeDock
 import com.xiaoduo.deskpet.pet.OverlayClamp
 import com.xiaoduo.deskpet.pet.PetState
-import com.xiaoduo.deskpet.ui.overlay.PetView
+import com.xiaoduo.deskpet.ui.PetView
 import com.xiaoduo.deskpet.util.AppLauncher
-import com.xiaoduo.deskpet.api.BubbleOwner
+import com.xiaoduo.deskpet.ui.overlay.BubbleOwner
 import com.xiaoduo.deskpet.ui.overlay.BubbleOwnership
 import com.xiaoduo.deskpet.ui.overlay.BubbleTextStrip
 import com.xiaoduo.deskpet.ui.overlay.BubbleView
@@ -31,9 +30,9 @@ import com.xiaoduo.deskpet.ui.overlay.VoiceIndicatorView
 import com.xiaoduo.deskpet.util.PetLogger
 import com.xiaoduo.deskpet.util.Prefs
 import com.xiaoduo.deskpet.util.TapGesture
-import com.xiaoduo.deskpet.voice.pipeline.VoiceClientFactory
-import com.xiaoduo.deskpet.voice.pipeline.VoiceSessionManager
-import com.xiaoduo.deskpet.voice.pipeline.VoiceStateRouter
+import com.xiaoduo.deskpet.voice.VoiceClientFactory
+import com.xiaoduo.deskpet.voice.VoiceSessionManager
+import com.xiaoduo.deskpet.voice.VoiceStateRouter
 import kotlin.math.abs
 
 /**
@@ -68,20 +67,6 @@ class PetOverlayService : Service() {
 
     private lateinit var wm: WindowManager
     private val handler = Handler(Looper.getMainLooper())
-
-    /** 活性心跳（spec §4.3）：周期续 PetOverlayState 活性戳，onDestroy 停——
-     *  service 死于 onDestroy 之外时设置页 isAlive 因心跳过期判 false。 */
-    private val heartbeatRunnable = object : Runnable {
-        override fun run() {
-            PetOverlayState.markHeartbeat(SystemClock.elapsedRealtime())
-            handler.postDelayed(this, PetOverlayState.HEARTBEAT_INTERVAL_MS)
-        }
-    }
-
-    private fun startHeartbeat() {
-        handler.removeCallbacks(heartbeatRunnable)
-        handler.postDelayed(heartbeatRunnable, PetOverlayState.HEARTBEAT_INTERVAL_MS)
-    }
 
     private var displayBox: FrameLayout? = null
     private var interactionBox: FrameLayout? = null
@@ -255,17 +240,7 @@ class PetOverlayService : Service() {
         voiceIndicator = indicatorView
         built = true
         moveTo(ix, iy)
-        // §5.4 渲染锚：交互窗首帧 draw 即「悬浮窗可见」下界（真可见性上界=录屏逐帧）；
-        // OnDrawListener 回调内禁止移除 listener，首帧后靠标志短路。
-        var firstFrameDrawn = false
-        interaction.viewTreeObserver.addOnDrawListener {
-            if (!firstFrameDrawn) {
-                firstFrameDrawn = true
-                PetLogger.i(TAG, "overlay first-frame drawn")
-            }
-        }
-        PetOverlayState.markStarted(SystemClock.elapsedRealtime())
-        startHeartbeat()
+        PetOverlayState.running = true
         PetLogger.i(
             TAG,
             "dual windows added: interaction=${petW}x${petH}px(opaque pet) " +
@@ -793,8 +768,7 @@ class PetOverlayService : Service() {
     override fun onDestroy() {
         PetLogger.i(TAG, "onDestroy, removing dual windows")
         cancelSlideAnimation() // 守卫：removeView 后不再有动画帧回调 updateViewLayout
-        handler.removeCallbacks(heartbeatRunnable) // 停活性心跳
-        PetOverlayState.markCleared()
+        PetOverlayState.running = false
         // 不写 overlay_enabled（S3 返工#5）：onDestroy 也会由系统 teardown（划卡/回收）触发，
         // 在这里落 false 会篡改用户持久化偏好、STICKY 重启无法恢复。
         // 落盘 false 只发生在显式关闭路径：菜单「隐藏悬浮窗」（本类）/ 设置页开关（stopService 前自管）。

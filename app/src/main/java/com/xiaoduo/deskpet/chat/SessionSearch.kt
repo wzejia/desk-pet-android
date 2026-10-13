@@ -1,7 +1,5 @@
 package com.xiaoduo.deskpet.chat
 
-import com.xiaoduo.deskpet.api.ChatMessage
-
 /**
  * 搜索命中摘要：会话 + 摘要文本。
  * 摘要 = 首条命中消息（压缩空白后截断）；仅标题命中时摘要为标题本身。

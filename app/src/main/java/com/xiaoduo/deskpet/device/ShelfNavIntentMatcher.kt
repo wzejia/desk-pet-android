@@ -18,13 +18,6 @@ package com.xiaoduo.deskpet.device
  */
 object ShelfNavIntentMatcher {
 
-    // P3-T5：page id 单一来源（原 match/pageOf/pageName/navSpeech 共 10 处裸写收敛；
-    // ShelfMcpBridge.NAVIGATE_PAGES 同簇同源）。值即密集架页面标识，改值=跨端协议变更。
-    const val PAGE_BORROW = "borrow"
-    const val PAGE_RETURN = "return"
-    const val PAGE_INVENTORY = "inventory"
-    const val PAGE_HOME = "home"
-
     private val BORROW_WORDS = listOf("借阅", "借书")
     private val RETURN_WORDS = listOf("归还", "还书")
     private val INVENTORY_WORDS = listOf("盘点")
@@ -57,7 +50,7 @@ object ShelfNavIntentMatcher {
         // 保守：须有导航动词或页面名词二者其一；裸目标词不劫持
         // S62：home 专属——必须带导航动词（「首页」自身含「页」，页面名词兜底会令
         //  「首页有什么」「首页显示的内容」类话题被劫持；「打开/返回/回到首页」才导航）。
-        if (page == PAGE_HOME) return if (hasNavVerb) page else null
+        if (page == "home") return if (hasNavVerb) page else null
         return if (hasNavVerb || hasPageNoun) page else null
     }
 
@@ -66,10 +59,10 @@ object ShelfNavIntentMatcher {
     private fun pageOf(t: String): String? {
         data class Cand(val page: String, val idx: Int)
         val cands = buildList {
-            BORROW_WORDS.forEach { w -> t.indexOf(w).takeIf { i -> i >= 0 }?.let { add(Cand(PAGE_BORROW, it)) } }
-            RETURN_WORDS.forEach { w -> t.indexOf(w).takeIf { i -> i >= 0 }?.let { add(Cand(PAGE_RETURN, it)) } }
-            INVENTORY_WORDS.forEach { w -> t.indexOf(w).takeIf { i -> i >= 0 }?.let { add(Cand(PAGE_INVENTORY, it)) } }
-            HOME_WORDS.forEach { w -> t.indexOf(w).takeIf { i -> i >= 0 }?.let { add(Cand(PAGE_HOME, it)) } }
+            BORROW_WORDS.forEach { w -> t.indexOf(w).takeIf { i -> i >= 0 }?.let { add(Cand("borrow", it)) } }
+            RETURN_WORDS.forEach { w -> t.indexOf(w).takeIf { i -> i >= 0 }?.let { add(Cand("return", it)) } }
+            INVENTORY_WORDS.forEach { w -> t.indexOf(w).takeIf { i -> i >= 0 }?.let { add(Cand("inventory", it)) } }
+            HOME_WORDS.forEach { w -> t.indexOf(w).takeIf { i -> i >= 0 }?.let { add(Cand("home", it)) } }
         }
         val pages = cands.map { it.page }.toSet()
         if (pages.size > 1) return null // FUNC-4：多页候选不猜
@@ -78,14 +71,14 @@ object ShelfNavIntentMatcher {
 
     /** 页面标识 → 中文名（回执文案用）。 */
     fun pageName(page: String): String = when (page) {
-        PAGE_BORROW -> "借阅"
-        PAGE_RETURN -> "归还"
-        PAGE_INVENTORY -> "盘点"
-        PAGE_HOME -> "首页"
+        "borrow" -> "借阅"
+        "return" -> "归还"
+        "inventory" -> "盘点"
+        "home" -> "首页"
         else -> page
     }
 
     /** S62：导航成功回执文案（语音/文字两入口共用，home 用「回到」更自然）。 */
     fun navSpeech(page: String): String =
-        if (page == PAGE_HOME) "已回到首页" else "已打开${pageName(page)}页面"
+        if (page == "home") "已回到首页" else "已打开${pageName(page)}页面"
 }

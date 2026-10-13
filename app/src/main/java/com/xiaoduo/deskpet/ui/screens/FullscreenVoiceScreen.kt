@@ -2,7 +2,12 @@ package com.xiaoduo.deskpet.ui.screens
 
 import android.Manifest
 import android.content.pm.PackageManager
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -34,16 +39,16 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -64,22 +69,20 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import com.xiaoduo.deskpet.PetOverlayService
-import com.xiaoduo.deskpet.api.ChatMessage
+import com.xiaoduo.deskpet.chat.ChatMessage
 import com.xiaoduo.deskpet.chat.ChatViewModel
 import com.xiaoduo.deskpet.pet.PetFrameTable
 import com.xiaoduo.deskpet.pet.PetState
+import com.xiaoduo.deskpet.ui.PetView
 import com.xiaoduo.deskpet.ui.components.MarkdownContent
 import com.xiaoduo.deskpet.ui.FullscreenVoiceLayout
-import com.xiaoduo.deskpet.ui.overlay.PetView
-import com.xiaoduo.deskpet.ui.overlay.VoiceIndicatorModel.RMS_FLOOR
-import com.xiaoduo.deskpet.ui.overlay.VoiceIndicatorModel.RMS_SPAN
 import com.xiaoduo.deskpet.ui.theme.XiaoduoDimens
 import com.xiaoduo.deskpet.util.PetLogger
 import com.xiaoduo.deskpet.util.Prefs
-import com.xiaoduo.deskpet.voice.kws.EnergyGate
-import com.xiaoduo.deskpet.voice.pipeline.ReplyCarrier
-import com.xiaoduo.deskpet.voice.pipeline.VoiceClientFactory
-import com.xiaoduo.deskpet.voice.pipeline.VoiceStateRouter
+import com.xiaoduo.deskpet.voice.EnergyGate
+import com.xiaoduo.deskpet.voice.ReplyCarrier
+import com.xiaoduo.deskpet.voice.VoiceClientFactory
+import com.xiaoduo.deskpet.voice.VoiceStateRouter
 import kotlin.math.exp
 import kotlin.math.sin
 
@@ -125,8 +128,7 @@ fun FullscreenVoiceScreen(
 
     // 进/出配对（守卫四问#1：覆盖 popBackStack/手势退出全部出组合路径）
     DisposableEffect(Unit) {
-        // P3-T5：原此处另有一次 session(context)「预热」调用已删——113 行 remember 组合期
-        // 已建同一 DCL 单例（ocr[89]① 实锤冗余，行为零变）
+        VoiceClientFactory.session(context) // 预热：与 KWS 前台服务共享同一会话单例
         PetOverlayService.instance?.setWindowsHidden(true)
         VoiceClientFactory.replyCarrier = ReplyCarrier.FULLSCREEN
         PetLogger.i(TAG, "enter fullscreen voice: windows hidden, carrier=FULLSCREEN")
@@ -604,6 +606,7 @@ private val StopIconColor = Color(0xFF3A3A3A)
 private val ExitRed = Color(0xFFFF3B30)
 private val DotColor = Color(0xFF9AA0A6)
 
-// RMS_FLOOR/RMS_SPAN 已单源化至 VoiceIndicatorModel（对账表实测域：静音 ~0.001-0.006 /
-// 说话 ~0.036 / 门控上限 0.05；P3-T5 收敛，改值两处同变，勿再私有镜像）
+/** RMS→能级归一（对账表实测域：静音 ~0.001-0.006 / 说话 ~0.036 / 门控上限 0.05）。 */
+private const val RMS_FLOOR = 0.005f
+private const val RMS_SPAN = 0.045f
 private const val RMS_EMA_KEEP = 0.6f // EMA 平滑：保留旧值比例，防逐块跳变

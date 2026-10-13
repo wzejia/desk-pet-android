@@ -1,11 +1,6 @@
 package com.xiaoduo.deskpet.voice
 
 import com.xiaoduo.deskpet.agui.AguiClient
-import com.xiaoduo.deskpet.voice.audio.AudioCapture
-import com.xiaoduo.deskpet.voice.audio.VadDetector
-import com.xiaoduo.deskpet.voice.client.AsrClient
-import com.xiaoduo.deskpet.voice.client.TtsClient
-import com.xiaoduo.deskpet.voice.pipeline.VoiceSessionManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -14,6 +9,7 @@ import okhttp3.OkHttpClient
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
 import org.junit.After
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test

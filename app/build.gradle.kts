@@ -86,11 +86,6 @@ dependencies {
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
 
-    // SEC-3（spec 附录 B 3 已批准「效果优先」）：EncryptedSharedPreferences 迁移。
-    // 1.1.0 = 终版稳定（Google 2025-07 发布，库整体弃用、API 保留可用）；无 kapt/ksp。
-    // 真机 Keystore 集成验证挂账主对话部署批；后续替换方案（DataStore+Keystore）另议。
-    implementation("androidx.security:security-crypto:1.1.0")
-
     // S5 KWS 唤醒词（本地 AAR，模型在 assets/kws-model/）
     implementation(files("libs/sherpa-onnx-1.13.4.aar"))
 

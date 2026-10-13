@@ -1,5 +1,6 @@
 package com.xiaoduo.deskpet.ui.overlay
 
+import android.content.Context
 import android.content.res.Configuration
 import android.graphics.drawable.ColorDrawable
 import android.graphics.drawable.GradientDrawable

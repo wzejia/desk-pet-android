@@ -1,7 +1,5 @@
 package com.xiaoduo.deskpet.voice
 
-import com.xiaoduo.deskpet.voice.audio.refPacerLoop
-
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue

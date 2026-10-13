@@ -8,15 +8,15 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import com.xiaoduo.deskpet.ui.theme.XiaoduoDimens
-import com.xiaoduo.deskpet.voice.kws.AudioProbe
 import com.xiaoduo.deskpet.util.PetLogger
+import com.xiaoduo.deskpet.voice.AudioProbe
 
 /**
  * 设置页诊断段（原 S11-3 AEC spike 段）。spike ①②（SPEAKING 麦块旁路进 KWS + 误触发/

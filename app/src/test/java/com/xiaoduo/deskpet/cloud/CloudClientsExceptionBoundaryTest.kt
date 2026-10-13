@@ -1,6 +1,6 @@
 package com.xiaoduo.deskpet.cloud
 
-import com.xiaoduo.deskpet.voice.client.TtsClient
+import com.xiaoduo.deskpet.voice.TtsClient
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.nio.ByteBuffer

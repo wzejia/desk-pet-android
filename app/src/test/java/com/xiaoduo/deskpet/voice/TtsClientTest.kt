@@ -1,14 +1,10 @@
 package com.xiaoduo.deskpet.voice
 
-import com.xiaoduo.deskpet.voice.audio.WavCodec
-import com.xiaoduo.deskpet.voice.client.TtsClient
-import com.xiaoduo.deskpet.voice.pipeline.RevealScheduler
 import okhttp3.OkHttpClient
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
 import org.json.JSONObject
 import org.junit.After
-import com.xiaoduo.deskpet.api.TtsContract
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -79,8 +75,8 @@ class TtsClientTest {
 
         val r = client(MemStreamSupport()).synthesize("你好世界。")
 
-        assertTrue(r is TtsContract.Result.Audio)
-        assertArrayEquals(pcmA + pcmB, (r as TtsContract.Result.Audio).pcm)
+        assertTrue(r is TtsClient.Result.Audio)
+        assertArrayEquals(pcmA + pcmB, (r as TtsClient.Result.Audio).pcm)
         // 请求体契约：text 数组 / cosyvoice3 / default / 1.0
         val recorded = server.takeRequest()
         assertEquals("/audio/tts/stream", recorded.path)
@@ -104,10 +100,10 @@ class TtsClientTest {
 
         val r = client(MemStreamSupport()).synthesize("---")
 
-        assertTrue(r is TtsContract.Result.Error)
+        assertTrue(r is TtsClient.Result.Error)
         assertEquals(
             "TTS 失败: no pronounceable characters",
-            (r as TtsContract.Result.Error).message,
+            (r as TtsClient.Result.Error).message,
         )
         assertTrue(logs.any { it.contains("TTS 预校验失败: no pronounceable characters") })
         assertEquals(2, server.requestCount)
@@ -122,8 +118,8 @@ class TtsClientTest {
 
         val r = client(flag).synthesize("第一句。")
 
-        assertTrue(r is TtsContract.Result.Audio)
-        assertArrayEquals(pcm, (r as TtsContract.Result.Audio).pcm)
+        assertTrue(r is TtsClient.Result.Audio)
+        assertArrayEquals(pcm, (r as TtsClient.Result.Audio).pcm)
         assertTrue(flag.unsupported)
         assertEquals(2, server.requestCount)
         assertEquals("/audio/tts/stream", server.takeRequest().path)
@@ -135,7 +131,7 @@ class TtsClientTest {
         // 永久记忆：第二次直接走非流式，不再碰 stream
         server.enqueue(synthOk(pcm))
         val r2 = client(flag).synthesize("第二句。")
-        assertTrue(r2 is TtsContract.Result.Audio)
+        assertTrue(r2 is TtsClient.Result.Audio)
         assertEquals(3, server.requestCount)
         assertEquals("/audio/tts/synthesize", server.takeRequest().path)
     }
@@ -148,8 +144,8 @@ class TtsClientTest {
 
         val r = client(MemStreamSupport()).synthesize("兜底验证。")
 
-        assertTrue(r is TtsContract.Result.Audio)
-        assertArrayEquals(pcm, (r as TtsContract.Result.Audio).pcm)
+        assertTrue(r is TtsClient.Result.Audio)
+        assertArrayEquals(pcm, (r as TtsClient.Result.Audio).pcm)
         assertEquals(2, server.requestCount)
         assertTrue(logs.any { it.contains("gpu busy") })
     }
@@ -163,8 +159,8 @@ class TtsClientTest {
 
         val r = client(MemStreamSupport()).synthesize("断流句。")
 
-        assertTrue(r is TtsContract.Result.Error)
+        assertTrue(r is TtsClient.Result.Error)
         assertTrue(logs.any { it.contains("未见 done 帧") })
-        assertTrue((r as TtsContract.Result.Error).message.contains("synthesize disabled"))
+        assertTrue((r as TtsClient.Result.Error).message.contains("synthesize disabled"))
     }
 }

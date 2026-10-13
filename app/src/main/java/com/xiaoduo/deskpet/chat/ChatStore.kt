@@ -1,6 +1,5 @@
 package com.xiaoduo.deskpet.chat
 
-import com.xiaoduo.deskpet.api.ChatMessage
 import android.content.Context
 import com.xiaoduo.deskpet.util.PetLogger
 import java.io.File
@@ -21,8 +20,7 @@ import java.util.UUID
  *
  * DATA-1 数据丢失链防线（2026-10-03 审计）：
  * - 读失败/损坏不再与「没有」混淆：先备份 .bak 保底，备份成功才移除原件重建；
- *   备份失败置 degraded——拒写保护原件（坏数据可人工捞回），createSession 降级返 null
- *   （P3-2 拍板 2026-10-10：静默降级 + 降级期禁写，不向上抛崩 VM）；
+ *   备份失败置 degraded——拒写保护原件（坏数据可人工捞回），createSession 失败向上抛；
  * - 写入一律临时文件 + 原子 rename（torn write 不再直接毁原文件）；
  * - deleteSession 先持久化索引、成功后才删消息文件（防两步间崩溃留幽灵会话/丢数据）；
  * - 索引持久化失败的迁移中止并保留旧文件（下次启动重试），改名失败返回 null 不谎报成功。
@@ -124,18 +122,13 @@ class ChatStore(
         return updated
     }
 
-    /**
-     * 新建空会话并置为当前。DATA-1：索引持久化失败不再向上抛（P3-2 拍板 2026-10-10：
-     * **静默降级 + 降级期禁写**——返回 null，调用方进只读降级态；显式日志留痕，
-     * 防数据损坏优先于操作成功，兼顾 DATA-1 初意）。
-     */
-    fun createSession(): ChatSession? = synchronized(LOCK) {
+    /** 新建空会话并置为当前。DATA-1：索引持久化失败向上抛（112：静默返回会让 saveMessages 全程 no-op）。 */
+    fun createSession(): ChatSession = synchronized(LOCK) {
         val ts = now()
         val session = ChatSession(newId(), ChatSession.FALLBACK_TITLE, ts, ts)
         val index = loadIndex()
         if (!saveIndex(index.copy(currentId = session.id, sessions = index.sessions + session))) {
-            logger("DEGRADED: createSession aborted (index persist failed, session ${session.id} discarded)")
-            return null
+            error("createSession: session index persist failed (session ${session.id} not durable)")
         }
         return session
     }

@@ -3,7 +3,6 @@ package com.xiaoduo.deskpet.ui.screens
 import android.provider.Settings
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.navigationBars
-import com.xiaoduo.deskpet.ui.overlay.PetView
 import com.xiaoduo.deskpet.util.NavInsetPolicy
 import android.Manifest
 import android.content.Context
@@ -24,8 +23,11 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -52,17 +54,16 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberDrawerState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
-import com.xiaoduo.deskpet.voice.pipeline.VoiceClientFactory
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -70,22 +71,26 @@ import kotlinx.coroutines.withContext
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
-import com.xiaoduo.deskpet.api.ChatMessage
+import com.xiaoduo.deskpet.chat.ChatMessage
 import com.xiaoduo.deskpet.chat.ChatViewModel
 import com.xiaoduo.deskpet.ui.components.MarkdownContent
 import com.xiaoduo.deskpet.chat.SuggestedQuestions
+import com.xiaoduo.deskpet.ui.PetView
 import com.xiaoduo.deskpet.ui.icons.DenseShelfIcon
 import com.xiaoduo.deskpet.ui.icons.FullscreenVoiceIcon
 import com.xiaoduo.deskpet.ui.theme.XiaoduoDimens
 import com.xiaoduo.deskpet.util.AppLauncher
 import com.xiaoduo.deskpet.util.PetLogger
+import com.xiaoduo.deskpet.voice.VoiceClientFactory
 
 /**
  * Chat 主页（S27 底部导航改版）：ModalNavigationDrawer → 消息流 LazyColumn（顶到系统

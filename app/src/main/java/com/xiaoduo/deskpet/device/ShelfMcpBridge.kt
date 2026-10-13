@@ -57,14 +57,8 @@ object ShelfMcpBridge {
                else """{"Op":"mcpUiSync","tool":"$tool","runId":"$runId"}"""
     }
 
-    /** S46 允许本地导航的密集架页面（白名单防注入；page 拼进逐字 JSON）。
-     *  P3-T5：page id 改引 ShelfNavIntentMatcher 单一来源（S62 += home）。 */
-    val NAVIGATE_PAGES: Set<String> = setOf(
-        ShelfNavIntentMatcher.PAGE_BORROW,
-        ShelfNavIntentMatcher.PAGE_RETURN,
-        ShelfNavIntentMatcher.PAGE_INVENTORY,
-        ShelfNavIntentMatcher.PAGE_HOME,
-    )
+    /** S46 允许本地导航的密集架页面（白名单防注入；page 拼进逐字 JSON）。 */
+    val NAVIGATE_PAGES: Set<String> = setOf("borrow", "return", "inventory", "home") // S62 += home
 
     /**
      * S46 页面 → mcpUiNavigate 请求体（desk-pet 本地意图直发，非 MCP 工具，

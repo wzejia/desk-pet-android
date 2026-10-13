@@ -1,6 +1,6 @@
 package com.xiaoduo.deskpet.cloud
 
-import com.xiaoduo.deskpet.api.AsrContract
+import com.xiaoduo.deskpet.voice.AsrClient
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.MultipartBody
 import okhttp3.OkHttpClient
@@ -26,7 +26,7 @@ class OpenAIAsrClient(
         data class Error(val message: String) : Result
     }
 
-    fun transcribe(wav: ByteArray, language: String = AsrContract.LANGUAGE_ZH): Result = try {
+    fun transcribe(wav: ByteArray, language: String = AsrClient.LANGUAGE_ZH): Result = try {
         val form = MultipartBody.Builder()
             .setType(MultipartBody.FORM)
             .addFormDataPart("file", "utterance.wav", wav.toRequestBody(WAV))

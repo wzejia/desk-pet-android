@@ -217,15 +217,11 @@ private fun TableBlock(
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
     ) {
         Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
-            // 列宽测量缓存（审计 ocr[310]）：colMaxUnits 是计算属性（每访问全量重扫 H·(R+1) 行列），
-            // 原实现逐格访问 → 每次重组 O(H·(R+1)) 次重测；收敛为每内容变更只测一次
-            // （key=block 内容 equals，重组/滚动零重测）。判定逻辑抽 TableColumnMeasureCache（变异锚测试）。
-            val colUnits = remember { TableColumnMeasureCache() }.unitsFor(block) { block.colMaxUnits }
             Row(horizontalArrangement = Arrangement.spacedBy(XiaoduoDimens.SpaceS)) {
                 block.header.forEachIndexed { idx, cell ->
                     Text(
                         text = styledText(cell, codeBg),
-                        modifier = tableColumnModifier(colUnits.getOrElse(idx) { 8 }),
+                        modifier = tableColumnModifier(block.colMaxUnits.getOrElse(idx) { 8 }),
                         style = smallStyle.copy(fontWeight = FontWeight.Bold),
                         color = contentColor,
                     )
@@ -241,7 +237,7 @@ private fun TableBlock(
                         row.forEachIndexed { idx, cell ->
                             Text(
                                 text = styledText(cell, codeBg),
-                                modifier = tableColumnModifier(colUnits.getOrElse(idx) { 8 }),
+                                modifier = tableColumnModifier(block.colMaxUnits.getOrElse(idx) { 8 }),
                                 style = smallStyle,
                                 color = contentColor,
                             )

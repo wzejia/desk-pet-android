@@ -3,8 +3,8 @@ package com.xiaoduo.deskpet.util
 import android.content.Context
 import android.util.Log
 import java.io.File
-import java.util.Date
 import java.text.SimpleDateFormat
+import java.util.Date
 import java.util.Locale
 
 /**

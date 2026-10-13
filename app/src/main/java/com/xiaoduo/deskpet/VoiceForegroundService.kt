@@ -17,17 +17,12 @@ import androidx.core.content.ContextCompat
 import com.xiaoduo.deskpet.util.FeedReleaseGate
 import com.xiaoduo.deskpet.util.PetLogger
 import com.xiaoduo.deskpet.util.Prefs
-import com.xiaoduo.deskpet.voice.kws.KwsDefaults
-import com.xiaoduo.deskpet.voice.kws.KwsEngine
-import com.xiaoduo.deskpet.voice.pipeline.VoiceClientFactory
-import com.xiaoduo.deskpet.voice.pipeline.VoiceStateRouter
-import com.xiaoduo.deskpet.voice.audio.AmbientCalibrator
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancel
-import kotlinx.coroutines.isActive
-import kotlinx.coroutines.launch
+import com.xiaoduo.deskpet.voice.KwsEngine
+import com.xiaoduo.deskpet.voice.KwsDefaults
+import com.xiaoduo.deskpet.voice.VoiceStateRouter
+import com.xiaoduo.deskpet.voice.OnceGate
+import com.xiaoduo.deskpet.voice.AmbientCalibrator
+import com.xiaoduo.deskpet.voice.VoiceClientFactory
 
 /**
  * KWS 常开前台服务（S5，对账表 KWS 节 + 知识包 §5）：
@@ -39,17 +34,8 @@ import kotlinx.coroutines.launch
  * - 单条采麦流复用：不自建 AudioRecord，接管 VoiceSessionManager 的
  *   kwsSink 挂点 + startIdleCapture（知识包 §3.5 单流扇出，避免双流抢麦）
  * - 门控阈值每次 feed 读 Prefs（校准写入即时生效，无需重启服务）
- *
- * 生命周期骨架（thread-discipline 件 1/件 2，2026-10-10 Phase 3）：
- * - init/shadow/校准跑在 service-scoped [bootstrapScope]（onDestroy 单点 cancel），
- *   骨架逻辑在纯 JVM [KwsBootstrap]（守卫测试 KwsBootstrapTest）；
- * - 唤醒处理与 teardown 互斥经 [wakeGate]（纯 JVM WakeEntryGate，守卫测试
- *   WakeEntryGateTest）：onDestroy 先 close 等 in-flight 唤醒处理完成，再清 sink。
- *   默认参数构造保留无参形态（系统反射实例化）；测试可注入替代 scope。
  */
-class VoiceForegroundService(
-    private val bootstrapScope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
-) : Service() {
+class VoiceForegroundService : Service() {
 
     @Volatile
     private var engine: KwsEngine? = null
@@ -73,25 +59,19 @@ class VoiceForegroundService(
     private val lock = Any()
 
     /**
-     * 唤醒处理临界区门（thread-discipline 件 1）：onWake 的 startListening 包进
-     * runExclusive；onDestroy 先 close（等待 in-flight 唤醒处理完成）再清 sink——
-     * 消解 destroyed 读与 startListening 之间的 TOCTOU（孤儿 capture 无主清理）。
-     * onWake 顶部的 destroyed 预检保留为快路径（省锁）。
-     */
-    private val wakeGate = WakeEntryGate()
-
-    /**
-     * init 引导门（thread-discipline 件 2）：在途拒绝重入（原 initGate 语义，防双载
-     * onnx 模型）、销毁后拒绝、factory 结果在交付前查活性（销毁传播 = 结果丢弃）。
-     */
-    private val bootstrap = KwsBootstrap(bootstrapScope)
-
-    /**
      * ROB-4：采麦喂入与引擎释放的单监视器串行门——sink 闭包（kws-init 线程挂上后由
      * VSM 采集线程调用）与 onDestroy 的 release 共用本门：close 后任何残余闭包
      * （null-check-then-invoke 窗口外已取出的引用）不再喂已释放引擎。
      */
     private val kwsGate = FeedReleaseGate()
+
+    /**
+     * init 单次门闩（backlog #8a，选门闩而非「收尾 engine 复查」）：复查只堵泄漏不堵
+     * 双载——重复 onStartCommand 时两个 init 线程各加载一遍 ~5.4MB onnx 模型（内存/耗时
+     * 尖峰），后到收尾者覆盖 engine 引用、先到者引擎永不 release。门闩从源头保证同实例
+     * 只起一个 init 线程；init 失败 release 放行重试（紧接 stopSelf，防御性）。
+     */
+    private val initGate = OnceGate()
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -115,7 +95,7 @@ class VoiceForegroundService(
             stopSelf()
             return START_NOT_STICKY
         }
-        startKwsIfNeeded(startId)
+        startKwsIfNeeded()
         return START_STICKY
     }
 
@@ -139,103 +119,85 @@ class VoiceForegroundService(
         }
     }
 
-    /**
-     * 引擎加载走 bootstrapScope 协程（onnx 模型 ~5.4MB，主线程加载会卡 UI）；
-     * 在途/销毁时 bootstrap 拒绝（KwsBootstrap 门）。[startId] 供 init 失败路径
-     * stopSelf(startId)——防旧启动请求的失败收尾误停新请求（startId 显式语义）。
-     */
-    private fun startKwsIfNeeded(startId: Int) {
+    /** 引擎加载走 worker 线程（onnx 模型 ~5.4MB，主线程加载会卡 UI）。 */
+    private fun startKwsIfNeeded() {
         synchronized(lock) { if (destroyed || engine != null) return }
-        val accepted = bootstrap.bootstrap(
-            engineFactory = {
-                val e = KwsEngine(
+        // 已有 init 线程在跑（重复 onStartCommand 无 destroy 介于其间）→ 直接放弃，不起第二个
+        val initToken = initGate.tryAcquire() ?: return
+        Thread({
+            val e = try {
+                KwsEngine(
                     assetManager = assets,
                     gateProvider = { Prefs.kwsGate(this) },
                     onKeyword = { keyword -> onWake(keyword) },
                 )
-                // S22 影子引擎：独立加载失败不拖死主引擎（影子是观测通道非功能通道）
-                val shadow = try {
-                    KwsEngine(
-                        assetManager = assets,
-                        gateProvider = { Prefs.kwsGate(this) },
-                        onKeyword = { keyword ->
-                            val st = VoiceClientFactory.session(this).stateFlow.value
-                            PetLogger.i(TAG, "S22 shadow hit during $st (thr=${KwsDefaults.SHADOW_KEYWORDS_THRESHOLD}): $keyword")
-                        },
-                        logger = { msg -> PetLogger.i("KwsShadow", msg) },
-                        keywordsThreshold = KwsDefaults.SHADOW_KEYWORDS_THRESHOLD,
-                        // S35：影子观测通道保持 S25b MIN 档——主引擎提档后影子不跟进，
-                        // 观测通道不与主链争抢（S34 教训：双引擎同权重 = 板子打满）。
-                        decodeThreadPriority = Thread.MIN_PRIORITY,
-                    )
-                } catch (t: Throwable) {
-                    PetLogger.e(TAG, "shadow KwsEngine init failed (non-fatal): ${t.message}")
-                    null
-                }
-                e to shadow
-            },
-            onFailure = { t ->
-                // 主引擎加载失败：放行重试（job 已正常结束）+ 显式 stopSelf(startId)——
-                // 防旧启动请求的失败收尾误停新请求（startId 显式语义）
+            } catch (t: Throwable) {
                 PetLogger.e(TAG, "KwsEngine init failed: ${t.message}")
-                stopSelf(startId)
-            },
-            onReady = { pair ->
-                val (e, shadow) = pair
-                // 收尾与 onDestroy 互斥：加载窗口内服务已销毁 → 放引擎走人，不挂 sink（critic ①）。
-                // destroyed 快路径 + bootstrapScope.isActive 双防线（scope.cancel 先于清理段）。
-                val wired = synchronized(lock) {
-                    if (destroyed || !bootstrapScope.isActive) {
-                        PetLogger.w(TAG, "service destroyed during KwsEngine init, release and bail")
-                        e.release()
-                        shadow?.release()
-                        false
-                    } else {
-                        engine = e
-                        shadowEngine = shadow
-                        val session = VoiceClientFactory.session(this)
-                        session.kwsSink = { block ->
-                            // ROB-4：喂入经 kwsGate 与 release 串行——close 后旧闭包调用直达此处也被跳过
-                            kwsGate.feed {
-                                e.feed(block)
-                                // 影子仅播报/处理期喂流（S22 口径）。S34 曾改全时段喂流，18:52-18:55
-                                // 14.18 实测双引擎把 rk3568 打满（App CPU 202%），主+影子解码吞吐上限
-                                // ≈10 块/s（单引擎时代恰满速），主引擎被挤到 decoded 4.4/s：队列（64 块
-                                // 封顶丢最旧）恒满=时间轴撕裂 56%，唤醒必漏——即时回退。近漏检观测判
-                                // BLOCKED（需更小模型/更强硬件/离线批量），数据存证见 notes+BLOCKED。
-                                val st = session.stateFlow.value
-                                if (st == VoiceStateRouter.State.SPEAKING || st == VoiceStateRouter.State.PROCESSING) {
-                                    shadow?.feed(block)
-                                }
-                            }
-                        }
-                        session.startIdleCapture()
-                        true
-                    }
+                initGate.release(initToken) // 失败放行重试（旧行为：engine==null 时可重入）
+                stopSelf()
+                return@Thread
+            }
+            // S22 影子引擎：独立加载失败不拖死主引擎（影子是观测通道非功能通道）
+            val shadow = try {
+                KwsEngine(
+                    assetManager = assets,
+                    gateProvider = { Prefs.kwsGate(this) },
+                    onKeyword = { keyword ->
+                        val st = VoiceClientFactory.session(this).stateFlow.value
+                        PetLogger.i(TAG, "S22 shadow hit during $st (thr=${KwsDefaults.SHADOW_KEYWORDS_THRESHOLD}): $keyword")
+                    },
+                    logger = { msg -> PetLogger.i("KwsShadow", msg) },
+                    keywordsThreshold = KwsDefaults.SHADOW_KEYWORDS_THRESHOLD,
+                    // S35：影子观测通道保持 S25b MIN 档——主引擎提档后影子不跟进，
+                    // 观测通道不与主链争抢（S34 教训：双引擎同权重 = 板子打满）。
+                    decodeThreadPriority = Thread.MIN_PRIORITY,
+                )
+            } catch (t: Throwable) {
+                PetLogger.e(TAG, "shadow KwsEngine init failed (non-fatal): ${t.message}")
+                null
+            }
+            // 收尾与 onDestroy 互斥：加载窗口内服务已销毁 → 放引擎走人，不挂 sink（critic ①）
+            synchronized(lock) {
+                if (destroyed) {
+                    PetLogger.w(TAG, "service destroyed during KwsEngine init, release and bail")
+                    e.release()
+                    shadow?.release()
+                    return@Thread
                 }
-                if (!wired) return@bootstrap
-                PetLogger.i(TAG, "always-on KWS started (shadow=${shadow != null}), gate=${Prefs.kwsGate(this)}")
-                // S29 首次自动校准：采麦流已起（复用分支，单流纪律），静默采 5 秒写阈值；
-                // 未授权/环境不稳时跳过不标记，下次服务启动重试；失败绝不阻断 KWS。
-                // scope 化（件 2）：独立协程替代 runBlocking 桥——销毁即取消（Cancel 传播
-                // 到 AmbientCalibrator 的挂起点，AudioRecord 由其 finally 释放）。
-                if (!Prefs.autoCalibDone(this)) {
-                    bootstrapScope.launch {
-                        try {
-                            val written = AmbientCalibrator.autoCalibrateIfFirstTime(this@VoiceForegroundService)
-                            PetLogger.i(TAG, "auto calibration: ${if (written) "written" else "skipped"}")
-                        } catch (t: Throwable) {
-                            PetLogger.e(TAG, "auto calibration failed: ${t.message}")
+                engine = e
+                shadowEngine = shadow
+                val session = VoiceClientFactory.session(this)
+                session.kwsSink = { block ->
+                    // ROB-4：喂入经 kwsGate 与 release 串行——close 后旧闭包调用直达此处也被跳过
+                    kwsGate.feed {
+                        e.feed(block)
+                        // 影子仅播报/处理期喂流（S22 口径）。S34 曾改全时段喂流，18:52-18:55
+                        // 14.18 实测双引擎把 rk3568 打满（App CPU 202%），主+影子解码吞吐上限
+                        // ≈10 块/s（单引擎时代恰满速），主引擎被挤到 decoded 4.4/s：队列（64 块
+                        // 封顶丢最旧）恒满=时间轴撕裂 56%，唤醒必漏——即时回退。近漏检观测判
+                        // BLOCKED（需更小模型/更强硬件/离线批量），数据存证见 notes+BLOCKED。
+                        val st = session.stateFlow.value
+                        if (st == VoiceStateRouter.State.SPEAKING || st == VoiceStateRouter.State.PROCESSING) {
+                            shadow?.feed(block)
                         }
                     }
                 }
-            },
-        )
-        // bootstrap 拒绝（在途/已销毁）：快路径预检后仍被拒只可能是竞态窄窗，静默即可
-        // （在途=另一 init 已在跑；销毁=onDestroy 收尾中）。
-        if (!accepted) {
-            PetLogger.i(TAG, "bootstrap rejected (in-flight or destroyed), skip")
-        }
+                session.startIdleCapture()
+            }
+            PetLogger.i(TAG, "always-on KWS started (shadow=${shadow != null}), gate=${Prefs.kwsGate(this)}")
+            // S29 首次自动校准：采麦流已起（复用分支，单流纪律），静默采 5 秒写阈值；
+            // 未授权/环境不稳时跳过不标记，下次服务启动重试；失败绝不阻断 KWS。
+            if (!Prefs.autoCalibDone(this)) {
+                try {
+                    val written = kotlinx.coroutines.runBlocking {
+                        AmbientCalibrator.autoCalibrateIfFirstTime(this@VoiceForegroundService)
+                    }
+                    PetLogger.i(TAG, "auto calibration: ${if (written) "written" else "skipped"}")
+                } catch (t: Throwable) {
+                    PetLogger.e(TAG, "auto calibration failed: ${t.message}")
+                }
+            }
+        }, "kws-init").start()
     }
 
     private fun onWake(keyword: String) {
@@ -260,26 +222,13 @@ class VoiceForegroundService(
         // 命中 = 打断当前轮——startListening 内 cancelCurrentTurn（停播/封轮/收泡/回 IDLE）
         // 后接续播「我在」→ LISTENING；IDLE 期照旧直接唤醒；LISTENING 期不可达（VAD 占用）。
         // playWakeAck=true：KWS 唤醒路径播预录「我在」再进聆听（#9 顺序式，ADR 0003）
-        // 件 1（ocr[202]）：预检与 startListening 之间的 TOCTOU 窗由 wakeGate 消解——
-        // onDestroy 先 gate.close() 等 in-flight 完成，此处不再可能与 teardown 交错。
-        val accepted = wakeGate.runExclusive {
-            VoiceClientFactory.session(this).startListening(playWakeAck = true)
-        }
-        if (!accepted) {
-            PetLogger.w(TAG, "wake arrived during teardown, dropped by gate ($keyword)")
-        }
+        VoiceClientFactory.session(this).startListening(playWakeAck = true)
     }
 
     override fun onDestroy() {
         PetLogger.i(TAG, "onDestroy, release KWS")
-        // 件 2：单点取消——init/shadow/校准协程随 scope.cancel 拆解（破坏性动作前
-        // 的 isActive 检查丢弃在途结果）。先 cancel 再清理：阻止新收尾挂 sink。
-        bootstrapScope.cancel()
         synchronized(lock) {
             destroyed = true
-            // 件 1（ocr[202]）：先关唤醒门并等待 in-flight 唤醒处理完成，再清 sink——
-            // gate 内的 startListening 若在重新武装采麦，此处清理接得住，孤儿 capture 不可达。
-            wakeGate.close()
             runCatching {
                 val session = VoiceClientFactory.session(this)
                 session.kwsSink = null

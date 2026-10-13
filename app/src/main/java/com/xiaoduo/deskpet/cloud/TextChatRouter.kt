@@ -2,7 +2,7 @@ package com.xiaoduo.deskpet.cloud
 
 import com.xiaoduo.deskpet.agui.AguiClient
 import com.xiaoduo.deskpet.agui.AguiSseConsumer
-import com.xiaoduo.deskpet.api.ChatMessage
+import com.xiaoduo.deskpet.chat.ChatMessage
 
 /**
  * 文字轮 LLM 路由（2026-08-14 云端分支；08-18 仓库事故丢失后按 jadx 寄存器级伪码复原）：

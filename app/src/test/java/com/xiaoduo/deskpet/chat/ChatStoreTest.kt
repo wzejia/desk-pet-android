@@ -1,10 +1,10 @@
 package com.xiaoduo.deskpet.chat
 
-import com.xiaoduo.deskpet.api.ChatMessage
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
+import org.junit.Assert.fail
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
@@ -87,7 +87,7 @@ class ChatStoreTest {
     /** 4. 新建会话 → 保存消息 → 读回一致；标题随首条 user 消息派生、updatedAt 刷新 */
     @Test
     fun createSaveLoadRoundTripWithDerivedTitle() {
-        val s = store.createSession()!!
+        val s = store.createSession()
         assertEquals("s1", s.id)
         assertEquals(ChatSession.FALLBACK_TITLE, s.title)
         assertEquals(s.id, store.loadIndex().currentId)
@@ -108,9 +108,9 @@ class ChatStoreTest {
     /** 5. 删除非当前会话：数据文件移除，其余会话与当前选择不受影响 */
     @Test
     fun deleteNonCurrentSessionKeepsOthersUntouched() {
-        val a = store.createSession()!!
+        val a = store.createSession()
         store.saveMessages(a.id, listOf(msg("u1", ChatMessage.Role.USER, "甲会话", 1L)))
-        val b = store.createSession()!!
+        val b = store.createSession()
         store.saveMessages(b.id, listOf(msg("u2", ChatMessage.Role.USER, "乙会话", 2L)))
 
         val index = store.deleteSession(a.id)
@@ -124,11 +124,11 @@ class ChatStoreTest {
     /** 6. 删除当前会话：回落到最近更新的其余会话 */
     @Test
     fun deleteCurrentFallsBackToMostRecentlyUpdated() {
-        val a = store.createSession()!!
+        val a = store.createSession()
         clock = 2000L
         store.saveMessages(a.id, listOf(msg("u1", ChatMessage.Role.USER, "甲", 1L)))
         clock = 3000L
-        val b = store.createSession()!!
+        val b = store.createSession()
 
         val index = store.deleteSession(b.id)
 
@@ -139,7 +139,7 @@ class ChatStoreTest {
     /** 7. 删除唯一会话：currentId 置空（VM 层据此造新空会话） */
     @Test
     fun deleteOnlySessionClearsCurrent() {
-        val a = store.createSession()!!
+        val a = store.createSession()
         val index = store.deleteSession(a.id)
         assertNull(index.currentId)
         assertTrue(index.sessions.isEmpty())
@@ -148,9 +148,9 @@ class ChatStoreTest {
     /** 8. 当前会话选择随索引持久化：新实例（模拟杀进程重启）读回同一当前会话与消息 */
     @Test
     fun currentSelectionSurvivesStoreRecreation() {
-        val a = store.createSession()!!
+        val a = store.createSession()
         store.saveMessages(a.id, listOf(msg("u1", ChatMessage.Role.USER, "甲", 1L)))
-        val b = store.createSession()!!
+        val b = store.createSession()
         store.saveMessages(b.id, listOf(msg("u2", ChatMessage.Role.USER, "乙", 2L)))
         store.setCurrent(a.id)
 
@@ -165,11 +165,11 @@ class ChatStoreTest {
     /** 9. 搜索 IO 包装：跨会话标题 + 消息全文命中，按 updatedAt 倒序 */
     @Test
     fun searchSessionsWrapsStoreData() {
-        val a = store.createSession()!!
+        val a = store.createSession()
         clock = 2000L
         store.saveMessages(a.id, listOf(msg("u1", ChatMessage.Role.USER, "红烧肉怎么做", 1L)))
         clock = 3000L
-        val b = store.createSession()!!
+        val b = store.createSession()
         store.saveMessages(b.id, listOf(msg("u2", ChatMessage.Role.USER, "红烧肉要焯水吗", 2L)))
 
         val hits = store.searchSessions("红烧肉")
@@ -181,7 +181,7 @@ class ChatStoreTest {
     /** 10. renameSession：本地改 title + 置 titleManual + 存索引（新实例读回一致）；updatedAt 不动 */
     @Test
     fun renameSessionSetsManualTitleAndPersists() {
-        val a = store.createSession()!!
+        val a = store.createSession()
         store.saveMessages(a.id, listOf(msg("u1", ChatMessage.Role.USER, "派生标题", 1L)))
         val before = store.loadIndex().sessions[0].updatedAt
 
@@ -201,7 +201,7 @@ class ChatStoreTest {
     /** 11. 手动命名后 saveMessages 跳过 deriveTitle：发新消息 title 不被覆盖 */
     @Test
     fun saveMessagesKeepsManualTitleAfterRename() {
-        val a = store.createSession()!!
+        val a = store.createSession()
         store.saveMessages(a.id, listOf(msg("u1", ChatMessage.Role.USER, "旧派生", 1L)))
         store.renameSession(a.id, "手动名")
 
@@ -216,7 +216,7 @@ class ChatStoreTest {
     /** 12. 未手动命名的会话 saveMessages 仍正常 deriveTitle（回归保护） */
     @Test
     fun saveMessagesStillDerivesTitleWhenNotManual() {
-        val a = store.createSession()!!
+        val a = store.createSession()
         store.saveMessages(a.id, listOf(msg("u1", ChatMessage.Role.USER, "红烧肉怎么做", 1L)))
         assertEquals("红烧肉怎么做", store.loadIndex().sessions[0].title)
         assertFalse(store.loadIndex().sessions[0].titleManual)
@@ -225,7 +225,7 @@ class ChatStoreTest {
     /** 13. renameSession 边界：空白标题忽略 / 会话不存在返回 null，索引均不变 */
     @Test
     fun renameSessionBlankOrMissingIgnored() {
-        val a = store.createSession()!!
+        val a = store.createSession()
         store.saveMessages(a.id, listOf(msg("u1", ChatMessage.Role.USER, "原标题", 1L)))
 
         assertNull(store.renameSession(a.id, "   "))
@@ -268,25 +268,28 @@ class ChatStoreTest {
         assertTrue(store.loadIndex().sessions.isNotEmpty())
     }
 
-    /** 15. 索引不可读且备份失败 → degraded：拒写保原件；createSession 降级返 null 不抛
-     *  （P3-2 拍板 2026-10-10：静默降级 + 降级期禁写，不再向上抛崩 VM init）。 */
+    /** 15. 索引不可读且备份失败 → degraded：拒写保原件，createSession 向上抛（不再静默 no-op）。 */
     @Test
-    fun `DATA-1 degraded index refuses writes and createSession degrades to null`() {
+    fun `DATA-1 degraded index refuses writes and createSession propagates failure`() {
         blockBackupOf(indexFile())
         indexFile().writeText("{{{corrupt")
 
         assertNotNull(store.loadIndex()) // 触发降级
         val bytesBefore = indexFile().readText()
 
-        val created = store.createSession()
-        assertNull("degraded 期 createSession 必须降级返 null（P3-2 拍板），不得抛", created)
+        try {
+            store.createSession()
+            fail("createSession 必须向上传播索引持久化失败")
+        } catch (expected: IllegalStateException) {
+            // 期望路径
+        }
         assertEquals("degraded 期索引文件保持原样（拒绝破坏性覆写）", bytesBefore, indexFile().readText())
     }
 
     /** 16. 消息文件损坏且备份失败：返回空但原件保留，后续保存被拒（空列表不得覆盖好数据）。 */
     @Test
     fun `DATA-1 unreadable messages file keeps original and refuses empty overwrite`() {
-        val a = store.createSession()!!
+        val a = store.createSession()
         store.saveMessages(a.id, listOf(msg("u1", ChatMessage.Role.USER, "重要历史", 1L)))
         val f = File(sessionsDir(), "${a.id}.json")
         blockBackupOf(f)
@@ -301,7 +304,7 @@ class ChatStoreTest {
     /** 17. 删除会话：索引降级（持久化必败）时中止删除，消息文件不得先于索引持久化被删。 */
     @Test
     fun `DATA-1 deleteSession keeps messages file when index persist unavailable`() {
-        val a = store.createSession()!!
+        val a = store.createSession()
         store.saveMessages(a.id, listOf(msg("u1", ChatMessage.Role.USER, "甲", 1L)))
         blockBackupOf(indexFile())
         indexFile().writeText("{{{corrupt")
@@ -330,7 +333,7 @@ class ChatStoreTest {
     /** 19. 原子写：正常保存后无 .tmp 残留；预存 .tmp 不影响后续保存（111 torn write 放大）。 */
     @Test
     fun `DATA-1 saves leave no tmp residue and tolerate stale tmp`() {
-        val a = store.createSession()!!
+        val a = store.createSession()
         File(sessionsDir(), "${a.id}.json.tmp").writeText("stale")
         store.saveMessages(a.id, listOf(msg("u1", ChatMessage.Role.USER, "正文", 1L)))
 
@@ -342,7 +345,7 @@ class ChatStoreTest {
     /** 20. 重命名：索引持久化失败 → 返回 null（改名未落盘，不得谎报成功）。 */
     @Test
     fun `DATA-1 renameSession returns null when index persist fails`() {
-        val a = store.createSession()!!
+        val a = store.createSession()
         store.saveMessages(a.id, listOf(msg("u1", ChatMessage.Role.USER, "原标题", 1L)))
         blockBackupOf(indexFile())
         indexFile().writeText("{{{corrupt")

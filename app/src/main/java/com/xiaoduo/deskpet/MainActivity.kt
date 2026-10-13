@@ -117,3 +117,8 @@ class MainActivity : ComponentActivity() {
 
     }
 }
+
+/** 进程内记录悬浮窗服务运行态（M1 单进程足够）。 */
+object PetOverlayState {
+    @Volatile var running: Boolean = false
+}

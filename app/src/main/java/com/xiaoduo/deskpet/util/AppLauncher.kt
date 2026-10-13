@@ -2,6 +2,7 @@ package com.xiaoduo.deskpet.util
 
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 
 /**
  * 跳转目标 App（S27/S30/S31）：聊天页导航行中键与悬浮窗菜单「打开密集架」共用此入口。
@@ -19,8 +20,7 @@ object AppLauncher {
      * 入口 .view.main.MainActivity）。注意：com.ys.ys_receiver 是 system uid 看护壳
      * （StartActivity 无 LAUNCHER category，getLaunchIntentForPackage 拿不到且壳会自毁）——勿用。
      */
-    // 唯一事实源收敛到 PrefContract.DEFAULT_JUMP_PACKAGE（T4 收尾，ocr[372]；字面量只此一处）
-    const val DEFAULT_TARGET_PACKAGE = PrefContract.DEFAULT_JUMP_PACKAGE
+    const val DEFAULT_TARGET_PACKAGE = "com.yinduo.compactShelf"
 
     /** 无标准 LAUNCHER 入口时的显式组件兜底（kiosk 应用可能没桌面入口）；null=未配置。 */
     val FALLBACK_ACTIVITY_CLASS: String? = null

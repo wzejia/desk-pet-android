@@ -1,6 +1,5 @@
 package com.xiaoduo.deskpet.voice
 
-import com.xiaoduo.deskpet.voice.pipeline.VoiceSessionManager
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test

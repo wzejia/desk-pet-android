@@ -1,6 +1,5 @@
 package com.xiaoduo.deskpet.cloud
 
-import com.xiaoduo.deskpet.net.TtsVoiceDefaults
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -26,7 +25,7 @@ class VolcengineTtsClient(
     private val http: OkHttpClient,
     private val apiKey: String,          // X-Api-Key（语音服务 UUID）
     private val speaker: String,         // 音色 ID
-    private val model: String = TtsVoiceDefaults.VOLC_MODEL, // P3-T5：兜底单源化（同值字面量收敛）
+    private val model: String = "seed-tts-2.0-standard",
     private val resourceId: String = "seed-tts-2.0",
     private val sampleRate: Int = 24000,
     private val logger: (String) -> Unit = {},

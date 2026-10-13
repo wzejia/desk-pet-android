@@ -1,6 +1,5 @@
 package com.xiaoduo.deskpet.chat
 
-import com.xiaoduo.deskpet.api.ChatMessage
 import org.json.JSONArray
 import org.json.JSONObject
 

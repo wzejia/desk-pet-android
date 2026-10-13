@@ -1,11 +1,12 @@
 package com.xiaoduo.deskpet.cloud
 
-import com.xiaoduo.deskpet.api.AsrContract
+import com.xiaoduo.deskpet.voice.AsrClient
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.Response
 import okhttp3.WebSocket
 import okhttp3.WebSocketListener
+import okio.ByteString
 import okio.ByteString.Companion.toByteString
 import org.json.JSONArray
 import org.json.JSONObject
@@ -37,7 +38,7 @@ class AliyunAsrClient(
         data class Error(val message: String) : Result
     }
 
-    fun transcribe(wav: ByteArray, language: String = AsrContract.LANGUAGE_ZH): Result {
+    fun transcribe(wav: ByteArray, language: String = AsrClient.LANGUAGE_ZH): Result {
         return try {
             val pcm = stripWavPcm(wav)
             val taskId = UUID.randomUUID().toString().replace("-", "")
@@ -159,12 +160,7 @@ class AliyunAsrClient(
     companion object {
         private const val WS_URL = "wss://dashscope.aliyuncs.com/api-ws/v1/inference/"
 
-        /**
-         * RIFF 容器剥 PCM：优先按 data 子块取（与 TtsClient 剥头同族）；无 data 块按 44B 头处理。
-         * ocr[41] 同型族（P3-WAV-FAMILY）：损坏输入契约与 WavCodec/ROB-14 一致——一律
-         * IllegalArgumentException（调用方映射 Result.Error），不得 IOOBE 等意外异常。
-         * 变异锚：回退旧溢出代码 → WavPcmStripBoundsTest 红。
-         */
+        /** RIFF 容器剥 PCM：优先按 data 子块取（与 TtsClient 剥头同族）；无 data 块按 44B 头处理。 */
         fun stripWavPcm(wav: ByteArray): ByteArray {
             val magic = "data".toByteArray(Charsets.US_ASCII)
             var i = 12
@@ -172,17 +168,9 @@ class AliyunAsrClient(
                 if (wav[i] == magic[0] && wav[i + 1] == magic[1] && wav[i + 2] == magic[2] && wav[i + 3] == magic[3]) {
                     val start = i + 8
                     val size = ByteBuffer.wrap(wav, i + 4, 4).order(ByteOrder.LITTLE_ENDIAN).int
-                    require(size >= 0) { "WAV data chunk size 负值（size=$size）" }
-                    // 旧 `minOf(start + size, wav.size)` 在 size 巨量时回绕负 → copyOfRange(from>to) IAE
-                    // （碰巧落在契约内但语义错）；无溢出钳位：end ≤ wav.size - start（循环守卫保证右式 ≥ 0）。
-                    val end = minOf(size, wav.size - start)
-                    return wav.copyOfRange(start, start + end)
+                    return wav.copyOfRange(start, minOf(start + size, wav.size))
                 }
                 val chunkSize = ByteBuffer.wrap(wav, i + 4, 4).order(ByteOrder.LITTLE_ENDIAN).int
-                // 负 chunkSize 旧码推进 i 回绕负 → 下轮 wav[i] IOOBE（意外异常）→ 契约化 IAE；
-                // 剩余空间装不下本块（无溢出比较）：推进后循环自然退出 → 44B 回退（原行为等价化）。
-                require(chunkSize >= 0) { "WAV chunk size 负值（size=$chunkSize）" }
-                if (chunkSize > wav.size - i - 8) break
                 i += chunkSize + 8 + (chunkSize and 1)
             }
             return wav.copyOfRange(minOf(44, wav.size), wav.size)

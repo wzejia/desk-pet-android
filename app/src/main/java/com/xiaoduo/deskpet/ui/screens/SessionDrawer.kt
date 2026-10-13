@@ -31,13 +31,13 @@ import androidx.compose.material3.NavigationDrawerItemDefaults
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -48,7 +48,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.xiaoduo.deskpet.chat.ChatSession
 import com.xiaoduo.deskpet.chat.SessionSummary
-import com.xiaoduo.deskpet.ui.overlay.PetView
+import com.xiaoduo.deskpet.ui.PetView
 import com.xiaoduo.deskpet.ui.theme.XiaoduoDimens
 import com.xiaoduo.deskpet.util.PetLogger
 import kotlinx.coroutines.Dispatchers
