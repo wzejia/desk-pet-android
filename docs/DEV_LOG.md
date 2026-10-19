@@ -1,6 +1,25 @@
 # 小朵 Android 开发日志
 
 
+## 2026-10-19（一）main 定型基线打分支+tag（纯 git 治理）+ dsh-pet 动画可移植性调研
+
+**版本管理**：应用户令对 main 定型态（`00c5c97`）建分支 `baseline/main-finalized` + tag
+`main-finalized-20261019`，均已推 origin（GitHub wzejia/desk-pet-android）。无代码改动。
+
+**main vs refactor/p0 差异勘明**（用户问「除经验文档外还有无区别」，`git diff main..refactor/p0` 实证）：
+p0 = e288037 + Phase 0 守护成果——PetOverlayState 活性台账接线 4 文件（PetOverlayService/
+MainActivity/SettingsScreen/VoicePlayer，~+70/-6 行）+ `PetOverlayStateTest.kt` 87 行（7 条测试，
+761 绿 vs main 754 绿）；main 刻意回退到重构前 e288037 **字节一致**。p0 分支 HEAD 现为 `d866ec1`
+（板上 APK 5a0103eb 对应更早的 `19ea825`）。
+
+**dsh-pet 调研**（跨仓，文档落 `D:/mijijia/docs/research/2026-10-17-dsh-pet-animation-porting-assessment.md`）：
+dsh-pet = DeepSeek Harness 桌宠 Web 插件，动画=VP9-alpha webm × 双 `<video>` 交叉淡入（180ms）× 纯函数
+动画链/拖拽甩抛物理。结论：三硬约束（Android 原生播不了 VP9-alpha；**素材禁止商用**——只能借 MIT 代码
+逻辑与素材管线思路；WebView 路线 +100MB 不可行）；可搬=素材生成管线（AI 绿幕视频→抠像→脚线归一化，
+末端改出 Android 格式）+ 动画链权重/交叉淡入/弹簧甩抛物理直译 Kotlin。两个前置拍板待用户：①**S13 静态化
+决策（2026-08-24 拍板）是否推翻**；②素材格式选型（建议首步=按动画分 spritesheet + 按需解码 LRU，方案 B
+animated WebP 备选）。克隆已删，再研=重 clone（commit `6c5f0432` 锁定）。
+
 ## 2026-10-13（一）带密钥 APK 构建（main 重构前态）——产物留存未部署，用户令暂不构建
 
 **背景**：用户要求按既往做法构建带 API 密钥的 APK（secrets/cloud.properties → BuildConfig，
