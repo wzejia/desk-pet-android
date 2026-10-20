@@ -91,6 +91,9 @@ import com.xiaoduo.deskpet.ui.theme.XiaoduoDimens
 import com.xiaoduo.deskpet.util.AppLauncher
 import com.xiaoduo.deskpet.util.PetLogger
 import com.xiaoduo.deskpet.voice.VoiceClientFactory
+import com.xiaoduo.deskpet.voice.VoiceStateRouter
+import com.xiaoduo.deskpet.voice.VoiceTapAction
+import com.xiaoduo.deskpet.voice.VoiceTapRouter
 
 /**
  * Chat 主页（S27 底部导航改版）：ModalNavigationDrawer → 消息流 LazyColumn（顶到系统
@@ -194,6 +197,9 @@ fun ChatScreen(
                 // （keyStopActive=voiceActive∪VSM非IDLE，晚建 VM 不错过在飞语音轮）
                 val files by vm.files.collectAsState()
                 val voiceActive by vm.keyStopActive.collectAsState()
+                // 免按住模式：聆听态视觉反馈的状态源=VSM stateFlow（禁本地布尔镜像）；
+                // 点按分流在同一 session 上读瞬时 state 走 VoiceTapRouter（见 voiceTap）
+                val voiceState by remember { VoiceClientFactory.session(context).stateFlow }.collectAsState()
                 var text by rememberSaveable { mutableStateOf("") }
                 val pickFile = rememberLauncherForActivityResult(
                     ActivityResultContracts.GetContent(),
@@ -243,9 +249,8 @@ fun ChatScreen(
                         onStopTurn = vm::cancelCurrentTurn, // 多功能键停止档（S7-e 同源）
                         onPickFile = { pickFile.launch("*/*") },
                         onRemoveFile = vm::removeFile,
-                        onVoiceStart = { startVoiceHold(context) },
-                        onVoiceEnd = { stopVoiceHold(context) },
-                        onVoiceCancel = { cancelVoiceHold(context) },
+                        voiceListening = voiceState == VoiceStateRouter.State.LISTENING,
+                        onVoiceTap = { voiceTap(context) },
                     )
                 // S27 底部导航行贴底：汉堡（左）｜密集架键（正中）｜全屏语音键（右）。
                 // 两侧 weight(1f) 容器实现中键真居中；三键均 48dp 热区 + 36dp 圆形容器
@@ -281,8 +286,8 @@ fun ChatScreen(
 
 /**
  * 底部导航行（贴系统手势条，输入栏在上）：汉堡菜单（左）｜密集架键（正中）｜全屏语音键（右）。
- * 全屏键用全屏四角图标（v4 拍板），与输入栏「按住说话」麦克风图标区分——
- * 按住说话=语音转文字不进页，此键=进入 S14 全屏语音对话页。
+ * 全屏键用全屏四角图标（v4 拍板），与输入栏「点击说话」麦克风图标区分——
+ * 点击说话=语音转文字不进页，此键=进入 S14 全屏语音对话页。
  */
 @Composable
 private fun BottomNavRow(
@@ -651,36 +656,36 @@ private fun StreamingCursor() {
     )
 }
 
-// ---------------- 语音占位接线（S4 全链路前的过渡） ----------------
+// ---------------- 语音点按接线（免按住模式 Tap-to-Talk，2026-10-18 替换按住说话） ----------------
 
 /**
- * 按住说话占位：已有可调用的 VoiceClientFactory.session（startListening/stopListening）。
- * 麦克风未授权或调用失败 → toast「语音链路接入中」。
+ * 点按单路入口：经 VoiceTapRouter 按 VSM 瞬时 state 分流（UI 不判状态）。
+ * - END（LISTENING）→ stopListening()：结束聆听=有货送货（已判定派发/未判定既有分支）；
+ * - START（IDLE/PROCESSING/SPEAKING）→ startListening()：IDLE 直进；SPEAKING/PROCESSING
+ *   走 VSM :400 既有 cancel 接续 barge-in，UI 层不再调 cancel。
+ * 权限与失败收敛沿用原按住接线语义：START 需 RECORD_AUDIO（未授权/异常 → toast 占位）。
  */
-private fun startVoiceHold(context: Context) {
-    val granted = ContextCompat.checkSelfPermission(
-        context,
-        Manifest.permission.RECORD_AUDIO,
-    ) == PackageManager.PERMISSION_GRANTED
-    if (!granted) {
-        PetLogger.d("ChatScreen", "voice hold: RECORD_AUDIO not granted, placeholder toast")
-        Toast.makeText(context, "语音链路接入中", Toast.LENGTH_SHORT).show()
-        return
-    }
-    runCatching { VoiceClientFactory.session(context).startListening() }
-        .onFailure {
-            PetLogger.w("ChatScreen", "voice startListening failed: ${it.message}")
-            Toast.makeText(context, "语音链路接入中", Toast.LENGTH_SHORT).show()
+private fun voiceTap(context: Context) {
+    val session = VoiceClientFactory.session(context)
+    when (VoiceTapRouter.route(session.state)) {
+        VoiceTapAction.END -> runCatching { session.stopListening() }
+        VoiceTapAction.START -> {
+            val granted = ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.RECORD_AUDIO,
+            ) == PackageManager.PERMISSION_GRANTED
+            if (!granted) {
+                PetLogger.d("ChatScreen", "voice tap: RECORD_AUDIO not granted, placeholder toast")
+                Toast.makeText(context, "语音链路接入中", Toast.LENGTH_SHORT).show()
+                return
+            }
+            runCatching { session.startListening() }
+                .onFailure {
+                    PetLogger.w("ChatScreen", "voice startListening failed: ${it.message}")
+                    Toast.makeText(context, "语音链路接入中", Toast.LENGTH_SHORT).show()
+                }
         }
-}
-
-private fun stopVoiceHold(context: Context) {
-    runCatching { VoiceClientFactory.session(context).stopListening() }
-}
-
-/** S7-f 上滑取消按住说话：终止录音会话不发送（VSM LISTENING 分支 = vad.stop + 回 IDLE）。 */
-private fun cancelVoiceHold(context: Context) {
-    runCatching { VoiceClientFactory.session(context).cancelCurrentTurn() }
+    }
 }
 
 /** ROB-9：上传链路收敛结果（UI 协程内不抛异常，映射为用户提示）。 */

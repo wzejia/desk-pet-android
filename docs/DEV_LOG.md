@@ -1110,3 +1110,17 @@ files_touched: [
   app/src/test/java/com/xiaoduo/deskpet/voice/VoiceTapRouterTest.kt
 ]
 ```
+
+## T2 port-4cap Tap-to-Talk 票3：UI 三处点按化（2026-10-20，fork 锚 e0e2eb2）
+
+R2 红线逐 hunk 合并（禁整文件覆盖）：InputBar 点按语义以上游手势族落地（awaitEachGesture+waitForUpOrCancellation 上-下沿配对），保留上游 neverEqualPolicy levels/WaveformBars(levelsState) 签名，移植 fork rememberUpdatedState 过时闭包守卫与两态文案（点击说话/正在聆听，点击结束），三态 when 底色退役为两态（outline 聆听高亮/surfaceVariant 独立底）；ChatScreen voiceState 派生自 VSM stateFlow（禁本地布尔镜像）+voiceTap 单路入口（权限/失败收敛沿用原语义）；SettingsScreen 仅 VoiceSelfCheck 区+imports（KwsSection 采麦源行 T1 属地零触碰，diff 6 hunk 全落 imports+810-870），Button onClick 直通分流，手势族 4 imports 随按住语义退役。
+
+```evidence
+verify_cmd: cd /e/desk-pet-wt-t2 && export JAVA_HOME='C:/Program Files/Microsoft/jdk-17.0.20.8-hotspot' && ./gradlew.bat :app:testDebugUnitTest --rerun-tasks
+verify_claim: BUILD SUCCESSFUL (1m 24s) + XML 聚合 760 tests/0 failures/0 errors/0 skipped；编译即证三文件接线（VoiceTapRouter 经 ChatScreen/SettingsScreen 编译消费、InputBar 手势族编译通过）；R2 领先符号对拍见 T2-progress.md
+files_touched: [
+  app/src/main/java/com/xiaoduo/deskpet/ui/screens/InputBar.kt,
+  app/src/main/java/com/xiaoduo/deskpet/ui/screens/ChatScreen.kt,
+  app/src/main/java/com/xiaoduo/deskpet/ui/screens/SettingsScreen.kt
+]
+```
