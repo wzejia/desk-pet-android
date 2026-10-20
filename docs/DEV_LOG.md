@@ -1,6 +1,40 @@
 # 小朵 Android 开发日志
 
 
+## 2026-10-20（三）T1 车道收口：采麦层 5 层链移植完成（786 绿双证）+ 主代理独立复核全过
+
+**T1 完成**（子代理串行执行，主代理 maker≠checker 独立复核）：fork rk3288@7bef28c 采麦层 5 层依赖链按序移植上游（分支 `port/baseline-4cap-upstream-47b240a`），每层一 commit（含 fork 锚 hash+红绿双证+变异锚结论）：
+
+| 层 | fork 锚 | commit | 内容 | 绿数 |
+|---|---|---|---|---|
+| 1 | 63a79ca | `9dd622c` | ZeroBlockDetector + isAllZeroPcm16 + startRecordWithRetry + pumpBlocks stopWhen | 754→762(+8) |
+| 2 | a0944a4 | `4e8789b` | expectedSourceFor/isSourceDrift 纯函数 + buildRecord S57 解析接线 | 762→766(+4) |
+| 3 | e0b5c36 | `8c480c5` | TerminalStartFailureDetector + onTerminalStartFailure seam + VCF.selfHealRestart + Prefs voice_proc_last_restart | 766→772(+6) |
+| 4 | 13ec3f9 | `a3620af` | **②C 裁决跳过实现**，仅合并 PrefContractTest selfheal 断言 | 772→773(+1) |
+| 5 | 04e8015 | `38a65ec` | SoftwareAgc + 14 AGC_* 常量 + emit 单点集成 | 773→786(+13) |
+
+**②C 裁决落地**：SourceDriftTest fork 侧 8 条中 4 条引用 MIC_SOURCE_MIC=3，全数剔除并逐条记录（progress 剔除清单）；无 mode 3 符号、无第 4 档 UI、coerce 保持 (0,2)、PrefContract 注明「0-2 三档（上游 S57 只读锁定）」。绿数口径：工单预测 T1 终态 790±1，实际 786，差 4 即上述剔除——**战役终态 786 + T2(+6) = 792 与拍板②C 预测（796−4）精确一致**。
+
+**主代理独立复核**（不亲信子代理自述）：①XML 复算 tests=786 failures=0 errors=0 skipped=0 与自述一致；②probe4 三符号（onPreAgcBlock/dumpPcm/PreAgcDump）全树 grep=0；③MIC_SOURCE_MIC grep=0；④p2p 十一关键词（ShelfMcpBridge=11…currentAgentId=2）与开工前基线逐一持平零回退；⑤触碰文件 9 个（4 主代码 + 4 新测试 + PrefContractTest 合并）全部在工单范围内零越界。
+
+**偏差补记**：T1 五笔代码 commit 未随附 DEV_LOG evidence 块（commit_guard 影子模式不阻断）——由主代理以本条目统一补记。
+
+```evidence
+verify_cmd: cd /e/desk-pet-android && export JAVA_HOME='C:/Program Files/Microsoft/jdk-17.0.20.8-hotspot' && export PATH="/c/Program Files/Microsoft/jdk-17.0.20.8-hotspot/bin:$PATH" && ./gradlew.bat :app:testDebugUnitTest --rerun-tasks
+verify_claim: BUILD SUCCESSFUL；XML 独立复算 tests=786 failures=0 errors=0 skipped=0（子代理与主代理双证一致）；probe4 三符号 grep=0；MIC_SOURCE_MIC grep=0（②C 遵守）；p2p 十一关键词与基线持平
+files_touched: [
+  app/src/main/java/com/xiaoduo/deskpet/voice/AudioCapture.kt,
+  app/src/main/java/com/xiaoduo/deskpet/util/Prefs.kt,
+  app/src/main/java/com/xiaoduo/deskpet/util/PrefContract.kt,
+  app/src/main/java/com/xiaoduo/deskpet/voice/VoiceClientFactory.kt,
+  app/src/test/java/com/xiaoduo/deskpet/util/PrefContractTest.kt,
+  app/src/test/java/com/xiaoduo/deskpet/voice/AudioCaptureZeroBlockDetectorTest.kt,
+  app/src/test/java/com/xiaoduo/deskpet/voice/AudioCaptureSourceDriftTest.kt,
+  app/src/test/java/com/xiaoduo/deskpet/voice/AudioCaptureTerminalStartFailureDetectorTest.kt,
+  app/src/test/java/com/xiaoduo/deskpet/voice/SoftwareAgcTest.kt
+]
+```
+
 ## 2026-10-20（二）阶段 1 启动：三车道工单发布 + T1/T2/T3 子代理并行拉起
 
 **阶段 1 执行**（接上条拍板）：三车道工单已发布 `.scratch/port-4cap/`（T1-ticket.md 采麦层三合一/T2-ticket.md Tap-to-Talk/T3-ticket.md docs 移植），各含环境红线、f2p 验收口径、防作弊变异锚与 progress 落盘义务。T1 独占主工作区 `E:/desk-pet-android`（分支 `port/baseline-4cap-upstream-47b240a`，兼作③B 基线车道）；T2 独立 worktree `E:/desk-pet-wt-t2`（分支 `port/t2-tap-47b240a`，压缩前已备）；T3 独立 worktree `E:/desk-pet-wt-t3`（分支 `port/t3-docs`）。三车道按 RESEARCH §5 准入并行（T1∩T2 仅 SettingsScreen.kt 区域隔离），线性合入顺序 T1→T2→T3 由主代理收口执行。
