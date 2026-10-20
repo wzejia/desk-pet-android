@@ -104,6 +104,13 @@ class AudioCapture(
      */
     private val terminalFailureGuard = TerminalStartFailureDetector()
 
+    /**
+     * 软件自动增益判定器（SoftwareAgc 票 2026-10-17，讯飞逆向等价物；类与常量区在文件尾）。
+     * **实例级承载**（照 terminalFailureGuard 先例）：EMA 噪声底/增益平滑态是「房间声学属性」
+     * 非流证据，stop/start 不复位，进程死随进程湮灭。OnceGate 保证单线程访问，无锁。
+     */
+    private val agc: SoftwareAgc? = if (SOFTWARE_AGC_ENABLED) SoftwareAgc() else null
+
     fun start(scope: CoroutineScope) {
         // 旧写法 if (isRunning) return 的检查与 job 置位间有竞态窗口：双调各过检查
         // 起双读循环抢麦（critic-#4 P3，既有问题）。门闩把检查+占位收敛成一次原子操作；
@@ -221,6 +228,29 @@ class AudioCapture(
                                 "连续 $ZERO_BLOCK_SELF_HEAL_THRESHOLD 块（3.0s）全零判定采麦流断流，" +
                                     "第 $selfHeals 次自愈：release 后延迟 ${CAPTURE_REBUILD_DELAY_MS}ms 重建",
                             )
+                        }
+                        // SoftwareAgc 回归守卫（软件 AGC 票 2026-10-17）：emit 单点恰一次原地
+                        // 增益——顺序写死禁挪：probeBlock/zeroGuard 在前吃原始块（采集侧探针
+                        // 与物理流层语义不变），增益后块才 tryEmit（VAD/ASR/KWS 全流统一吃
+                        // 增益后音频，用户拍板）。挪到 tryEmit 之后=漏增益，挪到 probeBlock
+                        // 之前=探针口径漂移。全零块在 [SoftwareAgc.process] 内直通（零交集）。
+                        // （删此 process 调用 → SoftwareAgcTest 远场收敛组红；判定本体在 [SoftwareAgc]，
+                        // 纯逻辑 JVM 可测可变异。集成点属 Android import 不可达域：守卫注释+
+                        // critic 审查+真机取证，照 mic-source 票口径。）
+                        val tick = agc?.process(block)
+                        if (tick != null) {
+                            if (tick.reportStatus) {
+                                PetLogger.i(TAG, "agc nf=%.4f g=%.2f".format(tick.noiseFloor, tick.gain))
+                            }
+                            if (tick.weakChain) {
+                                PetLogger.w(
+                                    TAG,
+                                    "agc 弱链路：nf=%.4f 时增益顶上限 g=%.2f——×8 仍不达目标响度，疑似链路衰减/距离过远".format(
+                                        tick.noiseFloor,
+                                        tick.gain,
+                                    ),
+                                )
+                            }
                         }
                         // S40：producer 侧盖戳（nanoTime 单调域，与 VSM 接缝水位同域）
                         _stamped.tryEmit(StampedBlock(block, System.nanoTime()))
@@ -541,6 +571,156 @@ internal suspend fun CoroutineScope.pumpBlocks(
         if (filled == buf.size) {
             filled = 0
             emit(buf.copyOf())
+        }
+    }
+}
+
+// ---------------- 软件自动增益 SoftwareAgc（2026-10-17 立票：讯飞逆向等价物；纯逻辑判定面，零 Android import，JVM 可测） ----------------
+// 依据：`.scratch/agc-software/TICKET.md` + SPEC（17.242 MIC 链电平实测：底噪 0.004~0.014 /
+// 近场 0.05~0.11 / 远场 0.01~0.04，VAD 固定门限 0.05；同板讯飞远场正常=native speex AGC）。
+// 语义：采麦读循环 emit 单点对每块原地增益，VAD/ASR/KWS 全流统一吃增益后音频（用户拍板）；
+// VAD 0.05 门限与 S18/S19 校准体系零改动（校准天然工作在增益后域）。出处在类 KDoc。
+
+/** AGC 装配级总开关：板验对照/回退=改这一个值回原始链，不改行为代码（SPEC 决策 #9）。 */
+internal const val SOFTWARE_AGC_ENABLED = true
+
+/** maxLevel 域目标响度：近场实测 0.05~0.11 中值偏上，VAD 门限 0.05 之上 +60% 余量。 */
+internal const val AGC_TARGET_LEVEL = 0.08f
+
+/** 增益上下限（只放大不衰减）：×8 下底噪 0.004→0.032 仍低于 VAD 门限 0.05（不抬误触），远场 0.02→0.16 越门限。 */
+internal const val AGC_MAX_GAIN = 8.0f
+internal const val AGC_MIN_GAIN = 1.0f
+
+/** 噪声底 EMA 系数（~20 块收敛）+ 守门因子（仅块响度 ≤ nf×3 时更新——防语音把底噪抬走致增益塌缩）。 */
+internal const val AGC_NOISE_FLOOR_ALPHA = 0.05f
+internal const val AGC_NOISE_GUARD_FACTOR = 3.0f
+
+/** 增益双侧 EMA 系数 + 相邻块增益变化比上限（防爆音与泵浦感）。 */
+internal const val AGC_GAIN_SMOOTH_ALPHA = 0.3f
+internal const val AGC_GAIN_MAX_STEP_RATIO = 1.5f
+
+/** 弱链路告警：连续 50 块（5s）语音级且 raw 增益 >×8 被钳 → fire 恰一次，冷却 5min（内存态，不落盘）。 */
+internal const val AGC_WEAK_CHAIN_BLOCKS = 50
+internal const val AGC_WEAK_CHAIN_COOLDOWN_MS = 5 * 60 * 1000L
+
+/** 状态行周期：每 300 块（30s）reportStatus 恰一次（调用方打 INFO）。 */
+internal const val AGC_STATUS_INTERVAL_BLOCKS = 300
+
+/**
+ * EnergyGate.rmsOf（float /32768 域）→ maxLevel 域换算系数。
+ * maxLevel 域 = min(1.0, RMS_int16/8000)（VadDetector.levelOf/RMS_REF=8000 口径，金线
+ * `vad maxLevel`/`maxLevel` 同域可比）；增益是比值、内部自洽，但日志与门限论证统一 maxLevel 域。
+ */
+internal const val AGC_RMS_FLOAT_TO_MAXLEVEL = 32768f / 8000f
+
+/** [SoftwareAgc.process] 单块结果：tick 信息（调用方按 [AgcTick.reportStatus]/[AgcTick.weakChain] 打日志）。 */
+internal data class AgcTick(
+    val gain: Float, // 本块实际应用增益（直通=1.0）
+    val noiseFloor: Float, // 当前 EMA 噪声底估计（maxLevel 域）
+    val reportStatus: Boolean, // 周期状态行到点（调用方打 INFO）
+    val weakChain: Boolean, // 链路过弱告警 fire（调用方打 WARN；fire 即内部冷却）
+)
+
+/**
+ * 软件自动增益判定器（讯飞逆向等价物，纯逻辑，零 Android import，JVM 可测；样式照
+ * [ZeroBlockDetector]/[TerminalStartFailureDetector] 家族）。
+ *
+ * 每非全零块：maxLevel 域响度 → EMA 噪声底（守门：语音块不抬底）→ 目标响度归一增益
+ * （钳 [1.0, ×8]）→ 双侧 EMA+步长钳平滑 → PCM16 小端饱和回写（禁溢出翻转）。全零块/
+ * 空/短块/enabled=false 直通。算法逐条定案见 `.scratch/agc-software/TICKET.md`（builder
+ * 勿改语义）；行为守卫 SoftwareAgcTest（M1-M3 变异锚在下方各标注行，M4 在 process
+ * 全零直通早退分支）。
+ *
+ * 生命周期（守卫四问 #1）：实例挂 AudioCapture 字段跨 readLoop/自愈重建保留——EMA 噪声底
+ * 是「房间声学属性」非流证据，stop/start 不复位，进程死随进程湮灭（与 zeroGuard readLoop
+ * 局部变量=流死证据随流重攒的差异）。OnceGate 保证任一时刻至多一条活跃读循环 = 单线程
+ * 访问，无锁（守卫四问 #3：纯同步计算零挂起点，不引入 delay/yield，cancel 不经过它）。
+ * 数学边界（守卫四问 #2）：max(level,1e-6) 除零防护、全路径有界浮点运算，无 NaN 永不抛
+ * ——readLoop emit 内抛异常会杀读循环，本判定器不得成为新故障源。
+ */
+internal class SoftwareAgc(private val enabled: Boolean = true) {
+    private var noiseFloor = 0f
+    private var nfInitialized = false
+    private var gainEma = 1.0f
+    private var gainPrev = 1.0f
+    private var weakStreak = 0
+    private var weakCooldownUntilMs = 0L
+    private var sinceStatus = 0
+
+    /**
+     * 原地增益一块，返回本次 tick 信息。全零块（[isAllZeroPcm16] 精确全零口径）/空/短块
+     * 直通：不改块、不更新任何状态、增益按 1.0 计（保 ZeroBlockDetector「精确全零」判定
+     * 语义与 HOTFIX-2 自愈口径零交集）；enabled=false 直通返回当前状态快照不改块。
+     */
+    fun process(block: ByteArray): AgcTick {
+        if (!enabled) return AgcTick(1f, noiseFloor, false, false)
+        // SoftwareAgc 回归守卫（M4）：全零直通（删此 → SoftwareAgcTest 全零直通组红：
+        // nf 被拖走+增益≠1）。
+        if (block.size < 2 || isAllZeroPcm16(block)) {
+            return AgcTick(1f, noiseFloor, false, false)
+        }
+        val level = maxLevelOf(block)
+        // 噪声底：初值=首个非全零块响度；仅 ≤ nf×3 的块参与 EMA（守门防语音抬底）。
+        if (!nfInitialized) {
+            noiseFloor = level
+            nfInitialized = true
+        } else if (level <= noiseFloor * AGC_NOISE_GUARD_FACTOR) {
+            noiseFloor += AGC_NOISE_FLOOR_ALPHA * (level - noiseFloor)
+        }
+        val gRaw = AGC_TARGET_LEVEL / max(level, 1e-6f) // 除零防护
+        // SoftwareAgc 回归守卫（M2）：上限钳制衰减面（删此 → SoftwareAgcTest 超大块
+        // 衰减组红：0.9 级被衰减到 0.08。下方步长钳+coerceAtMost 仍钉应用增益 ≤8，
+        // 上限面无独立红面——critic M2b 实证，冗余兜底性质）。
+        val gTarget = gRaw.coerceIn(AGC_MIN_GAIN, AGC_MAX_GAIN)
+        // SoftwareAgc 回归守卫（M3）：双侧 EMA + 相邻步长钳（删此 → SoftwareAgcTest 平滑
+        // 两组红：首块增益直跳 ×4/×8，越 1.5 步长界）。
+        gainEma += AGC_GAIN_SMOOTH_ALPHA * (gTarget - gainEma)
+        val g = gainEma
+            .coerceIn(gainPrev / AGC_GAIN_MAX_STEP_RATIO, gainPrev * AGC_GAIN_MAX_STEP_RATIO)
+            .coerceAtMost(AGC_MAX_GAIN) // 上限仍 ≤ AGC_MAX_GAIN（EMA 有界不变式外的显式钉死）
+        gainPrev = g
+        // SoftwareAgc 回归守卫（M1）：增益应用本体（删此 → SoftwareAgcTest 远场收敛组红：
+        // 0.02 级输出停在门限下半区）。
+        applyGainPcm16(block, g)
+        // 弱链路告警：语音级且 raw 增益顶限（×8 仍不达目标响度）连续攒块；fire 恰一次+
+        // 冷却 5min（内存态）；条件中断（安静块/增益回落）即清零重攒。
+        val speechLevel = level >= noiseFloor * AGC_NOISE_GUARD_FACTOR
+        weakStreak = if (speechLevel && gRaw > AGC_MAX_GAIN) weakStreak + 1 else 0
+        var weakFire = false
+        val now = System.currentTimeMillis()
+        if (weakStreak >= AGC_WEAK_CHAIN_BLOCKS && now >= weakCooldownUntilMs) {
+            weakStreak = 0
+            weakCooldownUntilMs = now + AGC_WEAK_CHAIN_COOLDOWN_MS
+            weakFire = true
+        }
+        // 状态行：每 300 块（30s）恰一次。
+        sinceStatus++
+        var status = false
+        if (sinceStatus >= AGC_STATUS_INTERVAL_BLOCKS) {
+            sinceStatus = 0
+            status = true
+        }
+        return AgcTick(g, noiseFloor, status, weakFire)
+    }
+
+    /** maxLevel 域响度：min(1, EnergyGate.rmsOf × 换算系数)，与 VadDetector.levelOf 同口径。 */
+    private fun maxLevelOf(block: ByteArray): Float =
+        minOf(1f, EnergyGate.rmsOf(block) * AGC_RMS_FLOAT_TO_MAXLEVEL)
+
+    /**
+     * PCM16 小端原地饱和回写：sample×g 钳 [-32768, 32767] 后写回（Int 域钳制，禁溢出翻转）。
+     * 奇数字节块（产线恒 3200B 定长，仅理论边界）处理完整样本对、尾字节原样。
+     */
+    private fun applyGainPcm16(block: ByteArray, g: Float) {
+        var i = 0
+        while (i + 1 < block.size) {
+            val lo = block[i].toInt() and 0xFF
+            val hi = block[i + 1].toInt() shl 8
+            val s = (hi or lo).toShort().toInt()
+            val v = (s * g).toInt().coerceIn(-32768, 32767)
+            block[i] = (v and 0xFF).toByte()
+            block[i + 1] = ((v shr 8) and 0xFF).toByte()
+            i += 2
         }
     }
 }
