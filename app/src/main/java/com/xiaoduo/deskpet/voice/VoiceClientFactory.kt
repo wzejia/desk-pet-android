@@ -5,6 +5,7 @@ import com.xiaoduo.deskpet.device.DeviceIntentMatcher
 import com.xiaoduo.deskpet.device.ShelfMcpBridge
 import com.xiaoduo.deskpet.device.ShelfNavIntentMatcher
 import android.content.Context
+import android.os.Process
 import com.xiaoduo.deskpet.PetOverlayService
 import com.xiaoduo.deskpet.agui.AguiClientFactory
 import com.xiaoduo.deskpet.net.HttpClients
@@ -119,7 +120,13 @@ object VoiceClientFactory {
         val app = context.applicationContext
         val s = session ?: synchronized(this) {
             session ?: VoiceSessionManager(
-                capture = AudioCapture(sourceMode = Prefs.micSourceMode(app)),
+                capture = AudioCapture(
+                    sourceMode = Prefs.micSourceMode(app),
+                    // 自愈重启钩（诊断报告 §7.1.3）：连续 3 轮采麦启动终态失败（僵尸 input
+                    // 唯一可靠清法=杀 app 进程，2/2 实证）→ 冷却检查 → killProcess 自尽 →
+                    // START_STICKY 自动重拉（VFS/PetOverlayService 均在位，首延 1s）。
+                    onTerminalStartFailure = { selfHealRestart(app) },
+                ),
                 asr = asr(app),
                 tts = tts(app),
                 aguiFactory = { AguiClientFactory.create(app) },
@@ -186,6 +193,33 @@ object VoiceClientFactory {
         // 必须在 synchronized 块外——caller 线程仅 CAS 占位零 IO，不持锁碰网络
         WakeAckPrefetcher.maybePrefetch(app)
         return s
+    }
+
+    /**
+     * 自愈重启钩（诊断报告 §7.1.3）：连续 3 轮采麦启动终态失败时（僵尸 input 唯一可靠
+     * 清法=杀 app 进程，2/2 实证）触发。流程：冷却检查（冷却窗内只记 ERROR 不自尽，
+     * 防自杀循环）→ commit 冷却戳 → killProcess 自尽 → START_STICKY 自动重拉
+     * （VFS/PetOverlayService 均在位，首延 1s）。
+     *
+     * 冷却戳 **commit 同步落盘后再自尽**（apply 异步写在 SIGKILL 前可能未完成 → 新进程
+     * last=0 无冷却）；失败仍不阻断自尽（恢复优先于循环防护，守卫四问 #2）。
+     * 日志关键字：`自愈重启钩`（PetLogger.write @Synchronized 同步落盘，且 killProcess
+     * 无 crash dropbox，PetLogger 是唯一排查痕迹）。
+     */
+    private fun selfHealRestart(context: Context) {
+        val now = System.currentTimeMillis()
+        val last = Prefs.voiceProcLastRestart(context)
+        if (last > 0L && now - last < SELF_HEAL_RESTART_COOLDOWN_MS) {
+            PetLogger.e(TAG, "自愈重启钩：冷却窗内（距上次自愈 ${now - last}ms），只记 ERROR 不自尽")
+            return
+        }
+        // commit 返回 false = 真实落盘失败（apply 会把 IO 失败吞进框架线程无信号，commit 才
+        // 接得住）——仅 ERROR 不阻断自尽（恢复优先于循环防护）。
+        if (!runCatching { Prefs.setVoiceProcLastRestart(context, now) }.getOrDefault(false)) {
+            PetLogger.e(TAG, "自愈重启钩：冷却戳落盘失败（恢复优先，仍执行 killProcess 自尽）")
+        }
+        PetLogger.e(TAG, "自愈重启钩：killProcess 自尽 → START_STICKY 自动重拉（冷却戳=$now）")
+        Process.killProcess(Process.myPid())
     }
 
     /**

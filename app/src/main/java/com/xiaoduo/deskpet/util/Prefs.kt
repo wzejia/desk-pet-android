@@ -235,4 +235,14 @@ object Prefs {
     fun setShelfBaseUrl(context: Context, url: String) {
         sp(context).edit().putString(KEY_SHELF_BASE_URL, url.trim()).apply()
     }
+
+    /** 自愈重启钩冷却戳（诊断报告 §7.1.3）：上次自愈时间戳，0/缺=从未自愈。 */
+    const val KEY_VOICE_PROC_LAST_RESTART = PrefContract.KEY_VOICE_PROC_LAST_RESTART
+
+    fun voiceProcLastRestart(context: Context): Long =
+        sp(context).getLong(KEY_VOICE_PROC_LAST_RESTART, 0L)
+
+    /** 必须 commit（同步落盘）——冷却戳写失败必须知道，防自杀循环（SIGKILL 前 apply 可能未落盘）。 */
+    fun setVoiceProcLastRestart(context: Context, ts: Long): Boolean =
+        sp(context).edit().putLong(KEY_VOICE_PROC_LAST_RESTART, ts).commit()
 }

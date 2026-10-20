@@ -75,4 +75,9 @@ object PrefContract {
 
     val S18_KEYS: Set<String> = setOf(KEY_VAD_SPEECH_LEVEL, KEY_MIC_SOURCE_MODE)
     val S20_KEYS: Set<String> = setOf(KEY_SPEAK_MCP_RESULT)
+
+    // ---- 自愈重启钩（诊断报告 §7.1.3：僵尸 input 自动化兜底）----
+    const val KEY_VOICE_PROC_LAST_RESTART = "voice_proc_last_restart" // Long 毫秒时间戳；0/缺=从未自愈
+
+    val SELFHEAL_KEYS: Set<String> = setOf(KEY_VOICE_PROC_LAST_RESTART)
 }

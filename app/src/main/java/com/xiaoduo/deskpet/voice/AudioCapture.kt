@@ -41,6 +41,13 @@ class AudioCapture(
      * 各模式构造失败均 fallback DEFAULT 记日志。
      */
     private val sourceMode: Int = 0,
+    /**
+     * 自愈重启钩 seam（诊断报告 §7.1.3）：连续 [TERMINAL_START_FAILURE_THRESHOLD] 轮采麦
+     * 启动终态失败时回调（fire 即复位，见 [TerminalStartFailureDetector]）。null=不挂钩
+     * （既有测试/旧调用零改动）；装配层（VoiceClientFactory）接冷却检查 + killProcess
+     * 自尽 → START_STICKY 自动重拉（红线：只准 killProcess 零惩罚，严禁抛未捕获异常）。
+     */
+    private val onTerminalStartFailure: (() -> Unit)? = null,
 ) {
 
     /** 100ms 采麦块 + 采集时刻（S40：producer 侧盖戳，消费停顿后仍可判块时代）。缓冲
@@ -78,6 +85,24 @@ class AudioCapture(
      * job/gateToken 从此只在锁内读写（isRunning 保持 @Volatile 供跨线程查询）。
      */
     private val lifecycleLock = Any()
+
+    /**
+     * 自愈重启钩判定器（诊断报告 §7.1.3，纯逻辑，零 Android import，JVM 可测；样式照
+     * [ZeroBlockDetector]）：连续 [TERMINAL_START_FAILURE_THRESHOLD] 轮「采麦启动终态失败」判
+     * 「僵尸 input/长病态」，[TerminalStartFailureDetector.onTerminalFailure] 返回 true 恰一次
+     * 并内部归零（**fire 即复位**——自尽场景进程即死无副作用；冷却场景复位后重新攒证据，
+     * 两场景统一口径，不存在「冷却内脏计数」问题）。成功进录音态由调用方 [TerminalStartFailureDetector.reset]
+     * 清零（真实录到音才算病愈；无关 stop/start 不清证据链）。
+     *
+     * 计数点与承载：readLoop 启动终态失败分支计数、成功进录音态处复位（AudioCapture 内
+     * 回归守卫注释锚定）；判定器实例挂 AudioCapture 字段（终态失败终结 readLoop，实例级
+     * 才跨轮攒得上）。seam 默认 null 时只计数不外呼，零行为变化（既有测试零改动）。
+     *
+     * 回归守卫：AudioCaptureTerminalStartFailureDetectorTest（2 轮不触发/第 3 轮触发/fire 后
+     * 须重新计满/成功复位/跨段不凑数/阈值常数钉死 3/冷却常数 5min 且 ≥60s；删 fire 复位 →
+     * fire 后重计组红，删成功复位 → 成功复位组红，改阈值 → 常数锚红）。
+     */
+    private val terminalFailureGuard = TerminalStartFailureDetector()
 
     fun start(scope: CoroutineScope) {
         // 旧写法 if (isRunning) return 的检查与 job 置位间有竞态窗口：双调各过检查
@@ -156,11 +181,28 @@ class AudioCapture(
             // 构造两源均败/N 次未进录音态），各自已记日志，照旧 return 由 finally 放行门闩。
             val r = startRecordWithRetry()
             if (r == null) {
+                // 自愈重启钩回归守卫：轮级终态失败计数（删此 →
+                // AudioCaptureTerminalStartFailureDetectorTest 连败触发组红；判定本体在
+                // [TerminalStartFailureDetector]，纯逻辑 JVM 可测可变异）。barge-in cancel
+                // 走协作取消不经过此分支（守卫四问 #3）；fire 即复位：自尽场景进程即死无
+                // 副作用，冷却场景复位后重新攒证据（两场景统一口径）。
+                if (terminalFailureGuard.onTerminalFailure()) {
+                    PetLogger.e(
+                        TAG,
+                        "连续 $TERMINAL_START_FAILURE_THRESHOLD 轮采麦启动终态失败，触发自愈重启钩" +
+                            "（疑似僵尸 input：killProcess 自尽 → START_STICKY 自动重拉）",
+                    )
+                    onTerminalStartFailure?.invoke()
+                }
                 return
             }
             var selfHeal = false
             try {
                 isRunning = true
+                // 自愈重启钩回归守卫：成功进录音态复位（删此/reset 语义 →
+                // AudioCaptureTerminalStartFailureDetectorTest 成功复位组红）——真实录到音
+                // 才算病愈，无关 stop/start 不清证据链。
+                terminalFailureGuard.reset()
                 PetLogger.i(TAG, "capture start, source=$usedSource, 16kHz/mono/Int16, block=3200B")
                 // 只推队列：攒满一块即 emit（DROP_OLDEST 下 tryEmit 恒 true，消费侧慢则旧块被挤掉
                 // = 保最新音频，绝不在读循环里干活）
@@ -426,6 +468,52 @@ internal class ZeroBlockDetector(private val threshold: Int = ZERO_BLOCK_SELF_HE
             return true
         }
         return false
+    }
+}
+
+// ---------------- 自愈重启钩：僵尸 input 自动化兜底（诊断报告 §7.1.3；纯逻辑判定面，零 Android import，JVM 可测） ----------------
+
+/** 自愈重启钩阈值：连续 N 轮采麦启动终态失败即 fire（一轮=一次 readLoop 启动序列终态失败，
+ *  内含 [MAX_START_ATTEMPTS]×[CAPTURE_REBUILD_DELAY_MS] 轮内重试——形态 A 平台瞬态由轮内
+ *  重试兜住（板上实证 26 块全零即触发），全败才计 1 轮；连续 3 轮全败才是僵尸/长病态信号，
+ *  实证僵尸窗 start 必拒、僵尸 input 已被进程死亡清账）。
+ *  （AudioCaptureTerminalStartFailureDetectorTest 常数锚钉死，改值即红。） */
+internal const val TERMINAL_START_FAILURE_THRESHOLD = 3
+
+/** 自愈重启钩冷却窗（建议 5min，双职能）：①防自杀循环（冷却内 fire 只记 ERROR 不自尽）；
+ *  ②保服务存活 ≥60s 使 STICKY 重启退避恒复位 1s（AOSP 7.1.3 线：装配层冷却判定走 pref 戳）。
+ *  （AudioCaptureTerminalStartFailureDetectorTest 常数锚钉死 5min 且 ≥60s，改值即红。） */
+internal const val SELF_HEAL_RESTART_COOLDOWN_MS = 5 * 60 * 1000L
+
+/**
+ * 自愈重启钩判定器（诊断报告 §7.1.3，纯逻辑，零 Android import，JVM 可测；样式照
+ * [ZeroBlockDetector]）：连续 [threshold] 轮「采麦启动终态失败」判「僵尸 input/长病态」，
+ * [onTerminalFailure] 返回 true 恰一次并内部归零（**fire 即复位**——自尽场景进程即死无
+ * 副作用；冷却场景复位后重新攒证据，两场景统一口径，不存在「冷却内脏计数」问题）。
+ * 成功进录音态由调用方 [reset] 清零（真实录到音才算病愈；无关 stop/start 不清证据链）。
+ *
+ * 计数点与承载：readLoop 启动终态失败分支计数、成功进录音态处复位（AudioCapture 内
+ * 回归守卫注释锚定）；判定器实例挂 AudioCapture 字段（终态失败终结 readLoop，实例级
+ * 才跨轮攒得上）。seam 默认 null 时只计数不外呼，零行为变化（既有测试零改动）。
+ */
+internal class TerminalStartFailureDetector(
+    private val threshold: Int = TERMINAL_START_FAILURE_THRESHOLD,
+) {
+    private var consecutive = 0
+
+    /** 喂入一轮启动终态失败：返回 true=连续达阈，应 fire 自愈重启钩（内部即复位重新攒证据）。 */
+    fun onTerminalFailure(): Boolean {
+        consecutive++
+        if (consecutive >= threshold) {
+            consecutive = 0
+            return true
+        }
+        return false
+    }
+
+    /** 成功进录音态复位（双复位语义另一支）：证据链清零重新攒。 */
+    fun reset() {
+        consecutive = 0
     }
 }
 
