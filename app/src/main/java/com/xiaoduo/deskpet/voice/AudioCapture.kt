@@ -15,8 +15,10 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.isActive
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.yield
+import kotlin.math.max
 
 /**
  * 单条采麦流（Android IO 层，知识包 §3.2/§3.5 + 踩坑 #33：stream 常开 + 状态机门控，
@@ -146,46 +148,97 @@ class AudioCapture(
     }
 
     private suspend fun CoroutineScope.readLoop() {
-        val r = try {
-            buildRecord()
-        } catch (se: SecurityException) {
-            // RECORD_AUDIO 被拒：一值定层日志（VAD 超时 maxLevel≈0.0001 同形态，坑 #19）
-            PetLogger.e(TAG, "RECORD_AUDIO 权限缺失，采麦无法启动: ${se.message}")
-            return
-        } ?: return
-        record = r
-        try {
-            // ROB-1：启动结果不得忽略——无参 startRecording() 返回 void（带 int 返回值的
-            // 重载需 MediaSyncEvent，板端 HAL 异常态下照样可能静默失败），用 recordingState
-            // 复核：未进 RECORDSTATE_RECORDING 视为启动失败，照旧置 isRunning=true 会让
-            // 上层以为在采（静默 no-op 流）。失败即失败返回，finally 释放 record 与门闩。
-            r.startRecording()
-            if (r.recordingState != AudioRecord.RECORDSTATE_RECORDING) {
-                PetLogger.e(TAG, "startRecording 未进入录音态（state=${r.recordingState}），本轮采麦不启动")
+        val zeroGuard = ZeroBlockDetector()
+        var selfHeals = 0
+        while (isActive) {
+            // 启动序列（形态 A 有限重试；自愈重建复用同一路径）。null=终态失败（权限缺失/
+            // 构造两源均败/N 次未进录音态），各自已记日志，照旧 return 由 finally 放行门闩。
+            val r = startRecordWithRetry()
+            if (r == null) {
                 return
             }
-            isRunning = true
-            PetLogger.i(TAG, "capture start, source=$usedSource, 16kHz/mono/Int16, block=3200B")
-            // 只推队列：攒满一块即 emit（DROP_OLDEST 下 tryEmit 恒 true，消费侧慢则旧块被挤掉
-            // = 保最新音频，绝不在读循环里干活）
-            pumpBlocks(
-                read = { buf, off, len -> r.read(buf, off, len) },
-                emit = { block ->
-                    probeBlock(r, block) // 未 arm 时仅一次 volatile 读，零行为变化
-                    // S40：producer 侧盖戳（nanoTime 单调域，与 VSM 接缝水位同域）
-                    _stamped.tryEmit(StampedBlock(block, System.nanoTime()))
-                },
-            )
-            // ROB-2：非取消退出（未取消即返回）= read 连续失败达阈值，留一行定层日志
-            if (isActive) {
-                PetLogger.e(TAG, "read 连续失败达 $MAX_CONSECUTIVE_READ_FAILURES 次，采麦循环退出（AudioRecord 异常态）")
+            var selfHeal = false
+            try {
+                isRunning = true
+                PetLogger.i(TAG, "capture start, source=$usedSource, 16kHz/mono/Int16, block=3200B")
+                // 只推队列：攒满一块即 emit（DROP_OLDEST 下 tryEmit 恒 true，消费侧慢则旧块被挤掉
+                // = 保最新音频，绝不在读循环里干活）
+                pumpBlocks(
+                    read = { buf, off, len -> r.read(buf, off, len) },
+                    emit = { block ->
+                        probeBlock(r, block) // 未 arm 时仅一次 volatile 读，零行为变化
+                        // HOTFIX-2 回归守卫：形态 B 逐块全零判定、达阈置自愈（删此 →
+                        // AudioCaptureZeroBlockDetectorTest 触发组红；判定本体在
+                        // [ZeroBlockDetector]/[isAllZeroPcm16]，纯逻辑 JVM 可测可变异）
+                        if (zeroGuard.onBlock(isAllZeroPcm16(block))) {
+                            selfHeal = true
+                            selfHeals++
+                            PetLogger.w(
+                                TAG,
+                                "连续 $ZERO_BLOCK_SELF_HEAL_THRESHOLD 块（3.0s）全零判定采麦流断流，" +
+                                    "第 $selfHeals 次自愈：release 后延迟 ${CAPTURE_REBUILD_DELAY_MS}ms 重建",
+                            )
+                        }
+                        // S40：producer 侧盖戳（nanoTime 单调域，与 VSM 接缝水位同域）
+                        _stamped.tryEmit(StampedBlock(block, System.nanoTime()))
+                    },
+                    stopWhen = { selfHeal }, // 触发自愈即停泵退出，转 release→延迟→重建
+                )
+                // ROB-2：非取消退出（未取消即返回）= read 连续失败达阈值，留一行定层日志。
+                // 该路径保持终态不重建（read 层持续报错与「正常返回但内容死零」不同病灶，
+                // 重建无效），退出语义与既有 ROB-2 一致。
+                if (!selfHeal) {
+                    if (isActive) {
+                        PetLogger.e(TAG, "read 连续失败达 $MAX_CONSECUTIVE_READ_FAILURES 次，采麦循环退出（AudioRecord 异常态）")
+                    }
+                    return
+                }
+            } finally {
+                isRunning = false
+                runCatching { r.stop() }
+                r.release()
+                record = null
+                PetLogger.i(TAG, "capture stop")
             }
-        } finally {
-            isRunning = false
-            runCatching { r.stop() }
-            r.release()
-            record = null
-            PetLogger.i(TAG, "capture stop")
+            // HOTFIX-2 形态 B 自愈续段（票据时序：release 先行 → delay → 重建）：上方 finally
+            // 已释放旧流；delay 是唯一挂起点，job 被 cancel 即协作取消、穿此处干净终止
+            //（record 已释放不泄漏），不得带病重建。
+            delay(CAPTURE_REBUILD_DELAY_MS)
+        }
+    }
+
+    /**
+     * HOTFIX-2 形态 A 启动序列：至多 [MAX_START_ATTEMPTS] 次「构造 → startRecording →
+     * 复核 recordingState」。ROB-1 守卫语义原样保留：无参 startRecording() 返回 void（带 int 返回值的
+     * 重载需 MediaSyncEvent，板端 HAL 异常态下照样可能静默失败），用 recordingState
+     * 复核：未进 RECORDSTATE_RECORDING 视为启动失败，照旧置 isRunning=true 会让
+     * 上层以为在采（静默 no-op 流）。失败即失败返回，finally 释放 record 与门闩。
+     */
+    private suspend fun startRecordWithRetry(): AudioRecord? {
+        var attempt = 1
+        while (true) {
+            val r = try {
+                buildRecord()
+            } catch (se: SecurityException) {
+                // RECORD_AUDIO 被拒：一值定层日志（VAD 超时 maxLevel≈0.0001 同形态，坑 #19）
+                PetLogger.e(TAG, "RECORD_AUDIO 权限缺失，采麦无法启动: ${se.message}")
+                return null
+            } ?: return null
+            record = r
+            r.startRecording()
+            if (r.recordingState == AudioRecord.RECORDSTATE_RECORDING) {
+                return r
+            }
+            PetLogger.w(
+                TAG,
+                "startRecording 未进入录音态（state=${r.recordingState}），启动尝试 $attempt/$MAX_START_ATTEMPTS 失败，release 后延迟重建",
+            )
+            if (attempt >= MAX_START_ATTEMPTS) {
+                PetLogger.e(TAG, "startRecording 连续 $MAX_START_ATTEMPTS 次尝试均未进入录音态，本轮采麦不启动")
+                return null
+            }
+            attempt++
+            delay(CAPTURE_REBUILD_DELAY_MS)
         }
     }
 
@@ -303,16 +356,63 @@ internal class OnceGate {
  * 连续失败达 [MAX_CONSECUTIVE_READ_FAILURES] 即正常返回（readLoop 的 finally 据此释放
  * AudioRecord 与门闩），重试间 yield 让出。偶发失败（<阈值内恢复）照常续读。
  */
+// ---------------- HOTFIX-2：USB 麦采麦可靠性双形态修复（纯逻辑判定面，零 Android import，JVM 可测） ----------------
+
+/** HOTFIX-2 形态 B：连续全零块自愈阈值。30 块 × 100ms（3200B@16kHz/mono/Int16）= 3.0s，
+ *  与票据「29 块不触发/30 块触发」锚一致（AudioCaptureZeroBlockDetectorTest 钉死）。 */
+internal const val ZERO_BLOCK_SELF_HEAL_THRESHOLD = 30
+
+/** HOTFIX-2：启动重试与自愈重建共用的延迟（ms）——给 AudioFlinger 回收线程的窗口（板上实证值）。 */
+internal const val CAPTURE_REBUILD_DELAY_MS = 250L
+
+/** HOTFIX-2 形态 A：启动重试至多尝试次数（板上实证平台瞬态，重试可愈）。 */
+internal const val MAX_START_ATTEMPTS = 3
+
+/**
+ * 精确全零判定（纯逻辑）：块内全 00 字节 ⇔ PCM16 全部样本为数字零（任一非 00 字节即
+ * 非零样本：+1=0x0001、-1=0xFFFF）。板上实证：USB 麦死流吐精确全零块（0.0000=数字零，
+ * 板载麦真实底噪 0.0068）。空数组按全零（全称量词恒真），测试钉死该口径。
+ */
+internal fun isAllZeroPcm16(block: ByteArray): Boolean {
+    for (b in block) if (b.toInt() != 0) return false
+    return true
+}
+
+/**
+ * HOTFIX-2 形态 B 断流判定器（纯逻辑，readLoop 逐块喂）：连续 [threshold] 块全零判
+ * 「采麦流死了」，[onBlock] 返回 true 恰一次并内部归零——自愈重建后新流须重新计满阈值
+ * 才再触发；任何非零块把连续计数归零（偶发数字静音段不误愈）。
+ */
+internal class ZeroBlockDetector(private val threshold: Int = ZERO_BLOCK_SELF_HEAL_THRESHOLD) {
+    private var consecutive = 0
+
+    /** 喂入一块：[allZero]=该块精确全零（[isAllZeroPcm16] 口径）。返回 true=连续达阈，应触发自愈。 */
+    fun onBlock(allZero: Boolean): Boolean {
+        if (!allZero) {
+            consecutive = 0
+            return false
+        }
+        consecutive++
+        if (consecutive >= threshold) {
+            consecutive = 0
+            return true
+        }
+        return false
+    }
+}
+
 internal const val MAX_CONSECUTIVE_READ_FAILURES = 50
 
 internal suspend fun CoroutineScope.pumpBlocks(
     read: suspend (buf: ByteArray, offset: Int, length: Int) -> Int,
     emit: (ByteArray) -> Unit,
+    stopWhen: () -> Boolean = { false },
 ) {
     val buf = ByteArray(VadDetector.BLOCK_BYTES)
     var filled = 0
     var failures = 0
     while (isActive) {
+        if (stopWhen()) return // HOTFIX-2：自愈等主动停泵出口（默认恒 false，ROB-2 失败计数语义零改动）
         val n = read(buf, filled, buf.size - filled)
         if (n <= 0) { // ERROR_* 或 0：不推队列，重试间让出；连续失败达阈值退出
             failures++
