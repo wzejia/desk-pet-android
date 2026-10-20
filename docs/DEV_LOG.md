@@ -1097,3 +1097,16 @@ files_touched: [
   app/src/test/java/com/xiaoduo/deskpet/voice/VoiceSessionManagerStopReleaseGuardTest.kt
 ]
 ```
+
+## T2 port-4cap Tap-to-Talk 票2：VoiceTapRouter 点按分流（2026-10-20，fork 锚 e0e2eb2）
+
+免按住模式真值表纯逻辑（零 Android import）：点一下=语音入口唯一手势，结束时机归状态机（VAD 判停/S51 续听/30s 超时），不绑人手松手。真值表两格：LISTENING→END（stopListening=有货送货）；IDLE/PROCESSING/SPEAKING→START（startListening；SPEAKING/PROCESSING 走 VSM 既有 cancel 接续 barge-in，UI 层不调 cancel）。两处 UI（ChatScreen 输入条/SettingsScreen 语音自检）共用同一分流。
+
+```evidence
+verify_cmd: 变异锚 M1=删 LISTENING 分支全返 START 后单跑 VoiceTapRouterTest --rerun-tasks（JDK17 前缀）；绿证并入全套件终态跑
+verify_claim: M1 红=listening routes to END -> expected:<END> but was:<START>（3 个 START 组不受扰）；cp 还原 md5 7e732b5db161d820b6da8042d76016cb 一致、MUT-M1 零残留；全套件 XML 760/0/0/0
+files_touched: [
+  app/src/main/java/com/xiaoduo/deskpet/voice/VoiceTapRouter.kt,
+  app/src/test/java/com/xiaoduo/deskpet/voice/VoiceTapRouterTest.kt
+]
+```
