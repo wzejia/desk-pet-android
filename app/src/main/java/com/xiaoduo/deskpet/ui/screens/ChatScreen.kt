@@ -70,8 +70,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -522,7 +522,8 @@ private fun MessageList(
         ),
         verticalArrangement = Arrangement.spacedBy(XiaoduoDimens.SpaceL),
     ) {
-        items(messages, key = { it.id }) { msg ->
+        // contentType：用户泡/小朵排版两型——滚动时同型条目才能复用 composition slot
+        items(messages, key = { it.id }, contentType = { it.role }) { msg ->
             MessageRow(msg = msg, onResend = onResend)
         }
     }
@@ -614,13 +615,17 @@ private fun TypingDots() {
     )
     Row(horizontalArrangement = Arrangement.spacedBy(gap)) {
         for (i in 0 until 3) {
-            // 相位错开 1/3 周期；三角波映射到 0.3..1 区间，三点轮流亮灭
-            val phase = (progress + i / 3f) % 1f
-            val wave = if (phase < 0.5f) phase * 2f else (1f - phase) * 2f
+            // 相位错开 1/3 周期；三角波映射到 0.3..1 区间，三点轮流亮灭。
+            // graphicsLayer lambda 内读 transition 状态：读延迟到 Draw 阶段，
+            // 无限动画不再逐帧触发重组（等效视觉，纯相位错开计算下移）
             Box(
                 modifier = Modifier
                     .size(dotSize)
-                    .alpha(0.3f + 0.7f * wave)
+                    .graphicsLayer {
+                        val phase = (progress + i / 3f) % 1f
+                        val wave = if (phase < 0.5f) phase * 2f else (1f - phase) * 2f
+                        alpha = 0.3f + 0.7f * wave
+                    }
                     .background(MaterialTheme.colorScheme.onSurfaceVariant, CircleShape),
             )
         }
@@ -639,7 +644,8 @@ private fun StreamingCursor() {
     )
     Text(
         text = "▍",
-        modifier = Modifier.alpha(a),
+        // graphicsLayer lambda：alpha 读延迟到 Draw 阶段，呼吸闪烁不再逐帧重组
+        modifier = Modifier.graphicsLayer { alpha = a },
         style = MaterialTheme.typography.bodyLarge,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
     )

@@ -476,6 +476,9 @@ private fun AgentPicker(context: Context) {
                         .heightIn(max = 320.dp)
                         .verticalScroll(rememberScrollState()),
                 ) {
+                    // 当前 agent id 读一次（列表可能数十行，免逐行重复读 prefs）；
+                    // 不加 remember：选中后即收起列表，重读语义与原实现一致
+                    val currentAgentId = Prefs.agentId(context)
                     agents.forEach { agent ->
                     Row(
                         modifier = Modifier
@@ -488,7 +491,7 @@ private fun AgentPicker(context: Context) {
                             },
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        RadioButton(selected = Prefs.agentId(context) == agent.agentId, onClick = null)
+                        RadioButton(selected = currentAgentId == agent.agentId, onClick = null)
                         Column {
                             Text(agent.agentName, style = MaterialTheme.typography.bodyLarge)
                             agent.agentDescription?.let {

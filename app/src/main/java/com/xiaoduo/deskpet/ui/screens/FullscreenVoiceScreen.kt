@@ -410,12 +410,12 @@ private fun ListeningWaveform(rms: () -> Float, color: Color) {
         val barW = 4.dp.toPx()
         val gap = 4.dp.toPx()
         val minH = size.height * 0.2f
-        val factors = floatArrayOf(0.45f, 0.7f, 0.9f, 1f, 0.9f, 0.7f, 0.45f)
+        // 文件级常量：柱高权重在 ~60fps 重绘热循环里，避免每帧分配 floatArray
         val t = timeMs.longValue / 1000f // draw 阶段读状态：仅重绘，不重组
         val level = display.floatValue
-        for (i in factors.indices) {
+        for (i in BarFactors.indices) {
             val wobble = 0.78f + 0.22f * sin(t * 5.2f + i * 1.7f)
-            val h = minH + (size.height - minH) * level * factors[i] * wobble
+            val h = minH + (size.height - minH) * level * BarFactors[i] * wobble
             drawRoundRect(
                 color = color,
                 topLeft = Offset(i * (barW + gap), (size.height - h) / 2f),
@@ -610,3 +610,6 @@ private val DotColor = Color(0xFF9AA0A6)
 private const val RMS_FLOOR = 0.005f
 private const val RMS_SPAN = 0.045f
 private const val RMS_EMA_KEEP = 0.6f // EMA 平滑：保留旧值比例，防逐块跳变
+
+/** 7 柱声波柱高权重（[ListeningWaveform] 重绘热循环用，文件级常量免每帧分配）。 */
+private val BarFactors = floatArrayOf(0.45f, 0.7f, 0.9f, 1f, 0.9f, 0.7f, 0.45f)

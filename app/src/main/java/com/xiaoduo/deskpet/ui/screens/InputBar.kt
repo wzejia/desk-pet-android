@@ -40,9 +40,10 @@ import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.neverEqualPolicy
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -245,8 +246,10 @@ private fun VoiceHoldArea(
     val context = LocalContext.current
     var holding by remember { mutableStateOf(false) }
     var cancelled by remember { mutableStateOf(false) }
+    // 声波纹是整块覆盖语义（FIFO 两块一替）：mutableStateOf + neverEqualPolicy 单次赋值
+    // 驱动失效，免 SnapshotStateList 逐元素写的快照/通知开销（~10-20Hz）
     val levels = remember {
-        mutableStateListOf<Float>().apply { repeat(WAVE_BAR_COUNT) { add(0f) } }
+        mutableStateOf(MutableList(WAVE_BAR_COUNT) { 0f }, neverEqualPolicy())
     }
     val cancelThresholdPx = with(LocalDensity.current) { CANCEL_DRAG_THRESHOLD_DP.dp.toPx() }
 
@@ -255,11 +258,13 @@ private fun VoiceHoldArea(
     // LaunchedEffect 自动 cancel——UI 绝不开采麦（采麦开关全在 VoiceSessionManager）
     LaunchedEffect(holding) {
         if (!holding) return@LaunchedEffect
-        repeat(WAVE_BAR_COUNT) { i -> levels[i] = 0f }
+        levels.value = MutableList(WAVE_BAR_COUNT) { 0f }
         VoiceClientFactory.session(context).captureBlocks.collect { block ->
             val level = (EnergyGate.rmsOf(block) / RMS_FULL_SCALE).coerceIn(0f, 1f)
-            levels.removeAt(0)
-            levels.add(level)
+            val next = levels.value
+            next.removeAt(0)
+            next.add(level)
+            levels.value = next
         }
     }
 
@@ -343,7 +348,7 @@ private fun VoiceHoldArea(
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     WaveformBars(
-                        levels = levels,
+                        levelsState = levels,
                         color = if (cancelled) {
                             MaterialTheme.colorScheme.onErrorContainer
                         } else {
@@ -358,8 +363,9 @@ private fun VoiceHoldArea(
 
 /** 声波纹：[WAVE_BAR_COUNT] 根同宽圆头细柱，高度按 RMS 归一值在 [WAVE_BAR_MIN_DP]..[WAVE_BAR_MAX_DP] 间插值。 */
 @Composable
-private fun WaveformBars(levels: List<Float>, color: Color) {
+private fun WaveformBars(levelsState: MutableState<MutableList<Float>>, color: Color) {
     Canvas(modifier = Modifier.height(WAVE_BAR_MAX_DP.dp).fillMaxWidth()) {
+        val levels = levelsState.value // draw 阶段单次读状态：仅重绘，不重组
         val slot = size.width / levels.size
         val barWidth = (slot * 0.45f).coerceAtMost(3.dp.toPx())
         val minH = WAVE_BAR_MIN_DP.dp.toPx()

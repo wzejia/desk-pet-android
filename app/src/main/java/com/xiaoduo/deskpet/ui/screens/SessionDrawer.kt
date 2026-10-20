@@ -308,7 +308,8 @@ private fun SessionList(
     modifier: Modifier = Modifier,
 ) {
     LazyColumn(modifier = modifier) {
-        items(sessions, key = { it.id }) { session ->
+        // contentType：单型列表——滚动回收时同型复用 composition slot
+        items(sessions, key = { it.id }, contentType = { "session" }) { session ->
             SessionItem(
                 session = session,
                 subtitle = subtitleFor(session),
@@ -373,9 +374,13 @@ internal fun relativeTimeLabel(nowMillis: Long, ts: Long): String {
         minutes < 60L -> "$minutes 分钟前"
         hours < 24L -> "$hours 小时前"
         days < 7L -> "$days 天前"
-        else -> SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date(ts))
+        // 文件级常量：≥7 天分支才用到，避免每行重组各造一个 SimpleDateFormat
+        else -> DateLabelFormatter.format(Date(ts))
     }
 }
+
+/** ≥7 天日期标签格式化器（见 [relativeTimeLabel]；仅在主线程组合期使用，无并发面）。 */
+private val DateLabelFormatter = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
 
 /**
  * ROB-10：搜索 producer 兜底——非取消异常降级为空结果（抽屉显示「无匹配会话」），

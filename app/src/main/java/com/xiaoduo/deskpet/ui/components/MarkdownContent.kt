@@ -21,6 +21,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -96,6 +98,11 @@ fun MarkdownContent(
 
                 is MarkdownRenderer.Block.Code -> {
                     val codeScroll = rememberScrollState()
+                    // derivedStateOf：横滑滚动值在 draw 期外读会逐帧重组本代码块；
+                    // 包成派生状态后仅「是否显示淡出」翻转时才会重组
+                    val showEndFade by remember {
+                        derivedStateOf { codeScroll.maxValue > 0 && codeScroll.value < codeScroll.maxValue }
+                    }
                     Box {
                         Surface(
                             modifier = Modifier.fillMaxWidth(),
@@ -116,7 +123,7 @@ fun MarkdownContent(
                         // 右缘渐变淡出：内容超宽且未滚到底时提示可横滑；滚到底自然消失。
                         // matchParentSize 让遮罩拿到 Box 实测尺寸（有界），几何确定、不依赖运行时状态
                         // （fillMaxHeight 在 LazyColumn 无界测量下是 no-op，曾致渐变 48dp×0dp 从未渲染）。
-                        if (codeScroll.maxValue > 0 && codeScroll.value < codeScroll.maxValue) {
+                        if (showEndFade) {
                             Box(modifier = Modifier.matchParentSize()) {
                                 Box(
                                     modifier = Modifier

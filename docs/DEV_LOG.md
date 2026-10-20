@@ -20,6 +20,23 @@ dsh-pet = DeepSeek Harness 桌宠 Web 插件，动画=VP9-alpha webm × 双 `<vi
 决策（2026-08-24 拍板）是否推翻**；②素材格式选型（建议首步=按动画分 spritesheet + 按需解码 LRU，方案 B
 animated WebP 备选）。克隆已删，再研=重 clone（commit `6c5f0432` 锁定）。
 
+**Compose 渲染性能优化**（`jetpack-compose-performance` skill，6 文件 +51/−21，九处修复：graphicsLayer
+相位延迟 ×2 / contentType ×2 / derivedStateOf / neverEqualPolicy / floatArray 常量 / SimpleDateFormat /
+prefs 循环外提）：双路评审 Ready to merge，行为等价纯性能。
+
+```evidence
+verify_cmd: cd /e/desk-pet-android && export JAVA_HOME='C:/Program Files/Microsoft/jdk-17.0.20.8-hotspot' && export PATH="/c/Program Files/Microsoft/jdk-17.0.20.8-hotspot/bin:$PATH" && ./gradlew.bat :app:testDebugUnitTest --rerun-tasks
+verify_claim: BUILD SUCCESSFUL, 754 tests, skipped=0, failures=0, errors=0
+files_touched: [
+  app/src/main/java/com/xiaoduo/deskpet/ui/components/MarkdownContent.kt,
+  app/src/main/java/com/xiaoduo/deskpet/ui/screens/ChatScreen.kt,
+  app/src/main/java/com/xiaoduo/deskpet/ui/screens/FullscreenVoiceScreen.kt,
+  app/src/main/java/com/xiaoduo/deskpet/ui/screens/InputBar.kt,
+  app/src/main/java/com/xiaoduo/deskpet/ui/screens/SessionDrawer.kt,
+  app/src/main/java/com/xiaoduo/deskpet/ui/screens/SettingsScreen.kt
+]
+```
+
 ## 2026-10-13（一）带密钥 APK 构建（main 重构前态）——产物留存未部署，用户令暂不构建
 
 **背景**：用户要求按既往做法构建带 API 密钥的 APK（secrets/cloud.properties → BuildConfig，
