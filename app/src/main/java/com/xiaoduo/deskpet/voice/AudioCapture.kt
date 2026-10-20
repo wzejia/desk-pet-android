@@ -117,10 +117,11 @@ class AudioCapture(
             AudioFormat.ENCODING_PCM_16BIT,
         )
         val bufSize = maxOf(minBuf, VadDetector.BLOCK_BYTES * 8)
-        // 源候选：mode 决定首选源，初始化失败降级 DEFAULT（坑 #35 注释）
-        val preferred = when (sourceMode) {
-            1 -> MediaRecorder.AudioSource.VOICE_RECOGNITION
-            2 -> MediaRecorder.AudioSource.UNPROCESSED
+        // 源候选：mode 决定首选源（S57 纯函数解析，映射单点维护——判定与构造不分叉），
+        // 初始化失败降级 DEFAULT（坑 #35 注释）。
+        val preferred = when (expectedSourceFor(sourceMode)) {
+            6 -> MediaRecorder.AudioSource.VOICE_RECOGNITION
+            9 -> MediaRecorder.AudioSource.UNPROCESSED
             else -> MediaRecorder.AudioSource.VOICE_COMMUNICATION
         }
         val candidates = listOf(preferred, MediaRecorder.AudioSource.DEFAULT)
@@ -308,6 +309,33 @@ class AudioCapture(
                 extraBufferCapacity = BLOCKS_BUFFER_CAPACITY,
                 onBufferOverflow = BufferOverflow.DROP_OLDEST,
             )
+
+        /**
+         * pref 档位 → 期望采麦源常数（纯 Kotlin，零 Android import，JVM 可测）。
+         * 常数表（上游 e5b6e11/593595f gotcha 带入）：0→7(VOICE_COMMUNICATION) /
+         * 1→6(VOICE_RECOGNITION) / 2→9(UNPROCESSED)，未知档位归 7（与旧 when-else 同语义）。
+         * [buildRecord] 首选源直接走本函数——映射单点维护，判定与构造永不分叉。
+         */
+        internal fun expectedSourceFor(sourceMode: Int): Int = when (sourceMode) {
+            1 -> 6   // VOICE_RECOGNITION
+            2 -> 9   // UNPROCESSED
+            else -> 7 // VOICE_COMMUNICATION（含默认档）
+        }
+
+        /**
+         * 漂移判定（纯 Kotlin，JVM 可测）：pref 档位解析出的期望源 ≠ 实际 active source
+         * （[usedSource]）→ true，采麦启动处打 WARN（含两值）。
+         *
+         * S57 裁剪注记（有意偏离上游 1723d7b）：不把设置页麦源改只读——v22 采麦源三档是
+         * 诊断基建，只告警不禁改。判定覆盖「构造时固化的 pref 档位」与活性源的分叉
+         * （如初始化失败静默 fallback DEFAULT）；Settings 改 pref 不重建采集源（构造时固化，
+         * 改后需重启才生效），重启后新实例按新 pref 构造，两者以本告警+注释界定。
+         *
+         * S57 回归守卫：AudioCaptureSourceDriftTest 漂移触发/一致不告警两组锚
+         * （反转本判定 → 漂移组红）。
+         */
+        internal fun isSourceDrift(prefMode: Int, activeSource: Int): Boolean =
+            expectedSourceFor(prefMode) != activeSource
     }
 }
 
