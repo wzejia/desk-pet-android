@@ -7,6 +7,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -45,6 +46,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.neverEqualPolicy
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -53,11 +55,8 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.input.pointer.changedToUp
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.lerp
@@ -71,7 +70,7 @@ import com.xiaoduo.deskpet.voice.VoiceClientFactory
 /**
  * 底部输入条：单圆角矩形容器 + 内部横线分区（2026-08-06 用户拍板定稿——
  * S8-1 曾回滚为两个独立圆角 Surface，观感不佳否决；R3/S8-1 功能修复零回退）：
- * 上区 InputArea（语音=「按住说话」满宽触摸区 / 文字=surfaceVariant 底 TextField）+
+ * 上区 InputArea（语音=「点击说话」满宽触摸区 / 文字=surfaceVariant 底 TextField）+
  * 下区 FunctionBar（左上传键 / 右多功能键），区间一条 1dp 横线分隔（与顶部横线
  * 同色同粗，outline——Theme 未定义 outlineVariant，M3 默认紫灰与中性色板冲突）；
  * 有待发文件时 chips 行压在容器外上方。
@@ -80,11 +79,15 @@ import com.xiaoduo.deskpet.voice.VoiceClientFactory
  *   上传中=DISABLED ＞ 有内容=SEND ＞ 文字模式=TO_VOICE ＞ 语音模式=TO_KEYBOARD。
  *   SEND 连点第二击会因 text 已清+phase 已 SENDING 落 STOP 分支误取消刚发的轮——
  *   [TAP_DEBOUNCE_MS] 防抖根治（守卫四问④）。
- * - 按住反馈（#2 修复）：awaitEachGesture 全程跟踪（弃 detectTapGestures，支持上滑取消）；
- *   按住开始 Vibrator 30ms（manifest VIBRATE）；仅按住期间订阅 captureBlocks 喂声波纹
- *   （订阅配对=LaunchedEffect(holding) 自动 cancel，守卫四问①）；上滑累计超
- *   [CANCEL_DRAG_THRESHOLD_DP]dp 标 cancelled——滑回阈值下即恢复，取消在松手一刻才物化
- *   （cancelled→onVoiceCancel 不发送，否则 onVoiceEnd 发送，守卫四问②）。
+ * - 点按语音（免按住模式 Tap-to-Talk，2026-10-18 拍板替换按住说话）：点一下单路回调
+ *   onVoiceTap，分流纯逻辑在 VoiceTapRouter（UI 不判状态）；点按开始 Vibrator 30ms
+ *   （原 #2 触觉反馈语义保留）；聆听态视觉（高亮+声波纹+「正在聆听，点击结束」）状态
+ *   源=VSM stateFlow（[voiceListening] 由上游 collectAsState 派生，禁本地布尔镜像）；
+ *   声波纹订阅配对=LaunchedEffect(voiceListening) 仅聆听期 collect、退出自动 cancel
+ *   （守卫四问①）。手势层守卫：禁回退按住/松手/上滑取消语义——结束时机归状态机
+ *   （VAD 判停/S51 续听/30s 超时），绑回人手即重新引入病 B 判停竞速吞语音（fork 守卫）；
+ *   点按检测以本文件 awaitEachGesture 手势族落地（awaitFirstDown+waitForUpOrCancellation
+ *   上-下沿配对），fork detectTapGestures 原型不引入（R2 手势 API 结构零回退）。
  * - text 由 ChatScreen 级 rememberSaveable 持有（barge-in 首字符打断在其 onTextChange），
  *   voiceMode 本组件内 rememberSaveable。
  */
@@ -92,6 +95,7 @@ import com.xiaoduo.deskpet.voice.VoiceClientFactory
 fun InputBar(
     busy: Boolean,
     voiceActive: Boolean,
+    voiceListening: Boolean,
     files: List<FileMeta>,
     text: String,
     onTextChange: (String) -> Unit,
@@ -99,9 +103,7 @@ fun InputBar(
     onStopTurn: () -> Unit,
     onPickFile: () -> Unit,
     onRemoveFile: (String) -> Unit,
-    onVoiceStart: () -> Unit,
-    onVoiceEnd: () -> Unit,
-    onVoiceCancel: () -> Unit,
+    onVoiceTap: () -> Unit,
 ) {
     var voiceMode by rememberSaveable { mutableStateOf(true) }
     val uploadInFlight = files.any { it.status == UploadStatus.UPLOADING }
@@ -140,11 +142,10 @@ fun InputBar(
                 Column {
                     InputArea(
                         voiceMode = voiceMode,
+                        voiceListening = voiceListening,
                         text = text,
                         onTextChange = onTextChange,
-                        onVoiceStart = onVoiceStart,
-                        onVoiceEnd = onVoiceEnd,
-                        onVoiceCancel = onVoiceCancel,
+                        onVoiceTap = onVoiceTap,
                     )
                     HorizontalDivider(color = MaterialTheme.colorScheme.outline)
                     FunctionBar(
@@ -187,22 +188,20 @@ private const val TAP_DEBOUNCE_MS = 400L
 
 /**
  * 上层 Surface 内容（外边距由 InputBar 两层各自承担，本层不再自加 padding）：
- * 语音=「按住说话」触摸区（idle=surfaceVariant）；文字=surfaceVariant 底 TextField。
+ * 语音=「点击说话」触摸区（idle=surfaceVariant）；文字=surfaceVariant 底 TextField。
  */
 @Composable
 private fun InputArea(
     voiceMode: Boolean,
+    voiceListening: Boolean,
     text: String,
     onTextChange: (String) -> Unit,
-    onVoiceStart: () -> Unit,
-    onVoiceEnd: () -> Unit,
-    onVoiceCancel: () -> Unit,
+    onVoiceTap: () -> Unit,
 ) {
     if (voiceMode) {
         VoiceHoldArea(
-            onVoiceStart = onVoiceStart,
-            onVoiceEnd = onVoiceEnd,
-            onVoiceCancel = onVoiceCancel,
+            listening = voiceListening,
+            onVoiceTap = onVoiceTap,
         )
     } else {
         TextField(
@@ -231,33 +230,38 @@ private fun InputArea(
 }
 
 /**
- * 「按住说话」满宽触摸区（#2 修复核心）：48dp 与文字态 TextField 同高（盲测 R3
- * 由 56dp 同步收 48——切换不跳变=两态同高），切换不跳变。
- * 手势语义：按下=开始录音+震动+声波纹；上滑累计超阈值=cancelled（滑回恢复）；
- * 松手按 cancelled 分流发送/取消；系统打断手势（PointerEventType.Cancel）按取消处理防误发。
- * 单指跟踪（取首 change）：按住说话为单指交互，多指边角不做（可接受边界）。
+ * 「点击说话」满宽触摸区（免按住模式 Tap-to-Talk，2026-10-18 拍板替换按住说话）：
+ * 56dp 与文字态 TextField 同高（盲测 R3/S27 定稿，切换不跳变=两态同高）。
+ * 手势语义：点一下=onVoiceTap 单路（分流在 VoiceTapRouter：IDLE/PROCESSING/SPEAKING→
+ * 开始聆听，LISTENING→结束聆听有货送货）；结束时机归状态机（VAD 判停/S51 续听/30s 超时）。
+ * 聆听态视觉（[listening]：高亮底+声波纹+「正在聆听，点击结束」）状态源=VSM stateFlow
+ * （上游 collectAsState 派生，禁本地布尔镜像）。
+ * 手势层守卫：禁回退按住/松手/上滑取消语义——绑回人手即重新引入病 B 判停竞速吞语音
+ * （删此约束 → 真机金线回归，critic 审查 + 真机语义验收兜底）。合并口径：fork 的
+ * detectTapGestures 点按语义以本文件既有 awaitEachGesture 手势族落地（tap 判定=
+ * awaitFirstDown + waitForUpOrCancellation 上-下沿配对），手势 API 结构零回退（R2）。
  */
 @Composable
 private fun VoiceHoldArea(
-    onVoiceStart: () -> Unit,
-    onVoiceEnd: () -> Unit,
-    onVoiceCancel: () -> Unit,
+    listening: Boolean,
+    onVoiceTap: () -> Unit,
 ) {
     val context = LocalContext.current
-    var holding by remember { mutableStateOf(false) }
-    var cancelled by remember { mutableStateOf(false) }
     // 声波纹是整块覆盖语义（FIFO 两块一替）：mutableStateOf + neverEqualPolicy 单次赋值
     // 驱动失效，免 SnapshotStateList 逐元素写的快照/通知开销（~10-20Hz）
     val levels = remember {
         mutableStateOf(MutableList(WAVE_BAR_COUNT) { 0f }, neverEqualPolicy())
     }
-    val cancelThresholdPx = with(LocalDensity.current) { CANCEL_DRAG_THRESHOLD_DP.dp.toPx() }
+    // 过时闭包守卫（fork critic 实证处方）：pointerInput(Unit) key 不重启，手势闭包捕获的
+    // listening 是组合期快照——直捕则永为首次组合值 false，每次「结束聆听」点按都误震动。
+    // rememberUpdatedState 让闭包读到最新值；onVoiceTap 路由不受影响（读 session.state 瞬时）。
+    val currentListening by rememberUpdatedState(listening)
 
-    // 声波纹订阅配对（守卫四问①）：仅按住期间 collect captureBlocks（SharedFlow
-    // DROP_OLDEST，多订阅者不阻塞采麦管线）；holding 翻 false / 离开组合时
+    // 声波纹订阅配对（守卫四问①）：仅聆听期间 collect captureBlocks（SharedFlow
+    // DROP_OLDEST，多订阅者不阻塞采麦管线）；listening 翻 false / 离开组合时
     // LaunchedEffect 自动 cancel——UI 绝不开采麦（采麦开关全在 VoiceSessionManager）
-    LaunchedEffect(holding) {
-        if (!holding) return@LaunchedEffect
+    LaunchedEffect(listening) {
+        if (!listening) return@LaunchedEffect
         levels.value = MutableList(WAVE_BAR_COUNT) { 0f }
         VoiceClientFactory.session(context).captureBlocks.collect { block ->
             val level = (EnergyGate.rmsOf(block) / RMS_FULL_SCALE).coerceIn(0f, 1f)
@@ -275,45 +279,27 @@ private fun VoiceHoldArea(
             .pointerInput(Unit) {
                 awaitEachGesture {
                     awaitFirstDown()
-                    holding = true
-                    cancelled = false
-                    onVoiceStart()
-                    vibrateShort(context)
-                    var totalDy = 0f
-                    try {
-                        while (true) {
-                            val event = awaitPointerEvent()
-                            val change = event.changes.first()
-                            // consume 后 changedToUp 恒 false（compose-ui 1.6 语义），必须先判后吞
-                            val isUp = change.changedToUp()
-                            totalDy += change.positionChange().y
-                            change.consume()
-                            // 实时重算：滑回阈值下即恢复发送态（可回退，守卫四问②）
-                            cancelled = totalDy < -cancelThresholdPx
-                            if (isUp) break
-                        }
-                    } catch (e: kotlinx.coroutines.CancellationException) {
-                        // 手势协程被系统/父级打断（compose-ui 1.6 无 PointerEventType.Cancel，
-                        // 取消以 CancellationException 形式到达）：按取消处理防误发，
-                        // 收尾后不重抛（本块已结束，录音终态必须在此物化）
-                        cancelled = true
+                    // 点按判定=上-下沿配对（上游手势族）：waitForUpOrCancellation 返回非 null
+                    // =松手完成点按；null=手势被消费/取消（滚动手势接管等）不触发。
+                    val up = waitForUpOrCancellation()
+                    if (up != null) {
+                        // 开始聆听即时触觉反馈（原 #2 按住震动语义保留）；结束聆听不震
+                        if (!currentListening) vibrateShort(context)
+                        onVoiceTap()
                     }
-                    holding = false
-                    if (cancelled) onVoiceCancel() else onVoiceEnd()
                 }
             },
         shape = RoundedCornerShape(XiaoduoDimens.CornerInputBar),
-        // 取消态粉底 gate 在 holding 上：cancelled 是 remember，松手后仍 true，
-        // 不看 holding 会让 idle 态永久挂 errorContainer（真机 P3）
-        // S8-1：idle 回 surfaceVariant 独立底色（与 S7 两层版一致；不再透明融入单容器）
-        color = when {
-            holding && cancelled -> MaterialTheme.colorScheme.errorContainer
-            holding -> MaterialTheme.colorScheme.outline
-            else -> MaterialTheme.colorScheme.surfaceVariant
+        // 聆听高亮=outline 底（沿用原按住态色）；idle=surfaceVariant 独立底色
+        // （S8-1 不再透明融入单容器；上游三态 when 随上滑取消语义一并退役）
+        color = if (listening) {
+            MaterialTheme.colorScheme.outline
+        } else {
+            MaterialTheme.colorScheme.surfaceVariant
         },
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
-            if (!holding) {
+            if (!listening) {
                 Row(
                     modifier = Modifier.align(Alignment.Center),
                     verticalAlignment = Alignment.CenterVertically,
@@ -326,7 +312,7 @@ private fun VoiceHoldArea(
                         tint = MaterialTheme.colorScheme.onSurface,
                     )
                     Text(
-                        "按住说话",
+                        "点击说话",
                         style = MaterialTheme.typography.titleMedium,
                         color = MaterialTheme.colorScheme.onSurface,
                     )
@@ -336,24 +322,15 @@ private fun VoiceHoldArea(
                     modifier = Modifier.align(Alignment.Center),
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
-                    // 「松手发送，上滑取消」压声波纹上方（spec H 节，盲测返工加逗号分隔）
                     Text(
-                        if (cancelled) "松开取消" else "松手发送，上滑取消",
+                        "正在聆听，点击结束",
                         style = MaterialTheme.typography.labelMedium,
-                        color = if (cancelled) {
-                            MaterialTheme.colorScheme.onErrorContainer
-                        } else {
-                            MaterialTheme.colorScheme.onSurface
-                        },
+                        color = MaterialTheme.colorScheme.onSurface,
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     WaveformBars(
                         levelsState = levels,
-                        color = if (cancelled) {
-                            MaterialTheme.colorScheme.onErrorContainer
-                        } else {
-                            MaterialTheme.colorScheme.onSurface
-                        },
+                        color = MaterialTheme.colorScheme.onSurface,
                     )
                 }
             }
@@ -390,10 +367,7 @@ private const val WAVE_BAR_MAX_DP = 26
 /** RMS 满量程归一分母：对账表真麦说话 ~0.036，/0.05 → 说话柱 ~0.72 高、静音 ~0.1。 */
 private const val RMS_FULL_SCALE = 0.05f
 
-/** 上滑取消阈值（spec H 节 ~80dp：拇指上滑一个明显行程，防误触）。 */
-private const val CANCEL_DRAG_THRESHOLD_DP = 80
-
-/** 按住开始短震 30ms（#2 修复）；minSdk 26 起 VibrationEffect 可用，无版本分支。 */
+/** 点按开始短震 30ms（原 #2 触觉反馈语义保留）；minSdk 26 起 VibrationEffect 可用，无版本分支。 */
 private fun vibrateShort(context: Context) {
     val vibrator = context.getSystemService(Vibrator::class.java) ?: return
     if (!vibrator.hasVibrator()) return
