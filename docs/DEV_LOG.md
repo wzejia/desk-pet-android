@@ -1,6 +1,22 @@
 # 小朵 Android 开发日志
 
 
+## 2026-10-20（一）port 4cap 战役拍板（①A ②C ③B ④A）+ 战役分支建立——4 项能力自 fork rk3288 移植上游
+
+**战役背景**：Phase 0 调研完成（`.scratch/port-4cap/RESEARCH-phase0.md`，四路只读子代理汇总，10 项主代理抽验全过），四项阻塞决策经用户拍板确认，随即进入阶段 1（发布三车道工单 + T1/T2 并行）。
+
+**四项拍板**：
+1. **①A 分支策略**：从上游 `main@47b240a`（754 绿）开战役分支 `port/baseline-4cap-upstream-47b240a`（已建并 checkout，指向 47b240a）。D 途径实证 fork hash 在上游对象库全部无效，cherry-pick 不可行，逻辑移植 re-apply 是唯一路线。
+2. **②C 采麦源口径**：采纳上游 S57 只读锁定语义（SettingsScreen.kt:970，依据 2026-09-21 生产事故：漂离 mode 0 后底噪抬 30~50 倍判停全废），**裁掉 fork 第 4 档可点击循环**（MIC_SOURCE_MIC=3 档位 UI + coerce 扩展不带入），代价 = −4 fork 自有基线断言（预期 796 → 792 绿）。
+3. **③B 基线形态**：T1 车道本身兼作基线（单代理串行跑 5 层，实测三数=对照分母）；省去独立串行人工基准（原形态 A ≈ +1~2h 墙钟/+60~120k token）；牺牲「并行 vs 串行」对照分母的完整性（瓶颈在 T1 时对照本就测不出收益），分母代表性折扣在收口报告中声明。
+4. **④A 工单位置**：三车道工单发布 `.scratch/port-4cap/`（工具性文件不进 git），决策同步本条目。
+
+**三车道与并行准入**（RESEARCH §5）：T1 采麦层三合一（9 文件，内部 5 层依赖链 63a79ca→a0944a4→e0b5c36→13ec3f9→04e8015 必须串行，主工作区主分支）；T2 Tap-to-Talk（7 文件，独立 worktree + 分支 `port/t2-tap-to-talk`）；T3 docs 移植（4 文件零代码，独立 worktree + 分支 `port/t3-docs`）。T1∩T2 触碰交集仅 SettingsScreen.kt（区域物理隔离：T1 动 KwsSection ~936；T2 动 VoiceSelfCheck ~785-803+import 区），满足 L10 并行三前提（按文件归属切+程序化冲突验证+独立 worktree），线性合入顺序 T1→T2→T3。
+
+**移植红线**：fork 工作区一律不动（probe4 未提交态是战役资产），唯一读取通道 = `git show HEAD:<path>`；禁带入 probe4 三文件（onPreAgcBlock/dumpPcm/PreAgcDump，上游 VFS:175 S34 CPU 202% 血泪注释）/ChatStore API25 兼容件/fork 版 VoiceStateRouter.kt/keywords.txt；禁 cp/rsync 整文件覆盖（R7），上游领先符号 grep 计数不下降（p2p 清单见 RESEARCH §4）。
+
+**验收口径**：移植前 f2p 红（新增测试在移植前编译/断言失败）→ 移植后绿；全套件 `--rerun-tasks` + ElementTree 双证；变异锚三步法（cp 备份→删守卫→红→还原→绿→md5 对拍+grep MUT 零残留）；预期终态 ≈792 绿（=754 上游基线 + 41 可移植测试 + 1 PrefContract selfheal − 4 第 4 档断言，精确数以移植实跑为准）。
+
 ## 2026-10-19（一）main 定型基线打分支+tag（纯 git 治理）+ dsh-pet 动画可移植性调研
 
 **版本管理**：应用户令对 main 定型态（`00c5c97`）建分支 `baseline/main-finalized` + tag
