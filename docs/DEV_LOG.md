@@ -1,6 +1,10 @@
 # 小朵 Android 开发日志
 
 
+## 2026-10-20（二）阶段 1 启动：三车道工单发布 + T1/T2/T3 子代理并行拉起
+
+**阶段 1 执行**（接上条拍板）：三车道工单已发布 `.scratch/port-4cap/`（T1-ticket.md 采麦层三合一/T2-ticket.md Tap-to-Talk/T3-ticket.md docs 移植），各含环境红线、f2p 验收口径、防作弊变异锚与 progress 落盘义务。T1 独占主工作区 `E:/desk-pet-android`（分支 `port/baseline-4cap-upstream-47b240a`，兼作③B 基线车道）；T2 独立 worktree `E:/desk-pet-wt-t2`（分支 `port/t2-tap-47b240a`，压缩前已备）；T3 独立 worktree `E:/desk-pet-wt-t3`（分支 `port/t3-docs`）。三车道按 RESEARCH §5 准入并行（T1∩T2 仅 SettingsScreen.kt 区域隔离），线性合入顺序 T1→T2→T3 由主代理收口执行。
+
 ## 2026-10-20（一）port 4cap 战役拍板（①A ②C ③B ④A）+ 战役分支建立——4 项能力自 fork rk3288 移植上游
 
 **战役背景**：Phase 0 调研完成（`.scratch/port-4cap/RESEARCH-phase0.md`，四路只读子代理汇总，10 项主代理抽验全过），四项阻塞决策经用户拍板确认，随即进入阶段 1（发布三车道工单 + T1/T2 并行）。
