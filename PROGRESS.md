@@ -2,7 +2,7 @@
 
 ## 状态：main=重构前代码+重构经验文档全保留（2026-10-11 深夜用户拍板）；重构完整版封存 refactor/complete @ aa79fbd（859 绿）
 
-- **main 现状**（HEAD=`00c5c97`，app/ 自 `c6e7243` 无代码变更，其上两笔皆 docs）：`app/` 代码=**重构前 e288037 态**（字节一致 diff 0 行，**754 绿** skipped=0，验证带 JDK PATH 前缀 + `--rerun-tasks`）；`docs/` 21 文件重构经验文档全保留（spec v0.4/Phase0-4 审计/§5.4 复测/内存归因/optimization-analysis）。
+- **main 现状**（HEAD=`47b240a`（2026-10-20 T3 docs 车道勘正：原记 00c5c97 已过期），app/ 自 `c6e7243` 无代码变更，其上两笔皆 docs）：`app/` 代码=**重构前 e288037 态**（字节一致 diff 0 行，**754 绿** skipped=0，验证带 JDK PATH 前缀 + `--rerun-tasks`）；`docs/` 21 文件重构经验文档全保留（spec v0.4/Phase0-4 审计/§5.4 复测/内存归因/optimization-analysis）。
 - **重构完整版封存**：分支 `refactor/complete` + tag `refactor-complete-20261011` = `aa79fbd`（Phase 0-3 全合入 + ocr[394]，859 绿）。**回退到重构版** = `git checkout refactor/complete`（板上部署走既有回灌法，流程见 DEV_LOG 2026-10-11（二）/（六））。refactor/p0..p3 分支照旧保留。
 - **板上现=refactor/p0 @ 19ea825**（5a0103eb，行为等价包，2026-10-11 深夜回滚，回滚全绿 151/151；main 态快照 `.scratch/prod-deskpet-data-backup-20261011-rollback-snapshot/`）。
 - **2026-10-13**：带密钥 APK 构建（main 重构前态，md5 前缀 `6edaebcc`，96MB，双密钥注入/VOLC 空=08-19 以来一贯状态），**产物留存未部署，用户令暂不构建**（DEV_LOG 2026-10-13（一））。
