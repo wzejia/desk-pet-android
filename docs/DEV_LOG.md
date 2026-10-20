@@ -1085,3 +1085,15 @@ files_touched: [
   app/src/test/java/com/xiaoduo/deskpet/voice/VoiceSessionManagerWakeAckTest.kt
 ]
 ```
+## T2 port-4cap Tap-to-Talk 票1：VSM stopListening 吞语音守卫（2026-10-20，fork 锚 e0e2eb2）
+
+病 B（maxLevel 过线但 manual release 先到→吞已判定语音，2026-10-17 板端 4 轮实证）移植修复：stopListening 在 vad.stop 前增 S51 continuation hold 检查（ticksLeft=0 强制续听窗即尽→dispatchContinuation 照常派发，有货送货）；未判定仍走既有 isSpeaking/backToIdle 分支。与 cancelCurrentTurn（放弃本轮=丢弃）语义分界不变，S51ContinuationTest 锚不受影响。
+
+```evidence
+verify_cmd: cd /e/desk-pet-wt-t2 && export JAVA_HOME='C:/Program Files/Microsoft/jdk-17.0.20.8-hotspot' && ./gradlew.bat :app:testDebugUnitTest --rerun-tasks；变异锚 M2=删守卫块单跑 VoiceSessionManagerStopReleaseGuardTest --rerun-tasks
+verify_claim: 全套件终态 BUILD SUCCESSFUL + XML 聚合 760 tests/0 failures/0 errors/0 skipped（基线 754+新增 6）；M2 红=stop during continuation window dispatches -> expected:<PROCESSING> but was:<IDLE>（对照组 stop with plain silence PASS 证特异性）；cp 还原 md5 27da208c548518c19943b6e11c44ed1a 一致、pendingContinuation 回归
+files_touched: [
+  app/src/main/java/com/xiaoduo/deskpet/voice/VoiceSessionManager.kt,
+  app/src/test/java/com/xiaoduo/deskpet/voice/VoiceSessionManagerStopReleaseGuardTest.kt
+]
+```

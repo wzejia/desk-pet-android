@@ -576,7 +576,11 @@ class VoiceSessionManager(
         }
     }
 
-    /** 按住说话松开：说话中则喂静音块触发判停产出当前句；未说话直接回 IDLE。 */
+    /**
+     * 结束聆听（Tap-to-Talk 点按 END / 原按住松开）：说话中则喂静音块触发判停产出当前句；
+     * 已判停在 S51 hold 待派发的片段经守卫照常派发（有货送货）；纯未说话直接回 IDLE。
+     * 与 cancelCurrentTurn（放弃本轮=丢弃挂起）语义分界见守卫注释。
+     */
     fun stopListening() {
         if (state != VoiceStateRouter.State.LISTENING) return
         if (vad.isSpeaking) {
@@ -587,6 +591,34 @@ class VoiceSessionManager(
                     return
                 }
             }
+        }
+        // Tap-to-Talk 回归守卫（病 B 吞语音竞速修复，2026-10-18）：
+        // VAD 已判停、片段在 S51 hold 待派发（continuationParts 非空）时「结束聆听」= 有货送货——
+        // 强制续听窗即刻耗尽（ticksLeft=0，dispatchContinuation 前置校验要求窗尽）转
+        // dispatchContinuation 照常派发；不走下方 vad.stop + backToIdle（clearContinuation
+        // 会把已判定语音整段吞掉，金线=`manual release, no utterance` 出现在正常说完的轮次，
+        // 2026-10-17 板端 4 轮 maxLevel 过线仍被吞实证）。
+        // 语义分界：stopListening=结束聆听（已判定→派发；未判定→既有 isSpeaking/回 IDLE 分支）；
+        // cancelCurrentTurn=放弃本轮（丢弃挂起）——既有锚「cancel during hold drops pending
+        // fragments」（S51ContinuationTest）锁 cancel 语义不被本守卫改写。
+        // 开窗关窗配对：dispatchContinuation 内含 vad.stop，命中后 return 早退、下方 vad.stop
+        // 不再执行，vad.stop 恰一次。parts 生命周期：进=holdForContinuation 单点（LISTENING
+        // 判停事件）；清=dispatchContinuation 成败两路自清 + clearContinuation（backToIdle/
+        // startListening）——本守卫在 :549 LISTENING 早退之后，LISTENING 态 parts 非空 ⟺
+        // hold 窗内，误触不可达；与 tickContinuation 的派发竞态由 continuationLock + parts
+        // 清空幂等收口（恰一次派发）。
+        // （删此段 → 判定窗内结束聆听吞语音 → VoiceSessionManagerStopReleaseGuardTest 判定窗组红）
+        val pendingContinuation = synchronized(continuationLock) {
+            if (continuationParts.isNotEmpty()) {
+                continuationTicksLeft = 0 // 用户明确说完 = 续听窗立即耗尽
+                true
+            } else {
+                false
+            }
+        }
+        if (pendingContinuation) {
+            dispatchContinuation()
+            return
         }
         vad.stop()
         val lvl = vad.currentMaxLevel()
