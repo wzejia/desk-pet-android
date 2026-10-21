@@ -1,6 +1,86 @@
 # 小朵 Android 开发日志
 
 
+## 2026-10-21（十四）S69c 三轮板测收口：票C 闭环——S69 系三包装板 33 轮真声，判停链重构完成
+
+**三轮板测（S69c 包 `dist/xiaoduo-s69c-a64bcb8-20261021.apk`，21:36:01 上生产板 pid 23034）**：用户 13 轮真声（21:38-21:43）——**「的档案」弱尾/长句场景全数救回，零失败**。金线亮点：片段 2 峰值 0.3239（恰在 0.32-0.35 修复区间，旧钳 0.35 下必丢的边界样本）判起合并；**parts=3 三段合并**首次实战（跨双气口 utterance×3 → 75200 采样合并派发 → ASR「查询有关科技的档案。」完整）；9.6s 双 clause 超长句单段零切（「帮我找一个关于科技的档案，我要两个档案就行。」）；8.8s「帮我查询2022年的前30条档案。」完整——S60 时代「档案尾丢」历史病灶场景零复现。barge-in 打断链、multi-turn 续听、工具轮回唤醒全程正常。
+
+**S69 系战役总账**：3 个包（S69 d4752da / S69b b70d4e2 / S69c a64bcb8）× 板测 3+11+13=**27 轮用户真声**（外加 S69 包前 9 轮取证），票C「判停过早/死锁」从双向失败到闭环——floor 跟踪三失败模式（死锁/提前判停/全聋）全部根除，S51 合并语义首次板上实战（合并 12+ 次 part2/3 零失败）。S58 上攻通道说话期退役（S52 诉求回归），判停兜底改由熔断（不依赖 floor）+有界续听+空 ASR 裁判三层接管。
+
+**遗留挂账**：①熔断基准跨轮 peak EMA 污染（评审 finding #1，板上未观测到 churn 形态，留观察）；②新参数回填语音参数对账表（待补）；③0.19-0.27 域极轻尾词物理极限（用户端对策=尾词稍加重音）；④板测派发延迟听感（窗=10 固有 +0.9s，用户现场未提出异议）。
+
+```evidence
+verify_cmd: cd /e/desk-pet-android && export PATH="/c/Program Files/Microsoft/jdk-17.0.20.8-hotspot/bin:$PATH" && ./gradlew.bat testDebugUnitTest --rerun-tasks
+verify_claim: total=811 failures=0 errors=0 skipped=0；S69c 板测 13 轮金线零异常（弱尾救回 5/5、parts=3 合并 1 次、FATAL 0）
+files_touched: [app/src/main/java/com/xiaoduo/deskpet/voice/VadDetector.kt, app/src/test/java/com/xiaoduo/deskpet/voice/VadDetectorTest.kt]
+```
+
+## 2026-10-21（十三）S69c 弱尾盲区修正：判起线钳 0.35→0.32（811 绿，三轮板测复验待跑）
+
+**用户二轮板测后现场反馈**：「有概率提早判停，没有检测到『的档案』」。diag 取证（212031.log）：缺尾轮次尾段电平 0.2519（21:22:31）——落在判停线 0.266 之下被切、又够不到判起线钳 0.35——**0.266-0.35 盲区**（S69 评审报告预警项的概率性表现）；成功合并轮片段 2 峰值全在 0.38+（0.3818/0.3848/0.3889/0.4581/0.5284），失败样本 0.25-0.29——概率性=「的档案」音量分布。
+
+**修正**：START_LINE_MAX 0.35→**0.32**——0.32 保持 end(0.30)<start 不变量、底噪上沿 0.27 安全边 0.05；救回 0.27-0.35 域弱尾；0.19-0.27 域贴底噪属物理极限（VadDetector 类注释既录，用户端对策=尾词稍加重音）。TDD：S69c 测试（floor 污染域 0.34 弱尾判起）先红后绿，变异验证（钳回 0.35 → 红）后还原；全量 **811 绿**。三轮板测复验场景=含「的档案」尾的查询句多轮。
+
+```evidence
+verify_cmd: cd /e/desk-pet-android && export PATH="/c/Program Files/Microsoft/jdk-17.0.20.8-hotspot/bin:$PATH" && ./gradlew.bat testDebugUnitTest --rerun-tasks
+verify_claim: total=811 failures=0 errors=0 skipped=0；S69c 变异（钳回 0.35）单测红后还原
+files_touched: [app/src/main/java/com/xiaoduo/deskpet/voice/VadDetector.kt, app/src/test/java/com/xiaoduo/deskpet/voice/VadDetectorTest.kt]
+```
+
+## 2026-10-21（十二）S69+S69b 板测收口：11 轮真声全健康，合并语义 6/6，票C 闭环
+
+**二轮板测（S69b 包 `dist/xiaoduo-s69b-b70d4e2-20261021.apk` md5 `679252dc`，21:20:45 `install -r` 上生产板 10.0.14.18，pid 10527）**：用户 11 轮真声（21:22-21:28）——**零死锁、零全聋、零超时、零 FATAL**。金线汇总：
+- **合并语义 6/6 实战全成**（S51 窗=10 首次板上实战）：第 1/3/5/6/8/9 轮跨 1.4-1.5s 气口 parts=2 合并，片段 2 电平 0.38-0.53 全部正常判起（S69b 判起线钳 0.35 生效实证——S69 包同场景判起线被污染到 0.4+ 判不起）。
+- **完整成句 8/11**：「帮我查询当前有哪些。」「帮我查询一下C款密下的档案。」「帮我查询一下当前有哪些档案。」「帮我查询所有档案。」「有没有关于教学的？」「给我讲一个。」「我想查一下。」「当前有哪些关于印度？」（末两句个别字 ASR 层误识，句子结构完整）。收句机制 11/11 正常（含 1 轮轻声段 ASR 误识「今天的天今」——板噪 0.19 下 0.03-0.05 域轻声物理判不起，VadDetector 类注释「物理极限」既录；1 轮未说话空轮）。
+- S69 包首轮板测（21:07-21:08）暴露的提前判停/全聋两病在 S69b 包下零复现。
+
+**S69 包一轮板测（21:07-21:08，3 轮）**：第 1 轮完整句切「帮我查」（判停线被推到说话弱音节域）；第 3 轮说话判不起 30s 超时（floor 推到 0.5 封顶判起线 1.0 全聋）——直接催生 S69b 三连修（DEV_LOG（十一））。
+
+**评审**：ce-code-review focused 路径（本侧 correctness + 1 本地对抗评审员；codex 跨模型路由 CLI 缺席未运行）。verdict=**Ready with fixes**——2 findings（P3 跨轮 peak EMA 污染熔断基准[advisory，挂板测观察 churn 日志形态]；P3 新参数未回填语音参数对账表[待补]）+ 并发审计干净 + ghost 周期有界终结确认。报告 `C:/Users/Administrator/AppData/Local/Temp/compound-engineering-197108/ce-code-review/20261021-203727-s69/report.md`。
+
+**收口序列**：`fix/s69-stall-fuse-continuation`（d4752da + b70d4e2）合入 main 推送 origin（见下条 evidence）；PROGRESS/AGENTS 状态同步；ce-compound 沉淀；板载现=**S69b 包**（b70d4e2 源）。
+
+```evidence
+verify_cmd: cd /e/desk-pet-android && export PATH="/c/Program Files/Microsoft/jdk-17.0.20.8-hotspot/bin:$PATH" && ./gradlew.bat testDebugUnitTest --rerun-tasks
+verify_claim: total=811 failures=0 errors=0 skipped=0；板测 11 轮金线零异常（VAD utterance 11/11、continuation dispatch 11/11、合并 6/6、FATAL 0）
+files_touched: [app/src/main/java/com/xiaoduo/deskpet/voice/VadDetector.kt, app/src/main/java/com/xiaoduo/deskpet/voice/VoiceSessionManager.kt, app/src/test/java/com/xiaoduo/deskpet/voice/VadDetectorTest.kt, app/src/test/java/com/xiaoduo/deskpet/voice/VoiceSessionManagerS51ContinuationTest.kt]
+```
+
+## 2026-10-21（十一）S69b floor 污染三连修：说话期禁上攻 + 判起/判停线绝对钳制（811 绿，二轮板测待跑）
+
+**板测取证（S69 包，生产板 21:07-21:08，用户三轮喊话）**：S69 三件套在真实说话期暴露 **floor 污染的另外两个失败模式**——①第 1 轮完整句被切「帮我查」：判停线（floor×1.4）被推到 0.3+ 贴住说话弱音节，句中弱音节计静音 600ms 即切，续说也因判起线（floor×2）抬到 0.4+ 判不起而无片段合并；②第 3 轮 30s 超时零 utterance：diag 实锤说话期电平 0.33-0.42+削波 1.0 全部判不起 → 判起线 ≥1.0 → **floor 被 S58 上攻通道推到 NOISE_FLOOR_MAX=0.5 封顶**（弱音节半峰判据 level<peak×0.5 在真实说话期高发误触发，floor 0.35 速率爬向说话电平）。至此 floor 跟踪三失败模式全部实锤：钉底噪稳态=判停死锁（（七）/S69 已修）、推中间域=提前判停、推封顶=全聋。与昨晚 9 轮真声不炸的差异：响度分布不同，上攻误触发是概率性的。
+
+**三连修**：①**说话期禁用上攻**（`!isSpeaking` gate）——floor 只在未判起期学习（S19-1 原场景），上攻原职能由未判起期慢跟随+S56 空 ASR 裁判+**S69 熔断**（不依赖 floor）接管；②**判起线钳 START_LINE_MAX=0.35**（max(provider, min(floor×2, 0.35))）——floor 无论被谁污染正常说话必判起；③**判停线钳 END_LINE_MAX=0.30**（贴板噪上沿 0.27）——不再切说话弱尾音。S58「判停可用性优先」的取舍被新证据推翻：S58 复活上攻的理由（判停死锁）已由 S69 熔断以更安全方式覆盖。
+
+**测试**：+3 S69b 锚（说话期 floor 恒净/S56 raise 后判停线 ≤0.30/floor 污染后 0.4 说话仍判起）——实现前三条全红=天然变异证据；S58 两个既有锚按新语义改写（`pump noise now held to MAX_UTTERANCE`：早滤废止改锁 8s 兜底；`S52 sustained stable tone NOT gated`：**S52 诉求回归**——长元音不再被 plateau 通道中途切）。全量 **811 绿**（808+3）。
+
+**遗留观察**：泵态 ghost 判起改由 8s 强制收句（比 S58 早滤慢 6s）——S19-2 空轮预算 2 次内自愈，板测观察「我在」播完后的恢复速度。S69 评审 finding #1（跨轮 peak 污染熔断基准）仍挂板测观察。
+
+```evidence
+verify_cmd: cd /e/desk-pet-android && export PATH="/c/Program Files/Microsoft/jdk-17.0.20.8-hotspot/bin:$PATH" && ./gradlew.bat testDebugUnitTest --rerun-tasks
+verify_claim: BUILD SUCCESSFUL in 1m 19s；total=811 failures=0 errors=0 skipped=0（基线 808+新增 3，S58 两锚语义改写净零）；S69b 三测实现前全红=变异证据
+files_touched: [app/src/main/java/com/xiaoduo/deskpet/voice/VadDetector.kt, app/src/test/java/com/xiaoduo/deskpet/voice/VadDetectorTest.kt]
+```
+
+## 2026-10-21（十）S69 票C 三件套：底噪熔断判停 + 续听窗恢复 10 + 有界总上限（808 绿，板测定值待跑）
+
+**取证先行（生产板 20261021_190723/192937 日志，9 轮真声）**：票C 双向失败的统一根因实锤=**floor（噪声底）逐轮漂移在临界带，判停行为逐轮不可预测**——19:12:25「放」轮（floor>0.136）判停线>底噪 → 600ms 气口即切（病2 过早判停）；19:33:08 轮（floor≤0.136，diag 连续 4 行 0.19 低谷）4 秒气口不切（判停死锁常态，说完靠上攻收敛才收句）；19:14:35 轮 3 秒气口同型。floor 稳态钉死底噪（0.19，板自噪恒定）后慢跟随推力归零、判停线骑底噪带（0.19×1.4=0.266），底噪块级电平绕线摆动令 belowTicks（判停）与 sustainedAbove（上攻）双计数器互相清零——**慢跟随/判停/上攻三通道同时失效**。（七）DEV_LOG 归因「S52 停用 floor 上行」系注释假锚勘误：S58 已复活上攻（NOISE_ATTACK_ENABLED=true），真机制如上。15:40 死锁时段日志已被轮转覆盖（板留最近 11 文件≈2h）。
+
+**三件套（用户拍板按方案施工）**：
+1. **底噪熔断判停**（`VadDetector`）：说话态下证据窗（复用 plateauWindow 最近 10 块）全部块 < 语音峰值 EMA×0.6 且 speechTicks≥10 → 强制收句。「窗内无语音」强证据，对摆动鲁棒（不再依赖 floor 跟踪）；低峰比对持续音自锁（peak 含当前块，长元音 level≈peak 恒不满足）——S52 误伤免疫；说完到收句 ≈证据窗填满 ~1s（替代旧 8s 强制结束/永不派发）。TDD 实录：测试构造三轮迭代（恒定块→触发说话期上攻假死锁；T 密集→上攻自愈判停非死锁；**T 稀疏 [F,F,F,T] 循环才是死锁域**，Python 全保真模拟定位），v5 构造先红后绿。
+2. **续听窗恢复 1→10**（`CONTINUATION_TICKS`）：判停切尾片段窗内合并（救「放」轮）；S55 暂关决策（09-23「勿再当悬案翻出」）因（九）新证据（句中气口>600ms 切尾，推翻「S60 尾垫已覆盖」假设）由 handoff 待办①重新拍板废止。
+3. **有界总上限 30**（`CONTINUATION_MAX_TICKS`，3s）：hold 期冻结块也计数，到顶强制派发——S55「冻结永不解除 → hold 无限累积 parts=8/66s」死锁硬顶。**变异锚抓到实现 bug**：有界 fire 后被 `dispatchContinuation` 的「倒计时未耗尽」守卫拒发并清空挂起，修=有界到顶时 ticks 归零（强制耗尽语义）过守卫。S55 注释预留正解候选「冻结也有总上限」落地。
+
+**测试**：+3 熔断锚（死锁域收句/波动说话不误伤/短气口不切）+ VSM 三用例改写（合并语义锁还原/有界纯路径构造/轻声冻结合并还原）；**变异双锚真红**（删熔断→熔断用例红；删有界→有界用例红）；全量 **808 绿**（805+3，BUILD SUCCESSFUL 1m19s，JDK PATH+--rerun-tasks 前缀齐全）。有界用例构造曾两轮失真（0.25 恒定块被上攻自愈、非有界路径）——S69 后「冻结永不解除」近乎不可构造（四重机制互相封死），有界上限是末位保险。
+
+**参数与板测**：STALL_MIN_SPEECH_TICKS=10 / STALL_PEAK_RATIO=0.6 / CONTINUATION_TICKS=10 / CONTINUATION_MAX_TICKS=30 全为 JVM 机制锁初值，**板上调准待跑**（金线=`VAD utterance`/`S51 continuation hold|dispatch`/`ASR text`，验收场景=轻声+气口+正常三型）。
+
+```evidence
+verify_cmd: cd /e/desk-pet-android && export PATH="/c/Program Files/Microsoft/jdk-17.0.20.8-hotspot/bin:$PATH" && ./gradlew.bat testDebugUnitTest --rerun-tasks
+verify_claim: BUILD SUCCESSFUL in 1m 19s；JUnit 汇总 total=808 failures=0 errors=0 skipped=0（基线 805+新增 3，零回归）；变异双锚真红实证（删熔断/删有界各复跑对应测试类 1 failed）
+files_touched: [app/src/main/java/com/xiaoduo/deskpet/voice/VadDetector.kt, app/src/main/java/com/xiaoduo/deskpet/voice/VoiceSessionManager.kt, app/src/test/java/com/xiaoduo/deskpet/voice/VadDetectorTest.kt, app/src/test/java/com/xiaoduo/deskpet/voice/VoiceSessionManagerS51ContinuationTest.kt]
+```
+
 ## 2026-10-21（九）票A 合入推送+出包上板：真声验收 6/6 弹卡，弹窗链正式恢复
 
 **合并与推送**：`fix/platform-tool-alias`（ad5352e）--no-ff 合入 main → **merge `845db5e`**，推送 `43d943e..845db5e`（origin 零偏离）。**出包上板**：`dist/xiaoduo-main-845db5e-20261021.apk`（md5 `0113768a`，96MB）19:07:58 `install -r` 上生产板 10.0.14.18（Success，保数据）。

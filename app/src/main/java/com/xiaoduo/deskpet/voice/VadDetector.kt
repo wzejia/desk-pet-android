@@ -112,6 +112,22 @@ class VadDetector(
         const val ADAPTIVE_START_FACTOR = 2.0
         const val ADAPTIVE_END_FACTOR = 1.4
 
+        /** S69c 判起线绝对上限（S69b 立 0.35，二轮板测 21:22 修正 0.32）：floor 被任何
+         *  通道污染（上攻/S56 raise）后判起线（floor×2）不得超此值。全聋防御（板测第 3 轮
+         *  判起线 1.0 致 30s 超时实锤）+ 弱尾盲区修复（0.25-0.29 域「的档案」被判停线切后
+         *  判起线接不住——0.32 保持 end 0.30 < start 不变量，底噪上沿 0.27 安全边 0.05）。 */
+        const val START_LINE_MAX = 0.32
+
+        /** S69b 判停线绝对上限：floor 污染后判停线（floor×1.4）不得超此值——0.30
+         *  贴板噪上沿 0.27，防判停线爬进说话弱音节域切尾（板测第 1 轮「帮我查」同型）。 */
+        const val END_LINE_MAX = 0.30
+
+        /** S69 底噪熔断最少说话态块数（判起后累计 1s 才允许——超短句交给判停/续听合并）。 */
+        const val STALL_MIN_SPEECH_TICKS = 10
+
+        /** S69 熔断低峰比：证据窗全部块 < 语音峰值 EMA×此值 →「窗内无语音」强证据。 */
+        const val STALL_PEAK_RATIO = 0.6
+
         /** S56 空 ASR 轮噪声底上行速率（floor += (rms-floor)×0.6，约 2 个空轮收敛）。 */
         const val EMPTY_TURN_FLOOR_RATE = 0.6
         const val LISTEN_TIMEOUT_TICKS = LISTEN_TIMEOUT_S * 1000 / BLOCK_MS // 300
@@ -231,7 +247,13 @@ class VadDetector(
         while (plateauWindow.size > NOISE_ATTACK_SUSTAIN_TICKS) plateauWindow.removeFirst()
         if (isSpeech) {
             sustainedAbove++
-            if (NOISE_ATTACK_ENABLED && sustainedAbove >= NOISE_ATTACK_SUSTAIN_TICKS &&
+            // S69b（2026-10-21 板测实锤）：说话期禁用上攻——弱音节（半峰判据）与平台段
+            // （plateau 判据）在真实说话期高发误触发，floor 被 0.35 速率推向说话电平：
+            // 0.2-0.4 域=判停线贴说话弱音节→提前判停；NOISE_FLOOR_MAX=0.5 封顶=判起线
+            // floor×2=1.0→全聋（板测第 1/3 轮）。上攻原场景（AGC 泵态/环境阶跃）的 floor
+            // 学习已由未判起期慢跟随 + S56 空 ASR 裁判接管，判停兜底由 S69 熔断接管
+            // （不依赖 floor）。isSpeaking 取本块前状态（本块的判起翻转在其后）。
+            if (NOISE_ATTACK_ENABLED && !isSpeaking && sustainedAbove >= NOISE_ATTACK_SUSTAIN_TICKS &&
                 (level < speechPeak * NOISE_ATTACK_PEAK_HALF || isPlateau())
             ) {
                 // 抬升噪声（AGC 泵态/播放后增益慢释）：噪声底快速上攻
@@ -271,6 +293,16 @@ class VadDetector(
 
         // 说话中：超 max_utterance 强制结束先查（本块不消费，同桌面端）
         if (speechTicks >= MAX_UTTERANCE_TICKS) return finishUtterance()
+        // S69 底噪熔断：证据窗（最近 10 块）全部远低于语音峰值 EMA →「这 1s 没有语音」
+        // 的强证据。板端 2026-10-21 实锤：floor 稳态钉死底噪后判停线骑底噪带（0.19×1.4），
+        // 底噪块级电平绕线摆动令 belowTicks（判停）与 sustainedAbove（上攻）双计数器互相
+        // 清零——慢跟随（推力归零）/判停/上攻三通道同时失效，4s 气口不切、（七）永不判停。
+        // 熔断是唯一不受摆动影响的收句出口。低峰比对持续音自锁（peak 含当前块，长元音
+        // level≈peak 恒不满足）——S52 误伤免疫；说完到收句 ≈证据窗填满 ~1s。
+        if (speechTicks >= STALL_MIN_SPEECH_TICKS &&
+            plateauWindow.size >= NOISE_ATTACK_SUSTAIN_TICKS &&
+            plateauWindow.all { it < speechPeak * STALL_PEAK_RATIO }
+        ) return finishUtterance()
         speechTicks++
         return if (isSpeech) {
             belowTicks = 0
@@ -313,14 +345,19 @@ class VadDetector(
     }
 
     /** Int16 PCM 归一化音量：min(1.0, RMS/8000)（削波信号钳位到 1.0，同 voice_listen.py:48）。 */
-    /** S19-1 判起阈值 = max(生效判起线, 噪声底×2.0)。生效判起线 = startLevelOverride
-     *  （S51 续听阶段降敏到 end 线 0.03）否则 speechLevelProvider（校准联动）。 */
+    /** S19-1 判起阈值 = max(生效判起线, min(噪声底×2.0, [START_LINE_MAX]))。生效判起线 =
+     *  startLevelOverride（S51 续听阶段降敏到 end 线 0.03）否则 speechLevelProvider（校准
+     *  联动）。S69b 钳制：floor 被污染后判起线封顶 0.35，全聋防御。 */
     private fun startThreshold(): Double =
-        maxOf((startLevelOverride ?: speechLevelProvider)(), noiseFloor * ADAPTIVE_START_FACTOR)
+        maxOf(
+            (startLevelOverride ?: speechLevelProvider)(),
+            minOf(noiseFloor * ADAPTIVE_START_FACTOR, START_LINE_MAX),
+        )
 
-    /** S50 判停阈值 = max(end provider, 噪声底×1.4)，独立于判起线（恒 < 判起阈值）。 */
+    /** S50 判停阈值 = max(end provider, min(噪声底×1.4, [END_LINE_MAX]))，独立于判起线
+     *  （恒 < 判起阈值）。S69b 钳制：floor 污染后判停线封顶 0.30，防切说话弱音节。 */
     private fun endThreshold(): Double =
-        maxOf(speechEndLevelProvider(), noiseFloor * ADAPTIVE_END_FACTOR)
+        maxOf(speechEndLevelProvider(), minOf(noiseFloor * ADAPTIVE_END_FACTOR, END_LINE_MAX))
 
     /** S19-1 平台判据：最近块电平 (max-min)/mean < [PLATEAU_STABLE_RATIO]（AGC 钉死特征）。 */
     private fun isPlateau(): Boolean {

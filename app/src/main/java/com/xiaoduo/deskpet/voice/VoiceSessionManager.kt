@@ -682,6 +682,9 @@ class VoiceSessionManager(
     @Volatile
     private var continuationTicksLeft = 0
 
+    /** S69 有界续听已累计块数（hold 期逐块递增含冻结块；新片段重置、派发/清理归零）。 */
+    private var continuationTicksTotal = 0
+
     /** 各片段 maxLevel 最大值（合并事件诊断用，「一值定层」口径）。 */
     @Volatile
     private var continuationMaxLevel = 0.0
@@ -828,6 +831,7 @@ class VoiceSessionManager(
             continuationParts.add(ev.pcm)
             continuationMaxLevel = maxOf(continuationMaxLevel, ev.maxLevel)
             continuationTicksLeft = CONTINUATION_TICKS
+            continuationTicksTotal = 0 // S69：新片段=新观察窗，有界上限重新起算
         }
         vad.startLevelOverride = { VadDetector.SPEECH_END_LEVEL } // S51：续听期判起降敏到 end 线（轻声档案名可成型片段）
         vad.start() // 单发后已停机，重启接下一片段（listenTicks/preRoll 重置，多片段各自不超 8s）
@@ -838,17 +842,30 @@ class VoiceSessionManager(
     }
 
     /** 续听窗倒计时（仅聆听活块驱动，每块一次）：≥当前判停阈值（end 线，全链单标“静音”定义）
-     *  或片段成型中冻结；真静音耗尽→合并派发。 */
+     *  或片段成型中冻结；真静音耗尽或 S69 有界总上限到顶 → 合并派发。 */
     private fun tickContinuation(lvl: Double) {
         if (continuationTicksLeft <= 0) return
+        // S69 有界总上限：冻结块也计数，到顶无视冻结强制派发（S55「冻结永不解除 →
+        // hold 无限累积 parts=8/66s」死锁的硬顶防线）。
+        val bounded = synchronized(continuationLock) {
+            continuationTicksTotal++
+            continuationTicksTotal >= CONTINUATION_MAX_TICKS
+        }
         // 冻结线必须与判停同域（end 线 0.03）而非判起线 0.05：轻声续说（0.03~0.05 频段）
-        // 若被当静音倒数，会在用户开口说档案名时照常派发+停 VAD，整段丢弃（板端 17:00 实锤）
-        // S55（2026-09-21 双板实证）：噪声环境电平 0.19~0.29（判停线 0.03 的 7~10 倍）下
-        // 冻结永不解除 → hold 无限累积（实测 parts=8/66s 零派发）=「说完不回答」根因。
-        // 窗=1（暂关续听）时冻结短路——无条件倒数，判停后必派发；窗>1 恢复时冻结语义回归。
-        if (CONTINUATION_TICKS > 1 && (lvl >= vad.currentEndThreshold() || vad.isSpeaking)) return
+        // 若被当静音倒数，会在用户开口说档案名时照常派发+停 VAD，整段丢弃（板端 17:00 实锤）。
+        // S55 的窗=1 冻结短路已随 S69 恢复窗=10 废止——死锁由上面的有界上限兜底。
+        if (!bounded && (lvl >= vad.currentEndThreshold() || vad.isSpeaking)) return
         val fire = synchronized(continuationLock) {
-            if (continuationTicksLeft > 0) continuationTicksLeft-- == 1 else false
+            if (continuationTicksLeft > 0) {
+                if (bounded) {
+                    // S69：有界到顶=强制耗尽（ticks 归零才过 dispatch 的「倒计时未耗尽」守卫）
+                    continuationTicksLeft = 0
+                    true
+                } else {
+                    continuationTicksLeft--
+                    continuationTicksLeft == 0
+                }
+            } else false
         }
         if (fire) dispatchContinuation()
     }
@@ -861,6 +878,7 @@ class VoiceSessionManager(
             ) {
                 continuationParts.clear()
                 continuationTicksLeft = 0
+                continuationTicksTotal = 0
                 continuationMaxLevel = 0.0
                 null
             } else {
@@ -873,6 +891,7 @@ class VoiceSessionManager(
                 val ev = VadDetector.Event.Utterance(pcm, continuationMaxLevel)
                 continuationParts.clear()
                 continuationTicksLeft = 0
+                continuationTicksTotal = 0
                 continuationMaxLevel = 0.0
                 ev
             }
@@ -891,6 +910,7 @@ class VoiceSessionManager(
         synchronized(continuationLock) {
             continuationParts.clear()
             continuationTicksLeft = 0
+            continuationTicksTotal = 0
             continuationMaxLevel = 0.0
         }
     }
@@ -1330,15 +1350,16 @@ class VoiceSessionManager(
         /** S51 断句续听窗（块）：判停后追加的静音观察期，耗尽才合并派发。
          *  1000ms：容忍总静音 ≈1.6s（判停 600ms + 本窗），覆盖短语间气口；
          *  回忆型长停顿（2s+）不在此列——那是按住说话的场景，否则每轮延迟不可接受。
-         *  S55（2026-09-21 用户拍板，双板暂关）：实测「说完不回答、持续聆听」——嫌疑=
-         *  tickContinuation 冻结条件（块级 ≥end 线或 isSpeaking 即冻结）在噪声环境永不
-         *  解除，且 hold 内 vad.start() 重置 30s 聆听超时 → 无限挂起。暂关至 1 块
-         *  （判停 +100ms 即派发，≈S50 前行为）。**不可设 0**：hold 只攒片，派发全靠
-         *  倒计时耗尽，0=永不派发。正解候选=有界续听（冻结也有总上限），恢复窗口拨回 10
-         *  并还原 S51ContinuationTest 用例 2（见 git 历史）。
-         *  2026-09-23 用户拍板：维持窗=1 现状（S60 尾垫已覆盖句尾弱音节场景，
-         *  气口合并语义不恢复；此决策已闭环，勿再当悬案翻出）。 */
-        internal const val CONTINUATION_TICKS = 1
+         *  S55（2026-09-21）曾暂关至 1（噪声下冻结永不解除 → hold 无限累积）；
+         *  **S69（2026-10-21）恢复 10**：板端实锤窗=1 下句中气口 >600ms 即切且无兜底
+         *  （首轮 1.8s → ASR 单字「放」），S55 死锁改由 [CONTINUATION_MAX_TICKS] 有界
+         *  总上限硬顶（冻结也最多挂 3s 派发），冻结/合并语义完整回归。**不可设 0**：
+         *  hold 只攒片，派发全靠倒计时/有界耗尽，0=永不派发。 */
+        internal const val CONTINUATION_TICKS = 10
+
+        /** S69 有界续听总上限（块）：hold 期无论冻结与否累计到顶强制派发——S55「冻结
+         *  永不解除 → hold 无限累积」的硬顶防线。 */
+        internal const val CONTINUATION_MAX_TICKS = 30
 
         /** S65 回声纪元尾巴余量：wozai 写完（playBlocking 返回）后喇叭/混响残余保护窗。 */
         internal const val ECHO_TAIL_GUARD_MS = 150L
