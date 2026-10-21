@@ -1,6 +1,6 @@
 # 小朵 Android M1 进度
 
-## 状态：main=**port 4cap 战役已合入并推送**（merge `678ea8f` @ origin/main，2026-10-21，**800 绿**=792+8）；重构完整版封存 refactor/complete @ aa79fbd（859 绿）；真机窗口待办 4 项（AGC A/B 取证/量纲统一/点按验收/板验，见 DEV_LOG 2026-10-21（五）（六））
+## 状态：main=**port 4cap 战役已合入并推送**（merge `678ea8f` @ origin/main，2026-10-21，**800 绿**=792+8）；重构完整版封存 refactor/complete @ aa79fbd（859 绿）；**待办 5 项**（判停死锁修复票[新，阻塞②]/AGC A/B[双包就绪挂起]/量纲统一/点按验收/板验，见 DEV_LOG 2026-10-21（五）~（七））
 
 - **main 现状**（HEAD=`47b240a`（2026-10-20 T3 docs 车道勘正：原记 00c5c97 已过期），app/ 自 `c6e7243` 无代码变更，其上两笔皆 docs）：`app/` 代码=**重构前 e288037 态**（字节一致 diff 0 行，**754 绿** skipped=0，验证带 JDK PATH 前缀 + `--rerun-tasks`）；`docs/` 21 文件重构经验文档全保留（spec v0.4/Phase0-4 审计/§5.4 复测/内存归因/optimization-analysis）。
 - **重构完整版封存**：分支 `refactor/complete` + tag `refactor-complete-20261011` = `aa79fbd`（Phase 0-3 全合入 + ocr[394]，859 绿）。**回退到重构版** = `git checkout refactor/complete`（板上部署走既有回灌法，流程见 DEV_LOG 2026-10-11（二）/（六））。refactor/p0..p3 分支照旧保留。
@@ -10,6 +10,8 @@
 - **2026-10-20 port 4cap 战役**：fork rk3288 四能力反哺上游——采麦层 5 层链（ZeroBlock/SourceDrift/自愈重启/②C 裁决裁 4 档/SoftwareAgc）+ Tap-to-Talk 点按化 + docs 三验证档搬运；三车道并行后线性合入 `port/baseline-4cap-upstream-47b240a`，**792 绿终验**（754+32+6，与②C 预测 796−4 精确一致）；p2p 零回退、probe4 零污染。详情 DEV_LOG 2026-10-20（一）~（四）。
 - **2026-10-21 评审+修复轮**：ce-code-review 完整脊柱（8 评审员/33 发现→合并 13→验证 11/11 confirmed）verdict=**Ready with fixes**（P1×3：release 泄漏/装配面零覆盖/AGC 默认开）；用户四项拍板后修复面落地（#2 release 三行+#1 三 seam+8 测+#5A 漂移接线+#9 单表+#4/#7 文案+#6/#11/#12/#13 docs），**800 绿**（792+8）+变异锚 3 条实红。**真机窗口待办 4 项**：#3(A) AGC A/B 取证、#10 量纲统一、#8 点按交互验收、#2 板验。详情 DEV_LOG 2026-10-21（五）。
 - **2026-10-21 收口**：port 分支（b978900）--no-ff 合入 main（**merge `678ea8f`**）推 origin（`b233920..678ea8f` fast-forward，`main...origin/main` 零偏离）；ce-compound 沉淀「注释守卫锚必须锚在被测接线上」（workflow-issues）+ CONCEPTS「变异锚」词条放置条件。工作树=main。port 分支与 tag `port-4cap-merged-20261020` 留本地（历史经 merge commit 全可达）。
+- **2026-10-21 上板取证挂起 → 判停死锁新票**：A/B 双包就绪（AGC-ON `81f9ef7d` / OFF `8d0cf3ef` @ dist/），A 包已装生产板 10.0.14.18（=main 同源 800 绿）。两轮人声实锤**判停死锁**：板载底噪 0.19 骑在判停线（max(0.03, floor×1.4)）之上，S52 停用 floor 上行 + 空轮收敛死锁 → utterance 永不派发 → 聆听 10s 超时/手动取消。**AGC A/B 挂起**（死锁吞 utterance，先修后测）。详情 DEV_LOG 2026-10-21（七）。
+- **待办（重排）**：①**判停死锁修复票**（代码票不依赖设备：方案 B=已判起累计 8s 强制判停派发 ASR → 解锁 S19-2 空轮收敛自愈；阻塞②）②AGC A/B 取证（双包+金线就绪，等①）③量纲统一（随 AGC 裁决）④点按交互 5 步验收 ⑤板验 APM 账目。
 - **坑沉淀**：`git checkout <commit> -- <dir>` 只还原源树已有文件、**不删源树外新增文件**——整目录回退须补 `comm ls-tree/ls-files` 差集删除（本轮 73 文件漏删致重声明冲突，验证 diff=0 才过）。
 - 单测基线口径：**main=754**；refactor/complete=859。验证必带 JDK PATH 前缀 + `--rerun-tasks`（不带会假绿）。
 

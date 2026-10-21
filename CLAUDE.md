@@ -180,7 +180,7 @@ IDLE ──(唤醒词/按住说话)──▶ LISTENING ──(VAD判停)──�
 ## 当前状态（2026-10-21，port 4cap 战役合入 main）
 
 - **port 4cap 战役闭环**：fork rk3288@7bef28c 四能力逻辑移植（采麦层 5 层链/Tap-to-Talk 点按化/docs 移植，②C 裁决裁 MIC 第 4 档）经 ce-code-review 完整脊柱评审（8 人 33 发现→13 主项，11/11 confirmed）+ 修复轮（release 泄漏三行/三 seam 接线锚+8 测/漂移 WARN 接线/映射单表），**800 绿**（792+8，JDK 前缀 `--rerun-tasks`）合入 main 并推送（merge `678ea8f` @ origin/main，2026-10-21）。机构沉淀：`docs/solutions/workflow-issues/guard-comment-anchors-must-bind-tested-wiring.md` + CONCEPTS「变异锚」词条锚点放置条件。
-- **真机窗口待办 4 项**：AGC 开/关 A/B 取证（#3A）、量纲统一（#10，随 AGC 裁决）、点按交互 5 步验收（#8）、板验 APM 账目（#2）——清单见 DEV_LOG 2026-10-21（五）与 PROGRESS.md。
+- **待办 5 项**：①判停死锁修复票（新：板载底噪 0.19 骑在判停线之上致 utterance 永不派发，方案 B=已判起 8s 强制判停；阻塞②，见 DEV_LOG（七））②AGC A/B 取证（双包就绪挂起，等①）③量纲统一（#10，随 AGC 裁决）④点按交互 5 步验收（#8）⑤板验 APM 账目（#2）。
 
 ## 当前状态（2026-08-06）
 

@@ -1,6 +1,16 @@
 # 小朵 Android 开发日志
 
 
+## 2026-10-21（七）上板取证挂起：判停死锁实锤（新票）+ A/B 双包就绪
+
+**板态与双包**：目标板=10.0.14.18（rk3568/Android 11，双 App 生产板，deskpet 旧包 10-11）。A/B 双包构建归档 `dist/`：**AGC-ON `81f9ef7d`**（xiaoduo-agc-ON-abtest-20261021.apk，AGC=true 主线码）/ **AGC-OFF `8d0cf3ef`**（xiaoduo-agc-OFF-abtest-20261021.apk，翻闸构建后源文件 md5 对拍零残留）。A 包 `install -r` 上板成功（签名 22d84350 同 debug 键免卸装，prefs 备份 /tmp/abtest-20261021/），lastUpdateTime 15:35:58，`agc nf=` 状态行与 `capture start, source=7` 金线验证通过。**生产板现跑 A 包=main 同源 800 绿代码（AGC 开）；旧包（10-11）无留存，回滚需从 refactor/p0 重建。**
+
+**判停死锁实锤（新 P1 票，阻塞 A/B）**：两轮人声时间轴（15:40:32/15:40:58）——唤醒✓ wozai✓ 判起✓（峰值 0.40-0.50 跨判起线）、声波纹指示出、**判停✗**：说完电平回落到环境底 **0.19** 持平，判停线 max(0.03, floor×1.4) 被锁在其下，600ms 判停窗永不凑齐 → utterance 永不派发 → 两次均由用户双击宠物取消（15:40:52.1/15:41:12.4 `overlay pet double tap -> cancelCurrentTurn`）。根因链=`VadDetector.kt:38-44` 自记已知病（S52 停用 floor 上行通道，环境噪声阶跃到判停线之上时 floor 永远学不到）+ **空轮收敛死锁**（S19-2 兜底需要「判停→空 ASR 轮」才触发，判停不发生则 floor 永不收敛）。环境因子：板载底噪 **0.19-0.27 恒定不随房间安静度变化**（板自噪声：风扇/采麦链×source7 硬件增益——用户报告「环境安静了」后 nf 序列仍平坦，16:53-17:00 实证）。**与 AGC 无关**（全程 g=1.00，环境已响过目标 0.08）。另实锤聆听窗语义：`state -> IDLE (listen timeout)` 10 秒无活动自动关窗。
+
+**A/B 挂起原因**：判停死锁吞掉全部 utterance，两臂都会量出「0 派发、全靠超时/手动关窗」——量到的是死锁不是增益效应。**解锁路径**：判停兜底超时票（方案 B：已判起后累计超 8s 强制判停派发 ASR → 若空文本则 S19-2 空轮收敛被激活 → floor 上爬 → 判停线越过底噪 → 死锁自愈），代码票不依赖设备，修复后 A/B 立即可跑。
+
+**板自播路线调查（四路全灭，防重趟）**：tinyplay（板 ALSA 设备限 ≤8kHz，48k wav 拒）✗；VIEW audio/wav（系统无注册 handler）✗；RockVideoPlayer/.VideoPlayActivity（起播 0.5-3.6s 即死，logcat 静默；但 0.5s 残响被 KWS 认成「小度小度」#7——**板喇叭→板麦声路本身是通的**）✗；PC 喇叭（板拾音无反应）✗。wav 已留板上 `/sdcard/Music/calib-x3.wav`（48kHz 立体声 14.1s，2.7MB）。
+
 ## 2026-10-21（六）port 4cap 战役收口：合入 main 并推送 origin
 
 **合并**（用户拍板「合并main，推origin」）：`port/baseline-4cap-upstream-47b240a`（b978900）--no-ff 合入 main → **merge `678ea8f`**（32 文件 +2341/−216，11 新文件；merge 后 main 与 port 分支 `git diff` 为空=内容一致）。推送前拓扑核对：origin/main（b233920）=本地 main（47b240a）的**父代**、port 分支包含二者——纯线性链（首轮「origin/main 领先」系方向误读），推送为 `b233920..678ea8f` **fast-forward**，`main...origin/main` 零偏离，工作树停 main。
