@@ -6,8 +6,8 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * S57 mic_source 漂移告警纯函数锚（上游 1723d7b 裁剪版：保采麦源诊断基建
- * 不锁设置，只告警）。
+ * S57 mic_source 漂移告警纯函数锚（本仓 1723d7b 只读锁仍生效：只搬入诊断面，
+ * 不动设置页锁；WARN 接线在 readLoop 采麦启动日志后）。
  *
  * ②C 裁决遵守：fork 本地第 4 档 MIC（mode=3）相关断言 **已剔除并逐条记录**（详
  * 见 T1-progress.md Layer 4 章节注记）：
@@ -18,7 +18,8 @@ import org.junit.Test
  *
  * 被测对象：[AudioCapture.expectedSourceFor] / [AudioCapture.isSourceDrift]
  * （companion 纯函数，零 Android import，JVM 直接驱动）。
- * readLoop 里的 WARN 接线属 Android 路径 JVM 不可达，回归靠变异锚（反转判定 →
+ * readLoop 的 WARN 接线属 Android 路径 JVM 不可达（接线本体已存在，见
+ * AudioCapture.readLoop 采麦启动日志后），回归靠变异锚（反转判定 →
  * 本类漂移组红）+ 真机日志取证。
  *
  * 206 板当日实踩形态（上游 e5b6e11/593595f gotcha）：pref 手改档位后活性源漂移——

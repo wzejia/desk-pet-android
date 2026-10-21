@@ -149,13 +149,12 @@ class AudioCapture(
             AudioFormat.ENCODING_PCM_16BIT,
         )
         val bufSize = maxOf(minBuf, VadDetector.BLOCK_BYTES * 8)
-        // 源候选：mode 决定首选源（S57 纯函数解析，映射单点维护——判定与构造不分叉），
+        // 源候选：mode 决定首选源（S57 纯函数解析，映射单点维护——判定与构造不分叉；
+        // expectedSourceFor 返回值与 AudioSource 常数逐一相等：7=VOICE_COMMUNICATION /
+        // 6=VOICE_RECOGNITION / 9=UNPROCESSED，AudioRecord 构造直接吃 int，不设二次映射——
+        // 二次映射会在补档位时静默分叉，见 ce-review 20261020 #9），
         // 初始化失败降级 DEFAULT（坑 #35 注释）。
-        val preferred = when (expectedSourceFor(sourceMode)) {
-            6 -> MediaRecorder.AudioSource.VOICE_RECOGNITION
-            9 -> MediaRecorder.AudioSource.UNPROCESSED
-            else -> MediaRecorder.AudioSource.VOICE_COMMUNICATION
-        }
+        val preferred = expectedSourceFor(sourceMode)
         val candidates = listOf(preferred, MediaRecorder.AudioSource.DEFAULT)
         for (source in candidates) {
             val r = runCatching {
@@ -188,12 +187,13 @@ class AudioCapture(
             // 构造两源均败/N 次未进录音态），各自已记日志，照旧 return 由 finally 放行门闩。
             val r = startRecordWithRetry()
             if (r == null) {
-                // 自愈重启钩回归守卫：轮级终态失败计数（删此 →
-                // AudioCaptureTerminalStartFailureDetectorTest 连败触发组红；判定本体在
-                // [TerminalStartFailureDetector]，纯逻辑 JVM 可测可变异）。barge-in cancel
+                // 自愈重启钩回归守卫：轮级终态失败计数，统一走 [onCaptureStartOutcome]
+                // seam（接线裁决序列由 AudioCaptureWiringSeamTest 钉死；判定本体在
+                // [TerminalStartFailureDetector]，纯逻辑 JVM 可测可变异；readLoop 调用点
+                // 属 Android 域 JVM 不可达，由审查+真机取证兜底）。barge-in cancel
                 // 走协作取消不经过此分支（守卫四问 #3）；fire 即复位：自尽场景进程即死无
                 // 副作用，冷却场景复位后重新攒证据（两场景统一口径）。
-                if (terminalFailureGuard.onTerminalFailure()) {
+                if (onCaptureStartOutcome(terminalFailureGuard, startedOk = false)) {
                     PetLogger.e(
                         TAG,
                         "连续 $TERMINAL_START_FAILURE_THRESHOLD 轮采麦启动终态失败，触发自愈重启钩" +
@@ -206,21 +206,35 @@ class AudioCapture(
             var selfHeal = false
             try {
                 isRunning = true
-                // 自愈重启钩回归守卫：成功进录音态复位（删此/reset 语义 →
-                // AudioCaptureTerminalStartFailureDetectorTest 成功复位组红）——真实录到音
+                // 自愈重启钩回归守卫：成功进录音态复位（同一 [onCaptureStartOutcome] seam，
+                // AudioCaptureWiringSeamTest 接线锚）——真实录到音
                 // 才算病愈，无关 stop/start 不清证据链。
-                terminalFailureGuard.reset()
+                onCaptureStartOutcome(terminalFailureGuard, startedOk = true)
                 PetLogger.i(TAG, "capture start, source=$usedSource, 16kHz/mono/Int16, block=3200B")
+                // S57 漂移告警：pref 期望源 vs 实际 active source 不一致即 WARN（含两值）。
+                // 诊断纪律（本仓 e5b6e11/593595f gotcha）：环境噪声结论必须先排除配置漂移——
+                // 同一个 0.19 先查 pref 再怪房间。
+                // 每次采麦启动至多一行（非逐块）；stop→start 重启复检属预期，不去重——
+                // 「改 pref 重启 → WARN 可见」复现路径正依赖每次启动重查；
+                // HOTFIX-2 自愈重建亦属同口径「重启复检」，不去重。
+                if (isSourceDrift(sourceMode, usedSource)) {
+                    PetLogger.w(
+                        TAG,
+                        "mic_source 漂移：pref mode=$sourceMode 期望 source=${expectedSourceFor(sourceMode)}，" +
+                            "实际 active source=$usedSource（Settings 只写 pref，采集源构造时固化，改后需重启才生效）",
+                    )
+                }
                 // 只推队列：攒满一块即 emit（DROP_OLDEST 下 tryEmit 恒 true，消费侧慢则旧块被挤掉
                 // = 保最新音频，绝不在读循环里干活）
                 pumpBlocks(
                     read = { buf, off, len -> r.read(buf, off, len) },
                     emit = { block ->
                         probeBlock(r, block) // 未 arm 时仅一次 volatile 读，零行为变化
-                        // HOTFIX-2 回归守卫：形态 B 逐块全零判定、达阈置自愈（删此 →
-                        // AudioCaptureZeroBlockDetectorTest 触发组红；判定本体在
-                        // [ZeroBlockDetector]/[isAllZeroPcm16]，纯逻辑 JVM 可测可变异）
-                        if (zeroGuard.onBlock(isAllZeroPcm16(block))) {
+                        // HOTFIX-2 回归守卫：形态 B 逐块全零判定、达阈置自愈，统一走
+                        // [onZeroBlockOutcome] seam（接线由 AudioCaptureWiringSeamTest 钉死；
+                        // 判定本体在 [ZeroBlockDetector]/[isAllZeroPcm16]，纯逻辑 JVM 可测
+                        // 可变异；readLoop 调用点属 Android 域，审查+真机取证兜底）
+                        if (onZeroBlockOutcome(zeroGuard, block)) {
                             selfHeal = true
                             selfHeals++
                             PetLogger.w(
@@ -285,7 +299,11 @@ class AudioCapture(
      * 复核 recordingState」。ROB-1 守卫语义原样保留：无参 startRecording() 返回 void（带 int 返回值的
      * 重载需 MediaSyncEvent，板端 HAL 异常态下照样可能静默失败），用 recordingState
      * 复核：未进 RECORDSTATE_RECORDING 视为启动失败，照旧置 isRunning=true 会让
-     * 上层以为在采（静默 no-op 流）。失败即失败返回，finally 释放 record 与门闩。
+     * 上层以为在采（静默 no-op 流）。
+     * 未进录音态：WARN（含 state 与第 N/3 次）→ stop/release → delay 重建重试；终态
+     * （返回 null，均保持既有日志语义）：权限缺失 / 构造两源均不可用（buildRecord 已记
+     * ERROR）/ N 次全败。重试窗被 cancel：唯一挂起点 delay 协作取消，此刻 record 已
+     * release 置 null，无泄漏。
      */
     private suspend fun startRecordWithRetry(): AudioRecord? {
         var attempt = 1
@@ -306,9 +324,18 @@ class AudioCapture(
                 TAG,
                 "startRecording 未进入录音态（state=${r.recordingState}），启动尝试 $attempt/$MAX_START_ATTEMPTS 失败，release 后延迟重建",
             )
-            if (attempt >= MAX_START_ATTEMPTS) {
-                PetLogger.e(TAG, "startRecording 连续 $MAX_START_ATTEMPTS 次尝试均未进入录音态，本轮采麦不启动")
-                return null
+            // 形态 A 票据时序（fork 同款）：release 先行给 AudioFlinger 回收窗口，再裁决
+            // 重试/放弃——重试与终态两出口共用本次释放，成功路径由 readLoop finally 释放，
+            // 各一次不重复（ce-review 20261020 #2：移植曾丢此三行，逐次失败泄漏 native input）。
+            runCatching { r.stop() }
+            r.release()
+            record = null
+            when (startRecordRetryOutcome(attempt)) {
+                StartRecordRetry.GIVE_UP -> {
+                    PetLogger.e(TAG, "startRecording 连续 $MAX_START_ATTEMPTS 次尝试均未进入录音态，本轮采麦不启动")
+                    return null
+                }
+                StartRecordRetry.RETRY -> {}
             }
             attempt++
             delay(CAPTURE_REBUILD_DELAY_MS)
@@ -398,10 +425,11 @@ class AudioCapture(
          * 漂移判定（纯 Kotlin，JVM 可测）：pref 档位解析出的期望源 ≠ 实际 active source
          * （[usedSource]）→ true，采麦启动处打 WARN（含两值）。
          *
-         * S57 裁剪注记（有意偏离上游 1723d7b）：不把设置页麦源改只读——v22 采麦源三档是
-         * 诊断基建，只告警不禁改。判定覆盖「构造时固化的 pref 档位」与活性源的分叉
-         * （如初始化失败静默 fallback DEFAULT）；Settings 改 pref 不重建采集源（构造时固化，
-         * 改后需重启才生效），重启后新实例按新 pref 构造，两者以本告警+注释界定。
+         * S57 注记（本仓实况）：1723d7b 的采麦源只读锁在本仓仍然生效（SettingsScreen 显示
+         * 「已锁定」，2026-09-21 判停事故定案）；本移植只搬入纯函数诊断面，设置页不做任何
+         * 解锁改动，变更走 adb 改 pref + 重启 App。判定覆盖「构造时固化的 pref 档位」与
+         * 活性源的分叉（如初始化失败静默 fallback DEFAULT）；Settings 改 pref 不重建采集源
+         * （构造时固化，改后需重启才生效），重启后新实例按新 pref 构造，以本告警界定。
          *
          * S57 回归守卫：AudioCaptureSourceDriftTest 漂移触发/一致不告警两组锚
          * （反转本判定 → 漂移组红）。
@@ -477,6 +505,41 @@ internal fun isAllZeroPcm16(block: ByteArray): Boolean {
     for (b in block) if (b.toInt() != 0) return false
     return true
 }
+
+/**
+ * HOTFIX-2 形态 A 启动重试裁决（纯逻辑，JVM 可测）：attempt 未达上限继续重试，
+ * 达上限放弃（GIVE_UP 由调用方记终态 ERROR 并返回 null）。
+ * 接线锚：AudioCaptureWiringSeamTest（1→RETRY / 2→RETRY / 3→GIVE_UP + 常数钉死）。
+ */
+internal enum class StartRecordRetry { RETRY, GIVE_UP }
+
+internal fun startRecordRetryOutcome(attempt: Int, maxAttempts: Int = MAX_START_ATTEMPTS): StartRecordRetry =
+    if (attempt >= maxAttempts) StartRecordRetry.GIVE_UP else StartRecordRetry.RETRY
+
+/**
+ * HOTFIX-2 回归守卫 seam（纯逻辑，JVM 可测）：readLoop 启动序列的统一裁决点——
+ * 成功进录音态（startedOk=true）复位终态失败计数（真实录到音才算病愈）；
+ * 终态失败（startedOk=false）攒证据，连续达 [TERMINAL_START_FAILURE_THRESHOLD] 轮
+ * 返回 true 恰一次（fire 即复位，语义见 [TerminalStartFailureDetector]）。
+ * 接线锚：AudioCaptureWiringSeamTest（败×3→fire / 败败成→不 fire 且计数清 / 成→复位）。
+ * readLoop 内两处调用点属 Android 域 JVM 不可达，由审查+真机取证兜底。
+ */
+internal fun onCaptureStartOutcome(guard: TerminalStartFailureDetector, startedOk: Boolean): Boolean {
+    if (startedOk) {
+        guard.reset()
+        return false
+    }
+    return guard.onTerminalFailure()
+}
+
+/**
+ * HOTFIX-2 回归守卫 seam（纯逻辑，JVM 可测）：readLoop 逐块喂的全零自愈裁决点——
+ * 连续 [ZERO_BLOCK_SELF_HEAL_THRESHOLD] 块全零返回 true 恰一次，非零块归零重计
+ * （语义见 [ZeroBlockDetector]）。接线锚：AudioCaptureWiringSeamTest
+ * （29 块不触发 / 第 30 块触发 / 非零块打断重计）。
+ */
+internal fun onZeroBlockOutcome(guard: ZeroBlockDetector, block: ByteArray): Boolean =
+    guard.onBlock(isAllZeroPcm16(block))
 
 /**
  * HOTFIX-2 形态 B 断流判定器（纯逻辑，readLoop 逐块喂）：连续 [threshold] 块全零判

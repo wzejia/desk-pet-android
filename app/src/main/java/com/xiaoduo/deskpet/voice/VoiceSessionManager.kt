@@ -319,7 +319,7 @@ class VoiceSessionManager(
      * S8-7 唤醒即时视觉反馈信号：唤醒路径（playWakeAck=true）入口置 true，wozai 播完
      * 进 LISTENING 置 false。悬浮窗与全屏两模式订阅此信号，在 SPEAKING(wozai) 期间
      * 播 JUMPING 一次->WAITING（跳过通用 TALKING 映射），表达唤醒的即时明确动作。
-     * 唤醒路径外（按住说话/TTS 回复）恒 false，视觉走通用四态映射不变。
+     * 唤醒路径外（点按说话/TTS 回复）恒 false，视觉走通用四态映射不变。
      */
     private val _wakeAckActive = MutableStateFlow(false)
     val wakeAckActive: StateFlow<Boolean> = _wakeAckActive
@@ -414,10 +414,10 @@ class VoiceSessionManager(
     private var pipelineJob: Job? = null
 
     /**
-     * 按住说话按下 / 唤醒后进入聆听（任意态可入：对话态先打断再接续）。
+     * 点按说话 / 唤醒后进入聆听（任意态可入：对话态先打断再接续）。
      * [playWakeAck]=true（仅 KWS 唤醒路径）时走 #9 顺序式「我在」：
      * SPEAKING 播预录应答 → 播完进 LISTENING；
-     * 按住说话/自检路径不传参不播（手指即即时反馈，播了反而延迟采麦）。
+     * 点按说话/自检路径不传参不播（点按即即时反馈，播了反而延迟采麦）。
      */
     fun startListening(playWakeAck: Boolean = false) {
         emptyAsrResumesLeft = EMPTY_ASR_MAX_RESUMES // S19-2：新对话链，续听额度复位

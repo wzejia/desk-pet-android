@@ -459,7 +459,7 @@ private fun FunctionKey(action: FunctionKeyLogic.Action, onAction: () -> Unit) {
 
                 FunctionKeyLogic.Action.TO_VOICE -> Icon(
                     Icons.Filled.Mic,
-                    contentDescription = "切换到按住说话",
+                    contentDescription = "切换到点击说话",
                     modifier = Modifier.size(20.dp),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 )

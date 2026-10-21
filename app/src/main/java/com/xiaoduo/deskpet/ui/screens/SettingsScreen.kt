@@ -167,7 +167,7 @@ fun SettingsScreen(onBack: () -> Unit, onOpenPermissions: () -> Unit) {
 
             HorizontalDivider(modifier = Modifier.padding(vertical = XiaoduoDimens.SpaceS))
 
-            // ---- 语音自检（S4：按住说话全链路，唯一新增区块）----
+            // ---- 语音自检（S4：语音入口全链路，唯一新增区块；2026-10-18 起点按化）----
             SectionTitle("语音自检")
             VoiceSelfCheck(context)
 
