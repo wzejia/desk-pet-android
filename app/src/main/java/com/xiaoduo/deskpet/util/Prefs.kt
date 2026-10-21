@@ -151,11 +151,14 @@ object Prefs {
     }
 
     /** S18：采麦源模式。0=VOICE_COMMUNICATION（手机默认，硬件 AEC）/ 1=VOICE_RECOGNITION
-     *  （绕开通话链）/ 2=UNPROCESSED（板子 HAL/codec AGC 释放慢的最后一试）。 */
+     *  （绕开通话链）/ 2=UNPROCESSED（板子 HAL/codec AGC 释放慢的最后一试）/
+     *  3=MIC（板载麦链路；②C 裁决曾裁、2026-10-21 用户拍板恢复——AGC 增益收益验证需
+     *  MIC 低电平档，fork 17.242 A/B 定案 7/9/6 链近衰而 MIC 链可用）。 */
     const val KEY_MIC_SOURCE_MODE = PrefContract.KEY_MIC_SOURCE_MODE
     const val MIC_SOURCE_COMMUNICATION = 0
     const val MIC_SOURCE_RECOGNITION = 1
     const val MIC_SOURCE_UNPROCESSED = 2
+    const val MIC_SOURCE_MIC = 3
 
     fun micSourceMode(context: Context): Int {
         val sp = sp(context)
@@ -165,9 +168,16 @@ object Prefs {
         else MIC_SOURCE_COMMUNICATION
     }
 
+    /**
+     * 采麦源档位写路径收口（纯 Kotlin，JVM 可测——setter 本体 Android 路径不可达，
+     * 边界语义由 AudioCaptureSourceDriftTest 锚组 4 钉死）。
+     */
+    internal fun coerceMicSourceMode(mode: Int): Int =
+        mode.coerceIn(MIC_SOURCE_COMMUNICATION, MIC_SOURCE_MIC)
+
     fun setMicSourceMode(context: Context, mode: Int) {
         sp(context).edit()
-            .putInt(KEY_MIC_SOURCE_MODE, mode.coerceIn(0, 2))
+            .putInt(KEY_MIC_SOURCE_MODE, coerceMicSourceMode(mode))
             .putBoolean(PrefContract.KEY_MIC_RAW_SOURCE, false) // 迁移源清零
             .apply()
     }

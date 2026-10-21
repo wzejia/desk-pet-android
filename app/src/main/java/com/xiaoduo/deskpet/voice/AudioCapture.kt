@@ -411,13 +411,17 @@ class AudioCapture(
 
         /**
          * pref 档位 → 期望采麦源常数（纯 Kotlin，零 Android import，JVM 可测）。
-         * 常数表（上游 e5b6e11/593595f gotcha 带入）：0→7(VOICE_COMMUNICATION) /
-         * 1→6(VOICE_RECOGNITION) / 2→9(UNPROCESSED)，未知档位归 7（与旧 when-else 同语义）。
+         * 常数表：0→7(VOICE_COMMUNICATION) / 1→6(VOICE_RECOGNITION) / 2→9(UNPROCESSED) /
+         * 3→1(MIC)，未知档位归 7（与旧 when-else 同语义）。
+         * 第 4 档 MIC：②C 裁决（2026-10-20）曾裁掉，2026-10-21 用户拍板恢复（AGC 增益
+         * 收益验证需 MIC 低电平档）；2026-10-17 fork 17.242 A/B 定案——同一板载麦同一时刻
+         * 讯飞（MIC 链）能出字而 7/9/6 链仅底噪级，es8316 未死、衰的是三链预处理。
          * [buildRecord] 首选源直接走本函数——映射单点维护，判定与构造永不分叉。
          */
         internal fun expectedSourceFor(sourceMode: Int): Int = when (sourceMode) {
             1 -> 6   // VOICE_RECOGNITION
             2 -> 9   // UNPROCESSED
+            3 -> 1   // MIC（板载麦链路）
             else -> 7 // VOICE_COMMUNICATION（含默认档）
         }
 
@@ -425,9 +429,10 @@ class AudioCapture(
          * 漂移判定（纯 Kotlin，JVM 可测）：pref 档位解析出的期望源 ≠ 实际 active source
          * （[usedSource]）→ true，采麦启动处打 WARN（含两值）。
          *
-         * S57 注记（本仓实况）：1723d7b 的采麦源只读锁在本仓仍然生效（SettingsScreen 显示
-         * 「已锁定」，2026-09-21 判停事故定案）；本移植只搬入纯函数诊断面，设置页不做任何
-         * 解锁改动，变更走 adb 改 pref + 重启 App。判定覆盖「构造时固化的 pref 档位」与
+         * S57 注记（本仓实况）：1723d7b 的采麦源只读锁于 2026-10-21 经用户拍板解除
+         * （设置页恢复 fork 可点击循环，2026-09-21 判停事故防线改为本告警网兜底：
+         * 每次采麦启动核对 pref 期望 vs 活性源，漂移即 WARN 含两值）；变更走设置页
+         * 点击切换（或 adb 改 pref）+ 重启 App。判定覆盖「构造时固化的 pref 档位」与
          * 活性源的分叉（如初始化失败静默 fallback DEFAULT）；Settings 改 pref 不重建采集源
          * （构造时固化，改后需重启才生效），重启后新实例按新 pref 构造，以本告警界定。
          *

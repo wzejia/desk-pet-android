@@ -1,6 +1,22 @@
 # 小朵 Android 开发日志
 
 
+## 2026-10-21（十六）票D 采麦源第 4 档 MIC 恢复：S57 只读锁定解除 + fork 锚组 4 移植回上游（815 绿，用户令评审后补直接装板）
+
+**背景**：AGC 增益收益验证（待办①）需切 MIC 低电平档（fork 17.242 实证 nf~0.003、g 3.6-8.0 域，参考 `docs/verification/agc-tap-to-talk-acceptance-20261019.md`）；上板实锤上游包 pref `mic_source_mode=3` 落 `expectedSourceFor` else 归 source=7——**②C 裁决（2026-10-20）裁掉的第 4 档在上游不存在**。用户拍板：恢复 MIC 档 + 设置页恢复 fork 可点击循环（S57 只读锁定解除，2026-09-21 生产事故防线改由 SourceDrift WARN 告警网兜底）。
+
+**变更**（fork HEAD 7bef28c 原样移植，5 文件 +83/−27）：①`AudioCapture.expectedSourceFor` 加 `3 -> 1`（MIC 板载麦链路）+ S57 锁定注释解除；②`Prefs` 加 `MIC_SOURCE_MIC=3` 常量 + `coerceMicSourceMode` 纯函数（coerceIn(0,3)）+ setter 接线；③`PrefContract` 键注释补 3=MIC；④`SettingsScreen` 采麦源只读 Text → TextButtonRow 4 档循环（重启生效+重新校准提示，决策演进留痕注释）；⑤`AudioCaptureSourceDriftTest` 锚组 4 移植（fork ②C 剔除的 4 测原样回归）。
+
+**验证**：TDD 先红（编译失败=f2p）后绿；全量 **815 绿**（811+4，XML 复算零失败零跳过）；变异 M1（删 `3 -> 1` 映射行→2 测红）/M2（coerce 上界回 2→1 测红）双真红后还原复绿。**独立评审挂起**（用户令直接装板测试，实验后补跑 focused）。
+
+**板侧实况**：生产板 pref 已预写 `mic_source_mode=3`（旧包下落 else 归 7 行为等同 VC 档，无风险态）；新包装板后重启即 source=1 生效。
+
+```evidence
+verify_cmd: cd /e/desk-pet-android && export PATH="/c/Program Files/Microsoft/jdk-17.0.20.8-hotspot/bin:$PATH" && ./gradlew.bat :app:testDebugUnitTest --rerun-tasks
+verify_claim: total=815 failures=0 errors=0 skipped=0（基线 811+锚组 4）；变异 M1/M2 真红后还原复绿
+files_touched: [app/src/main/java/com/xiaoduo/deskpet/voice/AudioCapture.kt, app/src/main/java/com/xiaoduo/deskpet/util/Prefs.kt, app/src/main/java/com/xiaoduo/deskpet/util/PrefContract.kt, app/src/main/java/com/xiaoduo/deskpet/ui/screens/SettingsScreen.kt, app/src/test/java/com/xiaoduo/deskpet/voice/AudioCaptureSourceDriftTest.kt]
+```
+
 ## 2026-10-21（十五）fork 移植双验收收口：点按 5 步 5/5 + AGC A/B 生产配置一致性确认
 
 **点按交互 5 步验收（S69c 包，聊天页 12+ 轮点按金线）**：5/5 全过——①点按开始（LISTENING 迁移形态「VAD start, timeout 30s」与唤醒路径可区分）②说完点结束（「用户明确说完=续听窗即刻耗尽」守卫生效，hold→dispatch 0.06-0.15s）③多轮续听（multi-turn 循环多轮稳定）④播报中点按（22:09:55 barge-in cancel 打断 → 立即接续聆听 → 再点退出，全链正确）⑤说完秒点（stopListening 直通派发两轮，<1s 进识别，ASR「你好。」完整零丢字——StopReleaseGuard 吞语音守卫实锤生效）。**T2 移植功能验收闭环**。
