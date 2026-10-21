@@ -212,4 +212,60 @@ class ShelfMcpBridgeTest {
         assertEquals("application/json", req?.getHeader("Content-Type"))
         assertTrue(req?.body?.readUtf8()?.contains("mcpUiResult") == true)
     }
+
+    /** ===== 平台工具名别名（2026-10-21 板测：平台 SSE 实抓 name=archive_query，无 c_ 前缀）===== */
+
+    /** PA-1：canonicalToolName 直测——平台新名归一到旧名；旧名/其他白名/未知名 identity */
+    @Test
+    fun `canonical tool name maps platform alias and keeps identity`() {
+        assertEquals("c_archive_query", canonicalToolName("archive_query"))
+        assertEquals("c_archive_query", canonicalToolName("c_archive_query"))
+        assertEquals("mjj_move", canonicalToolName("mjj_move"))
+        assertEquals("no_such_tool", canonicalToolName("no_such_tool"))
+    }
+
+    /** PA-2：callFor 平台新名 archive_query → 归一为旧名发体；runId 有/无两态 */
+    @Test
+    fun `callFor maps platform archive_query to legacy c_archive_query body`() {
+        assertEquals(
+            """{"Op":"mcpUiSync","tool":"c_archive_query"}""",
+            ShelfMcpBridge.callFor("archive_query"),
+        )
+        assertEquals(
+            """{"Op":"mcpUiSync","tool":"c_archive_query","runId":"run-alias-1"}""",
+            ShelfMcpBridge.callFor("archive_query", "run-alias-1"),
+        )
+    }
+
+    /** PA-3：旧名 identity——c_archive_query 发体行为与改动前逐字一致（runId 两态） */
+    @Test
+    fun `callFor keeps legacy c_archive_query identity`() {
+        assertEquals(
+            """{"Op":"mcpUiSync","tool":"c_archive_query"}""",
+            ShelfMcpBridge.callFor("c_archive_query"),
+        )
+        assertEquals(
+            """{"Op":"mcpUiSync","tool":"c_archive_query","runId":"run-alias-2"}""",
+            ShelfMcpBridge.callFor("c_archive_query", "run-alias-2"),
+        )
+    }
+
+    /** PA-4：resultBodyFor 平台新名 → 非 null 且 tool 字段=旧名（密集架卡片语义锚旧名） */
+    @Test
+    fun `result body maps platform archive_query to legacy tool name`() {
+        val j = org.json.JSONObject(
+            requireNotNull(ShelfMcpBridge.resultBodyFor("archive_query", "{\"status\":\"success\"}"))
+        )
+        assertEquals("mcpUiResult", j.getString("Op"))
+        assertEquals("c_archive_query", j.getString("tool"))
+        assertEquals("{\"status\":\"success\"}", j.getString("result"))
+    }
+
+    /** PA-5：守卫口径不因别名放宽——平台新名空白 content 仍 null；未知工具 callFor/resultBodyFor 仍 null */
+    @Test
+    fun `alias mapping does not weaken guards`() {
+        assertNull(ShelfMcpBridge.resultBodyFor("archive_query", ""))
+        assertNull(ShelfMcpBridge.callFor("no_such_tool"))
+        assertNull(ShelfMcpBridge.resultBodyFor("no_such_tool", "x"))
+    }
 }
