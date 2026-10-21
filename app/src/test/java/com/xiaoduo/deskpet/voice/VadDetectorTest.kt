@@ -251,34 +251,40 @@ class VadDetectorTest {
     }
 
     /** S52：上攻停用后，首轮泵态不再产生短幽灵 utterance（原靠上攻抬 start 阈值的「免疫」
-     *  一并失效）——语音类定 + max_utterance 兑底，幽灵轮由 S19-2 空 ASR 续听兜底 */
+     *  一并失效）——语音类定 + max_utterance 兑底，幽灵轮由 S19-2 空 ASR 续听兜底。
+     *  S69b 语义反转（板测 21:07-21:08 实锤）：说话期上攻禁用——泵噪 ghost 判起后不再
+     *  被上攻早滤（其代价=floor 被推到判停线贴说话电平/判起线 1.0 全聋两病），改由
+     *  MAX_UTTERANCE 8s 强制收句兜底（幽灵轮 S19-2 空 ASR + S56 floor 上行接管）。 */
     @Test
-    fun `S58 sustained pump noise from start yields early utterance (attack filters)`() {
+    fun `S58 pump noise now held to MAX_UTTERANCE (attack disabled while speaking)`() {
         val vad = VadDetector()
         vad.start()
-        // 首轮泵态（amp 2000 = level 0.25）：判起后上攻抬 end → ~2s 内早判停（噪声滤除），
-        // 原「无幽灵判停」锁随 S58 拍板反转（幻觉轮由 S19-2 空 ASR 兜底 + S56 floor 上行）
+        // 首轮泵态（amp 2000 = level 0.25）：ghost 判起后说话态不上攻 → 30 块内无早滤
         val evs = feedN(vad, block(2000), 30)
         assertTrue(
-            "S58：稳态泵噪应产出早判停 utterance",
-            evs.filterIsInstance<VadDetector.Event.Utterance>().isNotEmpty(),
+            "S69b：说话期不上攻，30 块内不再早判停（旧 S58 早滤语义废止）",
+            evs.isEmpty(),
+        )
+        // 8s 强制收句兜底仍工作（判起3+80 → 第 84 块附近产出）
+        val late = feedN(vad, block(2000), 55)
+        assertTrue(
+            "S69b：MAX_UTTERANCE 强制收句兜底仍在",
+            late.filterIsInstance<VadDetector.Event.Utterance>().isNotEmpty(),
         )
         assertFalse(vad.isActive)
     }
 
-    /** S52 回归锁（板端 17:43 实锤）：持续元音（VAD 0.15~0.30 稳定 2s+）被 plateau 通道
-     *  判为「AGC 钉死噪声」→ 阈值上攻越过说话者电平 → 句中判停。上攻停用后不得中途判停。 */
+    /** S52 回归锁（板端 17:43 实锤）：持续元音（VAD 0.15~0.30 稳定 2s+）曾被 plateau
+     *  通道判为「AGC 钉死噪声」→ 句中判停。S58 复活上攻后此锁反转；S69b 说话期禁上攻，
+     *  **S52 诉求回归**——稳态长音不再被中途切（判停可用性已由 S69 熔断以不依赖 floor
+     *  的方式接管，8s 强制收句兜底）。 */
     @Test
-    fun `S58 sustained stable tone IS gated mid-way (attack re-enabled)`() {
+    fun `S52 sustained stable tone NOT gated mid-way (attack disabled while speaking)`() {
         val vad = VadDetector()
         vad.start()
         feedN(vad, block(48), 5)                    // 安静建底
-        // 持续稳定音（amp 1280 -> level 0.16，波动 <25% = plateau Signature）
-        // S58 拍板：上攻通道复活——稳态噪声必须被滤（0.19 环境实测 9e82c03 判停正常）；
-        // 代价=长元音同型有被切风险（S52 教训留档：真语声有波动、恒定值合成块必中）
-        val events = feedN(vad, block(1280), 30)   // 3 秒持续
-        assertTrue("S58：稳态音应被上攻滤除（中途中判停）", events.isNotEmpty())
-        assertFalse(vad.isActive)
+        val events = feedN(vad, block(1280), 30)   // 3 秒持续稳态音：无中途判停
+        assertTrue("S69b：稳态长音不再被上攻中途切（S52 诉求回归）", events.isEmpty())
     }
 
     @Test
@@ -447,5 +453,64 @@ class VadDetectorTest {
             (3 + 5 + 5 + 5 + consumed) * VadDetector.BLOCK_SAMPLES,
             (ev as VadDetector.Event.Utterance).pcm.size,
         )
+    }
+
+    // ---------------- S69b floor 污染三连修（2026-10-21 板测实锤） ----------------
+    // 板测 3 轮实锤（21:07-21:08）：S58 上攻通道在说话期被弱音节（半峰判据）误触发，
+    // floor 被说话电平污染——推到 0.2-0.4 域=判停线贴说话弱音节→提前判停（第 1 轮
+    // 「帮我查」切尾）；推到 NOISE_FLOOR_MAX=0.5 封顶=判起线 floor×2=1.0→全聋（第 3 轮
+    // 说话 diag 0.33-0.42+削波 1.0 判不起，30s 超时）；钉底噪稳态=判停线骑底噪→死锁
+    // （（七））。修：①说话期禁上攻（floor 只在未判起期学习）②判停/判起线绝对上限。
+
+    /** 说话期弱音节交替块不再触发上攻：floor 恒 0（判起后 floor 不被说话电平污染）。 */
+    @Test
+    fun `S69b attack channel disabled while speaking - floor stays clean`() {
+        val vad = VadDetector()
+        vad.start()
+        repeat(3) { assertNull(vad.feed(block(6400))) } // 0.8 判起
+        repeat(40) { assertNull(vad.feed(if (it % 2 == 0) block(2000) else block(6400))) } // 弱音节 0.25 交替
+        assertEquals(
+            "说话期 floor 不被说话电平污染（旧实现被弱音节半峰上攻爬到 0.25 域）",
+            0.0,
+            vad.currentNoiseFloor(),
+            1e-9,
+        )
+    }
+
+    /** S56 空 ASR floor 上行不得把判停线推过 0.30：响话轮（整段 RMS≈0.6）后 raise×2
+     *  floor→0.5 封顶域，旧判停线 0.7 会切说话弱音节（板测第 1 轮「帮我查」同型）。 */
+    @Test
+    fun `S69b end threshold clamped at 0_30 after S56 floor raise`() {
+        val vad = VadDetector()
+        vad.start()
+        repeat(3) { assertNull(vad.feed(block(6400))) } // 判起 0.8
+        repeat(6) { assertNull(vad.feed(block(6400))) } // 说话
+        var ev: VadDetector.Event? = null
+        repeat(6) { if (ev == null) ev = vad.feed(block(0)) } // 判停成句
+        assertTrue(ev is VadDetector.Event.Utterance)
+        vad.raiseNoiseFloorFromLastUtterance()
+        vad.raiseNoiseFloorFromLastUtterance()
+        assertTrue(
+            "S56 上行后判停线不得超 0.30（旧实现 0.5×1.4=0.7）",
+            vad.currentEndThreshold() <= 0.30 + 1e-9,
+        )
+    }
+
+    /** 判起线钳 0.35：floor 被污染（0.5 封顶域）后，正常说话 0.4 仍必判起——
+     *  全聋防御（板测第 3 轮：判起线 1.0 致 30s 超时）。 */
+    @Test
+    fun `S69b start threshold clamped at 0_35 - speech still triggers after floor contamination`() {
+        val vad = VadDetector()
+        vad.start()
+        repeat(3) { assertNull(vad.feed(block(6400))) } // 判起 0.8
+        repeat(6) { assertNull(vad.feed(block(6400))) } // 说话
+        var ev: VadDetector.Event? = null
+        repeat(6) { if (ev == null) ev = vad.feed(block(0)) } // 判停成句
+        assertTrue(ev is VadDetector.Event.Utterance)
+        vad.raiseNoiseFloorFromLastUtterance()
+        vad.raiseNoiseFloorFromLastUtterance() // floor→0.5 封顶域（lastUtteranceRms≈0.62）
+        vad.start() // 新聆听轮（floor 跨轮保留）
+        repeat(3) { assertNull(vad.feed(block(3200))) } // 0.4 说话：旧线 max(0.05,1.0)=1.0 判不起
+        assertTrue("判起线钳 0.35：floor 污染后正常说话仍可判起", vad.isSpeaking)
     }
 }

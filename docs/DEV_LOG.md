@@ -1,6 +1,22 @@
 # 小朵 Android 开发日志
 
 
+## 2026-10-21（十一）S69b floor 污染三连修：说话期禁上攻 + 判起/判停线绝对钳制（811 绿，二轮板测待跑）
+
+**板测取证（S69 包，生产板 21:07-21:08，用户三轮喊话）**：S69 三件套在真实说话期暴露 **floor 污染的另外两个失败模式**——①第 1 轮完整句被切「帮我查」：判停线（floor×1.4）被推到 0.3+ 贴住说话弱音节，句中弱音节计静音 600ms 即切，续说也因判起线（floor×2）抬到 0.4+ 判不起而无片段合并；②第 3 轮 30s 超时零 utterance：diag 实锤说话期电平 0.33-0.42+削波 1.0 全部判不起 → 判起线 ≥1.0 → **floor 被 S58 上攻通道推到 NOISE_FLOOR_MAX=0.5 封顶**（弱音节半峰判据 level<peak×0.5 在真实说话期高发误触发，floor 0.35 速率爬向说话电平）。至此 floor 跟踪三失败模式全部实锤：钉底噪稳态=判停死锁（（七）/S69 已修）、推中间域=提前判停、推封顶=全聋。与昨晚 9 轮真声不炸的差异：响度分布不同，上攻误触发是概率性的。
+
+**三连修**：①**说话期禁用上攻**（`!isSpeaking` gate）——floor 只在未判起期学习（S19-1 原场景），上攻原职能由未判起期慢跟随+S56 空 ASR 裁判+**S69 熔断**（不依赖 floor）接管；②**判起线钳 START_LINE_MAX=0.35**（max(provider, min(floor×2, 0.35))）——floor 无论被谁污染正常说话必判起；③**判停线钳 END_LINE_MAX=0.30**（贴板噪上沿 0.27）——不再切说话弱尾音。S58「判停可用性优先」的取舍被新证据推翻：S58 复活上攻的理由（判停死锁）已由 S69 熔断以更安全方式覆盖。
+
+**测试**：+3 S69b 锚（说话期 floor 恒净/S56 raise 后判停线 ≤0.30/floor 污染后 0.4 说话仍判起）——实现前三条全红=天然变异证据；S58 两个既有锚按新语义改写（`pump noise now held to MAX_UTTERANCE`：早滤废止改锁 8s 兜底；`S52 sustained stable tone NOT gated`：**S52 诉求回归**——长元音不再被 plateau 通道中途切）。全量 **811 绿**（808+3）。
+
+**遗留观察**：泵态 ghost 判起改由 8s 强制收句（比 S58 早滤慢 6s）——S19-2 空轮预算 2 次内自愈，板测观察「我在」播完后的恢复速度。S69 评审 finding #1（跨轮 peak 污染熔断基准）仍挂板测观察。
+
+```evidence
+verify_cmd: cd /e/desk-pet-android && export PATH="/c/Program Files/Microsoft/jdk-17.0.20.8-hotspot/bin:$PATH" && ./gradlew.bat testDebugUnitTest --rerun-tasks
+verify_claim: BUILD SUCCESSFUL in 1m 19s；total=811 failures=0 errors=0 skipped=0（基线 808+新增 3，S58 两锚语义改写净零）；S69b 三测实现前全红=变异证据
+files_touched: [app/src/main/java/com/xiaoduo/deskpet/voice/VadDetector.kt, app/src/test/java/com/xiaoduo/deskpet/voice/VadDetectorTest.kt]
+```
+
 ## 2026-10-21（十）S69 票C 三件套：底噪熔断判停 + 续听窗恢复 10 + 有界总上限（808 绿，板测定值待跑）
 
 **取证先行（生产板 20261021_190723/192937 日志，9 轮真声）**：票C 双向失败的统一根因实锤=**floor（噪声底）逐轮漂移在临界带，判停行为逐轮不可预测**——19:12:25「放」轮（floor>0.136）判停线>底噪 → 600ms 气口即切（病2 过早判停）；19:33:08 轮（floor≤0.136，diag 连续 4 行 0.19 低谷）4 秒气口不切（判停死锁常态，说完靠上攻收敛才收句）；19:14:35 轮 3 秒气口同型。floor 稳态钉死底噪（0.19，板自噪恒定）后慢跟随推力归零、判停线骑底噪带（0.19×1.4=0.266），底噪块级电平绕线摆动令 belowTicks（判停）与 sustainedAbove（上攻）双计数器互相清零——**慢跟随/判停/上攻三通道同时失效**。（七）DEV_LOG 归因「S52 停用 floor 上行」系注释假锚勘误：S58 已复活上攻（NOISE_ATTACK_ENABLED=true），真机制如上。15:40 死锁时段日志已被轮转覆盖（板留最近 11 文件≈2h）。
