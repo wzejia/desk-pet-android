@@ -1,6 +1,33 @@
 # 小朵 Android 开发日志
 
 
+## 2026-10-21（十六）票D 采麦源第 4 档 MIC 恢复：S57 只读锁定解除 + fork 锚组 4 移植回上游（815 绿，用户令评审后补直接装板）
+
+**背景**：AGC 增益收益验证（待办①）需切 MIC 低电平档（fork 17.242 实证 nf~0.003、g 3.6-8.0 域，参考 `docs/verification/agc-tap-to-talk-acceptance-20261019.md`）；上板实锤上游包 pref `mic_source_mode=3` 落 `expectedSourceFor` else 归 source=7——**②C 裁决（2026-10-20）裁掉的第 4 档在上游不存在**。用户拍板（终局）：恢复 MIC 档映射层 + **UI 保持 S57 只读锁定**（会话中曾短暂拍板恢复 fork 可点击循环，后改拍板回只读——终局=映射层 4 档可用（adb run-as 改 pref + 重启），UI 无切换入口，2026-09-21 生产事故防线原样保留）。
+
+**变更**（fork HEAD 7bef28c 移植+UI 终局回锁定，5 文件 +83/−27 → 含后续注释还原与 UI 回锁约 +90/−30）：①`AudioCapture.expectedSourceFor` 加 `3 -> 1`（MIC 板载麦链路）+ 构造点注释按 fork 还原 mode=3 fallback 诊断（评审 finding#1）；②`Prefs` 加 `MIC_SOURCE_MIC=3` 常量 + `coerceMicSourceMode` 纯函数（coerceIn(0,3)）+ setter 接线；③`PrefContract` 键注释补 3=MIC；④`SettingsScreen` 采麦源保持只读锁定 Text（**标签 when 补 MIC 分支三方对齐**；曾短暂改 TextButtonRow 循环后按终局拍板回退）；⑤`AudioCaptureSourceDriftTest` 锚组 4 移植（fork ②C 剔除的 4 测原样回归）。
+
+**验证**：TDD 先红（编译失败=f2p）后绿；全量 **815 绿**（811+4，XML 复算零失败零跳过）；变异 M1（删 `3 -> 1` 映射行→2 测红）/M2（coerce 上界回 2→1 测红）双真红后还原复绿。**独立评审挂起**（用户令直接装板测试，实验后补跑 focused）。
+
+**板侧实况**：生产板 pref 已预写 `mic_source_mode=3`（旧包下落 else 归 7 行为等同 VC 档，无风险态）；新包装板后重启即 source=1 生效。
+
+**板测实验（22:45 装 `dist/xiaoduo-mic-b4a169a-20261021.apk` md5 `2de387c3`，22:51 金线抓流，用户 5 轮真声）**：
+- **票D 功能全绿**：`capture start, source=1` 生效零漂移告警；4 轮喊话+1 轮 multi-turn 全链通（唤醒→LISTENING→VAD utterance parts=1+2 合并派发→ASR 全对：「给我讲个笑话。」「今天天气怎么样？」「查询档案。」×2→LLM→SPEAKING→barge-in 正常）；S69 判停链 MIC 档零失败（合并 5/5、零死锁、零 FATAL；22:58 listen timeout 为空轮超时正常形态）。
+- **AGC 增益收益定性关闭（待办①）**：g 恒 1.00 全程（nf 0.18-0.25 > 目标）——14.18 为响环境，**任何采麦源档位增益通道数学上不触发**；17.242 fork 板 g=3.6-8.0 是安静环境（nf 0.003）效应。AGC 在生产配置恒直通=零风险面，P1#3 削波担忧在此板无暴露面；待办③量纲统一随之失去 AGC 维度。
+- **0.19 底噪来源对照（挂账③推进）**：MIC 档（无通话预处理链）底噪 0.183 ≈ VC 档 0.19 → 实锤非 VC 链产物，来源=环境噪声本体/ROM 底层增益二选一（22:57 说话期 nf 爬 0.25 示环境声贡献大）。
+- **削波观察（无危害）**：MIC 档说话 maxLevel=1.0000（4/4 轮首段钳位）——ROM 增益下 MIC 链电平本高，非 AGC 叠加（g=1）；ASR 全对证容忍。
+- **生产配置恢复（用户拍板回 VC 档）**：force-stop → pref 3→0 → 重启，新 pid 23586 采麦正常（nf=0.184 VC 域、漂移告警零响、pref cat 验证）。**板载现=mic-b4a169a 包 + VC 档**（含票D 功能，MIC 档留设置页可点击随时可切；回 VC 理由=保留硬件 AEC 防播报期回声自触发，MIC 档回声抑制仅剩 NLMS）。本地金线存档 `/tmp/mic-agc-experiment-20261021.log`。
+
+**独立评审（focused，本侧 correctness + 1 本地对抗评审员；跨模型路由全 CLI 缺席实锤 codex/grok/cursor/composer/opencode，本地兜底）**：verdict=**行为级还原忠实**（与 fork 7bef28c 逐语义块比对：映射 3→1/coerce 0..3/setter 全同）；**漂移 WARN 网四条采麦启动路径全覆盖**（正常启动/fallback-DEFAULT/零块自愈重建/校准临时采麦——同走 readLoop 漂移检查点）。**2 P3 advisory**：①构造点注释停留 3 档纪元——**已修复**（按 fork 原文还原 buildRecord 注释）；②**「校准拓扑==采麦链拓扑」不变量残余风险**（切档不重启即点校准，AmbientCalibrator.collectAmbient 现场读 pref 新建临时采麦走新源，gate 可测在异拓扑流上，重启后漂移网必静默）——**操作纪律：改档后先重启 App 再校准**；UI 回只读后该面收窄（无 UI 入口，变更仅走 adb 开发操作）；最小加固候选=AmbientCalibrator 临时分支比对期望源 vs usedSource 打 WARN（本轮不做留观察）。评审报告 `/tmp/compound-engineering-197108/ce-code-review/20261021-230124-c132b242/report.md`。
+
+**UI 终局回只读（评审期间用户追加拍板「将采麦源设置为只读」）**：SettingsScreen TextButtonRow 循环回退为 S57 只读锁定 Text（标签 when 保留 MIC 分支），AudioCapture/测试类注释同步终局口径；复跑全量 **815 绿**。板载 mic-b4a169a 包（可点击 UI）由终局包覆盖（见（十七））。本地金线存档 `/tmp/mic-agc-experiment-20261021.log`。
+
+```evidence
+verify_cmd: cd /e/desk-pet-android && export PATH="/c/Program Files/Microsoft/jdk-17.0.20.8-hotspot/bin:$PATH" && ./gradlew.bat :app:testDebugUnitTest --rerun-tasks
+verify_claim: total=815 failures=0 errors=0 skipped=0；板测 5 轮金线零异常（MIC 档 source=1 生效、ASR 4/4 全对、合并 5/5、FATAL 0、g 恒 1.00 实锤）；生产配置已恢复 VC 档（pref=0 验证+漂移告警零响）
+files_touched: [docs/DEV_LOG.md, docs/PROGRESS.md, dist/xiaoduo-mic-b4a169a-20261021.apk]
+```
+
 ## 2026-10-21（十五）fork 移植双验收收口：点按 5 步 5/5 + AGC A/B 生产配置一致性确认
 
 **点按交互 5 步验收（S69c 包，聊天页 12+ 轮点按金线）**：5/5 全过——①点按开始（LISTENING 迁移形态「VAD start, timeout 30s」与唤醒路径可区分）②说完点结束（「用户明确说完=续听窗即刻耗尽」守卫生效，hold→dispatch 0.06-0.15s）③多轮续听（multi-turn 循环多轮稳定）④播报中点按（22:09:55 barge-in cancel 打断 → 立即接续聆听 → 再点退出，全链正确）⑤说完秒点（stopListening 直通派发两轮，<1s 进识别，ASR「你好。」完整零丢字——StopReleaseGuard 吞语音守卫实锤生效）。**T2 移植功能验收闭环**。
