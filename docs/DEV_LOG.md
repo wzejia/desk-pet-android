@@ -1,7 +1,19 @@
 # 小朵 Android 开发日志
 
 
-## 2026-10-21（十六）票D 采麦源第 4 档 MIC 恢复：S57 只读锁定解除 + fork 锚组 4 移植回上游（815 绿，用户令评审后补直接装板）
+## 2026-10-21（十七）票D 合入推送+终局包装板：main=dc150e0 @ origin，板载现=mic-dc150e0 终局包+VC 档
+
+**收口序列**：`fix/mic-source-4th-mode`（b4a169a 票D 主体 + e82e55e UI 终局回锁定+advisory 处置）`--no-ff` 合入 main（**merge `dc150e0`**）推 origin（`3141368..dc150e0`）；终局包 `dist/xiaoduo-mic-dc150e0-20261021.apk`（md5 `47edf63a`）`install -r` 上生产板 10.0.14.18，pid 22917 `capture start, source=7`（VC 档 pref=0）+ 零漂移告警 ✓；板上旧 mic-b4a169a 包（可点击 UI）被覆盖。
+
+**票D 总账**：②C 裁决裁掉的第 4 档恢复（映射层），UI 终局 S57 只读锁定（当日拍板演进：解锁循环→回只读，均在（十六）留痕）；AGC 增益收益验证定性关闭（待办①销）；量纲统一随之失去 AGC 维度关闭（待办③销）；挂账②参数对账表回填销账（S69 系 6 参数+上攻语义+采麦源 4 档全量入表）。**剩余待办 1 项**（借/还/盘点工具名核对）+ **挂账 2 项**（熔断 peak 污染观察[出现「utterance+hold 每 ~1.3s 循环」日志形态即落地]/0.19 底噪环境 vs ROM 增益二选一定源[今日对照已排除 VC 链]）；校准拓扑残余风险操作纪律=改档后先重启再校准（评审 finding#2）。
+
+```evidence
+verify_cmd: cd /e/desk-pet-android && export PATH="/c/Program Files/Microsoft/jdk-17.0.20.8-hotspot/bin:$PATH" && ./gradlew.bat :app:testDebugUnitTest --rerun-tasks
+verify_claim: total=815 failures=0 errors=0 skipped=0；merge dc150e0 推送 origin/main（3141368..dc150e0）；终局包装板 pid 22917 capture start source=7 零漂移告警
+files_touched: [docs/DEV_LOG.md, PROGRESS.md, dist/xiaoduo-mic-dc150e0-20261021.apk]
+```
+
+## 2026-10-21（十六）票D 采麦源第 4 档 MIC 恢复（映射层，UI 终局回只读锁定）：fork 锚组 4 移植回上游（815 绿）
 
 **背景**：AGC 增益收益验证（待办①）需切 MIC 低电平档（fork 17.242 实证 nf~0.003、g 3.6-8.0 域，参考 `docs/verification/agc-tap-to-talk-acceptance-20261019.md`）；上板实锤上游包 pref `mic_source_mode=3` 落 `expectedSourceFor` else 归 source=7——**②C 裁决（2026-10-20）裁掉的第 4 档在上游不存在**。用户拍板（终局）：恢复 MIC 档映射层 + **UI 保持 S57 只读锁定**（会话中曾短暂拍板恢复 fork 可点击循环，后改拍板回只读——终局=映射层 4 档可用（adb run-as 改 pref + 重启），UI 无切换入口，2026-09-21 生产事故防线原样保留）。
 
