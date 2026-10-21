@@ -496,10 +496,12 @@ class VadDetectorTest {
         )
     }
 
-    /** 判起线钳 0.35：floor 被污染（0.5 封顶域）后，正常说话 0.4 仍必判起——
-     *  全聋防御（板测第 3 轮：判起线 1.0 致 30s 超时）。 */
+    /** 判起线钳 0.32（S69c 二轮板测修正，原 0.35）：floor 被污染（0.5 封顶域）后，
+     *  弱尾「的档案」域（0.32~0.35）说话仍必判起——板测 21:22 实锤 0.25-0.29 弱尾
+     *  被判停线切后判起线接不住（0.266-0.35 盲区）。0.32 保持 end(0.30)<start 不变量，
+     *  底噪上沿 0.27 仍有安全边。 */
     @Test
-    fun `S69b start threshold clamped at 0_35 - speech still triggers after floor contamination`() {
+    fun `S69c start threshold clamp lowered to 0_32 - soft tail speech still triggers`() {
         val vad = VadDetector()
         vad.start()
         repeat(3) { assertNull(vad.feed(block(6400))) } // 判起 0.8
@@ -510,7 +512,7 @@ class VadDetectorTest {
         vad.raiseNoiseFloorFromLastUtterance()
         vad.raiseNoiseFloorFromLastUtterance() // floor→0.5 封顶域（lastUtteranceRms≈0.62）
         vad.start() // 新聆听轮（floor 跨轮保留）
-        repeat(3) { assertNull(vad.feed(block(3200))) } // 0.4 说话：旧线 max(0.05,1.0)=1.0 判不起
-        assertTrue("判起线钳 0.35：floor 污染后正常说话仍可判起", vad.isSpeaking)
+        repeat(3) { assertNull(vad.feed(block(2720))) } // 0.34 说话：旧钳 0.35 判不起（盲区）
+        assertTrue("判起线钳 0.32：0.34 弱尾说话仍可判起", vad.isSpeaking)
     }
 }

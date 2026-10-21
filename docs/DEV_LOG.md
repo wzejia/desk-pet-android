@@ -1,6 +1,33 @@
 # 小朵 Android 开发日志
 
 
+## 2026-10-21（十三）S69c 弱尾盲区修正：判起线钳 0.35→0.32（811 绿，三轮板测复验待跑）
+
+**用户二轮板测后现场反馈**：「有概率提早判停，没有检测到『的档案』」。diag 取证（212031.log）：缺尾轮次尾段电平 0.2519（21:22:31）——落在判停线 0.266 之下被切、又够不到判起线钳 0.35——**0.266-0.35 盲区**（S69 评审报告预警项的概率性表现）；成功合并轮片段 2 峰值全在 0.38+（0.3818/0.3848/0.3889/0.4581/0.5284），失败样本 0.25-0.29——概率性=「的档案」音量分布。
+
+**修正**：START_LINE_MAX 0.35→**0.32**——0.32 保持 end(0.30)<start 不变量、底噪上沿 0.27 安全边 0.05；救回 0.27-0.35 域弱尾；0.19-0.27 域贴底噪属物理极限（VadDetector 类注释既录，用户端对策=尾词稍加重音）。TDD：S69c 测试（floor 污染域 0.34 弱尾判起）先红后绿，变异验证（钳回 0.35 → 红）后还原；全量 **811 绿**。三轮板测复验场景=含「的档案」尾的查询句多轮。
+
+
+
+## 2026-10-21（十二）S69+S69b 板测收口：11 轮真声全健康，合并语义 6/6，票C 闭环
+
+**二轮板测（S69b 包 `dist/xiaoduo-s69b-b70d4e2-20261021.apk` md5 `679252dc`，21:20:45 `install -r` 上生产板 10.0.14.18，pid 10527）**：用户 11 轮真声（21:22-21:28）——**零死锁、零全聋、零超时、零 FATAL**。金线汇总：
+- **合并语义 6/6 实战全成**（S51 窗=10 首次板上实战）：第 1/3/5/6/8/9 轮跨 1.4-1.5s 气口 parts=2 合并，片段 2 电平 0.38-0.53 全部正常判起（S69b 判起线钳 0.35 生效实证——S69 包同场景判起线被污染到 0.4+ 判不起）。
+- **完整成句 8/11**：「帮我查询当前有哪些。」「帮我查询一下C款密下的档案。」「帮我查询一下当前有哪些档案。」「帮我查询所有档案。」「有没有关于教学的？」「给我讲一个。」「我想查一下。」「当前有哪些关于印度？」（末两句个别字 ASR 层误识，句子结构完整）。收句机制 11/11 正常（含 1 轮轻声段 ASR 误识「今天的天今」——板噪 0.19 下 0.03-0.05 域轻声物理判不起，VadDetector 类注释「物理极限」既录；1 轮未说话空轮）。
+- S69 包首轮板测（21:07-21:08）暴露的提前判停/全聋两病在 S69b 包下零复现。
+
+**S69 包一轮板测（21:07-21:08，3 轮）**：第 1 轮完整句切「帮我查」（判停线被推到说话弱音节域）；第 3 轮说话判不起 30s 超时（floor 推到 0.5 封顶判起线 1.0 全聋）——直接催生 S69b 三连修（DEV_LOG（十一））。
+
+**评审**：ce-code-review focused 路径（本侧 correctness + 1 本地对抗评审员；codex 跨模型路由 CLI 缺席未运行）。verdict=**Ready with fixes**——2 findings（P3 跨轮 peak EMA 污染熔断基准[advisory，挂板测观察 churn 日志形态]；P3 新参数未回填语音参数对账表[待补]）+ 并发审计干净 + ghost 周期有界终结确认。报告 `C:/Users/Administrator/AppData/Local/Temp/compound-engineering-197108/ce-code-review/20261021-203727-s69/report.md`。
+
+**收口序列**：`fix/s69-stall-fuse-continuation`（d4752da + b70d4e2）合入 main 推送 origin（见下条 evidence）；PROGRESS/AGENTS 状态同步；ce-compound 沉淀；板载现=**S69b 包**（b70d4e2 源）。
+
+```evidence
+verify_cmd: cd /e/desk-pet-android && export PATH="/c/Program Files/Microsoft/jdk-17.0.20.8-hotspot/bin:$PATH" && ./gradlew.bat testDebugUnitTest --rerun-tasks
+verify_claim: total=811 failures=0 errors=0 skipped=0；板测 11 轮金线零异常（VAD utterance 11/11、continuation dispatch 11/11、合并 6/6、FATAL 0）
+files_touched: [app/src/main/java/com/xiaoduo/deskpet/voice/VadDetector.kt, app/src/main/java/com/xiaoduo/deskpet/voice/VoiceSessionManager.kt, app/src/test/java/com/xiaoduo/deskpet/voice/VadDetectorTest.kt, app/src/test/java/com/xiaoduo/deskpet/voice/VoiceSessionManagerS51ContinuationTest.kt]
+```
+
 ## 2026-10-21（十一）S69b floor 污染三连修：说话期禁上攻 + 判起/判停线绝对钳制（811 绿，二轮板测待跑）
 
 **板测取证（S69 包，生产板 21:07-21:08，用户三轮喊话）**：S69 三件套在真实说话期暴露 **floor 污染的另外两个失败模式**——①第 1 轮完整句被切「帮我查」：判停线（floor×1.4）被推到 0.3+ 贴住说话弱音节，句中弱音节计静音 600ms 即切，续说也因判起线（floor×2）抬到 0.4+ 判不起而无片段合并；②第 3 轮 30s 超时零 utterance：diag 实锤说话期电平 0.33-0.42+削波 1.0 全部判不起 → 判起线 ≥1.0 → **floor 被 S58 上攻通道推到 NOISE_FLOOR_MAX=0.5 封顶**（弱音节半峰判据 level<peak×0.5 在真实说话期高发误触发，floor 0.35 速率爬向说话电平）。至此 floor 跟踪三失败模式全部实锤：钉底噪稳态=判停死锁（（七）/S69 已修）、推中间域=提前判停、推封顶=全聋。与昨晚 9 轮真声不炸的差异：响度分布不同，上攻误触发是概率性的。
