@@ -151,8 +151,10 @@ class AudioCapture(
         val bufSize = maxOf(minBuf, VadDetector.BLOCK_BYTES * 8)
         // 源候选：mode 决定首选源（S57 纯函数解析，映射单点维护——判定与构造不分叉；
         // expectedSourceFor 返回值与 AudioSource 常数逐一相等：7=VOICE_COMMUNICATION /
-        // 6=VOICE_RECOGNITION / 9=UNPROCESSED，AudioRecord 构造直接吃 int，不设二次映射——
-        // 二次映射会在补档位时静默分叉，见 ce-review 20261020 #9），
+        // 6=VOICE_RECOGNITION / 9=UNPROCESSED / 1=MIC。DEFAULT=0≠MIC=1（javap 实证）：
+        // mode=3 金线 source=1 即首选 MIC 成功（无歧义）；若 MIC 构造失败走 fallback
+        // DEFAULT，则 source=0 且漂移 WARN 照打。AudioRecord 构造直接吃 int，不设二次
+        // 映射——二次映射会在补档位时静默分叉，见 ce-review 20261020 #9），
         // 初始化失败降级 DEFAULT（坑 #35 注释）。
         val preferred = expectedSourceFor(sourceMode)
         val candidates = listOf(preferred, MediaRecorder.AudioSource.DEFAULT)
@@ -429,12 +431,12 @@ class AudioCapture(
          * 漂移判定（纯 Kotlin，JVM 可测）：pref 档位解析出的期望源 ≠ 实际 active source
          * （[usedSource]）→ true，采麦启动处打 WARN（含两值）。
          *
-         * S57 注记（本仓实况）：1723d7b 的采麦源只读锁于 2026-10-21 经用户拍板解除
-         * （设置页恢复 fork 可点击循环，2026-09-21 判停事故防线改为本告警网兜底：
-         * 每次采麦启动核对 pref 期望 vs 活性源，漂移即 WARN 含两值）；变更走设置页
-         * 点击切换（或 adb 改 pref）+ 重启 App。判定覆盖「构造时固化的 pref 档位」与
-         * 活性源的分叉（如初始化失败静默 fallback DEFAULT）；Settings 改 pref 不重建采集源
-         * （构造时固化，改后需重启才生效），重启后新实例按新 pref 构造，以本告警界定。
+         * S57 注记（本仓实况）：1723d7b 的采麦源只读锁保留（SettingsScreen 显示「已锁定」，
+         * 2026-09-21 判停事故防线；2026-10-21 票D 曾短暂解锁恢复 fork 可点击循环，用户最终
+         * 拍板回只读——映射层第 4 档 MIC 保留可用，变更走 adb run-as 改 pref + 重启 App）。
+         * 本告警网是第二道防线：判定覆盖「构造时固化的 pref 档位」与活性源的分叉（如初始化
+         * 失败静默 fallback DEFAULT）；pref 改后不重建采集源（构造时固化，需重启才生效），
+         * 重启后新实例按新 pref 构造，以本告警界定。
          *
          * S57 回归守卫：AudioCaptureSourceDriftTest 漂移触发/一致不告警两组锚
          * （反转本判定 → 漂移组红）。

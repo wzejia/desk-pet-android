@@ -12,9 +12,10 @@ import org.junit.Test
  *
  * 档位口径演进：②C 裁决（2026-10-20）曾剔除 fork 第 4 档 MIC（mode=3）断言 4 条；
  * 2026-10-21 用户拍板恢复（AGC 增益收益验证需 MIC 低电平档，nf~0.003、g 3.6-8.0 域，
- * 参考 docs/verification/agc-tap-to-talk-acceptance-20261019.md），锚组 4 原样移回，
- * 设置页采麦源同步恢复 fork 可点击循环（S57 只读锁定解除，漂移防线由本类锚组
- * 1/2 的 WARN 网继续兜底）。
+ * 参考 docs/verification/agc-tap-to-talk-acceptance-20261019.md），锚组 4 原样移回。
+ * UI 形态终局：S57 只读锁定保留（票D 曾短暂恢复 fork 可点击循环，用户拍板回锁定），
+ * 第 4 档映射层可用（adb 改 pref + 重启），标签 when 补 MIC 分支保持三方对齐；
+ * 漂移防线=UI 锁定 + 本类锚组 1/2 的 WARN 告警网双层兜底。
  *
  * 被测对象：[AudioCapture.expectedSourceFor] / [AudioCapture.isSourceDrift]
  * （companion 纯函数，零 Android import，JVM 直接驱动）+ [Prefs.coerceMicSourceMode]

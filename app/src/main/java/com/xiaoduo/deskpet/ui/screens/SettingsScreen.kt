@@ -956,22 +956,22 @@ private fun KwsSection(context: Context) {
         )
         Spacer(modifier = Modifier.padding(top = XiaoduoDimens.SpaceS))
         // 采麦源档位演进：S57 只读锁定（2026-09-21 生产事故：被拨离 mode 0 后底噪抬
-        // 30~50 倍致判停全废，0.19 vs 09-18 的 0.005）→ 2026-10-21 用户拍板恢复 fork
-        // 可点击循环（AGC 增益收益验证需 MIC 低电平档）。事故防线改由 SourceDrift
-        // 告警网兜底（每次采麦启动核对 pref 期望 vs 活性源，漂移即 WARN，见
-        // AudioCapture.isSourceDrift + AudioCaptureSourceDriftTest）。
-        var micMode by remember { mutableStateOf(Prefs.micSourceMode(context)) }
+        // 30~50 倍致判停全废，0.19 vs 09-18 的 0.005）→ 2026-10-21 票D 曾短暂恢复 fork
+        // 可点击循环，用户最终拍板回只读锁定（映射层第 4 档 MIC 保留可用，变更走
+        // adb run-as 改 pref + 重启 App）。事故防线双网：UI 锁定 + SourceDrift 告警
+        // （每次采麦启动核对 pref 期望 vs 活性源，漂移即 WARN，见 AudioCapture.isSourceDrift）。
+        val micMode = Prefs.micSourceMode(context)
         val micModeLabel = when (micMode) {
             Prefs.MIC_SOURCE_RECOGNITION -> "识别（绕开通话链）"
             Prefs.MIC_SOURCE_UNPROCESSED -> "原始（UNPROCESSED）"
             Prefs.MIC_SOURCE_MIC -> "MIC（板载麦链路）"
             else -> "通话（默认，硬件 AEC）"
         }
-        TextButtonRow("采麦源：$micModeLabel（点击切换；重启 App 生效，改后请重新校准）") {
-            micMode = (micMode + 1) % 4
-            Prefs.setMicSourceMode(context, micMode)
-            PetLogger.i("Settings", "mic source mode -> $micMode (effective after app restart)")
-        }
+        Text(
+            text = "采麦源：$micModeLabel（已锁定；本项决定整条增益拓扑，漂移会破坏判停。变更请联系开发）",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
         Spacer(modifier = Modifier.padding(top = XiaoduoDimens.SpaceS))
         KwsCalibration(context) { written -> gate = written }
         status?.let {
