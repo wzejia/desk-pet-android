@@ -1,17 +1,18 @@
 # 小朵 Android M1 进度
 
-## 状态：main=**port 4cap 战役已合入并推送**（merge `678ea8f` @ origin/main，2026-10-21，**800 绿**=792+8）；重构完整版封存 refactor/complete @ aa79fbd（859 绿）；**待办 5 项**（判停死锁修复票[新，阻塞②]/AGC A/B[双包就绪挂起]/量纲统一/点按验收/板验，见 DEV_LOG 2026-10-21（五）~（七））
+## 状态：main=**票A 平台工具名归一已合入推送+上板，真声验收 6/6 弹卡**（merge `845db5e` @ origin/main，2026-10-21，**805 绿**=800+5）；重构完整版封存 refactor/complete @ aa79fbd（859 绿）；**待办 6 项**（判停过早/死锁修复票[阻塞②]/AGC A/B[OFF 包需重出]/借/还/盘点工具名核对/量纲统一/点按验收/板验，见 DEV_LOG 2026-10-21（五）~（九））
 
 - **main 现状**（HEAD=`47b240a`（2026-10-20 T3 docs 车道勘正：原记 00c5c97 已过期），app/ 自 `c6e7243` 无代码变更，其上两笔皆 docs）：`app/` 代码=**重构前 e288037 态**（字节一致 diff 0 行，**754 绿** skipped=0，验证带 JDK PATH 前缀 + `--rerun-tasks`）；`docs/` 21 文件重构经验文档全保留（spec v0.4/Phase0-4 审计/§5.4 复测/内存归因/optimization-analysis）。
 - **重构完整版封存**：分支 `refactor/complete` + tag `refactor-complete-20261011` = `aa79fbd`（Phase 0-3 全合入 + ocr[394]，859 绿）。**回退到重构版** = `git checkout refactor/complete`（板上部署走既有回灌法，流程见 DEV_LOG 2026-10-11（二）/（六））。refactor/p0..p3 分支照旧保留。
-- **板上现=refactor/p0 @ 19ea825**（5a0103eb，行为等价包，2026-10-11 深夜回滚，回滚全绿 151/151；main 态快照 `.scratch/prod-deskpet-data-backup-20261011-rollback-snapshot/`）。
+- **板上现=main 845db5e 包**（`dist/xiaoduo-main-845db5e-20261021.apk`，md5 `0113768a`，2026-10-21 19:07:58 `install -r` 上生产板 10.0.14.18；含 port 4cap 全量+票A 工具名归一+AGC ON 默认。10-11~10-21 间板上为 refactor/p0 @ 19ea825/5a0103eb，已被本次覆盖；旧包回滚流程见 DEV_LOG 2026-10-11（六））。
 - **2026-10-13**：带密钥 APK 构建（main 重构前态，md5 前缀 `6edaebcc`，96MB，双密钥注入/VOLC 空=08-19 以来一贯状态），**产物留存未部署，用户令暂不构建**（DEV_LOG 2026-10-13（一））。
 - **2026-10-19**：main 定型基线打分支+tag——`baseline/main-finalized` + `main-finalized-20261019` = `00c5c97`（已推 origin，纯 git 治理无代码改动）。**main vs refactor/p0 差异勘明**（`git diff main..refactor/p0` 实证）：p0 = e288037 + **Phase 0 守护代码**（PetOverlayState 活性台账接线 4 文件 ~+70 行 + `PetOverlayStateTest.kt` 87 行，**761 绿**），并非纯文档差；p0 分支 HEAD 现为 `d866ec1`（板上 APK 5a0103eb 对应更早的 `19ea825`）。详情 DEV_LOG 2026-10-19（一）。
 - **2026-10-20 port 4cap 战役**：fork rk3288 四能力反哺上游——采麦层 5 层链（ZeroBlock/SourceDrift/自愈重启/②C 裁决裁 4 档/SoftwareAgc）+ Tap-to-Talk 点按化 + docs 三验证档搬运；三车道并行后线性合入 `port/baseline-4cap-upstream-47b240a`，**792 绿终验**（754+32+6，与②C 预测 796−4 精确一致）；p2p 零回退、probe4 零污染。详情 DEV_LOG 2026-10-20（一）~（四）。
 - **2026-10-21 评审+修复轮**：ce-code-review 完整脊柱（8 评审员/33 发现→合并 13→验证 11/11 confirmed）verdict=**Ready with fixes**（P1×3：release 泄漏/装配面零覆盖/AGC 默认开）；用户四项拍板后修复面落地（#2 release 三行+#1 三 seam+8 测+#5A 漂移接线+#9 单表+#4/#7 文案+#6/#11/#12/#13 docs），**800 绿**（792+8）+变异锚 3 条实红。**真机窗口待办 4 项**：#3(A) AGC A/B 取证、#10 量纲统一、#8 点按交互验收、#2 板验。详情 DEV_LOG 2026-10-21（五）。
 - **2026-10-21 收口**：port 分支（b978900）--no-ff 合入 main（**merge `678ea8f`**）推 origin（`b233920..678ea8f` fast-forward，`main...origin/main` 零偏离）；ce-compound 沉淀「注释守卫锚必须锚在被测接线上」（workflow-issues）+ CONCEPTS「变异锚」词条放置条件。工作树=main。port 分支与 tag `port-4cap-merged-20261020` 留本地（历史经 merge commit 全可达）。
 - **2026-10-21 上板取证挂起 → 判停死锁新票**：A/B 双包就绪（AGC-ON `81f9ef7d` / OFF `8d0cf3ef` @ dist/），A 包已装生产板 10.0.14.18（=main 同源 800 绿）。两轮人声实锤**判停死锁**：板载底噪 0.19 骑在判停线（max(0.03, floor×1.4)）之上，S52 停用 floor 上行 + 空轮收敛死锁 → utterance 永不派发 → 聆听 10s 超时/手动取消。**AGC A/B 挂起**（死锁吞 utterance，先修后测）。详情 DEV_LOG 2026-10-21（七）。
-- **待办（重排）**：①**判停死锁修复票**（代码票不依赖设备：方案 B=已判起累计 8s 强制判停派发 ASR → 解锁 S19-2 空轮收敛自愈；阻塞②）②AGC A/B 取证（双包+金线就绪，等①）③量纲统一（随 AGC 裁决）④点按交互 5 步验收 ⑤板验 APM 账目。
+- **2026-10-21 晚 票A 工具名归一闭环 + 真声验收**：18:03 板测实锤平台密集架 Agent 工具改名 `archive_query`（无 c_ 前缀）→ 桥白名单不识 → mcpUiResult 静默丢弃、结果卡零弹窗；修复=PLATFORM_TOOL_ALIASES+canonicalToolName 双点归一（**805 绿**，独立评审 PASS，SYNCED_TOOLS 锚不动）；merge 845db5e 推送+出包上板；**真声 6 轮派发 6/6 弹卡**（too_many 小/大、no_result、success 90 行滚动、filtered 五形态全覆盖），零 FATAL。**判停过早实锤**：首轮 1.8s→ASR 单字「放」（600ms 判停窗+S51 续听窗 S55 暂关副作用）。详情 DEV_LOG 2026-10-21（八）（九）。
+- **待办（重排）**：①**判停过早/死锁修复票**（票C：双向失败证据齐——恢复 S51 续听窗+冻结条件抗噪（空 ASR 裁判门控+上攻限速），参数需板测调准；阻塞②）②AGC A/B 取证（**OFF 包 8d0cf3ef 基线已落后 main，需基于新 main 重出**再双臂跑）③**借/还/盘点工具名核对**（平台 archive_query 已实锤改名，其余工具族是否同步去 c_ 前缀待一轮借/还/盘点语音实锤或向平台核对）④量纲统一（随 AGC 裁决）⑤点按交互 5 步验收 ⑥板验 APM 账目。
 - **坑沉淀**：`git checkout <commit> -- <dir>` 只还原源树已有文件、**不删源树外新增文件**——整目录回退须补 `comm ls-tree/ls-files` 差集删除（本轮 73 文件漏删致重声明冲突，验证 diff=0 才过）。
 - 单测基线口径：**main=754**；refactor/complete=859。验证必带 JDK PATH 前缀 + `--rerun-tasks`（不带会假绿）。
 

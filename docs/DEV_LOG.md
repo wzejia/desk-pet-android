@@ -1,6 +1,18 @@
 # 小朵 Android 开发日志
 
 
+## 2026-10-21（九）票A 合入推送+出包上板：真声验收 6/6 弹卡，弹窗链正式恢复
+
+**合并与推送**：`fix/platform-tool-alias`（ad5352e）--no-ff 合入 main → **merge `845db5e`**，推送 `43d943e..845db5e`（origin 零偏离）。**出包上板**：`dist/xiaoduo-main-845db5e-20261021.apk`（md5 `0113768a`，96MB）19:07:58 `install -r` 上生产板 10.0.14.18（Success，保数据）。
+
+**弹窗链本体先行验证（绕开语音）**：`adb forward tcp:18848→8849` + curl 直发 `mcpUiResult`（样例行 `data_id/archive_id=0` 走只读「去检索页操作」分支）——弹卡完美渲染（题名/档号/年度/密级/位置/「已上架」徽标/高度随内容收放）。**坑沉淀**：Windows curl `--data '<内联中文JSON>'` 经 GBK 码页转码致板上全成 ◆（JSON 结构仍可解析，极具迷惑性）——中文 body 必须 UTF-8 文件体 `--data-binary @file`（已记 `~/.claude/docs/errors.md` GBK 主题）。
+
+**真声验收（用户现场共 8 次唤醒，6 轮派发）**：**6/6 全弹，零 FATAL**。覆盖五形态：too_many 小结果（45 条）/too_many 大统计（6827 条 8 类表）/no_result（143px 提示卡）/success 大列表（90 行，内容高 8391px→窗口正确压顶 1491px 内滚，S46 高度逻辑按设计）/filtered（`in_shelf` 参数）。每轮双金线齐全：`shelf mcp sync ok tool=archive_query` + `shelf mcp result ok tool=archive_query`，密集架侧收到的均为归一名 `c_archive_query`（带 runId）。**平台 rows 不带 `data_id/archive_id`** → 卡片全部「去检索页操作」只读形态（借阅直操键不出，防双控面无恙）。
+
+**判停过早实锤（票C 新证据）**：第 1 轮话语被切成 1.8s、ASR 只出单字「放」——600ms 判停窗 + S51 续听窗 S55 暂关（`window=1 blocks`）副作用：句中气口 >600ms 即切且无续听兜底；其余轮次语速连贯则完整成句。与（七）判停死锁构成同组参数**双向失败**（说话轻→永不判停；响+气口→过早判停）。
+
+**收口杂项**：密集架侧同日部署其合并包（票B NPE 防护+同事电子查阅/扫码枪/皮肤，mijijia 仓 b0fb20c），拉起冒烟零崩溃；`install -r` 装包前后配置对比实证零写入（唯一差异 `area_number` 1→10 系同事 10-09 后在板上改的本区列数，用户确认正常）。
+
 ## 2026-10-21（八）板测续取证：平台工具改名致 mcpUiResult 静默丢弃（票A 修复）+ 判停过早与跨仓 NPE 取证
 
 **18:03-18:04 板测时间轴（10.0.14.18，生产板）**：18:03:47 唤醒「你好小朵」→ 18:03:50 utterance 派发（32000 采样恰 2.0s，`S51 continuation hold: parts=1 window=1 blocks` 实锤续听窗处于 S55 暂关态）→ ASR「帮我查询当前有哪些。」→ 18:03:59 平台执行工具 → 18:04:00 TOOL_CALL_RESULT 正常返回（too_many，6827 条统计）→ **`MCP tool result captured name=archive_query` 后戛然而止**：桥白名单只认 `c_archive_query`，`resultBodyFor` 对未知工具按守卫口径返回 null，mcpUiResult 静默丢弃，密集架零弹窗（板侧全天仅收到 getShelfStatus/getAir 轮询）。**SSE 原始证据行**（归档，P3）：
