@@ -9,7 +9,7 @@
 
 ## 与本战役关系
 
-port 4cap 战役（分支 `port/baseline-4cap-upstream-47b240a`）将 fork 侧 4 项能力反哺上游：采麦层三合一（ZeroBlockDetector/SourceDrift/自愈重启/SoftwareAgc）、Tap-to-Talk 交互、docs 验证档。fork 侧关键锚点：
+port 4cap 战役（分支 `port/baseline-4cap-upstream-47b240a`）将 fork 侧 4 项能力反哺上游：采麦层三合一（ZeroBlockDetector/SourceDrift/自愈重启/SoftwareAgc）、Tap-to-Talk 交互、docs 验证档。**战役已于 2026-10-21 闭环**：评审+修复轮 800 绿，合入 main（merge `678ea8f`）并推送 origin。fork 侧关键锚点：
 
 | 锚 | 内容 |
 |---|---|

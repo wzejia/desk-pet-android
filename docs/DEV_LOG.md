@@ -1,6 +1,14 @@
 # 小朵 Android 开发日志
 
 
+## 2026-10-21（六）port 4cap 战役收口：合入 main 并推送 origin
+
+**合并**（用户拍板「合并main，推origin」）：`port/baseline-4cap-upstream-47b240a`（b978900）--no-ff 合入 main → **merge `678ea8f`**（32 文件 +2341/−216，11 新文件；merge 后 main 与 port 分支 `git diff` 为空=内容一致）。推送前拓扑核对：origin/main（b233920）=本地 main（47b240a）的**父代**、port 分支包含二者——纯线性链（首轮「origin/main 领先」系方向误读），推送为 `b233920..678ea8f` **fast-forward**，`main...origin/main` 零偏离，工作树停 main。
+
+**挂账移交**（真机窗口 4 项，见（五））：#3(A) AGC 开/关 A/B 取证 → #10 量纲统一（随裁决）、#8 点按交互 5 步验收、#2 板验 APM 账目。port 分支与 tag `port-4cap-merged-20261020` 留本地（历史经 merge commit 全可达，需要归档随时补推）。
+
+**文档同步**：PROGRESS 顶态改「已合入并推送」、过期警戒线（评审全过前不推不合）移除；CLAUDE.md/AGENTS.md「当前状态」节更新至 2026-10-21；姊妹仓索引补战役闭环注记。
+
 ## 2026-10-21（五）ce-code-review 收口与修复轮：11/11 confirmed 3 P1，用户四项拍板后修复面落地 800 绿
 
 **评审结论**（run 20261020-183118-6a1b4b2a，8 评审员 33 原始发现 → 合并 13 主项 → 验证批 11/11 confirmed）：verdict=**Ready with fixes**。P1×3——#2 形态 A 重试环丢 fork 的 release-before-retry（每次启动失败泄漏 native AudioRecord，memory-safety）；#1 采麦链装配面零覆盖（注释宣称「删此→测试组红」的三处锚经 6 轮变异实测全部恒绿）；#3 软件 AGC 装配级默认开启（自述「×8 不抬误触」不变量被本仓底噪 0.0068 突破，0.0068×8=0.0544>判起线 0.05）。完整报告 `C:/Users/Administrator/AppData/Local/Temp/compound-engineering-197108/ce-code-review/20261020-183118-6a1b4b2a/report.md`。

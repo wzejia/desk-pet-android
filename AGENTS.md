@@ -48,8 +48,9 @@ M1（悬浮桌宠本体）与「助手化」大切片（S0-S8）均已收口；�
 - 单测基线 **754 个**（2026-10-10 修正；656=S65 时代 → 665=S68b → 752=全量审计修复（2026-10-03，40 条 P2 并入）→ 755=入口功能（旧 MainActivity 策略 3 测）→ **754=fafa28e trampoline 重写**：extra 分叉维度整体删除，旧策略 3 测退役、新 OverlayLaunchPolicyTest 2 测补位，文档当时漏改，2026-10-10 执行期实测发现并修正锚）；skipped=0；新增只增不减；验证 `./gradlew.bat testDebugUnitTest --rerun-tasks`
 - `assembleDebug` 绿；spritesheet.webp MD5 `53c81ce652518f7fc7bf70554f363f54`；pet_states.json SHA256 `60b45124…4366`（S13 起 Android 行为有意偏离桌面镜像，见 implementation-notes 2026-08-24）
 
-## 当前状态（2026-10-09，审计修复 + 入口功能后对齐）
+## 当前状态（2026-10-21，port 4cap 战役合入 main）
 
+- **2026-10-21 port 4cap 战役闭环**：fork rk3288 四能力反哺上游（采麦层 5 层链/Tap-to-Talk 点按化/docs 移植），ce-code-review 评审（11/11 confirmed）+ 修复轮后 **800 绿**合入 main 并推送（merge `678ea8f` @ origin/main）；真机窗口待办 4 项（AGC A/B/量纲/点按验收/板验）见 `PROGRESS.md`。以下为 2026-10-09 前后状态存档：
 - **S50~S65 语音链 + S66~S68b 弹窗链已收口**；2026-10-03 **全量代码审计**（P1=0/P2=43/P3=410，产物 `docs/audit/2026-10-03-full-audit/`）+ **40 条 P2 修复**（752 绿）同日合 main；2026-10-09 入口功能：密集架基础设置「打开小朵」可直拉悬浮窗（`extra_launch_overlay_only`，无权限回落 UI），长按菜单删「打开 App」行（入口职责归密集架设置页）。
 - **关键词现状**：唤醒词=小朵小朵/你好小朵/小度小度；打断词已全禁（S63/S64）——打断走唤醒词（S12 链路）或双击。
 - **两板矩阵（2026-10-08，⚠️ 不同版）**：生产板=desk-pet 审计修复版（sha1 23078d1c，13:34 部署，截图 docs/verification/auditfix-deploy-20261008/）；测试机=192.168.137.76 **离线待补装**（10-08 起 ping 不通）；两板均**未带** 10-09 入口功能——新功能生效需 desk-pet+mijijia 两个 APK 成对更新。生产板 mijijia 仍为我们 debug 签名（换包需卸装回灌）。

@@ -177,6 +177,11 @@ IDLE ──(唤醒词/按住说话)──▶ LISTENING ──(VAD判停)──�
 - **平台凭据**：`.scratch/secrets/platform-account.json`（已 gitignore，不入库不引用明文）
 - **桌面仓** `E:\desk-pet-migration\desk-pet` **只读**（仅知识包文档允许回写）
 
+## 当前状态（2026-10-21，port 4cap 战役合入 main）
+
+- **port 4cap 战役闭环**：fork rk3288@7bef28c 四能力逻辑移植（采麦层 5 层链/Tap-to-Talk 点按化/docs 移植，②C 裁决裁 MIC 第 4 档）经 ce-code-review 完整脊柱评审（8 人 33 发现→13 主项，11/11 confirmed）+ 修复轮（release 泄漏三行/三 seam 接线锚+8 测/漂移 WARN 接线/映射单表），**800 绿**（792+8，JDK 前缀 `--rerun-tasks`）合入 main 并推送（merge `678ea8f` @ origin/main，2026-10-21）。机构沉淀：`docs/solutions/workflow-issues/guard-comment-anchors-must-bind-tested-wiring.md` + CONCEPTS「变异锚」词条锚点放置条件。
+- **真机窗口待办 4 项**：AGC 开/关 A/B 取证（#3A）、量纲统一（#10，随 AGC 裁决）、点按交互 5 步验收（#8）、板验 APM 账目（#2）——清单见 DEV_LOG 2026-10-21（五）与 PROGRESS.md。
+
 ## 当前状态（2026-08-06）
 
 - **S0-S8 全部收口**：代码+真机验收+分票提交三清；08-06 续 KWS 检出率日志+release 竞态修复（KwsCore 下沉）+ ce-code-review 五修复 + 孤儿空采 P1（意愿登记制），基线 372 测绿 skipped=0
