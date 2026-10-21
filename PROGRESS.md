@@ -17,7 +17,7 @@
 - **2026-10-21 上板取证挂起 → 判停死锁新票**：A/B 双包就绪（AGC-ON `81f9ef7d` / OFF `8d0cf3ef` @ dist/），A 包已装生产板 10.0.14.18（=main 同源 800 绿）。两轮人声实锤**判停死锁**：板载底噪 0.19 骑在判停线（max(0.03, floor×1.4)）之上，S52 停用 floor 上行 + 空轮收敛死锁 → utterance 永不派发 → 聆听 10s 超时/手动取消。**AGC A/B 挂起**（死锁吞 utterance，先修后测）。详情 DEV_LOG 2026-10-21（七）。
 - **2026-10-21 晚 票A 工具名归一闭环 + 真声验收**：18:03 板测实锤平台密集架 Agent 工具改名 `archive_query`（无 c_ 前缀）→ 桥白名单不识 → mcpUiResult 静默丢弃、结果卡零弹窗；修复=PLATFORM_TOOL_ALIASES+canonicalToolName 双点归一（**805 绿**，独立评审 PASS，SYNCED_TOOLS 锚不动）；merge 845db5e 推送+出包上板；**真声 6 轮派发 6/6 弹卡**（too_many 小/大、no_result、success 90 行滚动、filtered 五形态全覆盖），零 FATAL。**判停过早实锤**：首轮 1.8s→ASR 单字「放」（600ms 判停窗+S51 续听窗 S55 暂关副作用）。详情 DEV_LOG 2026-10-21（八）（九）。
 - **待办（重排）**：①**判停过早/死锁修复票**（票C：双向失败证据齐——恢复 S51 续听窗+冻结条件抗噪（空 ASR 裁判门控+上攻限速），参数需板测调准；阻塞②）②AGC A/B 取证（**OFF 包 8d0cf3ef 基线已落后 main，需基于新 main 重出**再双臂跑）③**借/还/盘点工具名核对**（平台 archive_query 已实锤改名，其余工具族是否同步去 c_ 前缀待一轮借/还/盘点语音实锤或向平台核对）④量纲统一（随 AGC 裁决）⑤点按交互 5 步验收 ⑥板验 APM 账目。
-- **坑沉淀**：`git checkout <commit> -- <dir>` 只还原源树已有文件、**不删源树外新增文件**——整目录回退须补 `comm ls-tree/ls-files` 差集删除（本轮 73 文件漏删致重声明冲突，验证 diff=0 才过）。
+- **坑沉淀**：`git checkout <commit> -- <dir>` 只还原源树已有文件、**不删源树外新增文件**——整目录回退须补 `comm ls-tree/ls-files` 差集删除（本轮 73 文件漏删致重声明冲突，验证 diff=0 才过）。**镜像坑（2026-10-21 票D 实踩）**：`git checkout -- <file>` 还原到 HEAD、**会把工作区未提交实现一并吃掉**——变异验证（临时改源跑测试）的还原必须用 `cp` 备份回写，禁用 checkout 还原（本次 M2 变异后 checkout 冲掉 Prefs.kt 票D 实现，靠重写恢复+全量复绿闭环）。
 - 单测基线口径：**main=754**；refactor/complete=859。验证必带 JDK PATH 前缀 + `--rerun-tasks`（不带会假绿）。
 
 ## 历史：结构重构执行记录（Phase 0-3 ✅ + Phase 4 评审 + 部署批始末，2026-10-10~11）
