@@ -112,6 +112,12 @@ class VadDetector(
         const val ADAPTIVE_START_FACTOR = 2.0
         const val ADAPTIVE_END_FACTOR = 1.4
 
+        /** S69 底噪熔断最少说话态块数（判起后累计 1s 才允许——超短句交给判停/续听合并）。 */
+        const val STALL_MIN_SPEECH_TICKS = 10
+
+        /** S69 熔断低峰比：证据窗全部块 < 语音峰值 EMA×此值 →「窗内无语音」强证据。 */
+        const val STALL_PEAK_RATIO = 0.6
+
         /** S56 空 ASR 轮噪声底上行速率（floor += (rms-floor)×0.6，约 2 个空轮收敛）。 */
         const val EMPTY_TURN_FLOOR_RATE = 0.6
         const val LISTEN_TIMEOUT_TICKS = LISTEN_TIMEOUT_S * 1000 / BLOCK_MS // 300
@@ -271,6 +277,16 @@ class VadDetector(
 
         // 说话中：超 max_utterance 强制结束先查（本块不消费，同桌面端）
         if (speechTicks >= MAX_UTTERANCE_TICKS) return finishUtterance()
+        // S69 底噪熔断：证据窗（最近 10 块）全部远低于语音峰值 EMA →「这 1s 没有语音」
+        // 的强证据。板端 2026-10-21 实锤：floor 稳态钉死底噪后判停线骑底噪带（0.19×1.4），
+        // 底噪块级电平绕线摆动令 belowTicks（判停）与 sustainedAbove（上攻）双计数器互相
+        // 清零——慢跟随（推力归零）/判停/上攻三通道同时失效，4s 气口不切、（七）永不判停。
+        // 熔断是唯一不受摆动影响的收句出口。低峰比对持续音自锁（peak 含当前块，长元音
+        // level≈peak 恒不满足）——S52 误伤免疫；说完到收句 ≈证据窗填满 ~1s。
+        if (speechTicks >= STALL_MIN_SPEECH_TICKS &&
+            plateauWindow.size >= NOISE_ATTACK_SUSTAIN_TICKS &&
+            plateauWindow.all { it < speechPeak * STALL_PEAK_RATIO }
+        ) return finishUtterance()
         speechTicks++
         return if (isSpeech) {
             belowTicks = 0

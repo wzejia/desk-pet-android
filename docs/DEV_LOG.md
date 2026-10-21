@@ -1,6 +1,25 @@
 # 小朵 Android 开发日志
 
 
+## 2026-10-21（十）S69 票C 三件套：底噪熔断判停 + 续听窗恢复 10 + 有界总上限（808 绿，板测定值待跑）
+
+**取证先行（生产板 20261021_190723/192937 日志，9 轮真声）**：票C 双向失败的统一根因实锤=**floor（噪声底）逐轮漂移在临界带，判停行为逐轮不可预测**——19:12:25「放」轮（floor>0.136）判停线>底噪 → 600ms 气口即切（病2 过早判停）；19:33:08 轮（floor≤0.136，diag 连续 4 行 0.19 低谷）4 秒气口不切（判停死锁常态，说完靠上攻收敛才收句）；19:14:35 轮 3 秒气口同型。floor 稳态钉死底噪（0.19，板自噪恒定）后慢跟随推力归零、判停线骑底噪带（0.19×1.4=0.266），底噪块级电平绕线摆动令 belowTicks（判停）与 sustainedAbove（上攻）双计数器互相清零——**慢跟随/判停/上攻三通道同时失效**。（七）DEV_LOG 归因「S52 停用 floor 上行」系注释假锚勘误：S58 已复活上攻（NOISE_ATTACK_ENABLED=true），真机制如上。15:40 死锁时段日志已被轮转覆盖（板留最近 11 文件≈2h）。
+
+**三件套（用户拍板按方案施工）**：
+1. **底噪熔断判停**（`VadDetector`）：说话态下证据窗（复用 plateauWindow 最近 10 块）全部块 < 语音峰值 EMA×0.6 且 speechTicks≥10 → 强制收句。「窗内无语音」强证据，对摆动鲁棒（不再依赖 floor 跟踪）；低峰比对持续音自锁（peak 含当前块，长元音 level≈peak 恒不满足）——S52 误伤免疫；说完到收句 ≈证据窗填满 ~1s（替代旧 8s 强制结束/永不派发）。TDD 实录：测试构造三轮迭代（恒定块→触发说话期上攻假死锁；T 密集→上攻自愈判停非死锁；**T 稀疏 [F,F,F,T] 循环才是死锁域**，Python 全保真模拟定位），v5 构造先红后绿。
+2. **续听窗恢复 1→10**（`CONTINUATION_TICKS`）：判停切尾片段窗内合并（救「放」轮）；S55 暂关决策（09-23「勿再当悬案翻出」）因（九）新证据（句中气口>600ms 切尾，推翻「S60 尾垫已覆盖」假设）由 handoff 待办①重新拍板废止。
+3. **有界总上限 30**（`CONTINUATION_MAX_TICKS`，3s）：hold 期冻结块也计数，到顶强制派发——S55「冻结永不解除 → hold 无限累积 parts=8/66s」死锁硬顶。**变异锚抓到实现 bug**：有界 fire 后被 `dispatchContinuation` 的「倒计时未耗尽」守卫拒发并清空挂起，修=有界到顶时 ticks 归零（强制耗尽语义）过守卫。S55 注释预留正解候选「冻结也有总上限」落地。
+
+**测试**：+3 熔断锚（死锁域收句/波动说话不误伤/短气口不切）+ VSM 三用例改写（合并语义锁还原/有界纯路径构造/轻声冻结合并还原）；**变异双锚真红**（删熔断→熔断用例红；删有界→有界用例红）；全量 **808 绿**（805+3，BUILD SUCCESSFUL 1m19s，JDK PATH+--rerun-tasks 前缀齐全）。有界用例构造曾两轮失真（0.25 恒定块被上攻自愈、非有界路径）——S69 后「冻结永不解除」近乎不可构造（四重机制互相封死），有界上限是末位保险。
+
+**参数与板测**：STALL_MIN_SPEECH_TICKS=10 / STALL_PEAK_RATIO=0.6 / CONTINUATION_TICKS=10 / CONTINUATION_MAX_TICKS=30 全为 JVM 机制锁初值，**板上调准待跑**（金线=`VAD utterance`/`S51 continuation hold|dispatch`/`ASR text`，验收场景=轻声+气口+正常三型）。
+
+```evidence
+verify_cmd: cd /e/desk-pet-android && export PATH="/c/Program Files/Microsoft/jdk-17.0.20.8-hotspot/bin:$PATH" && ./gradlew.bat testDebugUnitTest --rerun-tasks
+verify_claim: BUILD SUCCESSFUL in 1m 19s；JUnit 汇总 total=808 failures=0 errors=0 skipped=0（基线 805+新增 3，零回归）；变异双锚真红实证（删熔断/删有界各复跑对应测试类 1 failed）
+files_touched: [app/src/main/java/com/xiaoduo/deskpet/voice/VadDetector.kt, app/src/main/java/com/xiaoduo/deskpet/voice/VoiceSessionManager.kt, app/src/test/java/com/xiaoduo/deskpet/voice/VadDetectorTest.kt, app/src/test/java/com/xiaoduo/deskpet/voice/VoiceSessionManagerS51ContinuationTest.kt]
+```
+
 ## 2026-10-21（九）票A 合入推送+出包上板：真声验收 6/6 弹卡，弹窗链正式恢复
 
 **合并与推送**：`fix/platform-tool-alias`（ad5352e）--no-ff 合入 main → **merge `845db5e`**，推送 `43d943e..845db5e`（origin 零偏离）。**出包上板**：`dist/xiaoduo-main-845db5e-20261021.apk`（md5 `0113768a`，96MB）19:07:58 `install -r` 上生产板 10.0.14.18（Success，保数据）。
