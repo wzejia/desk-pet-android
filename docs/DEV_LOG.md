@@ -7,7 +7,11 @@
 
 **修正**：START_LINE_MAX 0.35→**0.32**——0.32 保持 end(0.30)<start 不变量、底噪上沿 0.27 安全边 0.05；救回 0.27-0.35 域弱尾；0.19-0.27 域贴底噪属物理极限（VadDetector 类注释既录，用户端对策=尾词稍加重音）。TDD：S69c 测试（floor 污染域 0.34 弱尾判起）先红后绿，变异验证（钳回 0.35 → 红）后还原；全量 **811 绿**。三轮板测复验场景=含「的档案」尾的查询句多轮。
 
-
+```evidence
+verify_cmd: cd /e/desk-pet-android && export PATH="/c/Program Files/Microsoft/jdk-17.0.20.8-hotspot/bin:$PATH" && ./gradlew.bat testDebugUnitTest --rerun-tasks
+verify_claim: total=811 failures=0 errors=0 skipped=0；S69c 变异（钳回 0.35）单测红后还原
+files_touched: [app/src/main/java/com/xiaoduo/deskpet/voice/VadDetector.kt, app/src/test/java/com/xiaoduo/deskpet/voice/VadDetectorTest.kt]
+```
 
 ## 2026-10-21（十二）S69+S69b 板测收口：11 轮真声全健康，合并语义 6/6，票C 闭环
 
