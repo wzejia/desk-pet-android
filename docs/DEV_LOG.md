@@ -64,7 +64,7 @@ files_touched: [docs/DEV_LOG.md, PROGRESS.md]
 病 B（maxLevel 过线但 manual release 先到→吞已判定语音，2026-10-17 板端 4 轮实证）移植修复：stopListening 在 vad.stop 前增 S51 continuation hold 检查（ticksLeft=0 强制续听窗即尽→dispatchContinuation 照常派发，有货送货）；未判定仍走既有 isSpeaking/backToIdle 分支。与 cancelCurrentTurn（放弃本轮=丢弃）语义分界不变，S51ContinuationTest 锚不受影响。
 
 ```evidence
-verify_cmd: （2026-10-21 勘正：本块实跑缺 PATH export，证据形态不合规——正确口径见 PROGRESS.md:12；结论数字已由 2026-10-21 收口条目全套件带完整前缀复跑覆盖）cd /e/desk-pet-wt-t2 && export JAVA_HOME='C:/Program Files/Microsoft/jdk-17.0.20.8-hotspot' && ./gradlew.bat :app:testDebugUnitTest --rerun-tasks；变异锚 M2=删守卫块单跑 VoiceSessionManagerStopReleaseGuardTest --rerun-tasks
+verify_cmd: （2026-10-21 勘正：本块实跑缺 PATH export，证据形态不合规——正确口径见 PROGRESS.md「单测基线口径」行；结论数字已由 2026-10-21 收口条目全套件带完整前缀复跑覆盖）cd /e/desk-pet-wt-t2 && export JAVA_HOME='C:/Program Files/Microsoft/jdk-17.0.20.8-hotspot' && ./gradlew.bat :app:testDebugUnitTest --rerun-tasks；变异锚 M2=删守卫块单跑 VoiceSessionManagerStopReleaseGuardTest --rerun-tasks
 verify_claim: 全套件终态 BUILD SUCCESSFUL + XML 聚合 760 tests/0 failures/0 errors/0 skipped（基线 754+新增 6）；M2 红=stop during continuation window dispatches -> expected:<PROCESSING> but was:<IDLE>（对照组 stop with plain silence PASS 证特异性）；cp 还原 md5 27da208c548518c19943b6e11c44ed1a 一致、pendingContinuation 回归
 files_touched: [
   app/src/main/java/com/xiaoduo/deskpet/voice/VoiceSessionManager.kt,
@@ -77,7 +77,7 @@ files_touched: [
 免按住模式真值表纯逻辑（零 Android import）：点一下=语音入口唯一手势，结束时机归状态机（VAD 判停/S51 续听/30s 超时），不绑人手松手。真值表两格：LISTENING→END（stopListening=有货送货）；IDLE/PROCESSING/SPEAKING→START（startListening；SPEAKING/PROCESSING 走 VSM 既有 cancel 接续 barge-in，UI 层不调 cancel）。两处 UI（ChatScreen 输入条/SettingsScreen 语音自检）共用同一分流。
 
 ```evidence
-verify_cmd: （2026-10-21 勘正：原记录无 cd/export 前缀却标注「JDK17 前缀」，记录不实；正确口径见 PROGRESS.md:12，结论数字已由 2026-10-21 收口条目带完整前缀复跑覆盖）变异锚 M1=删 LISTENING 分支全返 START 后单跑 VoiceTapRouterTest --rerun-tasks；绿证并入全套件终态跑
+verify_cmd: （2026-10-21 勘正：原记录无 cd/export 前缀却标注「JDK17 前缀」，记录不实；正确口径见 PROGRESS.md「单测基线口径」行，结论数字已由 2026-10-21 收口条目带完整前缀复跑覆盖）变异锚 M1=删 LISTENING 分支全返 START 后单跑 VoiceTapRouterTest --rerun-tasks；绿证并入全套件终态跑
 verify_claim: M1 红=listening routes to END -> expected:<END> but was:<START>（3 个 START 组不受扰）；cp 还原 md5 7e732b5db161d820b6da8042d76016cb 一致、MUT-M1 零残留；全套件 XML 760/0/0/0
 files_touched: [
   app/src/main/java/com/xiaoduo/deskpet/voice/VoiceTapRouter.kt,
@@ -90,7 +90,7 @@ files_touched: [
 R2 红线逐 hunk 合并（禁整文件覆盖）：InputBar 点按语义以上游手势族落地（awaitEachGesture+waitForUpOrCancellation 上-下沿配对），保留上游 neverEqualPolicy levels/WaveformBars(levelsState) 签名，移植 fork rememberUpdatedState 过时闭包守卫与两态文案（点击说话/正在聆听，点击结束），三态 when 底色退役为两态（outline 聆听高亮/surfaceVariant 独立底）；ChatScreen voiceState 派生自 VSM stateFlow（禁本地布尔镜像）+voiceTap 单路入口（权限/失败收敛沿用原语义）；SettingsScreen 仅 VoiceSelfCheck 区+imports（KwsSection 采麦源行 T1 属地零触碰，diff 6 hunk 全落 imports+810-870），Button onClick 直通分流，手势族 4 imports 随按住语义退役。
 
 ```evidence
-verify_cmd: （2026-10-21 勘正：本块实跑缺 PATH export，证据形态不合规——正确口径见 PROGRESS.md:12；结论数字已由 2026-10-21 收口条目全套件带完整前缀复跑覆盖）cd /e/desk-pet-wt-t2 && export JAVA_HOME='C:/Program Files/Microsoft/jdk-17.0.20.8-hotspot' && ./gradlew.bat :app:testDebugUnitTest --rerun-tasks
+verify_cmd: （2026-10-21 勘正：本块实跑缺 PATH export，证据形态不合规——正确口径见 PROGRESS.md「单测基线口径」行；结论数字已由 2026-10-21 收口条目全套件带完整前缀复跑覆盖）cd /e/desk-pet-wt-t2 && export JAVA_HOME='C:/Program Files/Microsoft/jdk-17.0.20.8-hotspot' && ./gradlew.bat :app:testDebugUnitTest --rerun-tasks
 verify_claim: BUILD SUCCESSFUL (1m 24s) + XML 聚合 760 tests/0 failures/0 errors/0 skipped；编译即证三文件接线（VoiceTapRouter 经 ChatScreen/SettingsScreen 编译消费、InputBar 手势族编译通过）；R2 领先符号对拍见 T2-progress.md
 files_touched: [
   app/src/main/java/com/xiaoduo/deskpet/ui/screens/InputBar.kt,

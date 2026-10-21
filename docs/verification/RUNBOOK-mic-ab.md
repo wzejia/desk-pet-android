@@ -1,4 +1,4 @@
-> 自 fork rk3288@7bef28c 搬运（2026-10-20），fork 侧 evidence 未带 JDK 前缀为原档债务，本仓口径见 PROGRESS.md:12（验证必带 JDK PATH 前缀 + --rerun-tasks）。
+> 自 fork rk3288@7bef28c 搬运（2026-10-20），fork 侧 evidence 未带 JDK 前缀为原档债务，本仓口径见 PROGRESS.md「单测基线口径」行（验证必带 JDK PATH 前缀 + --rerun-tasks）。
 > fork 侧归属：.scratch/colleague-1019/RUNBOOK-mic-ab.md（fork 工作区未跟踪文件，本档为唯一指定搬运例外）。
 
 # 现场 Runbook — 双板麦克风 A/B 战役（2026-10-19 深夜立项）

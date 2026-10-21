@@ -1,4 +1,4 @@
-> 自 fork rk3288@7bef28c 搬运（2026-10-20），fork 侧 evidence 未带 JDK 前缀为原档债务，本仓口径见 PROGRESS.md:12（验证必带 JDK PATH 前缀 + --rerun-tasks）。
+> 自 fork rk3288@7bef28c 搬运（2026-10-20），fork 侧 evidence 未带 JDK 前缀为原档债务，本仓口径见 PROGRESS.md「单测基线口径」行（验证必带 JDK PATH 前缀 + --rerun-tasks）。
 
 # 验收证据：AGC 远场 + Tap-to-Talk 交互（17.242，2026-10-19）
 

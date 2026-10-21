@@ -25,5 +25,5 @@ port 4cap 战役（分支 `port/baseline-4cap-upstream-47b240a`）将 fork 侧 4
 ## fork 侧债务（记录，不代修）
 
 - fork AGENTS.md:48 基线数 618 过期（实际 747）。
-- fork 侧 evidence 命令未带 JDK PATH 前缀（搬运档注记已声明，本仓口径见 PROGRESS.md:12（验证必带 JDK PATH 前缀 + --rerun-tasks））。
+- fork 侧 evidence 命令未带 JDK PATH 前缀（搬运档注记已声明，本仓口径见 PROGRESS.md「单测基线口径」行（验证必带 JDK PATH 前缀 + --rerun-tasks））。
 - probe4 探针三文件未提交（战役资产，禁 checkout 回退）。
