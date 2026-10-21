@@ -78,6 +78,14 @@
 <strong>与现有状态点对齐</strong>：仅替换 SENDING 分支，STREAMING（StreamingCursor ▍）、DONE（无指示）、ERROR（红色文字）不变。</p>
 </div>
 
+<div class="decision">
+<h3>Tap-to-Talk：语音入口按住说话改点按（2026-10-18 拍板，port 4cap 战役落地）</h3>
+<p><strong>决策</strong>：语音入口由「按住说话」（按住=说话/松手=发送/上滑=取消）改为「点击说话」单手势——点一下开始、再点一下结束，分流收敛到 VoiceTapRouter 真值表（LISTENING→END / 其余→START），结束时机归状态机（VAD 判停 / S51 续听 / 30s 超时）。<br>
+<strong>理由</strong>：用户拍板免按住模式；按住期间 TTS 播报可触发吞语音竞态（病 B，2026-10-17 板端 4 轮实证），点按化后结束时机脱离人手时序。<br>
+<strong>连带裁决</strong>：②C——fork 第 4 档 MIC_SOURCE_MIC=3 不带入上游（coerce 保持 0..2，−4 断言）；InputBar 手势用上游 awaitEachGesture 手势族落地，不引 fork detectTapGestures；上滑取消退役。<br>
+<strong>验收</strong>：真机交互验收（5 步清单）挂待办等设备窗口。</p>
+</div>
+
 <h2>设计偏差</h2>
 
 <div class="deviation">

@@ -1,6 +1,48 @@
 # 小朵 Android 开发日志
 
 
+## 2026-10-21（五）ce-code-review 收口与修复轮：11/11 confirmed 3 P1，用户四项拍板后修复面落地 800 绿
+
+**评审结论**（run 20261020-183118-6a1b4b2a，8 评审员 33 原始发现 → 合并 13 主项 → 验证批 11/11 confirmed）：verdict=**Ready with fixes**。P1×3——#2 形态 A 重试环丢 fork 的 release-before-retry（每次启动失败泄漏 native AudioRecord，memory-safety）；#1 采麦链装配面零覆盖（注释宣称「删此→测试组红」的三处锚经 6 轮变异实测全部恒绿）；#3 软件 AGC 装配级默认开启（自述「×8 不抬误触」不变量被本仓底噪 0.0068 突破，0.0068×8=0.0544>判起线 0.05）。完整报告 `C:/Users/Administrator/AppData/Local/Temp/compound-engineering-197108/ce-code-review/20261020-183118-6a1b4b2a/report.md`。
+
+**用户四项拍板**（2026-10-21）：①#2+#1 按 fix order 立即修+补定向测试；②#3=(A) AGC 保持默认开、先上生产板做开/关 A/B 对照取证；③#5=(A) 补回 readLoop 漂移 WARN 接线（fork 原语义）；④#8 真机交互验收挂待办等设备窗口。
+
+**修复落地**（主代理亲执行，fork 原文照抄防漂移）：
+- **#2**：`startRecordWithRetry` 失败分支照 fork `:347-349` 补回 `runCatching { r.stop() } / r.release() / record = null` 三行（WARN 之后、attempt 裁决之前，重试与终态两出口共用）；KDoc 同步改为 fork 的「未进录音态→stop/release→delay 重建」时序描述（原「finally 释放」为假声明）。
+- **#1**：三处裁决收敛为顶层纯 seam——`startRecordRetryOutcome(attempt, maxAttempts)`（RETRY/GIVE_UP）、`onCaptureStartOutcome(guard, startedOk)`（成复位/败攒证）、`onZeroBlockOutcome(guard, block)`；readLoop 三调用点与重试裁决点全部改走 seam。新建 `AudioCaptureWiringSeamTest`（8 测：重试序列 1→R/2→R/3→G + 边界含等、三常数钉死、连败三次恰一次 fire、败败成复位后重计满、孤成不 fire、29 块不触发/30 块触发、非零打断重计）。**残留如实记**：readLoop 调用点本身仍 Android 域 JVM 不可达（定向测试钉的是裁决序列语义；调用点删除由守卫注释+审查+真机兜底）——record 工厂 seam（构造/释放计数）留待后续票。
+- **#5(A)**：readLoop 采麦启动日志后补回 fork 漂移 WARN 块（`isSourceDrift(sourceMode, usedSource)` → 「mic_source 漂移：pref mode=…期望 source=…实际 active source=…」，每次启动至多一行不去重）；注释指称写「本仓 e5b6e11/593595f gotcha」（fork 原文「上游」系 fork 视角残留，两 hash 经 `git cat-file` 证实为本仓 S52/S55/S56 提交）。
+- **#9**：`buildRecord` 收回单表——`val preferred = expectedSourceFor(sourceMode)`（fork 同形，删二次 when），注释注明「返回值与 AudioSource 常数逐一相等，不设二次映射——二次映射会在补档位时静默分叉」；`:389`「映射单点维护」KDoc 回归真命题。
+- **#4**：`isSourceDrift` KDoc 与 SourceDriftTest KDoc 的「有意偏离上游 1723d7b：不把设置页麦源改只读」假陈述改写为本仓实况（1723d7b=本仓加只读锁的提交，锁仍生效，变更走 adb 改 pref+重启）。
+- **#7**：InputBar TO_VOICE contentDescription「切换到按住说话」→「切换到点击说话」；同源旧语义清理（AppIcons:55 注释、SettingsScreen:170 区块注释、VSM wakeAckActive/startListening KDoc 三处按住措辞→点按）。
+- **#6**：spec 框图行改「点击说话」+ InputArea 段落改 Tap-to-Talk 语义（标 2026-10-18 拍板来源）；Product Contract KD15 行加改点按沿革；implementation-notes.html 新增 Tap-to-Talk 设计决策条目（含②C 连带裁决与验收待办）。
+- **#11**：T2 三票 evidence 块勘正（补记不抹史：保留原命令原文，前置勘正标记说明缺 PATH export/虚标前缀，指向本条目复跑覆盖）。
+- **#12**：CLAUDE.md 包结构表——总数 105→111（find 实测校准）、voice/ 32→33 文件并补 `VoiceTapRouter.kt` 关键类条目。
+- **#13**：四处「本仓口径以 docs/DEV_LOG.md:28 为准」改指 `PROGRESS.md:12`（sister-repo-index + 三搬运档注记头，各 1 处，搬运档 fork 正文零触碰）。
+
+**验证闭环**（全套件带完整 JDK PATH 前缀 + `--rerun-tasks`）：**BUILD SUCCESSFUL，XML 复算 tests=800 failures=0 errors=0 skipped=0（107 套件）= 792 + 8 条接线 seam 测**；p2p 十一关键词逐一持平基线；probe4 三符号 app/ grep=0；MIC_SOURCE_MIC grep=0、`coerceIn(0, 2)`@Prefs.kt:170 在位。**变异锚 3 条实红**（M1 重试上限比较 `>=`→`>`：重试序列组红；M2 删成功复位分支：复位组红；M3 归零转发恒 false：全零裁决组红），还原 md5 对拍 `b494095b` 一致零残留。
+
+**真机窗口待办**（用户拍板挂起，设备窗口可用时执行）：
+1. **#3(A) AGC A/B 取证**：生产板 mode 0/source 7，`SOFTWARE_AGC_ENABLED` true/false 两包各 10 轮同场景，比对 maxLevel 分布与 VAD 判停成功率（验收档已记 source=7 上 12/12 `manual release, no utterance`+maxLevel 爆表形态），结论落 `docs/verification/`，据证据裁决是否保留默认开；
+2. **#10 量纲统一**（随 #3 裁决联动，若保留 AGC）：校准统计改增益前口径或复用会话 AGC 同域；
+3. **#8 Tap-to-Talk 真机交互验收**（5 步：IDLE 点按进 LISTENING / 聆听中再点走有货送货无 `manual release` 金线 / SPEAKING 点按 barge-in / 两态文案底色像素断言+A/B 盲测 / 结论落 verification）；
+4. **#2 板验**：制造一次 startRecording 被拒（-38），确认 APM `releaseInput() releasing unknown input` 无增量、第 2 次重试能进录音态。
+
+**后手**：修复 diff 独立 reviewer 复核（maker≠checker）→ ce-compound 沉淀 → worktree 清理（wt-t2/t3/testing）→ 评审全过再议推 origin/合 main。
+
+```evidence
+verify_cmd: cd /e/desk-pet-android && export JAVA_HOME='C:/Program Files/Microsoft/jdk-17.0.20.8-hotspot' && export PATH="/c/Program Files/Microsoft/jdk-17.0.20.8-hotspot/bin:$PATH" && ./gradlew.bat :app:testDebugUnitTest --rerun-tasks
+verify_claim: BUILD SUCCESSFUL in 1m 25s；XML 独立复算 tests=800 failures=0 errors=0 skipped=0（107 套件）=792+8 接线 seam 测；p2p 十一关键词持平；probe4/MIC_SOURCE_MIC app/ grep=0；变异锚 3 条（重试上限比较/删成功复位/归零转发恒 false）实红且还原 md5 b494095b 对拍一致
+files_touched: [
+  app/src/main/java/com/xiaoduo/deskpet/voice/AudioCapture.kt,
+  app/src/main/java/com/xiaoduo/deskpet/voice/VoiceSessionManager.kt,
+  app/src/main/java/com/xiaoduo/deskpet/ui/screens/InputBar.kt,
+  app/src/main/java/com/xiaoduo/deskpet/ui/screens/SettingsScreen.kt,
+  app/src/main/java/com/xiaoduo/deskpet/ui/icons/AppIcons.kt,
+  app/src/test/java/com/xiaoduo/deskpet/voice/AudioCaptureWiringSeamTest.kt,
+  app/src/test/java/com/xiaoduo/deskpet/voice/AudioCaptureSourceDriftTest.kt
+]
+```
+
 ## 2026-10-20（四）port 4cap 战役收口：三车道线性合入 792 绿终验，②C 口径精确命中
 
 **合入**（主代理执行，L10 线性序）：T2（`16f6f85`，8 文件 +386/−157，零冲突——T2 的 DEV_LOG 证据块追加在文件尾、战役条目在头，区域不重叠自动合并）→ T3（`7af84ed`，7 文件 +480/−1，零冲突）。
@@ -22,7 +64,7 @@ files_touched: [docs/DEV_LOG.md, PROGRESS.md]
 病 B（maxLevel 过线但 manual release 先到→吞已判定语音，2026-10-17 板端 4 轮实证）移植修复：stopListening 在 vad.stop 前增 S51 continuation hold 检查（ticksLeft=0 强制续听窗即尽→dispatchContinuation 照常派发，有货送货）；未判定仍走既有 isSpeaking/backToIdle 分支。与 cancelCurrentTurn（放弃本轮=丢弃）语义分界不变，S51ContinuationTest 锚不受影响。
 
 ```evidence
-verify_cmd: cd /e/desk-pet-wt-t2 && export JAVA_HOME='C:/Program Files/Microsoft/jdk-17.0.20.8-hotspot' && ./gradlew.bat :app:testDebugUnitTest --rerun-tasks；变异锚 M2=删守卫块单跑 VoiceSessionManagerStopReleaseGuardTest --rerun-tasks
+verify_cmd: （2026-10-21 勘正：本块实跑缺 PATH export，证据形态不合规——正确口径见 PROGRESS.md:12；结论数字已由 2026-10-21 收口条目全套件带完整前缀复跑覆盖）cd /e/desk-pet-wt-t2 && export JAVA_HOME='C:/Program Files/Microsoft/jdk-17.0.20.8-hotspot' && ./gradlew.bat :app:testDebugUnitTest --rerun-tasks；变异锚 M2=删守卫块单跑 VoiceSessionManagerStopReleaseGuardTest --rerun-tasks
 verify_claim: 全套件终态 BUILD SUCCESSFUL + XML 聚合 760 tests/0 failures/0 errors/0 skipped（基线 754+新增 6）；M2 红=stop during continuation window dispatches -> expected:<PROCESSING> but was:<IDLE>（对照组 stop with plain silence PASS 证特异性）；cp 还原 md5 27da208c548518c19943b6e11c44ed1a 一致、pendingContinuation 回归
 files_touched: [
   app/src/main/java/com/xiaoduo/deskpet/voice/VoiceSessionManager.kt,
@@ -35,7 +77,7 @@ files_touched: [
 免按住模式真值表纯逻辑（零 Android import）：点一下=语音入口唯一手势，结束时机归状态机（VAD 判停/S51 续听/30s 超时），不绑人手松手。真值表两格：LISTENING→END（stopListening=有货送货）；IDLE/PROCESSING/SPEAKING→START（startListening；SPEAKING/PROCESSING 走 VSM 既有 cancel 接续 barge-in，UI 层不调 cancel）。两处 UI（ChatScreen 输入条/SettingsScreen 语音自检）共用同一分流。
 
 ```evidence
-verify_cmd: 变异锚 M1=删 LISTENING 分支全返 START 后单跑 VoiceTapRouterTest --rerun-tasks（JDK17 前缀）；绿证并入全套件终态跑
+verify_cmd: （2026-10-21 勘正：原记录无 cd/export 前缀却标注「JDK17 前缀」，记录不实；正确口径见 PROGRESS.md:12，结论数字已由 2026-10-21 收口条目带完整前缀复跑覆盖）变异锚 M1=删 LISTENING 分支全返 START 后单跑 VoiceTapRouterTest --rerun-tasks；绿证并入全套件终态跑
 verify_claim: M1 红=listening routes to END -> expected:<END> but was:<START>（3 个 START 组不受扰）；cp 还原 md5 7e732b5db161d820b6da8042d76016cb 一致、MUT-M1 零残留；全套件 XML 760/0/0/0
 files_touched: [
   app/src/main/java/com/xiaoduo/deskpet/voice/VoiceTapRouter.kt,
@@ -48,7 +90,7 @@ files_touched: [
 R2 红线逐 hunk 合并（禁整文件覆盖）：InputBar 点按语义以上游手势族落地（awaitEachGesture+waitForUpOrCancellation 上-下沿配对），保留上游 neverEqualPolicy levels/WaveformBars(levelsState) 签名，移植 fork rememberUpdatedState 过时闭包守卫与两态文案（点击说话/正在聆听，点击结束），三态 when 底色退役为两态（outline 聆听高亮/surfaceVariant 独立底）；ChatScreen voiceState 派生自 VSM stateFlow（禁本地布尔镜像）+voiceTap 单路入口（权限/失败收敛沿用原语义）；SettingsScreen 仅 VoiceSelfCheck 区+imports（KwsSection 采麦源行 T1 属地零触碰，diff 6 hunk 全落 imports+810-870），Button onClick 直通分流，手势族 4 imports 随按住语义退役。
 
 ```evidence
-verify_cmd: cd /e/desk-pet-wt-t2 && export JAVA_HOME='C:/Program Files/Microsoft/jdk-17.0.20.8-hotspot' && ./gradlew.bat :app:testDebugUnitTest --rerun-tasks
+verify_cmd: （2026-10-21 勘正：本块实跑缺 PATH export，证据形态不合规——正确口径见 PROGRESS.md:12；结论数字已由 2026-10-21 收口条目全套件带完整前缀复跑覆盖）cd /e/desk-pet-wt-t2 && export JAVA_HOME='C:/Program Files/Microsoft/jdk-17.0.20.8-hotspot' && ./gradlew.bat :app:testDebugUnitTest --rerun-tasks
 verify_claim: BUILD SUCCESSFUL (1m 24s) + XML 聚合 760 tests/0 failures/0 errors/0 skipped；编译即证三文件接线（VoiceTapRouter 经 ChatScreen/SettingsScreen 编译消费、InputBar 手势族编译通过）；R2 领先符号对拍见 T2-progress.md
 files_touched: [
   app/src/main/java/com/xiaoduo/deskpet/ui/screens/InputBar.kt,

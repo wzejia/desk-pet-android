@@ -1,13 +1,14 @@
 # 小朵 Android M1 进度
 
-## 状态：main=重构前代码+重构经验文档全保留（2026-10-11 深夜用户拍板）；重构完整版封存 refactor/complete @ aa79fbd（859 绿）；port 4cap 战役分支=792 绿待评审（2026-10-20）
+## 状态：main=重构前代码+重构经验文档全保留（2026-10-11 深夜用户拍板）；重构完整版封存 refactor/complete @ aa79fbd（859 绿）；port 4cap 战役分支=评审 Ready with fixes → 修复轮落地 **800 绿**（2026-10-21，真机验收 4 项挂待办，见 DEV_LOG 2026-10-21（五））
 
 - **main 现状**（HEAD=`47b240a`（2026-10-20 T3 docs 车道勘正：原记 00c5c97 已过期），app/ 自 `c6e7243` 无代码变更，其上两笔皆 docs）：`app/` 代码=**重构前 e288037 态**（字节一致 diff 0 行，**754 绿** skipped=0，验证带 JDK PATH 前缀 + `--rerun-tasks`）；`docs/` 21 文件重构经验文档全保留（spec v0.4/Phase0-4 审计/§5.4 复测/内存归因/optimization-analysis）。
 - **重构完整版封存**：分支 `refactor/complete` + tag `refactor-complete-20261011` = `aa79fbd`（Phase 0-3 全合入 + ocr[394]，859 绿）。**回退到重构版** = `git checkout refactor/complete`（板上部署走既有回灌法，流程见 DEV_LOG 2026-10-11（二）/（六））。refactor/p0..p3 分支照旧保留。
 - **板上现=refactor/p0 @ 19ea825**（5a0103eb，行为等价包，2026-10-11 深夜回滚，回滚全绿 151/151；main 态快照 `.scratch/prod-deskpet-data-backup-20261011-rollback-snapshot/`）。
 - **2026-10-13**：带密钥 APK 构建（main 重构前态，md5 前缀 `6edaebcc`，96MB，双密钥注入/VOLC 空=08-19 以来一贯状态），**产物留存未部署，用户令暂不构建**（DEV_LOG 2026-10-13（一））。
 - **2026-10-19**：main 定型基线打分支+tag——`baseline/main-finalized` + `main-finalized-20261019` = `00c5c97`（已推 origin，纯 git 治理无代码改动）。**main vs refactor/p0 差异勘明**（`git diff main..refactor/p0` 实证）：p0 = e288037 + **Phase 0 守护代码**（PetOverlayState 活性台账接线 4 文件 ~+70 行 + `PetOverlayStateTest.kt` 87 行，**761 绿**），并非纯文档差；p0 分支 HEAD 现为 `d866ec1`（板上 APK 5a0103eb 对应更早的 `19ea825`）。详情 DEV_LOG 2026-10-19（一）。
-- **2026-10-20 port 4cap 战役**：fork rk3288 四能力反哺上游——采麦层 5 层链（ZeroBlock/SourceDrift/自愈重启/②C 裁决裁 4 档/SoftwareAgc）+ Tap-to-Talk 点按化 + docs 三验证档搬运；三车道并行后线性合入 `port/baseline-4cap-upstream-47b240a`，**792 绿终验**（754+32+6，与②C 预测 796−4 精确一致）；p2p 零回退、probe4 零污染。**待 ce-code-review，通过前不推 origin 不合 main**。详情 DEV_LOG 2026-10-20（一）~（四）。
+- **2026-10-20 port 4cap 战役**：fork rk3288 四能力反哺上游——采麦层 5 层链（ZeroBlock/SourceDrift/自愈重启/②C 裁决裁 4 档/SoftwareAgc）+ Tap-to-Talk 点按化 + docs 三验证档搬运；三车道并行后线性合入 `port/baseline-4cap-upstream-47b240a`，**792 绿终验**（754+32+6，与②C 预测 796−4 精确一致）；p2p 零回退、probe4 零污染。详情 DEV_LOG 2026-10-20（一）~（四）。
+- **2026-10-21 评审+修复轮**：ce-code-review 完整脊柱（8 评审员/33 发现→合并 13→验证 11/11 confirmed）verdict=**Ready with fixes**（P1×3：release 泄漏/装配面零覆盖/AGC 默认开）；用户四项拍板后修复面落地（#2 release 三行+#1 三 seam+8 测+#5A 漂移接线+#9 单表+#4/#7 文案+#6/#11/#12/#13 docs），**800 绿**（792+8）+变异锚 3 条实红。**真机窗口待办 4 项**：#3(A) AGC A/B 取证、#10 量纲统一、#8 点按交互验收、#2 板验。评审全过前不推 origin 不合 main。详情 DEV_LOG 2026-10-21（五）。
 - **坑沉淀**：`git checkout <commit> -- <dir>` 只还原源树已有文件、**不删源树外新增文件**——整目录回退须补 `comm ls-tree/ls-files` 差集删除（本轮 73 文件漏删致重声明冲突，验证 diff=0 才过）。
 - 单测基线口径：**main=754**；refactor/complete=859。验证必带 JDK PATH 前缀 + `--rerun-tasks`（不带会假绿）。
 
