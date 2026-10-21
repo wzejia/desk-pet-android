@@ -47,14 +47,26 @@ object ShelfMcpBridge {
     )
 
     /**
+     * 平台工具名 → 桥内规范名别名表。2026-10-21 真板（10.0.14.18）SSE 实抓：平台密集架
+     * Agent 已把该工具改名为 archive_query（无 c_ 前缀），TOOL_CALL_START
+     * name=archive_query args={query,query_scope,keyword}，TOOL_CALL_RESULT 正常返回。
+     * 映射到旧名 c_archive_query 而非反过来：密集架侧白名单（AppController.mcpSyncedTools）
+     * 与结果卡标题语义（titleFor）都锚旧名，归一到旧名后密集架端零改动。
+     * 注意：仅 archive_query 有板测实证；其余工具（borrow/return/inventory 族）是否同步
+     * 改名无证据，不臆测入表，待与平台核对后再补。
+     */
+    val PLATFORM_TOOL_ALIASES: Map<String, String> = mapOf("archive_query" to "c_archive_query")
+
+    /**
      * 工具名 → mcpUiSync 请求体（逐字 JSON；名字全部出自 [SYNCED_TOOLS] 白名单，
      * 无转义/注入风险）。未知工具（含空串、非本 Agent 工具）→ null：调用方不发请求。
      * S67b：runId 非空时带上（密集架端凭它区分「新一轮 START（旧卡让位）」与「同轮第二个
      * 工具 START（旧卡保留，否则同轮第一条结果刚弹就被误杀）」）；空则不带（向后兼容）。 */
     fun callFor(tool: String, runId: String = ""): String? {
-        if (tool !in SYNCED_TOOLS) return null
-        return if (runId.isBlank()) """{"Op":"mcpUiSync","tool":"$tool"}"""
-               else """{"Op":"mcpUiSync","tool":"$tool","runId":"$runId"}"""
+        val canonical = canonicalToolName(tool)
+        if (canonical !in SYNCED_TOOLS) return null
+        return if (runId.isBlank()) """{"Op":"mcpUiSync","tool":"$canonical"}"""
+               else """{"Op":"mcpUiSync","tool":"$canonical","runId":"$runId"}"""
     }
 
     /** S46 允许本地导航的密集架页面（白名单防注入；page 拼进逐字 JSON）。 */
@@ -75,10 +87,11 @@ object ShelfMcpBridge {
      * 未知工具 / 空 result → null：调用方不发请求。
      */
     fun resultBodyFor(tool: String, content: String, argsJson: String? = null, runId: String = ""): String? {
-        if (tool !in SYNCED_TOOLS || content.isBlank()) return null
+        val canonical = canonicalToolName(tool)
+        if (canonical !in SYNCED_TOOLS || content.isBlank()) return null
         val body = org.json.JSONObject()
             .put("Op", "mcpUiResult")
-            .put("tool", tool)
+            .put("tool", canonical)
             .put("result", content)
         if (!argsJson.isNullOrBlank()) body.put("args", argsJson)
         if (runId.isNotBlank()) body.put("runId", runId)
@@ -165,3 +178,12 @@ object ShelfMcpBridge {
     /** 逐字 Content-Type（蓝本 §7.2 实测可通形态；不带 charset 后缀）。 */
     private val JSON = "application/json".toMediaType()
 }
+
+/**
+ * 平台工具名归一：命中 [ShelfMcpBridge.PLATFORM_TOOL_ALIASES] 别名则映射（如
+ * archive_query → c_archive_query），否则原样返回（identity）。纯 JVM 顶层函数
+ * （seam 纪律：免构造 Android 类即可单测），[ShelfMcpBridge.callFor] 与
+ * [ShelfMcpBridge.resultBodyFor] 入口先经此归一，再判白名单/拼请求体。
+ */
+internal fun canonicalToolName(raw: String): String =
+    ShelfMcpBridge.PLATFORM_TOOL_ALIASES[raw] ?: raw

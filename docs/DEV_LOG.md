@@ -1,6 +1,26 @@
 # 小朵 Android 开发日志
 
 
+## 2026-10-21（八）板测续取证：平台工具改名致 mcpUiResult 静默丢弃（票A 修复）+ 判停过早与跨仓 NPE 取证
+
+**18:03-18:04 板测时间轴（10.0.14.18，生产板）**：18:03:47 唤醒「你好小朵」→ 18:03:50 utterance 派发（32000 采样恰 2.0s，`S51 continuation hold: parts=1 window=1 blocks` 实锤续听窗处于 S55 暂关态）→ ASR「帮我查询当前有哪些。」→ 18:03:59 平台执行工具 → 18:04:00 TOOL_CALL_RESULT 正常返回（too_many，6827 条统计）→ **`MCP tool result captured name=archive_query` 后戛然而止**：桥白名单只认 `c_archive_query`，`resultBodyFor` 对未知工具按守卫口径返回 null，mcpUiResult 静默丢弃，密集架零弹窗（板侧全天仅收到 getShelfStatus/getAir 轮询）。**SSE 原始证据行**（归档，P3）：
+
+```
+10-21 18:03:59.986 I/AguiClient(29039): SSE raw: data:{"type":"TOOL_CALL_START","rawEvent":{...,"tool_calls":[{"name":"archive_query","args":{"query":"帮我查询当前有哪些","query_scope":"all","keyword":""},"id":"KCamJynjSuvFAItcx6cFVYc6qJEWAhtx","type":"tool_call"}],...},"name":"ChatOpenAI","tags":["seq:step:1"],...}
+10-21 18:04:00.635 I/AguiClient(29039): SSE raw: data:{"type":"TOOL_CALL_RESULT","messageId":"KCamJynjSuvFAItcx6cFVYc6qJEWAhtx","content":"{\n  \"success\": true,\n  \"status\": \"too_many\",\n  \"message\": \"根据您查询“帮我查询当前有哪些”，共检索到 6827 条结果...（统计表略）",...}
+10-21 18:04:00.649 I/VoiceSession(29039): MCP tool result captured name=archive_query
+```
+
+**票A 修复（本条目对应代码）**：`ShelfMcpBridge` 增 `PLATFORM_TOOL_ALIASES = {archive_query→c_archive_query}` + 顶层 internal 纯函数 `canonicalToolName`，`callFor/resultBodyFor` 双点（白名单判定+请求体 tool 字段）归一——密集架侧 `mcpSyncedTools` 与 `McpResultDialog.titleFor/statusFor` 均锚旧名，归一是语义必需（直发裸名会落「小朵助手」错题+绿字「操作成功」）。SYNCED_TOOLS 契约锚不动、未知工具仍 null、防双控口径不变；仅 archive_query 有实证，工具族其余改名待与平台核对。+5 测（805=800+5 绿）。独立评审 PASS（零 P1/P2；跨仓契约核实/调用方收口无旁路/独立重跑 805 绿）。
+
+**同板取证另两案（不在本仓修）**：①**判停过早**——600ms 判停窗+S51 续听窗 S55 暂关（window=1）副作用，句中气口 >600ms 即切尾且无续听兜底；与（七）判停死锁系同组参数双向失败，待办①扩版为「恢复续听窗+冻结条件抗噪（空 ASR 裁判门控+上攻限速）」，需板测调参。②**密集架 App NPE 崩溃**（mijijia 仓修）：18:04:35 新 MainActivity onStart 经 forwardPass 派发滞留 `globalLockStatus` OneOff 事件，`MainActivity.kt:386 config!!` 在异步 config 加载前被击穿 → 进程死亡重启（8608→425）；GuardService 看门狗叠 4 实例放大竞态。
+
+```evidence
+verify_cmd: cd /e/desk-pet-wt-fixtoolname && export PATH="/c/Program Files/Microsoft/jdk-17.0.20.8-hotspot/bin:$PATH" && ./gradlew.bat testDebugUnitTest --rerun-tasks
+verify_claim: BUILD SUCCESSFUL in 1m 22s；JUnit 汇总 tests=805 failures=0 errors=0 skipped=0（基线 800+新增 5，零回归）；独立评审员复跑单类 20 绿+全量 805 绿同结果
+files_touched: [app/src/main/java/com/xiaoduo/deskpet/device/ShelfMcpBridge.kt, app/src/test/java/com/xiaoduo/deskpet/device/ShelfMcpBridgeTest.kt]
+```
+
 ## 2026-10-21（七）上板取证挂起：判停死锁实锤（新票）+ A/B 双包就绪
 
 **板态与双包**：目标板=10.0.14.18（rk3568/Android 11，双 App 生产板，deskpet 旧包 10-11）。A/B 双包构建归档 `dist/`：**AGC-ON `81f9ef7d`**（xiaoduo-agc-ON-abtest-20261021.apk，AGC=true 主线码）/ **AGC-OFF `8d0cf3ef`**（xiaoduo-agc-OFF-abtest-20261021.apk，翻闸构建后源文件 md5 对拍零残留）。A 包 `install -r` 上板成功（签名 22d84350 同 debug 键免卸装，prefs 备份 /tmp/abtest-20261021/），lastUpdateTime 15:35:58，`agc nf=` 状态行与 `capture start, source=7` 金线验证通过。**生产板现跑 A 包=main 同源 800 绿代码（AGC 开）；旧包（10-11）无留存，回滚需从 refactor/p0 重建。**
