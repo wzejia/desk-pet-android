@@ -52,7 +52,7 @@ val DenseShelfIcon: ImageVector by lazy {
     }.build()
 }
 
-/** 全屏四角（进入全屏语音对话页），与输入栏「按住说话」麦克风图标区分。 */
+/** 全屏四角（进入全屏语音对话页），与输入栏「点击说话」麦克风图标区分。 */
 val FullscreenVoiceIcon: ImageVector by lazy {
     ImageVector.Builder(
         name = "FullscreenVoice",

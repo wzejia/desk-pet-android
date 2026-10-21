@@ -9,9 +9,6 @@ import android.provider.Settings
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.gestures.awaitEachGesture
-import androidx.compose.foundation.gestures.awaitFirstDown
-import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -40,6 +37,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -50,7 +48,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.core.content.ContextCompat
@@ -73,6 +70,9 @@ import com.xiaoduo.deskpet.voice.AudioCapture
 import com.xiaoduo.deskpet.voice.EnergyGate
 import com.xiaoduo.deskpet.voice.AmbientCalibrator
 import com.xiaoduo.deskpet.voice.VoiceClientFactory
+import com.xiaoduo.deskpet.voice.VoiceStateRouter
+import com.xiaoduo.deskpet.voice.VoiceTapAction
+import com.xiaoduo.deskpet.voice.VoiceTapRouter
 import com.xiaoduo.deskpet.voice.WakeAckPrefetcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -167,7 +167,7 @@ fun SettingsScreen(onBack: () -> Unit, onOpenPermissions: () -> Unit) {
 
             HorizontalDivider(modifier = Modifier.padding(vertical = XiaoduoDimens.SpaceS))
 
-            // ---- 语音自检（S4：按住说话全链路，唯一新增区块）----
+            // ---- 语音自检（S4：语音入口全链路，唯一新增区块；2026-10-18 起点按化）----
             SectionTitle("语音自检")
             VoiceSelfCheck(context)
 
@@ -810,15 +810,18 @@ private fun LinkSelfCheck(context: Context) {
 }
 
 /**
- * 语音自检（S4）：按住说话跑「采麦→VAD→ASR→AG-UI→分句→TTS→播放+气泡 reveal」全链路。
+ * 语音自检（S4）：点按跑「采麦→VAD→ASR→AG-UI→分句→TTS→播放+气泡 reveal」全链路。
+ * 免按住模式（2026-10-18）：与主界面交互一致——点一下开始、引擎自动收口、聆听中再点结束
+ * （VoiceTapRouter 同一份分流真值表；聆听态视觉源=VSM stateFlow，禁本地布尔镜像）。
  * RECORD_AUDIO 运行时权限走真实申请路径（ColorOS 禁 shell 授权）；进度经
  * VoiceSessionManager.statusListener 实时上屏，全程 PetLogger 落文件。
  */
 @Composable
 private fun VoiceSelfCheck(context: Context) {
-    var status by remember { mutableStateOf("按住说话进行语音自检") }
-    var holding by remember { mutableStateOf(false) }
+    var status by remember { mutableStateOf("点击说话进行语音自检") }
     val session = remember { VoiceClientFactory.session(context) }
+    val voiceState by session.stateFlow.collectAsState()
+    val listening = voiceState == VoiceStateRouter.State.LISTENING
     DisposableEffect(session) {
         session.statusListener = { status = it }
         onDispose { session.statusListener = null }
@@ -828,43 +831,38 @@ private fun VoiceSelfCheck(context: Context) {
         ActivityResultContracts.RequestPermission(),
     ) { granted ->
         PetLogger.i("VoiceCheck", "RECORD_AUDIO runtime permission granted=$granted")
-        status = if (granted) "麦克风已授权，请再次按住说话" else "麦克风权限被拒，无法语音自检"
+        status = if (granted) "麦克风已授权，请再次点击说话" else "麦克风权限被拒，无法语音自检"
     }
 
-    fun pressDown() {
-        if (ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) !=
-            PackageManager.PERMISSION_GRANTED
-        ) {
-            PetLogger.i("VoiceCheck", "request RECORD_AUDIO runtime permission")
-            permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
-            return
+    // 点按单路：分流与主界面 InputBar 同吃 VoiceTapRouter（UI 不判状态）
+    fun onVoiceTap() {
+        when (VoiceTapRouter.route(session.state)) {
+            VoiceTapAction.END -> {
+                PetLogger.i("VoiceCheck", "tap-to-talk end")
+                session.stopListening()
+            }
+            VoiceTapAction.START -> {
+                if (ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) !=
+                    PackageManager.PERMISSION_GRANTED
+                ) {
+                    PetLogger.i("VoiceCheck", "request RECORD_AUDIO runtime permission")
+                    permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                    return
+                }
+                PetLogger.i("VoiceCheck", "tap-to-talk start")
+                session.startListening()
+            }
         }
-        holding = true
-        PetLogger.i("VoiceCheck", "push-to-talk start")
-        session.startListening()
-    }
-
-    fun pressUp() {
-        if (!holding) return
-        holding = false
-        PetLogger.i("VoiceCheck", "push-to-talk release")
-        session.stopListening()
     }
 
     Column(modifier = Modifier.fillMaxWidth()) {
-        Button(
-            onClick = { /* 点击无操作，语义在 onPress 按住/松开 */ },
-            // Button 内建 clickable 会先消费 down 事件，detectTapGestures 默认
-            // requireUnconsumed=true 将永远等不到——必须显式 false（真机实证 2026-07-30）
-            modifier = Modifier.pointerInput(session) {
-                awaitEachGesture {
-                    awaitFirstDown(requireUnconsumed = false)
-                    pressDown()
-                    waitForUpOrCancellation()
-                    pressUp()
-                }
-            },
-        ) { Text(if (holding) "松开结束说话" else "按住说话") }
+        // 点按语义直接用 Button 内建 onClick。按住时代之所以绕到 pointerInput 低层手势，
+        // 是因为需要 press down/up 双边沿，且 Button 内建 clickable 会先消费 down 事件，
+        // detectTapGestures 默认 requireUnconsumed=true 永远等不到、必须显式 false
+        // （真机实证 2026-07-30）——该踩坑注记随按住语义一并退役，若回退按住需复活。
+        Button(onClick = { onVoiceTap() }) {
+            Text(if (listening) "正在聆听，点击结束" else "点击说话")
+        }
         Text(
             text = status,
             style = MaterialTheme.typography.bodyMedium,

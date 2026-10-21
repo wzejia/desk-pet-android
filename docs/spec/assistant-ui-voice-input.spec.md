@@ -102,7 +102,7 @@
 
 ```
 ┌─ 上层 InputArea ─────────────────────┐
-│  语音模式：「按住说话」满宽触摸区      │  ← 按住：实时声波纹 + 「松手发送 上移取消」
+│  语音模式：「点击说话」满宽触摸区      │  ← 点按开始/结束，结束时机归状态机
 │  文字模式：输入框 placeholder          │
 ├─ 下层 FunctionBar ────────────────────┤
 │  [上传文件]    ............  [多功能键]│  ← 多功能键：有内容=发送 / 无内容=切换语音/键盘
@@ -110,11 +110,14 @@
 ```
 
 - **上层（InputArea）**：
-  - 语音模式：`detectTapGestures.onPress` 满宽触摸区，文案「按住 说话」/ 按住中「松手 发送」。
-  - **按住反馈（解决 #2）**：
-    - **实时声波纹动画**：`Canvas` 绘制，由 `AudioCapture` 的 RMS 能量（`EnergyGate` 已有 RMS）驱动柱状/波形高度。
-    - **「松手发送 上移取消」文字**压在声波纹上方；`detectTapGestures` 检测上滑超阈值（如 80dp）→ 取消录音（不发送）。
-    - **haptic 震动**：按住开始 `Vibrator.vibrate`（短促），修复 #2「无震动」。
+  - 语音模式：**免按住模式（Tap-to-Talk，2026-10-18 拍板替换按住说话）**——`awaitEachGesture` +
+    `waitForUpOrCancellation` 满宽触摸区，分流走 `VoiceTapRouter` 真值表（LISTENING→END / 其余→START），
+    点一下开始、再点一下结束；结束时机归状态机（VAD 判停 / S51 续听 / 30s 超时），不绑人手松手，
+    上滑取消语义退役。
+  - **点按反馈（原按住反馈 #2 沿革）**：
+    - **实时声波纹动画**：`Canvas` 绘制，由 `AudioCapture` 的 RMS 能量（`EnergyGate` 已有 RMS）驱动柱状/波形高度（聆听态显示）。
+    - **文案**：IDLE 态「点击说话」/ 聆听态「正在聆听，点击结束」。
+    - **haptic 震动**：点按触发 `Vibrator.vibrate`（短促）。
   - 文字模式：`TextField`，placeholder「请输入内容」。
 - **下层（FunctionBar）**：
   - 右下角**多功能键**（**2026-08-04 用户增补停止档**，对齐 DeepSeek 生成中停止方块范式）：

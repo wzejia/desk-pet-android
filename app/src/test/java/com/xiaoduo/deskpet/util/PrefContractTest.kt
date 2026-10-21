@@ -37,4 +37,10 @@ class PrefContractTest {
         assertTrue(PrefContract.DEFAULT_SHOW_BUBBLE)
         assertEquals("xiaoduo_settings", PrefContract.FILE_SETTINGS)
     }
+
+    @Test
+    fun `selfheal keys are preserved verbatim`() {
+        // 自愈重启钩（诊断报告 §7.1.3）：killProcess 自尽冷却戳（毫秒时间戳，0/缺=从未）
+        assertEquals(setOf("voice_proc_last_restart"), PrefContract.SELFHEAL_KEYS)
+    }
 }

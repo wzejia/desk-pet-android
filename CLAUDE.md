@@ -11,12 +11,12 @@ M1（悬浮桌宠本体）与「助手化」大切片（S0-S8）均已收口；�
 
 ## 架构速览
 
-### 包结构（`com.xiaoduo.deskpet`，105 个 Kotlin 文件）
+### 包结构（`com.xiaoduo.deskpet`，111 个 Kotlin 文件）
 
 | 包 | 职责 | 关键类 |
 |---|---|---|
 | 根包 | Android 入口 | `App.kt`, `MainActivity.kt`, `PetOverlayService.kt`, `VoiceForegroundService.kt` |
-| `voice/` | 语音管线（32 文件） | `VoiceSessionManager.kt`(中枢，全仓最大), `AudioCapture.kt`, `VadDetector.kt`, `KwsEngine.kt`(sherpa 薄适配), `KwsCore.kt`(门控/decode 线程/检出率统计/release 时序，JVM 可测), `AsrClient.kt`, `TtsClient.kt`, `SentenceSplitter.kt`, `VoicePlayer.kt`, `VoiceStateRouter.kt`, `VoiceClientFactory.kt`(会话单例工厂；RevealScheduler 已退役仅留类备查), `VadSeamPolicy.kt`/`WakeBlindWindowBuffer.kt`/`StampedBlock.kt`(S40 盲区回灌三件套), `ListeningHintPolicy.kt`(S49 聆听提示判定) |
+| `voice/` | 语音管线（33 文件） | `VoiceSessionManager.kt`(中枢，全仓最大), `AudioCapture.kt`, `VadDetector.kt`, `KwsEngine.kt`(sherpa 薄适配), `KwsCore.kt`(门控/decode 线程/检出率统计/release 时序，JVM 可测), `AsrClient.kt`, `TtsClient.kt`, `SentenceSplitter.kt`, `VoicePlayer.kt`, `VoiceStateRouter.kt`, `VoiceTapRouter.kt`(Tap-to-Talk 点按分流真值表), `VoiceClientFactory.kt`(会话单例工厂；RevealScheduler 已退役仅留类备查), `VadSeamPolicy.kt`/`WakeBlindWindowBuffer.kt`/`StampedBlock.kt`(S40 盲区回灌三件套), `ListeningHintPolicy.kt`(S49 聆听提示判定) |
 | `chat/` | 聊天领域（15 文件） | `ChatViewModel.kt`(AndroidViewModel), `ChatTurnLogic.kt`(纯逻辑), `ChatStore.kt`, `MarkdownRenderer.kt`, `ThinkCleaner.kt`, `FunctionKeyLogic.kt`, `FileListRules.kt`, `SessionRules.kt`(S48 闲置轮转判定) |
 | `agui/` | 平台 AG-UI 客户端（4 文件） | `AguiClient.kt`(SSE+登录+上传+agent 分页拉取), `AguiSseConsumer.kt`(纯逻辑状态机+工具结果捕获), `AguiClientFactory.kt`, `FileMeta.kt` |
 | `device/` | 密集架/设备直连（4 文件） | `DeviceClient.kt`(S26 设备技能), `DeviceIntentMatcher.kt`(本地意图), `ShelfMcpBridge.kt`(S41/43/46 联动桥：mcpUiSync/mcpUiResult/mcpUiNavigate，UI-only 防双控), `ShelfNavIntentMatcher.kt`(S46 保守导航匹配) |
