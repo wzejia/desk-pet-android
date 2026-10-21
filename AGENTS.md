@@ -48,8 +48,9 @@ M1（悬浮桌宠本体）与「助手化」大切片（S0-S8）均已收口；�
 - 单测基线 **754 个**（2026-10-10 修正；656=S65 时代 → 665=S68b → 752=全量审计修复（2026-10-03，40 条 P2 并入）→ 755=入口功能（旧 MainActivity 策略 3 测）→ **754=fafa28e trampoline 重写**：extra 分叉维度整体删除，旧策略 3 测退役、新 OverlayLaunchPolicyTest 2 测补位，文档当时漏改，2026-10-10 执行期实测发现并修正锚）；skipped=0；新增只增不减；验证 `./gradlew.bat testDebugUnitTest --rerun-tasks`
 - `assembleDebug` 绿；spritesheet.webp MD5 `53c81ce652518f7fc7bf70554f363f54`；pet_states.json SHA256 `60b45124…4366`（S13 起 Android 行为有意偏离桌面镜像，见 implementation-notes 2026-08-24）
 
-## 当前状态（2026-10-21 晚，票A 工具名归一上板，真声验收 6/6 弹卡）
+## 当前状态（2026-10-21 深夜，S69 系票C 判停链重构闭环，板测 27 轮真声）
 
+- **2026-10-21 深夜**：S69 系票C 判停链重构闭环（merge `5f3c4ac` @ origin/main，**811 绿**）——底噪熔断判停+续听窗恢复10+有界上限+说话期禁上攻+判起/判停线钳 0.32/0.30；板测 27 轮真声：floor 三失败模式（死锁/提前判停/全聋）根除、弱尾「的档案」全救；**板载现=S69c 包**（a64bcb8 源）。待办 5 项+挂账见 `PROGRESS.md`。以下为同日早前状态存档：
 - **2026-10-21 晚**：板测实锤平台密集架 Agent 工具改名 `archive_query`（无 c_ 前缀）→ 桥白名单不识 → mcpUiResult 静默丢弃零弹窗；票A 修复（PLATFORM_TOOL_ALIASES+canonicalToolName，**805 绿**）merge `845db5e` 推 origin 并出包上板生产板 10.0.14.18（`dist/xiaoduo-main-845db5e-20261021.apk`），**真声 6 轮派发 6/6 弹卡**（五形态全覆盖、零 FATAL）。**待办 6 项**（判停过早/死锁修复票[阻塞 AGC A/B]/AGC A/B[OFF 包需重出]/借/还/盘点工具名核对/量纲/点按验收/板验）见 `PROGRESS.md`。以下为 2026-10-09 前后状态存档：
 - **2026-10-21 port 4cap 战役闭环**：fork rk3288 四能力反哺上游（采麦层 5 层链/Tap-to-Talk 点按化/docs 移植），ce-code-review 评审（11/11 confirmed）+ 修复轮后 **800 绿**合入 main 并推送（merge `678ea8f` @ origin/main）。
 - **S50~S65 语音链 + S66~S68b 弹窗链已收口**；2026-10-03 **全量代码审计**（P1=0/P2=43/P3=410，产物 `docs/audit/2026-10-03-full-audit/`）+ **40 条 P2 修复**（752 绿）同日合 main；2026-10-09 入口功能：密集架基础设置「打开小朵」可直拉悬浮窗（`extra_launch_overlay_only`，无权限回落 UI），长按菜单删「打开 App」行（入口职责归密集架设置页）。
