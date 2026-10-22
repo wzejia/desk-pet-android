@@ -1,6 +1,16 @@
 # 小朵 Android 开发日志
 
 
+## 2026-10-22（一）待办②借/还/盘点工具名核对关闭：用户核实其余工具族无改名，票A 别名表维持现状
+
+用户核实结论：平台密集架 Agent 仅 `archive_query` 改名（票A 已修，PLATFORM_TOOL_ALIASES 归一），**借/还/盘点工具名没有变化**——别名表无需扩充。至此 desk-pet 待办清零（待办①AGC 增益收益/②工具名核对/③量纲统一全部关闭）；剩挂账 2 项纯观察（熔断 peak 污染——出现「utterance+hold 每 ~1.3s 循环」日志形态即落地修法；0.19 底噪定源——已排除 VC 链，剩环境噪声 vs ROM 底层增益二选一）。PROGRESS 同步。
+
+```evidence
+verify_cmd: 用户现场核实（口头结论，无代码/配置变更）
+verify_claim: 借/还/盘点工具名无变化，票A 别名表维持现状；待办清零
+files_touched: [docs/DEV_LOG.md, PROGRESS.md]
+```
+
 ## 2026-10-21（十七）票D 合入推送+终局包装板：main=dc150e0 @ origin，板载现=mic-dc150e0 终局包+VC 档
 
 **收口序列**：`fix/mic-source-4th-mode`（b4a169a 票D 主体 + e82e55e UI 终局回锁定+advisory 处置）`--no-ff` 合入 main（**merge `dc150e0`**）推 origin（`3141368..dc150e0`）；终局包 `dist/xiaoduo-mic-dc150e0-20261021.apk`（md5 `47edf63a`）`install -r` 上生产板 10.0.14.18，pid 22917 `capture start, source=7`（VC 档 pref=0）+ 零漂移告警 ✓；板上旧 mic-b4a169a 包（可点击 UI）被覆盖。
