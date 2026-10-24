@@ -52,10 +52,14 @@ object ShelfMcpBridge {
      * name=archive_query args={query,query_scope,keyword}，TOOL_CALL_RESULT 正常返回。
      * 映射到旧名 c_archive_query 而非反过来：密集架侧白名单（AppController.mcpSyncedTools）
      * 与结果卡标题语义（titleFor）都锚旧名，归一到旧名后密集架端零改动。
-     * 注意：仅 archive_query 有板测实证；其余工具（borrow/return/inventory 族）是否同步
+     * 2026-10-24：平台新增变体 archive_query_18082，语义同档案查询，一并归一旧名（用户指令）。
+     * 注意：仅 archive_query 族有板测实证；其余工具（borrow/return/inventory 族）是否同步
      * 改名无证据，不臆测入表，待与平台核对后再补。
      */
-    val PLATFORM_TOOL_ALIASES: Map<String, String> = mapOf("archive_query" to "c_archive_query")
+    val PLATFORM_TOOL_ALIASES: Map<String, String> = mapOf(
+        "archive_query" to "c_archive_query",
+        "archive_query_18082" to "c_archive_query",
+    )
 
     /**
      * 工具名 → mcpUiSync 请求体（逐字 JSON；名字全部出自 [SYNCED_TOOLS] 白名单，

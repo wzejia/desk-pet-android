@@ -224,6 +224,17 @@ class ShelfMcpBridgeTest {
         assertEquals("no_such_tool", canonicalToolName("no_such_tool"))
     }
 
+    /** PA-4：2026-10-24 平台新增变体 archive_query_18082 → 归一旧名；RESULT 发体同权 */
+    @Test
+    fun `archive_query_18082 aliases to legacy c_archive_query`() {
+        assertEquals("c_archive_query", canonicalToolName("archive_query_18082"))
+        val body = ShelfMcpBridge.resultBodyFor(
+            "archive_query_18082", "{\"success\":true}", "{\"query\":\"x\"}", "run-18082",
+        )
+        assertEquals("c_archive_query", org.json.JSONObject(body).getString("tool"))
+        assertEquals("run-18082", org.json.JSONObject(body).getString("runId"))
+    }
+
     /** PA-2：callFor 平台新名 archive_query → 归一为旧名发体；runId 有/无两态 */
     @Test
     fun `callFor maps platform archive_query to legacy c_archive_query body`() {
