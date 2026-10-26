@@ -17,12 +17,18 @@ import androidx.core.content.ContextCompat
 import com.xiaoduo.deskpet.util.FeedReleaseGate
 import com.xiaoduo.deskpet.util.PetLogger
 import com.xiaoduo.deskpet.util.Prefs
+import com.xiaoduo.deskpet.ir.IrWakeController
+import com.xiaoduo.deskpet.ir.YsGpioReader
 import com.xiaoduo.deskpet.voice.KwsEngine
 import com.xiaoduo.deskpet.voice.KwsDefaults
 import com.xiaoduo.deskpet.voice.VoiceStateRouter
 import com.xiaoduo.deskpet.voice.OnceGate
 import com.xiaoduo.deskpet.voice.AmbientCalibrator
 import com.xiaoduo.deskpet.voice.VoiceClientFactory
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 
 /**
  * KWS 常开前台服务（S5，对账表 KWS 节 + 知识包 §5）：
@@ -57,6 +63,10 @@ class VoiceForegroundService : Service() {
     private var destroyed = false
 
     private val lock = Any()
+
+    /** S70 PIR 红外唤醒通道（生命周期与 VFS 同寿：onStartCommand 建 / onDestroy 停）。 */
+    private var irWakeController: IrWakeController? = null
+    private var irScope: CoroutineScope? = null
 
     /**
      * ROB-4：采麦喂入与引擎释放的单监视器串行门——sink 闭包（kws-init 线程挂上后由
@@ -96,6 +106,7 @@ class VoiceForegroundService : Service() {
             return START_NOT_STICKY
         }
         startKwsIfNeeded()
+        startIrWakeIfNeeded()
         return START_STICKY
     }
 
@@ -200,6 +211,34 @@ class VoiceForegroundService : Service() {
         }, "kws-init").start()
     }
 
+    /**
+     * S70 PIR 红外唤醒通道（易声板第 1 路保留 IO；调研 docs/research/2026-10-26-ir-wake/）。
+     * VFS 启动即尝试建立：pref 关 → controller 内不启动；非易声板 bind 失败 → 静默禁用
+     * （log 一行零 crash）。触发动作与 KWS 唤醒 :225 同款 = startListening(playWakeAck=true)。
+     */
+    private fun startIrWakeIfNeeded() {
+        synchronized(lock) {
+            if (destroyed || irWakeController != null) return
+            val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO).also { irScope = it }
+            val controller = IrWakeController(
+                scope = scope,
+                gpioReader = YsGpioReader(this),
+                enabledProvider = { Prefs.pirWakeEnabled(this) },
+                // 仅 IDLE 态响应（用户 2026-10-26 拍板）：LISTENING/PROCESSING/SPEAKING 忽略采样触发
+                idleGate = {
+                    VoiceClientFactory.session(this).stateFlow.value == VoiceStateRouter.State.IDLE
+                },
+                onWake = { VoiceClientFactory.session(this).startListening(playWakeAck = true) },
+                log = { msg ->
+                    if (msg.startsWith("E: ")) PetLogger.e(TAG, "IR ${msg.removePrefix("E: ")}")
+                    else PetLogger.i(TAG, "IR $msg")
+                },
+            )
+            irWakeController = controller
+            controller.start()
+        }
+    }
+
     private fun onWake(keyword: String) {
         // 幻影唤醒防线（审计 P1 连带）：join 超时 skip-free 后，卡死线程若稍后醒来解码出命中，
         // 服务已毁——KwsCore 派发前 running 复查是第一道，这里是第二道
@@ -229,6 +268,12 @@ class VoiceForegroundService : Service() {
         PetLogger.i(TAG, "onDestroy, release KWS")
         synchronized(lock) {
             destroyed = true
+            // S70：红外通道先停（stop 幂等：协程 cancel + unBind；异常全吞，绝不阻断 KWS 释放）
+            runCatching { irWakeController?.stop() }
+                .onFailure { PetLogger.e(TAG, "IR wake stop failed: ${it.message}") }
+            irWakeController = null
+            irScope?.cancel()
+            irScope = null
             runCatching {
                 val session = VoiceClientFactory.session(this)
                 session.kwsSink = null

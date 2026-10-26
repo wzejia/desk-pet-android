@@ -43,4 +43,12 @@ class PrefContractTest {
         // 自愈重启钩（诊断报告 §7.1.3）：killProcess 自尽冷却戳（毫秒时间戳，0/缺=从未）
         assertEquals(setOf("voice_proc_last_restart"), PrefContract.SELFHEAL_KEYS)
     }
+
+    @Test
+    fun `s70 pir wake key is pinned`() {
+        // S70 PIR 红外唤醒开关（易声板第 1 路保留 IO；默认关=用户 2026-10-26 拍板）
+        assertEquals("pir_wake_enabled", PrefContract.KEY_PIR_WAKE_ENABLED)
+        assertEquals(false, PrefContract.DEFAULT_PIR_WAKE_ENABLED)
+        assertEquals(setOf("pir_wake_enabled"), PrefContract.S70_KEYS)
+    }
 }

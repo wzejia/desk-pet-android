@@ -255,4 +255,15 @@ object Prefs {
     /** 必须 commit（同步落盘）——冷却戳写失败必须知道，防自杀循环（SIGKILL 前 apply 可能未落盘）。 */
     fun setVoiceProcLastRestart(context: Context, ts: Long): Boolean =
         sp(context).edit().putLong(KEY_VOICE_PROC_LAST_RESTART, ts).commit()
+
+    /** S70：PIR 红外唤醒开关（默认关；VFS 启动时读一次决定是否建立红外通道，
+     *  运行中切换由设置页重启服务生效）。 */
+    const val KEY_PIR_WAKE_ENABLED = PrefContract.KEY_PIR_WAKE_ENABLED
+
+    fun pirWakeEnabled(context: Context): Boolean =
+        sp(context).getBoolean(KEY_PIR_WAKE_ENABLED, PrefContract.DEFAULT_PIR_WAKE_ENABLED)
+
+    fun setPirWakeEnabled(context: Context, enabled: Boolean) {
+        sp(context).edit().putBoolean(KEY_PIR_WAKE_ENABLED, enabled).apply()
+    }
 }

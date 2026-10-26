@@ -89,6 +89,10 @@ dependencies {
     // S5 KWS 唤醒词（本地 AAR，模型在 assets/kws-model/）
     implementation(files("libs/sherpa-onnx-1.13.4.aar"))
 
+    // S70 PIR 红外唤醒（易声板卡 SDK，本地 jar，纯 binder 客户端零网络面；调研
+    // docs/research/2026-10-26-ir-wake/；仅隔离使用 MyManager 的 GPIO/awaken/bind 面）
+    implementation(files("libs/ysapi.jar"))
+
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.json:json:20240303") // 契约测试解析 assets JSON（JVM 上 android 自带 org.json 是桩）
     testImplementation("com.squareup.okhttp3:mockwebserver:4.12.0") // AguiClient 登录/SSE 重试的 JVM 端对端桩

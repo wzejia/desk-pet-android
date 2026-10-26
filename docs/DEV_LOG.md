@@ -1,6 +1,28 @@
 # 小朵 Android 开发日志
 
 
+## 2026-10-26（二）S70 PIR 红外唤醒全链收口：调研→引库→实现→评审→板测 e2e 当日闭环（836 绿=816+20，五变异锚真红）
+
+**链路**：同事供易声 ysapi SDK → 双子智能体逆向实锤 SDK 无红外事件通道（可行路径=PIR 接保留 IO 电平轮询，报告 `docs/research/2026-10-26-ir-wake/`）→ 用户拍板四口径（仅 IDLE 响应/30s 冷却/开关默认关/引库批准）→ ysapi.jar 入库（md5 `aa2f3892e99f3691e5e262f5bd166335` 锚定换必重审）+ dependency-auditor P1=0（P2 execSuCmd 本地 root 脚枪→源码扫描契约测试落地）→ builder TDD 实现（`ir/PirEdgeFilter` 纯逻辑三道防重 + `ir/IrWakeController` GpioReader seam 全链 JVM 可测 + VFS/Prefs/SettingsScreen 接线；**VSM 零 diff**）→ critic（opus，代码正确型）不逊 8 项全≥4/5 → 修复轮 P2-1 竞窗（stop/onConnect 并发孤轮询）一行修+M5 确定性锚 + P3×4 落地（P3-4 strip 状态机三引号限制记 notes 不修）→ 编排亲跑终验 **suites=110 tests=836 failures=0 errors=0 skipped=0**（python XML 复算与 builder 自报一致）。
+
+**板测（192.168.137.140 rk3568_r 易声固件）**：IO1=gpio154（厂商 demo 日志实锤）；PIR 电平活体翻转（10s 窗 1×9→0×5→1×7，免 root 可读）；终局包 md5 `a8558b16` 上板，日志链 `IR PIR rising edge, -> startListening → state -> SPEAKING (wake-ack wozai) → WakeAck` 端到端通；修复包装板后 `IR polling started (pin=1, interval=200ms)` 复位正常。挂起：用户现场验收回收（仅 IDLE 口径/冷却窗/误触发率）+ 非易声设备降级真机验证（单测四分支已覆盖，pref 默认关零暴露面）。
+
+```evidence
+verify_cmd: cd /e/desk-pet-android && export PATH="/c/Program Files/Microsoft/jdk-17.0.20.8-hotspot/bin:$PATH" && ./gradlew.bat :app:testDebugUnitTest :app:assembleDebug --rerun-tasks
+verify_claim: suites=110 tests=836 failures=0 errors=0 skipped=0；git diff --stat VoiceSessionManager.kt 空；板上日志 IR PIR rising edge→SPEAKING(wake-ack wozai)；包 md5 a8558b16e0a1388a14dc2695b268041b
+files_touched: [app/libs/ysapi.jar, app/build.gradle.kts, app/src/main/java/com/xiaoduo/deskpet/ir/PirEdgeFilter.kt, app/src/main/java/com/xiaoduo/deskpet/ir/IrWakeController.kt, app/src/test/java/com/xiaoduo/deskpet/ir/PirEdgeFilterTest.kt, app/src/test/java/com/xiaoduo/deskpet/ir/IrWakeControllerTest.kt, app/src/test/java/com/xiaoduo/deskpet/ir/YsApiUsageContractTest.kt, app/src/main/java/com/xiaoduo/deskpet/VoiceForegroundService.kt, app/src/main/java/com/xiaoduo/deskpet/util/PrefContract.kt, app/src/main/java/com/xiaoduo/deskpet/util/Prefs.kt, app/src/main/java/com/xiaoduo/deskpet/ui/screens/SettingsScreen.kt, app/src/test/java/com/xiaoduo/deskpet/util/PrefContractTest.kt, docs/research/2026-10-26-ir-wake/README.md, docs/research/2026-10-26-ir-wake/appendix-ysapi-sdk-findings.md, docs/DEV_LOG.md, docs/implementation-notes.html, PROGRESS.md, CONSTRUCTION.md]
+```
+
+## 2026-10-26（一）红外触发唤醒调研：ysapi SDK 逆向 + 小朵注入点勘明——SDK 无红外事件通道，可行路径=GPIO 轮询→startListening(true)
+
+同事提供易声 ysapi SDK 包（ysapi.jar + 开发文档 V5.4 + demo 源码 app.zip + demo APK）。双子智能体并行只读调研（全程未执行素材代码、未触碰设备）：①SDK 逆向实锤 **ysapi（深圳易声，RK 板卡系统控制 SDK，binder→固件内置 com.ys.ys_receiver/.AIDLService）无红外事件通道**——55 类零 IR 命名/唯一回调 onConnect 仅连接通知/约 20 个广播 action 全是应用→系统控制指令/demo manifest 零 receiver；可行路径=红外感应器（PIR/对射）接保留 IO **电平轮询**（setGpioDirection+getGpioValue，官方 demo 同款点按式，无中断；串口自读需 root 为次选）。②小朵侧注入点勘明：外部唤醒单点收敛 `VSM.startListening(playWakeAck=true)`（四态语义现成：IDLE 唤醒/LISTENING S33 重唤醒/SPEAKING·PROCESSING S12 barge-in；守卫红线 kwsPaused/TurnFlags 封轮/wakeAckActive 三条），推荐落点 VoiceForegroundService 独立协程轮询（与 KWS onWake 同源同生命周期，进程活性最强）。报告 `docs/research/2026-10-26-ir-wake/`（README + SDK 逆向附录）。**阻塞选路三问待同事确认**：①红外硬件实物形态（PIR 电平/遥控器/串口模块）②目标板是否易声固件 ③保留 IO 路序表（V5.2+ 传 1..N）。另勘误：PROGRESS 2026-10-09 条目 `extra_launch_overlay_only` 已不存在，现实际为 OverlayLaunchActivity。
+
+```evidence
+verify_cmd: 双子智能体只读调研（无代码/配置变更，无测试面）；报告落盘 docs/research/2026-10-26-ir-wake/（README.md + appendix-ysapi-sdk-findings.md）
+verify_claim: ysapi 无红外事件通道（附录第三节 4 条证据）；小朵注入点 file:line 勘明（VoiceForegroundService.kt:203-226 → VoiceSessionManager.kt:422-460 单点 startListening）
+files_touched: [docs/research/2026-10-26-ir-wake/README.md, docs/research/2026-10-26-ir-wake/appendix-ysapi-sdk-findings.md, docs/DEV_LOG.md, PROGRESS.md]
+```
+
 ## 2026-10-22（一）待办②借/还/盘点工具名核对关闭：用户核实其余工具族无改名，票A 别名表维持现状
 
 用户核实结论：平台密集架 Agent 仅 `archive_query` 改名（票A 已修，PLATFORM_TOOL_ALIASES 归一），**借/还/盘点工具名没有变化**——别名表无需扩充。至此 desk-pet 待办清零（待办①AGC 增益收益/②工具名核对/③量纲统一全部关闭）；剩挂账 2 项纯观察（熔断 peak 污染——出现「utterance+hold 每 ~1.3s 循环」日志形态即落地修法；0.19 底噪定源——已排除 VC 链，剩环境噪声 vs ROM 底层增益二选一）。PROGRESS 同步。

@@ -949,6 +949,28 @@ private fun KwsSection(context: Context) {
                 stopKws()
             }
         }
+        // S70 PIR 红外唤醒（易声板第 1 路保留 IO；默认关=用户 2026-10-26 拍板）。
+        // VFS 启动时读一次 pref 决定是否建红外通道：服务在跑则重启使开关即时生效
+        // （仿 ScaleSlider 悬浮窗重启先例；仅 IDLE 态响应 + 30s 冷却在 IrWakeController 内）
+        var pirWake by remember { mutableStateOf(Prefs.pirWakeEnabled(context)) }
+        RowSwitch(
+            title = "PIR 唤醒（红外人体感应）",
+            subtitle = "易声板第 1 路保留 IO 接感应器；需语音唤醒开关开启且服务在跑；仅待机态响应，触发后 30 秒冷却",
+            checked = pirWake,
+            enabled = true,
+        ) { on ->
+            pirWake = on
+            Prefs.setPirWakeEnabled(context, on)
+            PetLogger.i("Settings", "pir_wake_enabled -> $on")
+            if (Prefs.kwsEnabled(context)) {
+                PetLogger.i("Settings", "restart voice service for PIR wake toggle")
+                context.stopService(Intent(context, VoiceForegroundService::class.java))
+                ContextCompat.startForegroundService(
+                    context,
+                    Intent(context, VoiceForegroundService::class.java),
+                )
+            }
+        }
         Text(
             text = "能量门控阈值：%.3f（环境音量低于此值整块不识别，防静音空转耗电）".format(gate),
             style = MaterialTheme.typography.bodyMedium,

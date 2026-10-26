@@ -80,4 +80,10 @@ object PrefContract {
     const val KEY_VOICE_PROC_LAST_RESTART = "voice_proc_last_restart" // Long 毫秒时间戳；0/缺=从未自愈
 
     val SELFHEAL_KEYS: Set<String> = setOf(KEY_VOICE_PROC_LAST_RESTART)
+
+    // ---- S70 新增键（PIR 红外唤醒：易声板第 1 路保留 IO，VFS 内 IrWakeController）----
+    const val KEY_PIR_WAKE_ENABLED = "pir_wake_enabled" // Boolean，设置页「PIR 唤醒」开关
+    const val DEFAULT_PIR_WAKE_ENABLED = false          // 默认关（用户 2026-10-26 拍板）
+
+    val S70_KEYS: Set<String> = setOf(KEY_PIR_WAKE_ENABLED)
 }

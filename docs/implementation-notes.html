@@ -285,6 +285,31 @@ playCalls==2 断言取代原 ==1）。</p>
 JUMPING 可能不重播（罕见窗，听觉反馈在，进 LISTENING 自愈；根治需事件流带世代号，暂不做）。</p>
 </div>
 
+<h2>S70 PIR 红外唤醒（2026-10-26 立项）</h2>
+
+<div class="decision">
+<h3>四项拍板（2026-10-26 用户「按推荐」）</h3>
+<p>①<strong>仅 IDLE 态响应</strong>：PIR 是无差别「人来即触发」信号，LISTENING/PROCESSING/SPEAKING 中忽略采样触发，防人来人往反复打断播报（要打断走唤醒词/双击既有通道）；②<strong>冷却窗 30s 常量</strong>不进设置页（PIR 模块自身 hold 衰减 + 防连续重触发，不够再调）；③设置页「PIR 唤醒」开关<strong>默认关</strong>（不改变现网行为，现场装机后打开）；④<strong>批准引库 ysapi.jar</strong>（app/libs，md5 aa2f3892e99f3691e5e262f5bd166335，纯 binder 客户端；dependency-auditor 独立复核网络面）。</p>
+</div>
+
+<div class="decision">
+<h3>方案选型：ysapi 无红外事件通道 → GPIO 电平轮询</h3>
+<p><strong>决策</strong>：不做「监听红外」（无此抽象），做「PIR 接第 1 路保留 IO → 200ms 轮询 <code>getGpioValue(1)</code>（V5.2+ 语义=第 N 路）→ 上升沿+2 样本去抖+30s 冷却 → IDLE 门 → <code>startListening(playWakeAck=true)</code> 单点」。<br>
+<strong>依据</strong>：双子智能体只读逆向实锤 SDK 零事件通道（55 类零 IR 命名/广播全是控制指令/demo 零 receiver/唯一回调仅连接通知），全证据 `docs/research/2026-10-26-ir-wake/`。<br>
+<strong>代价</strong>：轮询非中断（延迟 ≤200ms 可接受）；GpioReader seam 隔离 MyManager 使整条触发链 JVM 可测；VSM 零 diff（四态语义现成复用，守卫红线 kwsPaused/TurnFlags/wakeAckActive 不碰）。</p>
+</div>
+
+<div class="risk">
+<h3>已知边界与观察项</h3>
+<p>①<strong>深度休眠失效</strong>：系统真休眠时用户态轮询停止，PIR 唤不了整机——需求若含休眠唤醒须向易声确认 GPIO 中断唤醒方案（<code>awaken()</code> 是软件调用，前提 App 还活着）；②<strong>依赖易声固件</strong>：非易声板 bind 失败=通道静默禁用（log 一行零 crash，模拟器验证降级路径）；③板测窗口待约（PIR 接线的易声板就绪后：触发→「我在」→聆听，四态反例逐条对口径）。</p>
+</div>
+
+<div class="note">
+<h3>S70 评审与板测收口（2026-10-26）</h3>
+<p><strong>critic（opus，代码正确型）</strong>：不逊（8 项全 ≥4/5）——参数七口径零漂移 / ysapi 六签名 javap 亲验零虚构 / 契约测试字符串漏报方向变异证伪 / VSM 零 diff。<strong>修复轮</strong>：P2-1 竞窗（stop 与 onConnect 并发起孤轮询）一行 recheck + M5 确定性用例（fake 钩子钉时序，未硬造真竞态）真红；P3-1 S70_KEYS 契约断言 / P3-2 subtitle 生效前提 / P3-3 CoroutineExceptionHandler / P3-5 冷却语义注记全落地；终局 836 绿=816+20，五变异锚全真红（编排亲跑复验同数）。<strong>P3-4 记档不修</strong>：YsApiUsageContractTest 的注释 strip 状态机不处理三引号字符串与含引号 Char 字面量（理论漏报方向，当前主源码无该形态全绿实证）——后续主源码若引入该形态须先扩 strip。<br>
+<strong>板测（192.168.137.140，rk3568_r 易声固件）</strong>：IO1=gpio154（厂商 demo 日志实锤）；PIR 电平 10s 窗活体翻转 1×9→0×5→1×7；终局包 md5 a8558b16 端到端日志链 <code>IR PIR rising edge → SPEAKING (wake-ack wozai) → WakeAck</code>。挂起：用户现场验收回收（仅 IDLE 口径/冷却窗/误触发率）与非易声设备降级真机验证（单测四分支已覆盖，pref 默认关零暴露面）。</p>
+</div>
+
 <h2>S11 唤醒词准确率排查（2026-08-19 ~ 08-20）</h2>
 
 <div class="decision">
