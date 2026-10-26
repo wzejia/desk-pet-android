@@ -42,6 +42,8 @@ class PirEdgeFilterTest {
     }
 
     // ---- 冷却窗（S70 变异锚 A：删冷却检查 → 本用例红）----
+    // 注（板测 2026-10-26 修订）：arming 已从 onSample 移到调用方（真触发才起表），
+    // filter 层测试在真触发后显式 armCooldown 模拟 controller 行为。
 
     @Test
     fun `冷却期内完整边沿往返不触发`() {
@@ -50,6 +52,7 @@ class PirEdgeFilterTest {
         assertFalse(f.onSample(false, t0))
         assertFalse(f.onSample(true, t0 + 200))
         assertTrue(f.onSample(true, t0 + 400))      // 触发 @t0+400，冷却至 t0+30400
+        f.armCooldown(t0 + 400)                     // controller 在真触发时起表
         // 冷却窗内（<30s）完成一次 false→false→true→true 完整往返：
         // 若无冷却检查，这里会走完稳定化+新上升沿 → 在窗口内二次触发
         assertFalse(f.onSample(false, t0 + 1_000))
@@ -65,6 +68,7 @@ class PirEdgeFilterTest {
         assertFalse(f.onSample(false, t0))
         assertFalse(f.onSample(true, t0 + 200))
         assertTrue(f.onSample(true, t0 + 400))        // 触发，冷却至 t0+30400
+        f.armCooldown(t0 + 400)
         assertFalse(f.onSample(false, t0 + 31_000))   // 窗外回落候选
         assertFalse(f.onSample(false, t0 + 31_200))   // 稳定态→false
         assertFalse(f.onSample(true, t0 + 31_400))
@@ -80,6 +84,7 @@ class PirEdgeFilterTest {
         assertFalse(f.onSample(false, t0))
         assertFalse(f.onSample(true, t0 + 200))
         assertTrue(f.onSample(true, t0 + 400))       // 触发（唯一一次），稳定态→true
+        f.armCooldown(t0 + 400)
         // 人未离开（PIR 持续高电平），跨过 30s 冷却窗：
         assertFalse(f.onSample(true, t0 + 20_000))
         assertFalse(f.onSample(true, t0 + 40_000))   // 窗外但无新边沿 → 不触发
@@ -95,8 +100,40 @@ class PirEdgeFilterTest {
         assertFalse(f.onSample(false, t0))
         assertFalse(f.onSample(true, t0 + 200))
         assertTrue(f.onSample(true, t0 + 400))     // 上升沿触发
+        f.armCooldown(t0 + 400)
         assertFalse(f.onSample(false, t0 + 600))   // 下降候选
         assertFalse(f.onSample(false, t0 + 800))   // 下降沿确认：只更新稳定态，永不触发
+    }
+
+    // ---- arming 契约（板测 2026-10-26：冷却只在真触发时起表）----
+
+    @Test
+    fun `触发后未armCooldown则后续边沿不被冷却吞`() {
+        // 旧实现（onSample 内部自动起表）下：首个触发起 30s 表，
+        // 紧随的回落+新上升沿会被冷却吞 → 断言红；新实现零副作用 → 立即可再触发
+        val f = PirEdgeFilter()
+        val t0 = 1_000_000L
+        assertFalse(f.onSample(false, t0))
+        assertFalse(f.onSample(true, t0 + 200))
+        assertTrue(f.onSample(true, t0 + 400))      // 触发（调用方未 arm）
+        assertFalse(f.onSample(false, t0 + 600))
+        assertFalse(f.onSample(false, t0 + 800))
+        assertFalse(f.onSample(true, t0 + 1_000))
+        assertTrue(f.onSample(true, t0 + 1_200))    // 未起表 → 新边沿立即可触发
+    }
+
+    @Test
+    fun `armCooldown后冷却生效`() {
+        val f = PirEdgeFilter()
+        val t0 = 1_000_000L
+        assertFalse(f.onSample(false, t0))
+        assertFalse(f.onSample(true, t0 + 200))
+        assertTrue(f.onSample(true, t0 + 400))
+        f.armCooldown(t0 + 400)
+        assertFalse(f.onSample(false, t0 + 600))
+        assertFalse(f.onSample(false, t0 + 800))
+        assertFalse(f.onSample(true, t0 + 1_000))
+        assertFalse(f.onSample(true, t0 + 1_200))   // 已起表 → 新边沿被冷却吞
     }
 
     // ---- null 样本（读失败）----

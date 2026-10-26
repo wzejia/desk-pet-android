@@ -210,6 +210,41 @@ class IrWakeControllerTest {
         c.stop() // 收尾幂等
     }
 
+    // ---- 板测 2026-10-26 修复：被状态门丢弃的边沿不得起表冷却（S70 变异锚 M6）----
+
+    @Test
+    fun `被状态门丢弃的边沿不得起表冷却`() {
+        val fake = FakeGpioReader()
+        val wake = WakeRecorder()
+        val idle = java.util.concurrent.atomic.AtomicBoolean(false)
+        val c = IrWakeController(
+            scope = scope,
+            gpioReader = fake,
+            enabledProvider = { true },
+            idleGate = { idle.get() },
+            onWake = { wake.onWake() },
+            filter = PirEdgeFilter(cooldownMs = 30_000), // 真 30s 冷却：区分「起表 vs 零副作用」
+            pollIntervalMs = 5,
+            log = {},
+        )
+        c.start()
+        fake.fireReady()
+        // 边沿#1：非 IDLE 态 → 被 idleGate 丢弃（旧实现：此处 filter 已起 30s 冷却表）
+        fake.level = true
+        Thread.sleep(150) // 足够跑完去抖 2 样本 + 丢弃
+        assertEquals("非 IDLE 边沿不得触发", 0, wake.count.get())
+        // 门开：回落再上升构成边沿#2（与#1 间隔 <5s，远在 30s 冷却窗内）
+        idle.set(true)
+        fake.level = false
+        Thread.sleep(100)
+        fake.level = true
+        assertTrue(
+            "门开后的新边沿应立即触发（被吞边沿不得起表冷却）",
+            wake.awaitFirst(),
+        )
+        c.stop()
+    }
+
     // ---- read 抛异常：log+停轮询降级，绝不向调用方抛 ----
 
     @Test

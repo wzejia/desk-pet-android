@@ -6,7 +6,12 @@ package com.xiaoduo.deskpet.ir
  * 输入 GPIO 轮询样本序列，输出「本样本是否应触发唤醒」。三道防重：
  * 1. 上升沿记忆：只有稳定态 false→true 的跳变才可能触发，持续高电平不重复触发；
  * 2. 连续 [debounceCount] 样本去抖：单样本毛刺（电磁干扰/接触抖动）不触发；
- * 3. [cooldownMs] 冷却窗：触发后窗口内一切样本忽略（含新的完整上升沿），防 PIR 反复触发打断播报。
+ * 3. [cooldownMs] 冷却窗：冷却期内一切样本忽略（含新的完整上升沿），防 PIR 反复触发打断播报。
+ *
+ * **arming 契约（板测 2026-10-26 修订）**：onSample 只判定不起表——冷却由调用方在
+ * 「真触发」（通过 IDLE 门并执行唤醒）后调 [armCooldown] 起表；被状态门丢弃的边沿
+ * 零副作用（不起表），门开后下一个完整边沿可立即触发。板上实测旧实现（被吞边沿持续
+ * 起表）唤醒间隔 33-65s ≈ 聆听周期+30s 冷却，即此根因。
  *
  * 时钟由调用方注入（nowMs），本类不读系统时钟——测试可推进模拟时间。
  * 非线程安全：调用方（IrWakeController 轮询协程）须单线程串行调用。
@@ -29,13 +34,13 @@ class PirEdgeFilter(
     private var lastTriggerMs: Long? = null
 
     /**
-     * 喂入一个轮询样本。
+     * 喂入一个轮询样本（只判定，不起冷却表——见类 KDoc arming 契约）。
      * @param level GPIO 电平；null=读失败（忽略样本，不改任何状态）
      * @param nowMs 当前时刻（毫秒，调用方注入）
-     * @return true=应触发唤醒（上升沿确认且不在冷却窗内）
+     * @return true=上升沿确认且不在冷却窗内（调用方若放行触发，须调 [armCooldown] 起表）
      */
     fun onSample(level: Boolean?, nowMs: Long): Boolean {
-        // S70 回归守卫：冷却窗检查——触发后 30s 内一切样本忽略，含新上升沿
+        // S70 回归守卫：冷却窗检查——真触发后 30s 内一切样本忽略，含新上升沿
         //（删此 → 冷却期内完整 false→true 往返在窗口内二次触发 → `冷却期内完整边沿往返不触发` 红）
         val last = lastTriggerMs
         if (last != null && nowMs - last < cooldownMs) return false
@@ -53,9 +58,12 @@ class PirEdgeFilter(
         stableLevel = level
         candidate = null
         candidateCount = 0
-        if (!rising) return false
+        return rising // 不在此起表：冷却 arming 由调用方在真触发时执行
+    }
+
+    /** 起/刷新冷却窗（调用方在「真触发」=通过 IDLE 门并执行唤醒后调用；被吞边沿不得调用）。 */
+    fun armCooldown(nowMs: Long) {
         lastTriggerMs = nowMs
-        return true
     }
 
     companion object {

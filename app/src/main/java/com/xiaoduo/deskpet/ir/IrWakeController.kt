@@ -133,15 +133,16 @@ class IrWakeController(
                     pollJob = null
                     return@launch
                 }
-                // 口径注记（critic P3-5）：非 IDLE 态的上升沿会先被 filter 记冷却起点
-                //（onSample 返回 true 时 lastTriggerMs 已置位）再被 idleGate 丢弃——播报中
-                // 人到场 = 该边沿被吞且 30s 冷却已开始。与「仅 IDLE 响应」拍板口径不冲突
-                // （保守方向：宁可不唤，不扰播报）。
+                // S70 回归守卫：冷却只在真触发时起表，被吞边沿不得起表（板测 2026-10-26
+                // 触发率偏低根因：非 IDLE 丢弃的边沿曾持续起表 30s，实测唤醒间隔 33-65s
+                // ≈聆听周期+30s 冷却；删此 arming 位置约束——把 armCooldown 移到 idleGate
+                // 检查之前 → `被状态门丢弃的边沿不得起表冷却` 红）
                 if (filter.onSample(level, System.currentTimeMillis())) {
                     // S70 回归守卫：IDLE 门——仅待机态响应（用户拍板：LISTENING/PROCESSING/
                     // SPEAKING 忽略 PIR 触发；删此 → 非 IDLE 态 onWake 被调 → `非IDLE态命中不调onWake` 红）
                     if (idleGate()) {
                         log("PIR rising edge, -> startListening")
+                        filter.armCooldown(System.currentTimeMillis())
                         try {
                             onWake()
                         } catch (t: Throwable) {

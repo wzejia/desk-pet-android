@@ -307,7 +307,8 @@ JUMPING 可能不重播（罕见窗，听觉反馈在，进 LISTENING 自愈；�
 <div class="note">
 <h3>S70 评审与板测收口（2026-10-26）</h3>
 <p><strong>critic（opus，代码正确型）</strong>：不逊（8 项全 ≥4/5）——参数七口径零漂移 / ysapi 六签名 javap 亲验零虚构 / 契约测试字符串漏报方向变异证伪 / VSM 零 diff。<strong>修复轮</strong>：P2-1 竞窗（stop 与 onConnect 并发起孤轮询）一行 recheck + M5 确定性用例（fake 钩子钉时序，未硬造真竞态）真红；P3-1 S70_KEYS 契约断言 / P3-2 subtitle 生效前提 / P3-3 CoroutineExceptionHandler / P3-5 冷却语义注记全落地；终局 836 绿=816+20，五变异锚全真红（编排亲跑复验同数）。<strong>P3-4 记档不修</strong>：YsApiUsageContractTest 的注释 strip 状态机不处理三引号字符串与含引号 Char 字面量（理论漏报方向，当前主源码无该形态全绿实证）——后续主源码若引入该形态须先扩 strip。<br>
-<strong>板测（192.168.137.140，rk3568_r 易声固件）</strong>：IO1=gpio154（厂商 demo 日志实锤）；PIR 电平 10s 窗活体翻转 1×9→0×5→1×7；终局包 md5 a8558b16 端到端日志链 <code>IR PIR rising edge → SPEAKING (wake-ack wozai) → WakeAck</code>。挂起：用户现场验收回收（仅 IDLE 口径/冷却窗/误触发率）与非易声设备降级真机验证（单测四分支已覆盖，pref 默认关零暴露面）。</p>
+<strong>板测（192.168.137.140，rk3568_r 易声固件）</strong>：IO1=gpio154（厂商 demo 日志实锤）；PIR 电平 10s 窗活体翻转 1×9→0×5→1×7；终局包 md5 a8558b16 端到端日志链 <code>IR PIR rising edge → SPEAKING (wake-ack wozai) → WakeAck</code>。挂起：用户现场验收回收（仅 IDLE 口径/冷却窗/误触发率）与非易声设备降级真机验证（单测四分支已覆盖，pref 默认关零暴露面）。<br>
+<strong>触率修复（当日二轮）</strong>：板测用户反馈触发率偏低，实测唤醒间隔 33-65s——根因=首轮 critic P3-5「被吞边沿也起冷却表」板测证伪为主凶（原判保守无害）。修复=arming 契约反转：onSample 只判定、armCooldown 由 controller 在真触发时才调，被吞边沿零副作用；M6 变异锚（arming 移过门=旧缺陷形态）真红；839 绿=816+23；新包 b3783de1 上板 2.3s 即触发（修复前 30s+ 死区）。教训：<em>「保守方向」的副作用也要算账——被丢弃事件路径上的状态变更（起表）同样改变系统行为，评审判「无害」前先问「这个状态变更影响了谁」。</em></p>
 </div>
 
 <h2>S11 唤醒词准确率排查（2026-08-19 ~ 08-20）</h2>

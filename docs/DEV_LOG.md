@@ -1,6 +1,16 @@
 # 小朵 Android 开发日志
 
 
+## 2026-10-26（三）S70 板测触发率偏低根因修复：冷却只在真触发时起表（839 绿=816+23，M6 锚真红）
+
+**根因**（板测实锤+代码对账）：被 idleGate 丢弃的上升沿也经 filter 记 30s 冷却起点（首轮 critic P3-5 判「保守无害」，板测证伪为主凶）——用户在板前持续挥手时每个被吞边沿都重起冷却表，唤醒间隔实测 33-65s ≈ 聆听周期+30s 冷却，与「连续 30s 无新边沿才放行」模型吻合（用户手动 cancel 的「cancel listening」已排除非嫌疑）。**修复**：arming 契约反转——`PirEdgeFilter.onSample` 只判定不起表，新增 `armCooldown(nowMs)` 由 controller 在过 IDLE 门、真调 onWake 时才调；被吞边沿零副作用。仅 IDLE 口径/30s 冷却/2 样本去抖/200ms 轮询全部不动。TDD 先红（旧实现下「门丢弃边沿#1→IDLE→边沿#2 立即触发」用例红）后绿；**M6 变异锚**（armCooldown 移过门=旧缺陷形态）真红；M1-M5 不退化。终局 **suites=110 tests=839 failures=0 errors=0 skipped=0**（编排亲跑 XML 复算与 builder 一致）。新包 md5 `b3783de1` 上板 140，14:39:44 轮询复位、14:39:46.9 即触发（修复前同场景 30s+ 死区）。用户现场复测待回收。
+
+```evidence
+verify_cmd: cd /e/desk-pet-android && export PATH="/c/Program Files/Microsoft/jdk-17.0.20.8-hotspot/bin:$PATH" && ./gradlew.bat :app:testDebugUnitTest :app:assembleDebug --rerun-tasks
+verify_claim: suites=110 tests=839 failures=0 errors=0 skipped=0；VSM diff 0 行；M6（arming 移过门）真红；新包 b3783de1061012de18e9782f869b314a 上板 140 后 2.3s 即见 rising edge 触发
+files_touched: [app/src/main/java/com/xiaoduo/deskpet/ir/PirEdgeFilter.kt, app/src/main/java/com/xiaoduo/deskpet/ir/IrWakeController.kt, app/src/test/java/com/xiaoduo/deskpet/ir/PirEdgeFilterTest.kt, app/src/test/java/com/xiaoduo/deskpet/ir/IrWakeControllerTest.kt, docs/DEV_LOG.md, docs/implementation-notes.html, PROGRESS.md, CONSTRUCTION.md]
+```
+
 ## 2026-10-26（二）S70 PIR 红外唤醒全链收口：调研→引库→实现→评审→板测 e2e 当日闭环（836 绿=816+20，五变异锚真红）
 
 **链路**：同事供易声 ysapi SDK → 双子智能体逆向实锤 SDK 无红外事件通道（可行路径=PIR 接保留 IO 电平轮询，报告 `docs/research/2026-10-26-ir-wake/`）→ 用户拍板四口径（仅 IDLE 响应/30s 冷却/开关默认关/引库批准）→ ysapi.jar 入库（md5 `aa2f3892e99f3691e5e262f5bd166335` 锚定换必重审）+ dependency-auditor P1=0（P2 execSuCmd 本地 root 脚枪→源码扫描契约测试落地）→ builder TDD 实现（`ir/PirEdgeFilter` 纯逻辑三道防重 + `ir/IrWakeController` GpioReader seam 全链 JVM 可测 + VFS/Prefs/SettingsScreen 接线；**VSM 零 diff**）→ critic（opus，代码正确型）不逊 8 项全≥4/5 → 修复轮 P2-1 竞窗（stop/onConnect 并发孤轮询）一行修+M5 确定性锚 + P3×4 落地（P3-4 strip 状态机三引号限制记 notes 不修）→ 编排亲跑终验 **suites=110 tests=836 failures=0 errors=0 skipped=0**（python XML 复算与 builder 自报一致）。
