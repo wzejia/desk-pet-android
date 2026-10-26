@@ -465,5 +465,5 @@ S61 好了阈值 0.5 → S62 首页导航（mijijia 同票）→ S63/S64 打断�
 Temp `HANDOFF-deskpet-spec-exec.md`（执行编排打法；Temp 易失，结论以 spec/DEV_LOG/PROGRESS 为准）。
 构建：`export PATH="/c/Program Files/Microsoft/jdk-17.0.20.8-hotspot/bin:$PATH"` 后 `./gradlew.bat testDebugUnitTest --rerun-tasks`（**不带 --rerun-tasks 会假绿**；声称 N 绿必带此前缀）。
 依赖复扫：`MSYS2_ARG_CONV_EXCL="*" python "E:/desk-pet-android/.scratch/dep-analysis-20261010.py"`（Phase 1/2 验收与周期复扫同一脚本，口径见 spec 附录 A）。
-双板 adb：`C:/platform-tools/adb.exe`；测试机 192.168.137.76 **离线勿推**；生产板 10.0.14.18:5555（改动须用户确认，破坏性操作逐次授权）；板钟比 PC 慢 ~3.5 分钟（计时全取设备钟）。
+双板 adb：`C:/platform-tools/adb.exe`；~~测试机 192.168.137.76~~ **已退役（2026-10-26 用户拍板，由易声测试板 192.168.137.140:5555 接替：rk3568_r/Android 11 易声固件，S70 PIR 板测板；免真机锁多 agent 并行仍适用）**；生产板 10.0.14.18:5555（改动须用户确认，破坏性操作逐次授权）；板钟比 PC 慢 ~3.5 分钟（计时全取设备钟）。
 指标协议 = spec §5.4（三态 dumpsys + logcat 设备钟差值）；基线表在 `docs/audit/2026-10-10-perf-baseline/`。
