@@ -3,7 +3,7 @@
 
 ## 2026-10-26（三）S70 板测触发率偏低根因修复：冷却只在真触发时起表（839 绿=816+23，M6 锚真红）
 
-**根因**（板测实锤+代码对账）：被 idleGate 丢弃的上升沿也经 filter 记 30s 冷却起点（首轮 critic P3-5 判「保守无害」，板测证伪为主凶）——用户在板前持续挥手时每个被吞边沿都重起冷却表，唤醒间隔实测 33-65s ≈ 聆听周期+30s 冷却，与「连续 30s 无新边沿才放行」模型吻合（用户手动 cancel 的「cancel listening」已排除非嫌疑）。**修复**：arming 契约反转——`PirEdgeFilter.onSample` 只判定不起表，新增 `armCooldown(nowMs)` 由 controller 在过 IDLE 门、真调 onWake 时才调；被吞边沿零副作用。仅 IDLE 口径/30s 冷却/2 样本去抖/200ms 轮询全部不动。TDD 先红（旧实现下「门丢弃边沿#1→IDLE→边沿#2 立即触发」用例红）后绿；**M6 变异锚**（armCooldown 移过门=旧缺陷形态）真红；M1-M5 不退化。终局 **suites=110 tests=839 failures=0 errors=0 skipped=0**（编排亲跑 XML 复算与 builder 一致）。新包 md5 `b3783de1` 上板 140，14:39:44 轮询复位、14:39:46.9 即触发（修复前同场景 30s+ 死区）。用户现场复测待回收。
+**根因**（板测实锤+代码对账）：被 idleGate 丢弃的上升沿也经 filter 记 30s 冷却起点（首轮 critic P3-5 判「保守无害」，板测证伪为主凶）——用户在板前持续挥手时每个被吞边沿都重起冷却表，唤醒间隔实测 33-65s ≈ 聆听周期+30s 冷却，与「连续 30s 无新边沿才放行」模型吻合（用户手动 cancel 的「cancel listening」已排除非嫌疑）。**修复**：arming 契约反转——`PirEdgeFilter.onSample` 只判定不起表，新增 `armCooldown(nowMs)` 由 controller 在过 IDLE 门、真调 onWake 时才调；被吞边沿零副作用。仅 IDLE 口径/30s 冷却/2 样本去抖/200ms 轮询全部不动。TDD 先红（旧实现下「门丢弃边沿#1→IDLE→边沿#2 立即触发」用例红）后绿；**M6 变异锚**（armCooldown 移过门=旧缺陷形态）真红；M1-M5 不退化。终局 **suites=110 tests=839 failures=0 errors=0 skipped=0**（编排亲跑 XML 复算与 builder 一致）。新包 md5 `b3783de1` 上板 140，14:39:44 轮询复位、14:39:46.9 即触发（修复前同场景 30s+ 死区）。**用户现场验收通过（2026-10-26 当日）——S70 全账关闭**，剩非易声设备降级真机验证挂起（低风险，pref 默认关零暴露面）。
 
 ```evidence
 verify_cmd: cd /e/desk-pet-android && export PATH="/c/Program Files/Microsoft/jdk-17.0.20.8-hotspot/bin:$PATH" && ./gradlew.bat :app:testDebugUnitTest :app:assembleDebug --rerun-tasks
