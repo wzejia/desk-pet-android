@@ -1,6 +1,20 @@
 # 小朵 Android 开发日志
 
 
+## 2026-10-27（一）S70 收口日：仓库公开 + W44 知识审计 + 讲解图 + 同事验收清单发布
+
+- **仓库转公开**（用户三选一拍板 B，公开前完成全历史密钥审计）：315 提交高信号密钥模式（LTAI/AKLT/sk-）零命中；password/token 仅代码结构引用无明文；secrets/.scratch/keystore 均 gitignored 从未入库。两项相邻暴露经用户拍板接受：ysapi.jar 专有 SDK 再分发 + 内网拓扑/客户场景文档。匿名 API 复核 `visibility=public`（created_at=2026-08-19 可查）。**转公开后入库内容一律按全世界可读标准自审**（已入长期记忆）。根 README 重写为公开态（项目简介/特性/构建/导航，合并旧版 CLAUDE.md·契约·ADR 导航，旧版「274 单测/S0-S6」过时口径退役）。
+- **W44 知识审计**（`docs/skill-improvement-report-2026-W44.md`）：本周 11 条偏差、未决池干净；solutions 34 条零腐烂（3 个代码引用抽验存活、`adb-run-as-prefs-write-must-verify` 当日实战复用）；回灌两件——新解法 `logic-errors/swallowed-edge-arms-cooldown…`（丢弃路径状态变更副作用，评审判无害先问影响了谁）+ 全局 errors.md MSYS 主题补记（export 不跨 Bash 调用延续，同坑二刷）。审计时钟已 `--mark`。
+- **讲解图**：`designs/s70-ir-wake-anatomy/`（gitignored 本地交付）——「守夜人信号台」等距交互图：PIR 穹顶眼→换向器（200ms 采样）→三道闸（边沿旗/双销去抖/发条冷却）→联锁杆架（状态机四档）→铃+「我在」牌+纸带记录仪；anatomy skill 流程，线端检查 0（双主题）、控制台干净、模型真值 ×6 速。
+- **76 测试板退役**（140 接替）、**S32/S36 销案**（⛔ 留痕保留）、**S70 生产板不部署**（无 PIR 硬件）——均已入 CONSTRUCTION/PROGRESS。
+- **验收清单发布**：`docs/verification/v24-s70-ir-acceptance/README.md`——同事可执行 7 Case（前置检查/基本触发/仅待机口径/冷却窗/连续在场无死区/开关关/全链 + 误触发 10 分钟观察），附 logcat 证据命令与结果回填表。回填后 S70 账全清。
+
+```evidence
+verify_cmd: 匿名 curl api.github.com/repos/wzejia/desk-pet-android（visibility=public）；gh repo view --json isPrivate（true→false 转公开）；lines.mjs ir-wake.html（line ends: 0 双主题）；git grep 密钥模式全历史（零命中）
+verify_claim: 仓库公开且密钥面干净；讲解图构建+线端归零；验收清单/README/PROGRESS 状态段落盘
+files_touched: [README.md, docs/verification/v24-s70-ir-acceptance/README.md, PROGRESS.md, docs/DEV_LOG.md, docs/skill-improvement-report-2026-W44.md, docs/solutions/logic-errors/swallowed-edge-arms-cooldown-state-change-on-dropped-paths.md]
+```
+
 ## 2026-10-26（四）S70 生产板不部署拍板 + S32/S36 销案（用户拍板：语音链验收通过后两票无必要）
 
 - **S70 生产板 10.0.14.18 不部署**（无 PIR 硬件）；语音链挂账 2 项（熔断 peak 污染 / 0.19 底噪定源）维持观察不动。
