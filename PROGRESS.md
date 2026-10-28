@@ -4,6 +4,7 @@
 
 - **main = `57fef75` @ origin/main（仓库 2026-10-26 起公开）**：S70 PIR 红外唤醒当日全链闭环——调研（ysapi 无红外通道→GPIO 轮询）→ 引库（jar md5 `aa2f3892` 锚定）→ 实现 → critic 不逊 → **839 绿 = 816+23** 五变异锚 → 板 140 e2e → 触率根因修复 → 用户验收通过 → S32/S36 销案。**839 绿** skipped=0，VSM 零 diff。
 - **板载**：测试板 192.168.137.140（易声固件 rk3568_r，76 已退役由其接替）= 触率修复包 md5 `b3783de1`（PIR 已接线 IO1=gpio154，验收通过）；生产板 10.0.14.18 = mic-dc150e0+VC 档不变（**S70 不部署**：无 PIR 硬件）。
+- **分发包**：`dist/xiaoduo-s70-pir-1ec0f35-20261028.apk`（md5 `bb0d9ccc`，release 挂 debug 签名可直接安装；app/ 代码与板载 b3783de1 同态，验收清单口径不变）。
 - **待办**：语音链挂账 2 项纯观察（熔断 peak 污染 / 0.19 底噪定源）；S70 非易声设备降级真机验证挂起（低风险）；S70 同事验收清单已发 `docs/verification/v24-s70-ir-acceptance/`（结果回填后销账）。
 - **公开态纪律**：仓库转公开后，入库内容（docs/PROGRESS/DEV_LOG/commit message）一律按全世界可读标准自审；凭据仅进 gitignored 的 `secrets/` 与 `.scratch/`。
 
